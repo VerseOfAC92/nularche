@@ -1,0 +1,7 @@
+node_modules/
+dist/
+origin/
+.DS_Store
+dist-desktop/
+release/
+build/icon-source.png

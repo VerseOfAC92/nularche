@@ -1,0 +1,72 @@
+name: Release
+
+# `v0.2.0` gibi bir etiket gönderildiğinde macOS (Apple Silicon + Intel), Windows ve Linux
+# paketlerini derler ve GitHub Release'e yükler. Paketler imzasızdır (README'ye bakın).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            args: --mac --arm64 --x64
+          - os: windows-latest
+            args: --win --x64 --arm64
+          - os: ubuntu-latest
+            args: --linux --x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:desktop
+      - run: npx electron-builder ${{ matrix.args }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Sürüm notlarını CHANGELOG'dan çıkar
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '$0 ~ "^## "v {f=1; next} /^## / && f {exit} f' CHANGELOG.md > notes.md
+          cat >> notes.md <<'MD'
+
+          ### İndirme
+          - **macOS Apple Silicon:** `*-mac-arm64.dmg` · **macOS Intel:** `*-mac-x64.dmg`
+          - **Windows:** `*-win-x64.exe` / `*-win-arm64.exe`
+          - **Linux:** `.AppImage` / `.deb`
+
+          Paketler imzasızdır; ilk açılış adımları için README'deki “Kurulum” bölümüne bakın.
+          MD
+      - name: GitHub Release oluştur
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "Nularche ${GITHUB_REF_NAME#v}" --notes-file notes.md --verify-tag

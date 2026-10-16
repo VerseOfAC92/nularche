@@ -1,0 +1,29 @@
+name: Hata bildirimi
+description: Beklendiği gibi çalışmayan bir şeyi bildirin
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Ne oldu?
+      description: Gördüğünüz davranış ve beklediğiniz davranış.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Yeniden üretme adımları
+      placeholder: "1. …\n2. …"
+  - type: input
+    id: version
+    attributes:
+      label: Nularche sürümü
+      placeholder: "0.2.0"
+  - type: dropdown
+    id: os
+    attributes:
+      label: İşletim sistemi
+      options: [macOS (Apple Silicon), macOS (Intel), Windows, Linux]
+  - type: markdown
+    attributes:
+      value: "Lütfen kişisel notlarınızın içeriğini paylaşmayın; gerekirse küçük bir örnek Node hazırlayın."

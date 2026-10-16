@@ -1,0 +1,92 @@
+# Nularche paketleme (RFC-001 §3: isim alanı spesifikasyonu)
+appId: io.nularche.app
+productName: Nularche
+copyright: Copyright © 2026 VerseOfAC92
+directories:
+  output: release
+  buildResources: build
+# Node tarafı esbuild ile paketlendiği için node_modules gerekmez.
+files:
+  - package.json
+  - dist-desktop/main.cjs
+extraResources:
+  - from: dist-desktop/preload.cjs
+    to: preload.cjs
+  - from: dist-desktop/mcp.mjs
+    to: mcp.mjs
+  - from: packages/web/dist
+    to: web
+asar: true
+artifactName: Nularche-${version}-${os}-${arch}.${ext}
+protocols:
+  - name: Nularche
+    schemes: [nularche]
+fileAssociations:
+  - ext: nlc
+    name: Nularche Container
+    description: Nularche Node paketi
+    mimeType: application/vnd.nularche.document
+    role: Editor
+    icon: build/icon.png
+  - ext: nla
+    name: Nularche Archive
+    description: Nularche arşivi / şablon paketi
+    mimeType: application/vnd.nularche.archive
+    role: Editor
+    icon: build/icon.png
+electronFuses:
+  # MCP sunucusu Claude tarafından uygulamanın ikilisiyle ELECTRON_RUN_AS_NODE=1 olarak başlatılır.
+  runAsNode: true
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+mac:
+  category: public.app-category.productivity
+  icon: build/icon.png
+  darkModeSupport: true
+  # Apple Developer kimliği olmadan ad-hoc imza (Apple Silicon'da çalışması için gerekli).
+  identity: "-"
+  hardenedRuntime: false
+  target:
+    # Önerilen: adım adım (Devam → Kur) yükleyici. DMG: sürükle-bırak alternatifi.
+    - target: pkg
+      arch: [arm64, x64]
+    - target: dmg
+      arch: [arm64, x64]
+pkg:
+  installLocation: /Applications
+  isRelocatable: false
+  isVersionChecked: false
+  overwriteAction: upgrade
+  welcome: build/pkg/welcome.html
+  conclusion: build/pkg/conclusion.html
+  license: LICENSE
+  mustClose: [io.nularche.app]
+dmg:
+  title: Nularche ${version}
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Nularche
+linux:
+  icon: build/icon.png
+  category: Office
+  executableName: nularche
+  maintainer: VerseOfAC92 <noreply@github.com>
+  synopsis: Yerel, Markdown tabanlı bilgi yönetimi
+  desktop:
+    entry:
+      StartupWMClass: Nularche
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]

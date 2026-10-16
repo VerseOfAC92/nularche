@@ -1,0 +1,230 @@
+// Kenar çubuğu: Origin başlığı, Shadow, favoriler ve Arche ağacı.
+// Node'lar sürüklenerek başka bir Node'un altına, kardeşlerin arasına, köke (Arche) ya da Shadow'a bırakılabilir.
+
+import { useMemo, useState, type DragEvent } from "react";
+import { api, SHADOW, type NodeMeta, type ParentTarget } from "./api.ts";
+import type { Route } from "./App.tsx";
+
+const DRAG_TYPE = "application/x-nularche-node";
+
+type DropZone = "before" | "inside" | "after";
+
+export interface SidebarProps {
+  nodes: NodeMeta[];
+  route: Route;
+  originName: string;
+  shadowCount: number;
+  onNavigate: (route: Route) => void;
+  onCreate: (parent: ParentTarget) => void;
+  onTrash: (node: NodeMeta) => void;
+  onChanged: () => void;
+  onError: (msg: string) => void;
+  onOpenSearch: () => void;
+  onOpenSettings: () => void;
+}
+
+export function Sidebar(props: SidebarProps) {
+  const { nodes, route } = props;
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [drop, setDrop] = useState<{ id: string; zone: DropZone } | null>(null);
+  const [dropTarget, setDropTarget] = useState<"shadow" | "root" | null>(null);
+
+  const children = useMemo(() => {
+    const map = new Map<string | null, NodeMeta[]>();
+    for (const n of nodes) {
+      if (n.archeId === null) continue; // Shadow'dakiler ağaçta görünmez
+      map.set(n.parentNodeId, [...(map.get(n.parentNodeId) ?? []), n]);
+    }
+    return map;
+  }, [nodes]);
+
+  // Seçili Node'un ataları açık olsun.
+  const selectedId = route.kind === "node" ? route.id : null;
+  const ancestors = useMemo(() => {
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const out = new Set<string>();
+    let cur = selectedId ? byId.get(selectedId) : undefined;
+    while (cur?.parentNodeId) {
+      out.add(cur.parentNodeId);
+      cur = byId.get(cur.parentNodeId);
+    }
+    return out;
+  }, [nodes, selectedId]);
+
+  const favorites = nodes.filter((n) => n.favorite);
+
+  async function run(action: () => Promise<unknown>) {
+    try {
+      await action();
+    } catch (err) {
+      props.onError((err as Error).message);
+    } finally {
+      props.onChanged();
+    }
+  }
+
+  function onDragStart(e: DragEvent, n: NodeMeta) {
+    e.dataTransfer.setData(DRAG_TYPE, n.id);
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function zoneFor(e: DragEvent<HTMLElement>): DropZone {
+    const r = e.currentTarget.getBoundingClientRect();
+    const y = (e.clientY - r.top) / r.height;
+    return y < 0.28 ? "before" : y > 0.72 ? "after" : "inside";
+  }
+
+  function onRowDrop(e: DragEvent<HTMLElement>, target: NodeMeta) {
+    e.preventDefault();
+    const id = e.dataTransfer.getData(DRAG_TYPE);
+    const zone = zoneFor(e);
+    setDrop(null);
+    if (!id || id === target.id) return;
+    if (zone === "inside") {
+      setExpanded((s) => new Set(s).add(target.id));
+      return void run(() => api.move(id, target.id));
+    }
+    const siblings = (children.get(target.parentNodeId) ?? []).map((n) => n.id).filter((x) => x !== id);
+    const at = siblings.indexOf(target.id) + (zone === "after" ? 1 : 0);
+    siblings.splice(at, 0, id);
+    void run(() => api.reorder(target.parentNodeId, siblings));
+  }
+
+  const dropHandlers = (kind: "shadow" | "root") => ({
+    onDragOver: (e: DragEvent) => {
+      if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+      e.preventDefault();
+      setDropTarget(kind);
+    },
+    onDragLeave: () => setDropTarget(null),
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      setDropTarget(null);
+      const id = e.dataTransfer.getData(DRAG_TYPE);
+      if (id) void run(() => api.move(id, kind === "shadow" ? SHADOW : null));
+    },
+  });
+
+  function renderRow(n: NodeMeta, depth: number, inTree: boolean) {
+    const kids = children.get(n.id) ?? [];
+    const open = expanded.has(n.id) || ancestors.has(n.id);
+    const cls = ["tree-row", selectedId === n.id ? "selected" : "", inTree && drop?.id === n.id ? `drop-${drop.zone}` : ""].join(" ");
+    return (
+      <div key={`${inTree ? "t" : "f"}-${n.id}`}>
+        <div
+          className={cls}
+          style={{ paddingLeft: 6 + depth * 14 }}
+          onClick={() => props.onNavigate({ kind: "node", id: n.id })}
+          draggable={inTree}
+          onDragStart={(e) => onDragStart(e, n)}
+          onDragOver={
+            inTree
+              ? (e) => {
+                  if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+                  e.preventDefault();
+                  const zone = zoneFor(e);
+                  if (drop?.id !== n.id || drop.zone !== zone) setDrop({ id: n.id, zone });
+                }
+              : undefined
+          }
+          onDragLeave={inTree ? () => setDrop((d) => (d?.id === n.id ? null : d)) : undefined}
+          onDrop={inTree ? (e) => onRowDrop(e, n) : undefined}
+        >
+          <button
+            className="twisty"
+            aria-label={open ? "Daralt" : "Genişlet"}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((s) => {
+                const next = new Set(s);
+                if (open) next.delete(n.id);
+                else next.add(n.id);
+                return next;
+              });
+            }}
+          >
+            {inTree && kids.length ? (open ? "▾" : "▸") : ""}
+          </button>
+          <span className="tree-icon">{n.icon ?? (n.archeId === n.id ? "◈" : "◇")}</span>
+          <span className="tree-title">{n.title}</span>
+          {inTree && (
+            <span className="row-actions">
+              <button
+                title="Alt Node ekle"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpanded((s) => new Set(s).add(n.id));
+                  props.onCreate(n.id);
+                }}
+              >
+                +
+              </button>
+              <button
+                title="Çöpe taşı"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onTrash(n);
+                }}
+              >
+                🗑
+              </button>
+            </span>
+          )}
+        </div>
+        {inTree && open && kids.map((k) => renderRow(k, depth + 1, true))}
+      </div>
+    );
+  }
+
+  const arches = children.get(null) ?? [];
+
+  return (
+    <aside className="sidebar">
+      <div className="brand">
+        <img src="/logo.png" alt="" />
+        <div>
+          <strong>Nularche</strong>
+          <small title={props.originName}>Origin · {props.originName}</small>
+        </div>
+      </div>
+      <button className="side-btn" onClick={props.onOpenSearch}>
+        ⌕ Ara <kbd>⌘K</kbd>
+      </button>
+      <button
+        className={`side-btn ${route.kind === "shadow" ? "active" : ""} ${dropTarget === "shadow" ? "drop-target" : ""}`}
+        onClick={() => props.onNavigate({ kind: "shadow" })}
+        title="Henüz bir Arche'ye bağlanmamış ham notlar"
+        {...dropHandlers("shadow")}
+      >
+        ◐ Shadow {props.shadowCount > 0 && <span className="badge">{props.shadowCount}</span>}
+      </button>
+      <button className="side-btn" onClick={() => props.onCreate(SHADOW)}>
+        ＋ Hızlı not <kbd>⌘N</kbd>
+      </button>
+
+      {favorites.length > 0 && (
+        <div className="side-section">
+          <div className="side-section-head">Favoriler</div>
+          {favorites.map((n) => renderRow(n, 0, false))}
+        </div>
+      )}
+
+      <div className="side-section tree">
+        <div className={`side-section-head ${dropTarget === "root" ? "drop-target" : ""}`} {...dropHandlers("root")}>
+          <span>Arche'ler</span>
+          <button title="Yeni Arche" onClick={() => props.onCreate(null)}>
+            +
+          </button>
+        </div>
+        {arches.map((n) => renderRow(n, 0, true))}
+        {arches.length === 0 && <p className="empty">Henüz Arche yok. “+” ile bir ana alan oluşturun.</p>}
+      </div>
+
+      <div className="sidebar-foot">
+        <button className="side-btn" onClick={props.onOpenSettings}>
+          ⚙ Ayarlar
+        </button>
+      </div>
+    </aside>
+  );
+}

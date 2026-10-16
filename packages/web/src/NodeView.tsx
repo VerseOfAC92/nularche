@@ -1,0 +1,420 @@
+// Tek bir Node'un görünümü: kapak, ikon, başlık, Stream editörü ve geri bağlantılar.
+// Otomatik kaydetme ve çakışma (ör. Claude aynı anda düzenlediğinde) burada yönetilir.
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { api, ApiError, SHADOW, type NodeDoc, type NodeMeta, type PageFieldPatch } from "./api.ts";
+import { ClaudeMenu } from "./ClaudeMenu.tsx";
+import { desktop } from "./desktop.ts";
+import { Editor } from "./editor/Editor.tsx";
+import { fileUrl, resolveRelative } from "./editor/paths.ts";
+
+type Status = "saved" | "dirty" | "saving" | "conflict" | "error";
+const SAVE_DELAY_MS = 800;
+const STATUS_TEXT: Record<Status, string> = {
+  saved: "Kaydedildi",
+  dirty: "Düzenleniyor…",
+  saving: "Kaydediliyor…",
+  conflict: "Çakışma",
+  error: "Kaydedilemedi",
+};
+const GRADIENTS = ["gradient-1", "gradient-2", "gradient-3", "gradient-4", "gradient-5", "gradient-6"];
+const EMOJIS =
+  "📄📝📌📎📚📖🧠💡🔬🧪⚙️🛠️🧩🗂️📁🗃️📊📈🎯✅🚀⭐🔥🌱🌍🏠💼🎓🎨🎵🎬📷✈️🗺️🕰️⏳🔒🔑💬❓❗🧭🔗🧱🌀◈◇".match(/\p{Extended_Pictographic}️?|[◈◇]/gu) ?? [];
+
+export interface NodeViewProps {
+  id: string;
+  nodes: NodeMeta[];
+  changeTick: number;
+  onNavigate: (id: string) => void;
+  onOpenPath: (path: string) => void;
+  onChanged: () => void;
+  onTrash: (node: NodeMeta) => void;
+  onToast: (msg: string) => void;
+  onGone: () => void;
+}
+
+export function NodeView(props: NodeViewProps) {
+  const { id, nodes } = props;
+  const [doc, setDoc] = useState<NodeDoc | null>(null);
+  const [version, setVersion] = useState(0);
+  const [title, setTitle] = useState("");
+  const [status, setStatus] = useState<Status>("saved");
+  const [error, setError] = useState<string | null>(null);
+  const [backlinks, setBacklinks] = useState<NodeMeta[]>([]);
+  const [menu, setMenu] = useState<"icon" | "more" | null>(null);
+
+  const revision = useRef<string | null>(null);
+  const pending = useRef<{ body?: string; title?: string }>({});
+  const timer = useRef<number | undefined>(undefined);
+  const statusRef = useRef<Status>("saved");
+  statusRef.current = status;
+  const propsRef = useRef(props);
+  propsRef.current = props;
+  const titleRef = useRef<HTMLInputElement>(null);
+  const focusedNew = useRef(false);
+
+  const load = useCallback((n: NodeDoc) => {
+    revision.current = n.revision;
+    pending.current = {};
+    setDoc(n);
+    setTitle(n.title);
+    setVersion((v) => v + 1);
+    setStatus("saved");
+  }, []);
+
+  const flush = useCallback(async () => {
+    clearTimeout(timer.current);
+    const patch = pending.current;
+    if (patch.body === undefined && patch.title === undefined) return;
+    pending.current = {};
+    setStatus("saving");
+    try {
+      const saved = await api.update(id, { ...patch, baseRevision: revision.current ?? undefined });
+      revision.current = saved.revision;
+      setDoc((d) => (d ? { ...d, path: saved.path, title: saved.title } : d));
+      setStatus(pending.current.body !== undefined || pending.current.title !== undefined ? "dirty" : "saved");
+      if (patch.title !== undefined) propsRef.current.onChanged();
+    } catch (e) {
+      pending.current = { ...patch, ...pending.current };
+      if (e instanceof ApiError && e.code === "conflict") setStatus("conflict");
+      else {
+        setStatus("error");
+        setError((e as Error).message);
+      }
+    }
+  }, [id]);
+
+  const schedule = useCallback(
+    (patch: { body?: string; title?: string }) => {
+      pending.current = { ...pending.current, ...patch };
+      if (statusRef.current === "conflict") return;
+      setStatus("dirty");
+      clearTimeout(timer.current);
+      timer.current = window.setTimeout(flush, SAVE_DELAY_MS);
+    },
+    [flush],
+  );
+
+  const setFields = useCallback(
+    async (fields: PageFieldPatch) => {
+      await flush();
+      try {
+        const saved = await api.update(id, { fields, baseRevision: revision.current ?? undefined });
+        revision.current = saved.revision;
+        setDoc((d) => (d ? { ...d, ...saved, body: d.body } : d));
+        propsRef.current.onChanged();
+      } catch (e) {
+        if (e instanceof ApiError && e.code === "conflict") setStatus("conflict");
+        else setError((e as Error).message);
+      }
+    },
+    [id, flush],
+  );
+
+  // Yükle; ayrılırken bekleyen değişiklikleri kaydet.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .read(id)
+      .then((n) => !cancelled && load(n))
+      .catch(() => !cancelled && propsRef.current.onGone());
+    api.backlinks(id).then(
+      (b) => !cancelled && setBacklinks(b),
+      () => undefined,
+    );
+    const onHide = () => void flush();
+    addEventListener("pagehide", onHide);
+    return () => {
+      cancelled = true;
+      removeEventListener("pagehide", onHide);
+      void flush();
+    };
+  }, [id, load, flush]);
+
+  // Origin dışarıdan değişince (ör. Claude MCP ile) bu Node'u yenile.
+  useEffect(() => {
+    if (props.changeTick === 0) return;
+    api.backlinks(id).then(setBacklinks, () => undefined);
+    api
+      .read(id)
+      .then((fresh) => {
+        if (fresh.revision === revision.current) return;
+        if (statusRef.current === "saved") load(fresh);
+        else if (statusRef.current !== "saving") setStatus("conflict");
+      })
+      .catch(() => propsRef.current.onGone());
+  }, [props.changeTick, id, load]);
+
+  // Yeni oluşturulmuş (adsız) Node açıldığında başlık seçili gelsin.
+  useEffect(() => {
+    if (!doc || focusedNew.current) return;
+    focusedNew.current = true;
+    if (doc.title === "Adsız" && doc.body.trim() === "" && Date.now() - doc.createdAt < 15_000) {
+      titleRef.current?.focus();
+      titleRef.current?.select();
+    }
+  }, [doc]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void flush();
+      }
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [flush]);
+
+  const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+  const ancestors = useMemo(() => {
+    const out: NodeMeta[] = [];
+    let cur = byId.get(id);
+    while (cur?.parentNodeId) {
+      cur = byId.get(cur.parentNodeId);
+      if (cur) out.unshift(cur);
+    }
+    return out;
+  }, [byId, id]);
+
+  async function resolveConflict(keepMine: boolean) {
+    const fresh = await api.read(id);
+    if (keepMine) {
+      revision.current = fresh.revision;
+      setStatus("dirty");
+      await flush();
+    } else load(fresh);
+  }
+
+  async function createChild(childTitle: string) {
+    await flush();
+    try {
+      const child = await api.create(childTitle, id);
+      propsRef.current.onChanged();
+      return child;
+    } catch (e) {
+      setError((e as Error).message);
+      return null;
+    }
+  }
+
+  async function uploadCover() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async () => {
+      const f = input.files?.[0];
+      if (!f || !doc) return;
+      const { path } = await api.upload(f);
+      // Kapak, Node'a göre göreli yol olarak saklanır (bağlantılarla aynı kural).
+      const depth = doc.path.split("/").length - 1;
+      await setFields({ cover: `${"../".repeat(depth)}${path}` });
+    };
+    input.click();
+  }
+
+  if (!doc) return <div className="page" />;
+
+  const isShadow = byId.get(id)?.archeId === null;
+  const cover = doc.cover;
+  const coverStyle =
+    cover && !GRADIENTS.includes(cover)
+      ? { backgroundImage: `url("${/^https?:/.test(cover) ? cover : fileUrl(resolveRelative(doc.path, cover) ?? cover)}")` }
+      : undefined;
+
+  return (
+    <>
+      <div className="topbar">
+        <div className="crumbs">
+          {isShadow && (
+            <span>
+              <a onClick={() => (location.hash = "shadow")}>Shadow</a> /{" "}
+            </span>
+          )}
+          {ancestors.map((a) => (
+            <span key={a.id}>
+              <a onClick={() => props.onNavigate(a.id)}>
+                {a.icon ? `${a.icon} ` : ""}
+                {a.title}
+              </a>{" "}
+              /{" "}
+            </span>
+          ))}
+          <span>{title || "Adsız"}</span>
+        </div>
+        <div className="topbar-right">
+          <span className={`status ${status}`}>{STATUS_TEXT[status]}</span>
+          <ClaudeMenu node={{ id, title: title || doc.title }} onToast={props.onToast} />
+          <button
+            className={`icon-btn ${doc.favorite ? "on" : ""}`}
+            title={doc.favorite ? "Favorilerden çıkar" : "Favorilere ekle"}
+            onClick={() => setFields({ favorite: doc.favorite ? null : true })}
+          >
+            {doc.favorite ? "★" : "☆"}
+          </button>
+          <div className="rel">
+            <button className="icon-btn" title="Diğer" onClick={() => setMenu(menu === "more" ? null : "more")}>
+              ⋯
+            </button>
+            {menu === "more" && (
+              <div className="menu-pop" onMouseLeave={() => setMenu(null)}>
+                {!isShadow && (
+                  <button
+                    onClick={async () => {
+                      setMenu(null);
+                      await flush();
+                      await api.move(id, SHADOW);
+                      props.onChanged();
+                    }}
+                  >
+                    ◐ Shadow'a taşı
+                  </button>
+                )}
+                {isShadow && (
+                  <button
+                    onClick={async () => {
+                      setMenu(null);
+                      await flush();
+                      await api.move(id, null);
+                      props.onChanged();
+                      props.onToast("Node artık bir Arche.");
+                    }}
+                  >
+                    ◈ Arche yap (köke taşı)
+                  </button>
+                )}
+                {desktop && (
+                  <button
+                    onClick={async () => {
+                      setMenu(null);
+                      await flush();
+                      const out = await desktop!.printPdf(title || doc.title);
+                      if (out) props.onToast(`PDF kaydedildi: ${out}`);
+                    }}
+                  >
+                    ⎙ PDF olarak kaydet
+                  </button>
+                )}
+                {desktop && (
+                  <button
+                    onClick={async () => {
+                      setMenu(null);
+                      await flush();
+                      const out = await desktop!.exportArchive(id, "nlc");
+                      if (out) props.onToast(`Dışa aktarıldı: ${out}`);
+                    }}
+                  >
+                    ⇪ .nlc olarak dışa aktar
+                  </button>
+                )}
+                <hr />
+                <button
+                  className="danger"
+                  onClick={() => {
+                    setMenu(null);
+                    const meta = byId.get(id);
+                    if (meta) props.onTrash(meta);
+                  }}
+                >
+                  🗑 Çöpe taşı
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {status === "conflict" && (
+        <div className="banner conflict">
+          Bu Node siz düzenlerken başka bir yerde (ör. Claude tarafından) değiştirildi.
+          <button onClick={() => resolveConflict(false)}>Yeni sürümü yükle</button>
+          <button onClick={() => resolveConflict(true)}>Benimkiyle üzerine yaz</button>
+        </div>
+      )}
+      {error && (
+        <div className="banner error" onClick={() => setError(null)}>
+          {error}
+        </div>
+      )}
+
+      {cover && (
+        <div className={`cover ${GRADIENTS.includes(cover) ? cover : ""}`} style={coverStyle}>
+          <div className="cover-actions">
+            <button onClick={() => setFields({ cover: GRADIENTS[(GRADIENTS.indexOf(cover) + 1) % GRADIENTS.length] })}>Renk değiştir</button>
+            <button onClick={uploadCover}>Resim yükle</button>
+            <button onClick={() => setFields({ cover: null })}>Kaldır</button>
+          </div>
+        </div>
+      )}
+
+      <article className={`page ${cover ? "has-cover" : ""}`}>
+        {doc.icon && (
+          <div className="rel">
+            <span className="page-icon" onClick={() => setMenu(menu === "icon" ? null : "icon")} title="İkonu değiştir">
+              {doc.icon}
+            </span>
+          </div>
+        )}
+        <div className="page-meta-actions">
+          {!doc.icon && <button onClick={() => setMenu("icon")}>☺ İkon ekle</button>}
+          {!cover && <button onClick={() => setFields({ cover: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)] })}>▭ Kapak ekle</button>}
+        </div>
+        {menu === "icon" && (
+          <div className="pop anchored" style={{ top: doc.icon ? 80 : 70 }} onMouseLeave={() => setMenu(null)}>
+            <div className="emoji-grid">
+              {EMOJIS.map((em) => (
+                <button key={em} onClick={() => (setMenu(null), setFields({ icon: em }))}>
+                  {em}
+                </button>
+              ))}
+            </div>
+            {doc.icon && (
+              <div className="row" style={{ padding: 4 }}>
+                <button className="secondary" onClick={() => (setMenu(null), setFields({ icon: null }))}>
+                  İkonu kaldır
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        <input
+          ref={titleRef}
+          className="title-input"
+          value={title}
+          placeholder="Adsız"
+          onChange={(e) => {
+            setTitle(e.target.value);
+            if (e.target.value.trim()) schedule({ title: e.target.value });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              document.querySelector<HTMLElement>(".ProseMirror")?.focus();
+            }
+          }}
+        />
+        <Editor
+          docKey={`${doc.id}:${version}`}
+          markdown={doc.body}
+          nodePath={doc.path}
+          nodes={nodes}
+          currentId={id}
+          onChange={(body) => schedule({ body })}
+          onOpenPath={(p) => (void flush(), props.onOpenPath(p))}
+          onCreateChild={createChild}
+          onError={setError}
+        />
+        {backlinks.length > 0 && (
+          <section className="backlinks">
+            <h4>Geri bağlantılar · {backlinks.length}</h4>
+            {backlinks.map((b) => (
+              <button key={b.id} onClick={() => props.onNavigate(b.id)}>
+                {b.icon ?? "◇"} {b.title}
+              </button>
+            ))}
+          </section>
+        )}
+      </article>
+    </>
+  );
+}
