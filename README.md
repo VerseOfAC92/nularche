@@ -87,7 +87,7 @@ Nularche'nin içinde yapay zekâ yoktur ve hiçbir AI hesabına, oturumuna ya da
 
 ### Nularche AI
 
-Sağ alttaki **✳ Nularche AI** penceresi her zaman elinizin altındadır:
+Sağ alttaki **Nularche AI** penceresi her zaman elinizin altındadır:
 
 1. Hazır eylemlerden birini seçin (düzelt, özetle, genişlet, yapılacaklar, ilgili Node'lara bağla, çevir) ya da ne istediğinizi yazın. Seçili metin de bağlam olarak gönderilebilir.
 2. Nularche bağlı yapay zekâ uygulamasını açar ve kısa istemi panoya koyar. Bir kez yapıştırıp (⌘V) gönderin.

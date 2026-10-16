@@ -86,3 +86,19 @@ test("etkin istek yokken değişiklik bağlanmaz; boş istek ve geçersiz kimlik
   await assert.rejects(ai.getRequest("../../kacis"));
   assert.equal(await readFile(path.join(dir, "N.md"), "utf8").then(() => true), true);
 });
+
+test("sohbet geçmişi temizlenir; işlenmekte olan istek kalır, dosyalar arşivlenir", async () => {
+  const a = await ai.createRequest({ provider: "gemini", label: "a", instruction: "a" });
+  await ai.completeRequest(a.id, "tamam");
+  const b = await ai.createRequest({ provider: "gemini", label: "b", instruction: "b" });
+  await ai.takeRequest(b.id, "x");
+  const res = await ai.clearHistory();
+  assert.deepEqual(res, { archived: 1, kept: 1 });
+  assert.deepEqual(
+    (await ai.listRequests()).map((r) => r.id),
+    [b.id],
+  );
+  const { readdir } = await import("node:fs/promises");
+  const archives = await readdir(path.join(dir, ".nularche/ai/archive"));
+  assert.equal(archives.length, 1);
+});

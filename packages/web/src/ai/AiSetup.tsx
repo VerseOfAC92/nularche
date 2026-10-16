@@ -315,7 +315,7 @@ function AiHowTo({ connected, compact }: { connected: boolean; compact: boolean 
         <h5>Kullanım</h5>
         <ol>
           <li>
-            Bir Node (sayfa) açın ve sağ alttaki <b>✳ Nularche AI</b> penceresini açın.
+            Bir Node (sayfa) açın ve sağ alttaki <b>Nularche AI</b> penceresini açın.
           </li>
           <li>
             Hazır eylemlerden birini seçin (Düzelt, Özetle, Genişlet, Yapılacaklar, Bağla, Çevir) ya da ne istediğinizi yazın. Metin seçerseniz

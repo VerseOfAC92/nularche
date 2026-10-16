@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { api, ApiError, SHADOW, type NodeDoc, type NodeMeta, type PageFieldPatch } from "./api.ts";
 import { desktop } from "./desktop.ts";
 import { Editor } from "./editor/Editor.tsx";
+import { NularcheMark } from "./ai/NularcheMark.tsx";
 import { fileUrl, resolveRelative } from "./editor/paths.ts";
 
 type Status = "saved" | "dirty" | "saving" | "conflict" | "error";
@@ -271,7 +272,7 @@ export function NodeView(props: NodeViewProps) {
         <div className="topbar-right">
           <span className={`status ${status}`}>{STATUS_TEXT[status]}</span>
           <button className="claude-btn" onClick={props.onOpenAI} title="Bu Node için Nularche AI'ı aç">
-            ✳ Nularche AI
+            <NularcheMark size={15} /> Nularche AI
           </button>
           <button
             className={`icon-btn ${doc.favorite ? "on" : ""}`}

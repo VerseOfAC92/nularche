@@ -156,6 +156,14 @@ try {
   await page.getByText("gemini-3.6-flash", { exact: false }).first().waitFor({ timeout: 5_000 });
   assert.equal(geminiCalls, 2);
   await shot("7-otomatik-cevap");
+  await page.locator(".nai-head").screenshot({ path: shots ? path.join(shots, "7b-baslik.png") : path.join(work, "baslik.png") });
+
+  // Sohbet geçmişini temizle: onay penceresi kabul edilir, geçmiş boşalır, not değişmez.
+  page.once("dialog", (d) => void d.accept());
+  await page.getByTitle("Sohbet geçmişini temizle").click();
+  await page.getByText("Merhaba! Bir Node açıp").waitFor({ timeout: 5_000 });
+  await page.getByText("Gemini tarafından düzeltilmiş içerik").first().waitFor();
+  await shot("8-gecmis-temizlendi");
   console.log(`Tamam. Ekran görüntüleri: ${shots ?? "(yok)"}`);
 } catch (err) {
   await shot("hata").catch(() => undefined);

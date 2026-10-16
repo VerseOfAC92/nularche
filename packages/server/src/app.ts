@@ -142,6 +142,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
           }),
         );
       }
+      if (method === "POST" && parts[1] === "clear") {
+        return send(res, 200, await activity.clearHistory());
+      }
       if (method === "POST" && parts[1] === "requests" && parts[3] === "undo") {
         return send(res, 200, await activity.undo(store, parts[2]));
       }

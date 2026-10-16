@@ -45,7 +45,7 @@ export function Onboarding({ aiTick, onToast, onDone }: { aiTick: number; onToas
           <div className="wizard-body center">
             <h2>Hazırsınız 🎉</h2>
             <p className="muted">
-              Sağ alttaki <b>✳ Nularche AI</b> penceresinden yapay zekânıza istek gönderebilirsiniz. Yapay zekâ ayarlarını istediğiniz zaman{" "}
+              Sağ alttaki <b>Nularche AI</b> penceresinden yapay zekânıza istek gönderebilirsiniz. Yapay zekâ ayarlarını istediğiniz zaman{" "}
               <b>Ayarlar → Yapay zekâ</b> bölümünden değiştirebilirsiniz.
             </p>
           </div>

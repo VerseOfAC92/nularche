@@ -119,6 +119,7 @@ export const api = {
     request<{ clients: { name: string; provider: string | null; firstSeen: number; lastSeen: number }[]; requests: AiRequest[] }>("GET", "/api/ai"),
   aiRequest: (input: { provider: string | null; label: string; instruction: string; nodeId?: string; nodeTitle?: string; selection?: string }) =>
     request<AiRequest>("POST", "/api/ai/requests", input),
+  aiClear: () => request<{ archived: number; kept: number }>("POST", "/api/ai/clear"),
   aiUndo: (id: string) => request<{ restored: string[]; skipped: string[] }>("POST", `/api/ai/requests/${enc(id)}/undo`),
   upload: (file: File) => request<{ path: string }>("POST", `/api/attachments?name=${enc(file.name)}`, undefined, file),
 };

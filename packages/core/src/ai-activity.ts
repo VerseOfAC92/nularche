@@ -189,6 +189,36 @@ export class AiActivity {
     return this.save(req);
   }
 
+  /**
+   * Sohbet geçmişini temizler: sonuçlanmış istekler `archive/` klasörüne taşınır (silinmez), işlenmekte
+   * olan istekler yerinde kalır. Notlara ve geri alma kopyalarına dokunulmaz.
+   */
+  async clearHistory(): Promise<{ archived: number; kept: number }> {
+    const reqDir = path.join(this.dir, "requests");
+    const archive = path.join(this.dir, "archive", new Date().toISOString().replace(/[:.]/g, "-"));
+    let archived = 0;
+    let kept = 0;
+    let names: string[] = [];
+    try {
+      names = (await readdir(reqDir)).filter((n) => n.endsWith(".json"));
+    } catch {
+      return { archived, kept };
+    }
+    const now = Date.now();
+    for (const n of names) {
+      const r = await readJson<AiRequest>(path.join(reqDir, n));
+      const busy = r && (r.status === "received" || (r.status === "pending" && now - r.createdAt < 60_000));
+      if (busy) {
+        kept++;
+        continue;
+      }
+      await mkdir(archive, { recursive: true });
+      await rename(path.join(reqDir, n), path.join(archive, n));
+      archived++;
+    }
+    return { archived, kept };
+  }
+
   /** Başarısız ya da takılı kalmış bir isteği yeniden işlenmek üzere bekleyen duruma döndürür. */
   async retryRequest(id: string): Promise<AiRequest> {
     const req = await this.getRequest(id);

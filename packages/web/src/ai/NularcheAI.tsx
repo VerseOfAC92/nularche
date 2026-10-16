@@ -7,6 +7,7 @@ import { api, type AiRequest } from "../api.ts";
 import { copyText, desktop } from "../desktop.ts";
 import { AiSetup, isProviderConnected, preferredLauncher, useAiStatus } from "./AiSetup.tsx";
 import { useAutoStatus } from "./AutoModeSetup.tsx";
+import { NularcheMark } from "./NularcheMark.tsx";
 import { AI_ACTIONS, PROVIDER_LABEL, requestPrompt } from "./prompts.ts";
 
 export interface AiContext {
@@ -106,6 +107,17 @@ export function NularcheAI({
     }
   }
 
+  async function clearHistory() {
+    if (!confirm("Nularche AI sohbet geçmişi temizlensin mi? Notlarınız değişmez; geçmiş arşivlenir.")) return;
+    try {
+      const res = await api.aiClear();
+      setRequests((await api.aiState()).requests);
+      onToast(res.kept ? `Geçmiş temizlendi (${res.kept} işlenmekte olan istek bırakıldı).` : "Sohbet geçmişi temizlendi.");
+    } catch (e) {
+      onToast((e as Error).message);
+    }
+  }
+
   async function undo(r: AiRequest) {
     const res = await api.aiUndo(r.id);
     onToast(
@@ -118,7 +130,7 @@ export function NularcheAI({
   if (!open) {
     return (
       <button className={`nai-fab ${connected ? "on" : ""}`} onClick={() => onOpenChange(true)} title="Nularche AI">
-        <span className="nai-fab-icon">✳</span> Nularche AI
+        <NularcheMark size={18} className="nai-fab-icon" /> Nularche AI
         <span className={`nai-dot ${connected ? "on" : ""}`} />
       </button>
     );
@@ -127,11 +139,18 @@ export function NularcheAI({
   return (
     <div className="nai-panel" role="dialog" aria-label="Nularche AI">
       <header className="nai-head">
-        <span className="nai-title">✳ Nularche AI</span>
+        <span className="nai-title">
+          <NularcheMark size={18} /> Nularche AI
+        </span>
         {provider && (
           <button className={`nai-provider ${connected ? "on" : ""}`} onClick={onOpenSettings} title="Yapay zekâ ayarları">
             <span className={`nai-dot ${connected ? "on" : ""}`} /> {ai}
             {autoOn ? " · Otomatik" : ""}
+          </button>
+        )}
+        {requests.length > 0 && (
+          <button className="icon-btn" onClick={clearHistory} title="Sohbet geçmişini temizle">
+            ⌫
           </button>
         )}
         <button className="icon-btn" onClick={() => onOpenChange(false)} title="Küçült">
