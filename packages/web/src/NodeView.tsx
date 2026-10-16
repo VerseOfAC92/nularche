@@ -1,7 +1,7 @@
 // Tek bir Node'un görünümü: kapak, ikon, başlık, Stream editörü ve geri bağlantılar.
 // Otomatik kaydetme ve çakışma (ör. Claude aynı anda düzenlediğinde) burada yönetilir.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, SHADOW, type NodeDoc, type NodeMeta, type PageFieldPatch } from "./api.ts";
 import { desktop } from "./desktop.ts";
 import { Editor } from "./editor/Editor.tsx";
@@ -52,7 +52,7 @@ export function NodeView(props: NodeViewProps) {
   statusRef.current = status;
   const propsRef = useRef(props);
   propsRef.current = props;
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const focusedNew = useRef(false);
 
   const load = useCallback((n: NodeDoc) => {
@@ -151,6 +151,25 @@ export function NodeView(props: NodeViewProps) {
   useEffect(() => {
     if (doc) propsRef.current.onContext({ nodeId: doc.id, nodeTitle: title || doc.title });
   }, [doc?.id, title]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Uzun başlıklar kesilmesin: başlık alanı içeriğe göre satır kaydırır ve yüksekliği büyür.
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [title, doc?.id]);
+  useEffect(() => {
+    const onResize = () => {
+      const el = titleRef.current;
+      if (el) {
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+      }
+    };
+    addEventListener("resize", onResize);
+    return () => removeEventListener("resize", onResize);
+  }, []);
 
   // Yeni oluşturulmuş (adsız) Node açıldığında başlık seçili gelsin.
   useEffect(() => {
@@ -386,14 +405,17 @@ export function NodeView(props: NodeViewProps) {
             )}
           </div>
         )}
-        <input
+        <textarea
           ref={titleRef}
           className="title-input"
+          rows={1}
           value={title}
           placeholder="Adsız"
           onChange={(e) => {
-            setTitle(e.target.value);
-            if (e.target.value.trim()) schedule({ title: e.target.value });
+            // Başlık tek satırlık bir metindir; yapıştırılan satır sonları boşluğa çevrilir.
+            const value = e.target.value.replace(/\s*\n\s*/g, " ");
+            setTitle(value);
+            if (value.trim()) schedule({ title: value });
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {

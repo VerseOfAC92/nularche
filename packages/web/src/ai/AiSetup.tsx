@@ -164,11 +164,12 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
             </button>
           ))}
         </div>
-        {p && (
-          <p className="muted small">
-            Kendi {p.name} üyeliğinizi kullanır ({p.plans}). Nularche hiçbir hesap bilgisine erişmez.
-          </p>
-        )}
+        <p className="muted small">
+          Hangisinin üyeliği sizde varsa onu seçin: <b>Claude</b> (Pro, Max, Team), <b>ChatGPT</b> (Plus, Pro, Business) ya da <b>Gemini</b> (Google
+          AI Pro, Ultra). Nularche, seçtiğiniz yapay zekânın kendi resmi uygulamasıyla çalışır; giriş o uygulamada yapılır ve Nularche hesap
+          bilgilerinize hiçbir zaman erişmez. Seçiminizi istediğiniz zaman değiştirebilirsiniz.
+        </p>
+        <AiHowTo connected={connected.length > 0} compact={compact} />
       </div>
 
       {p && (
@@ -285,5 +286,62 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
         </>
       )}
     </div>
+  );
+}
+
+const APPS: { name: string; apps: string }[] = [
+  { name: "Claude", apps: "Claude Desktop ya da Claude Code (terminal)" },
+  { name: "ChatGPT", apps: "ChatGPT masaüstü uygulaması ya da Codex (terminal)" },
+  { name: "Gemini", apps: "Google Antigravity (terminal aracı agy)" },
+];
+
+/** Yapay zekânın nasıl bağlanıp kullanılacağını anlatan adım adım rehber. */
+function AiHowTo({ connected, compact }: { connected: boolean; compact: boolean }) {
+  return (
+    <details className="ai-howto" open={!connected && !compact}>
+      <summary>Nasıl bağlanır ve nasıl kullanılır?</summary>
+      <div className="ai-howto-body">
+        <h5>Bağlantı (bir kez yapılır)</h5>
+        <ol>
+          <li>Yukarıdan yapay zekânızı seçin. Nularche onun resmi uygulamasını açar; uygulama kurulu değilse indirme sayfasını açar.</li>
+          <li>Açılan uygulamada kendi hesabınızla (üyeliğinizle) giriş yapın.</li>
+          <li>
+            Aşağıdaki <b>3. adımda</b> “Bağla”ya basın. Nularche bağlantıyı kendisi kurar; gerekirse uygulamayı yeniden başlatır.
+          </li>
+          <li>
+            Yapay zekâ uygulamasında yeni bir sohbet açın. Nularche bağlantıyı algılar, öne gelir ve <b>“✓ … bağlandı”</b> der.
+          </li>
+        </ol>
+        <h5>Kullanım</h5>
+        <ol>
+          <li>
+            Bir Node (sayfa) açın ve sağ alttaki <b>✳ Nularche AI</b> penceresini açın.
+          </li>
+          <li>
+            Hazır eylemlerden birini seçin (Düzelt, Özetle, Genişlet, Yapılacaklar, Bağla, Çevir) ya da ne istediğinizi yazın. Metin seçerseniz
+            yalnızca o bölüm işlenir.
+          </li>
+          <li>
+            <b>Üyelik modunda</b> istek, seçtiğiniz yapay zekâ uygulamasında hazır açılır; göndermeniz yeterlidir. <b>Otomatik modda</b> hiçbir şey
+            yapmanız gerekmez, istek arka planda işlenir.
+          </li>
+          <li>
+            Yapılan düzenleme notunuza uygulanır; cevap, ilerleme ve <b>Geri al</b> düğmesi Nularche AI penceresinde görünür.
+          </li>
+        </ol>
+        <h5>Hangi uygulama kullanılır?</h5>
+        <ul>
+          {APPS.map((a) => (
+            <li key={a.name}>
+              <b>{a.name}:</b> {a.apps}
+            </li>
+          ))}
+        </ul>
+        <p className="muted small">
+          İpucu: Her istekte uygulamaya geçmek istemiyorsanız yukarıdaki <b>Otomatik mod</b>u (ücretsiz Gemini anahtarı) açın; o zaman her şey
+          Nularche içinde kendiliğinden olur.
+        </p>
+      </div>
+    </details>
   );
 }

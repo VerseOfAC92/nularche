@@ -104,7 +104,7 @@ kbd { font: 11px var(--nlc-mono); color: var(--nlc-text-secondary); border: 1px 
 /* Ana alan */
 .main { flex: 1; overflow-y: auto; position: relative; background: var(--nlc-bg-surface); }
 .topbar { position: sticky; top: 0; z-index: 5; background: var(--nlc-bg-surface); display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 16px; font-size: 13px; }
-.crumbs { color: var(--nlc-text-secondary); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.crumbs { color: var(--nlc-text-secondary); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
 .crumbs a { cursor: pointer; color: inherit; text-decoration: none; }
 .crumbs a:hover { color: var(--nlc-text-primary); }
 .topbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -134,7 +134,7 @@ kbd { font: 11px var(--nlc-mono); color: var(--nlc-text-secondary); border: 1px 
 .page-icon:hover { background: var(--nlc-hover); }
 .page-meta-actions { display: flex; gap: 6px; opacity: 0; height: 28px; transition: opacity 0.15s; }
 .page:hover .page-meta-actions { opacity: 1; }
-.title-input { width: 100%; font-size: 40px; font-weight: 700; letter-spacing: -0.01em; border: 0; outline: 0; background: transparent; color: inherit; padding: 0; margin: 4px 0 12px; }
+.title-input { display: block; width: 100%; font: inherit; font-size: 40px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; border: 0; outline: 0; background: transparent; color: inherit; padding: 0; margin: 4px 0 12px; resize: none; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }
 .title-input::placeholder { color: var(--nlc-text-shadow); }
 
 .banner { margin: 8px 16px; padding: 10px 14px; border-radius: 8px; font-size: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border: 1px solid var(--nlc-border-subtle); background: var(--nlc-bg-elevated); }
@@ -395,3 +395,12 @@ button.nai-chip:hover { color: var(--nlc-text-primary); border-color: var(--nlc-
 .key-input { flex: 1; background: var(--nlc-bg-surface); border: 1px solid var(--nlc-border-subtle); border-radius: 6px; padding: 5px 8px; outline: none; font-family: var(--nlc-mono); font-size: 12px; min-width: 0; }
 .key-input:focus { border-color: var(--nlc-accent-primary); }
 .nai-model { color: var(--nlc-text-shadow); font-size: 11px; }
+.ai-howto { border: 1px solid var(--nlc-border-subtle); border-radius: 10px; background: var(--nlc-bg-surface); margin-top: 4px; }
+.ai-howto > summary { cursor: pointer; padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--nlc-accent-primary); list-style: none; }
+.ai-howto > summary::-webkit-details-marker { display: none; }
+.ai-howto > summary::before { content: "▸ "; }
+.ai-howto[open] > summary::before { content: "▾ "; }
+.ai-howto-body { padding: 0 14px 12px; font-size: 13px; color: var(--nlc-text-secondary); }
+.ai-howto-body h5 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--nlc-text-shadow); }
+.ai-howto-body ol, .ai-howto-body ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.ai-howto-body b { color: var(--nlc-text-primary); font-weight: 600; }

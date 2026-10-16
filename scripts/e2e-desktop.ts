@@ -91,6 +91,9 @@ try {
   await page.getByRole("button", { name: /ChatGPT/ }).click();
   await page.getByText("ChatGPT uygulamasını açın").waitFor();
   await shot("2-chatgpt-secildi");
+  await page.locator(".ai-howto").scrollIntoViewIfNeeded();
+  await page.getByText("Nasıl bağlanır ve nasıl kullanılır?").waitFor();
+  await shot("2b-rehber");
   await page.getByRole("button", { name: "Bağla", exact: true }).click();
   await page.getByText("Bağlantı kurulu").waitFor({ timeout: 10_000 });
   const toml = await readFile(path.join(home, ".codex/config.toml"), "utf8");
@@ -129,6 +132,19 @@ try {
     .getByRole("button", { name: /Yeni Arche/ })
     .first()
     .click();
+  // Uzun başlık kesilmemeli: alan satır kaydırıp büyümeli.
+  const longTitle = "Microsoft Identity & Communication Infrastructure: ADFS, WAP, ADRMS, Skype for Business and Teams";
+  await page.locator(".title-input").fill(longTitle);
+  const box = await page.locator(".title-input").evaluate((el: HTMLTextAreaElement) => ({
+    h: el.clientHeight,
+    sh: el.scrollHeight,
+    w: el.clientWidth,
+    sw: el.scrollWidth,
+    line: parseFloat(getComputedStyle(el).lineHeight),
+  }));
+  assert.ok(box.h > box.line * 1.5, `başlık alt satıra geçmedi: ${JSON.stringify(box)}`);
+  assert.ok(box.sh <= box.h + 1 && box.sw <= box.w + 1, `başlık kesildi: ${JSON.stringify(box)}`);
+  await shot("6b-uzun-baslik");
   await page.locator(".title-input").fill("Test notu");
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("hatalı içerik");
