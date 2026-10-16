@@ -167,6 +167,18 @@ export function NularcheAI({
                 </div>
                 <div className={`nai-status ${r.status}`}>
                   {STATUS_TEXT(r, r.provider ? PROVIDER_LABEL[r.provider] : ai, autoOn)}
+                  {r.status === "done" && r.client?.startsWith("Gemini ·") && <span className="nai-model"> · {r.client.slice(9)}</span>}
+                  {desktop && autoOn && (r.status === "failed" || (r.status !== "done" && Date.now() - r.createdAt > 60_000)) && (
+                    <button
+                      className="nai-copy"
+                      onClick={async () => {
+                        const res = await desktop!.autoRetry(r.id);
+                        if (!res.ok && res.error) onToast(res.error);
+                      }}
+                    >
+                      ↻ Tekrar dene
+                    </button>
+                  )}
                   {r.status === "pending" && !autoOn && (
                     <button
                       className="nai-copy"

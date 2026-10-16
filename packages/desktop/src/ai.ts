@@ -38,7 +38,11 @@ export interface AiSettings {
   onboarded?: boolean;
   /** Otomatik mod: istekler kullanıcının Gemini API anahtarıyla arka planda işlenir. */
   autoMode?: boolean;
+  /** En son cevap veren (tercih edilen) model. */
   geminiModel?: string;
+  /** Anahtarla kullanılabilen modeller, deneme sırasıyla; ne zaman alındığı. */
+  geminiModels?: string[];
+  geminiModelsAt?: number;
 }
 
 export interface AiContext {
@@ -230,10 +234,10 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
     if (typeof key !== "string" || !key.trim()) return { ok: false, error: "Anahtar boş." };
     if (!canEncrypt()) return { ok: false, error: "Bu sistemde güvenli anahtar saklama kullanılamıyor." };
     try {
-      const model = await checkGeminiKey(key.trim());
+      const { model, models } = await checkGeminiKey(key.trim());
       await mkdir(ctx.configDir(), { recursive: true });
       await writeFile(keyFile(), encrypt(key.trim()), { mode: 0o600 });
-      await ctx.save({ geminiModel: model, autoMode: true });
+      await ctx.save({ geminiModel: model, geminiModels: models, geminiModelsAt: Date.now(), autoMode: true });
       return { ok: true, model };
     } catch (err) {
       return { ok: false, error: (err as Error).message };
@@ -249,15 +253,73 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
     await ctx.save({ autoMode: !!enabled });
   });
 
-  ipcMain.handle("nularche:auto-run", async (_e, requestId: unknown) => {
+  /** Model listesi: önce en son çalışan model, sonra diğerleri; liste eski ya da yoksa yenilenir. */
+  async function modelOrder(key: string): Promise<string[]> {
+    const st = ctx.settings();
+    let models = st.geminiModels ?? [];
+    if (!models.length || Date.now() - (st.geminiModelsAt ?? 0) > 24 * 3600_000) {
+      try {
+        models = (await checkGeminiKey(key)).models;
+        await ctx.save({ geminiModels: models, geminiModelsAt: Date.now() });
+      } catch {
+        // Liste alınamazsa elimizdekiyle devam edilir.
+      }
+    }
+    const preferred = st.geminiModel;
+    return preferred ? [preferred, ...models.filter((m) => m !== preferred)] : models;
+  }
+
+  // İstekler sırayla işlenir (aynı Node'a eşzamanlı düzenleme olmasın).
+  let queue: Promise<unknown> = Promise.resolve();
+
+  async function processRequest(requestId: string): Promise<{ ok: boolean; status?: string; error?: string }> {
     const root = ctx.originRoot();
+    if (!root) return { ok: false, error: "Origin açık değil." };
+    const activity = new AiActivity(root);
     const key = await readKey();
-    const model = ctx.settings().geminiModel;
-    if (process.env.NULARCHE_DEBUG) console.error("[nularche] auto-run", { requestId, root, hasKey: !!key, model });
-    if (typeof requestId !== "string" || !root) return { ok: false, error: "Origin açık değil." };
-    if (!key || !model) return { ok: false, error: "Önce Ayarlar → Yapay zekâ bölümünden Gemini anahtarını girin." };
-    const req = await runGeminiAgent({ store: new NodeStore(root), activity: new AiActivity(root), requestId, apiKey: key, model });
-    return { ok: req.status === "done", status: req.status };
+    if (!key) {
+      // İstek askıda kalmasın: ne yapılması gerektiğini cevap olarak yaz.
+      await activity
+        .completeRequest(requestId, "Gemini anahtarı bulunamadı. Ayarlar → Yapay zekâ → Otomatik mod bölümünden anahtarı yeniden girin.", true)
+        .catch(() => undefined);
+      return { ok: false, error: "Gemini anahtarı yok." };
+    }
+    try {
+      const { request, model } = await runGeminiAgent({
+        store: new NodeStore(root),
+        activity,
+        requestId,
+        apiKey: key,
+        models: await modelOrder(key),
+      });
+      if (model && model !== ctx.settings().geminiModel) await ctx.save({ geminiModel: model });
+      return { ok: request.status === "done", status: request.status };
+    } catch (err) {
+      await activity.completeRequest(requestId, `Beklenmeyen hata: ${(err as Error).message}`, true).catch(() => undefined);
+      return { ok: false, error: (err as Error).message };
+    }
+  }
+
+  const enqueue = (requestId: string) => {
+    const run = queue.then(() => processRequest(requestId));
+    queue = run.catch(() => undefined);
+    return run;
+  };
+
+  ipcMain.handle("nularche:auto-run", async (_e, requestId: unknown) => {
+    if (typeof requestId !== "string") return { ok: false, error: "Geçersiz istek." };
+    return enqueue(requestId);
+  });
+
+  ipcMain.handle("nularche:auto-retry", async (_e, requestId: unknown) => {
+    const root = ctx.originRoot();
+    if (typeof requestId !== "string" || !root) return { ok: false, error: "Geçersiz istek." };
+    try {
+      await new AiActivity(root).retryRequest(requestId);
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+    return enqueue(requestId);
   });
 
   ipcMain.handle("nularche:ai-download", (_e, url: unknown) => {

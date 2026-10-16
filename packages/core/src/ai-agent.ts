@@ -12,7 +12,8 @@ export const AUTO_CLIENT = "nularche-auto (Gemini)";
 type Fetch = typeof fetch;
 
 export class AgentError extends Error {
-  readonly kind: "auth" | "quota" | "network" | "model" | "other";
+  /** busy: geçici yoğunluk/sunucu hatası; quota: kota; model: model bulunamadı/desteklenmiyor. */
+  readonly kind: "auth" | "quota" | "network" | "model" | "busy" | "other";
   constructor(kind: AgentError["kind"], message: string) {
     super(message);
     this.kind = kind;
@@ -45,7 +46,9 @@ async function call(fetchImpl: Fetch, apiKey: string, path: string, body?: unkno
       "quota",
       "Gemini ücretsiz kotası şimdilik doldu. Bir süre sonra tekrar deneyin (günlük kota gece Pasifik saatiyle sıfırlanır).",
     );
-  if (res.status === 404) throw new AgentError("model", `Gemini modeli bulunamadı: ${msg}`);
+  if (res.status === 404 || (res.status === 400 && /model|not supported|not found/i.test(msg)))
+    throw new AgentError("model", `Model kullanılamıyor: ${msg}`);
+  if (res.status >= 500) throw new AgentError("busy", `Geçici Gemini hatası (${res.status}): ${msg}`);
   throw new AgentError("other", `Gemini hatası (${res.status}): ${msg}`);
 }
 
@@ -54,24 +57,32 @@ interface GeminiModel {
   supportedGenerationMethods?: string[];
 }
 
-/** Anahtarla kullanılabilen modeller arasından en uygun kararlı Flash modelini seçer. */
-export function pickGeminiModel(models: GeminiModel[]): string | null {
+/**
+ * Anahtarla kullanılabilen modelleri deneme sırasına dizer: önce kararlı Flash modelleri (yeniden eskiye),
+ * sonra Flash-Lite (yeniden eskiye), sonra diğerleri. Bir model yoğun ya da kullanılamaz olduğunda
+ * sıradaki denenir.
+ */
+export function rankGeminiModels(models: GeminiModel[]): string[] {
   const usable = models
     .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
     .map((m) => m.name.replace(/^models\//, ""))
     .filter((n) => /^gemini-/.test(n) && !/(preview|exp|tts|image|live|embedding|audio|learnlm|thinking|computer)/.test(n));
   const version = (n: string) => Number(/gemini-(\d+(?:\.\d+)?)/.exec(n)?.[1] ?? 0);
-  const rank = (n: string) => (/flash-lite/.test(n) ? 1 : /flash/.test(n) ? 2 : /pro/.test(n) ? 0 : -1);
-  const best = usable.filter((n) => rank(n) >= 1 && !/-\d{3}$/.test(n)).sort((a, b) => rank(b) - rank(a) || version(b) - version(a));
-  return best[0] ?? usable.sort((a, b) => version(b) - version(a))[0] ?? null;
+  const tier = (n: string) => (/flash-lite/.test(n) ? 1 : /flash/.test(n) ? 2 : 0);
+  const pinned = (n: string) => (/-\d{3}$/.test(n) ? 1 : 0); // sürüm sabitlenmiş adlar (ör. -001) takma adlardan sonra
+  return [...new Set(usable)].sort((a, b) => tier(b) - tier(a) || version(b) - version(a) || pinned(a) - pinned(b) || a.localeCompare(b));
 }
 
-/** Anahtarı doğrular ve kullanılacak modeli döndürür. */
-export async function checkGeminiKey(apiKey: string, fetchImpl: Fetch = fetch): Promise<string> {
+export function pickGeminiModel(models: GeminiModel[]): string | null {
+  return rankGeminiModels(models)[0] ?? null;
+}
+
+/** Anahtarı doğrular ve modelleri deneme sırasıyla döndürür. */
+export async function checkGeminiKey(apiKey: string, fetchImpl: Fetch = fetch): Promise<{ model: string; models: string[] }> {
   const data = await call(fetchImpl, apiKey, "models?pageSize=200");
-  const model = pickGeminiModel(data.models ?? []);
-  if (!model) throw new AgentError("model", "Bu anahtarla kullanılabilen bir Gemini modeli bulunamadı.");
-  return model;
+  const models = rankGeminiModels(data.models ?? []);
+  if (!models.length) throw new AgentError("model", "Bu anahtarla kullanılabilen bir Gemini modeli bulunamadı.");
+  return { model: models[0], models };
 }
 
 const TOOLS = [
@@ -182,67 +193,119 @@ export interface AgentOptions {
   activity: AiActivity;
   requestId: string;
   apiKey: string;
-  model: string;
+  /** Deneme sırasına göre modeller; ilki tercih edilen (en son çalışan) modeldir. */
+  models: string[];
   fetchImpl?: Fetch;
   maxSteps?: number;
+  /** Yoğunluk hatasında aynı modeli yeniden denemeden önce bekleme (ms). */
+  retryDelayMs?: number;
 }
 
-/** İsteği Gemini ile işler; isteği tamamlanmış (ya da başarısız) olarak işaretleyip döndürür. */
-export async function runGeminiAgent(o: AgentOptions): Promise<AiRequest> {
+export interface AgentResult {
+  request: AiRequest;
+  /** Cevabı veren model (başarısızsa null). */
+  model: string | null;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function buildIntro(o: AgentOptions, req: AiRequest): Promise<string> {
+  const intro: string[] = [`İstek: ${req.instruction}`];
+  if (req.nodeId) {
+    try {
+      const n = await o.store.read(req.nodeId);
+      intro.push(`İlgili Node: “${n.title}” (id: ${n.id}, revision: ${n.revision})`, "İçerik:", n.body);
+    } catch {
+      intro.push(`İlgili Node id: ${req.nodeId} (okunamadı)`);
+    }
+  }
+  if (req.selection) intro.push("Kullanıcının seçtiği metin (yalnızca bunun üzerinde çalış):", req.selection);
+  return intro.join("\n\n");
+}
+
+/** Tek bir modelle konuşmayı yürütür; cevap metnini döndürür ya da AgentError fırlatır. */
+async function converse(o: AgentOptions, req: AiRequest, model: string, fetchImpl: Fetch): Promise<string> {
+  const contents: any[] = [{ role: "user", parts: [{ text: await buildIntro(o, req) }] }];
+  for (let step = 0; step < (o.maxSteps ?? 12); step++) {
+    const data = await call(fetchImpl, o.apiKey, `models/${encodeURIComponent(model)}:generateContent`, {
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents,
+      tools: [{ functionDeclarations: TOOLS }],
+      generationConfig: { temperature: 0.3 },
+    });
+    const parts: any[] = data?.candidates?.[0]?.content?.parts ?? [];
+    const calls = parts.filter((p) => p.functionCall);
+    if (calls.length === 0) {
+      const text = parts
+        .filter((p) => typeof p.text === "string" && !p.thought)
+        .map((p) => p.text)
+        .join("")
+        .trim();
+      const reason = data?.candidates?.[0]?.finishReason;
+      if (!text) throw new AgentError("busy", reason ? `Cevap üretilmedi (${reason}).` : "Boş cevap döndü.");
+      return text;
+    }
+    // Model içeriğini olduğu gibi (thought signature'lar dahil) geçmişe ekle, sonra araç sonuçlarını gönder.
+    contents.push({ role: "model", parts });
+    const responses = [];
+    for (const p of calls) {
+      const { name, args, id } = p.functionCall;
+      let response: unknown;
+      try {
+        response = { result: await runTool(o.store, o.activity, req.id, name, args ?? {}) };
+      } catch (err) {
+        response = { error: err instanceof NodeError ? `${err.code}: ${err.message}` : String((err as Error).message ?? err) };
+      }
+      responses.push({ functionResponse: { ...(id ? { id } : {}), name, response } });
+    }
+    contents.push({ role: "user", parts: responses });
+  }
+  throw new AgentError("other", "İstek çok fazla adım gerektirdi; daha küçük parçalara bölmeyi deneyin.");
+}
+
+/**
+ * İsteği Gemini ile işler. Bir model yoğun (5xx), kotası dolu (429) ya da kullanılamaz (404) ise önce kısa
+ * bir bekleyişle bir kez daha dener, sonra sıradaki modele geçer; çalışan ilk modelin cevabını döndürür.
+ * İstek her durumda tamamlanmış ya da başarısız olarak işaretlenir.
+ */
+export async function runGeminiAgent(o: AgentOptions): Promise<AgentResult> {
   const fetchImpl = o.fetchImpl ?? fetch;
   const req = await o.activity.takeRequest(o.requestId, AUTO_CLIENT);
   if (!req) throw new NodeError("not_found", "İstek bulunamadı");
+  const tried: string[] = [];
+  let lastKind: AgentError["kind"] | null = null;
   try {
-    const intro: string[] = [`İstek: ${req.instruction}`];
-    if (req.nodeId) {
-      try {
-        const n = await o.store.read(req.nodeId);
-        intro.push(`İlgili Node: “${n.title}” (id: ${n.id}, revision: ${n.revision})`, "İçerik:", n.body);
-      } catch {
-        intro.push(`İlgili Node id: ${req.nodeId} (okunamadı)`);
-      }
-    }
-    if (req.selection) intro.push("Kullanıcının seçtiği metin (yalnızca bunun üzerinde çalış):", req.selection);
-
-    const contents: any[] = [{ role: "user", parts: [{ text: intro.join("\n\n") }] }];
-    for (let step = 0; step < (o.maxSteps ?? 12); step++) {
-      const data = await call(fetchImpl, o.apiKey, `models/${encodeURIComponent(o.model)}:generateContent`, {
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents,
-        tools: [{ functionDeclarations: TOOLS }],
-        generationConfig: { temperature: 0.3 },
-      });
-      const content = data?.candidates?.[0]?.content;
-      const parts: any[] = content?.parts ?? [];
-      const calls = parts.filter((p) => p.functionCall);
-      if (calls.length === 0) {
-        const text = parts
-          .filter((p) => typeof p.text === "string" && !p.thought)
-          .map((p) => p.text)
-          .join("")
-          .trim();
-        const reason = data?.candidates?.[0]?.finishReason;
-        if (!text) throw new AgentError("other", reason ? `Gemini cevap üretmedi (${reason}).` : "Gemini boş cevap döndürdü.");
-        return o.activity.completeRequest(req.id, text);
-      }
-      // Model içeriğini olduğu gibi (thought signature'lar dahil) geçmişe ekle, sonra araç sonuçlarını gönder.
-      contents.push({ role: "model", parts });
-      const responses = [];
-      for (const p of calls) {
-        const { name, args, id } = p.functionCall;
-        let response: unknown;
+    if (!o.models.length) throw new AgentError("model", "Kullanılabilir Gemini modeli yok. Ayarlar'da anahtarı yeniden kaydedin.");
+    for (const model of o.models) {
+      for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          response = { result: await runTool(o.store, o.activity, req.id, name, args ?? {}) };
+          const reply = await converse(o, req, model, fetchImpl);
+          return { request: await o.activity.completeRequest(req.id, reply, false, `Gemini · ${model}`), model };
         } catch (err) {
-          response = { error: err instanceof NodeError ? `${err.code}: ${err.message}` : String((err as Error).message ?? err) };
+          if (!(err instanceof AgentError)) throw err;
+          if (err.kind === "auth" || err.kind === "other") throw err;
+          lastKind = err.kind;
+          // Yoğunluk ve bağlantı hatalarında aynı modeli bir kez daha dene; kota/model hatasında hemen sıradakine geç.
+          if ((err.kind === "busy" || err.kind === "network") && attempt === 0) {
+            await sleep(o.retryDelayMs ?? 2000);
+            continue;
+          }
+          tried.push(
+            `${model} (${err.kind === "quota" ? "kota dolu" : err.kind === "model" ? "kullanılamıyor" : err.kind === "network" ? "bağlantı yok" : "yoğun"})`,
+          );
+          break;
         }
-        responses.push({ functionResponse: { ...(id ? { id } : {}), name, response } });
       }
-      contents.push({ role: "user", parts: responses });
     }
-    throw new AgentError("other", "İstek çok fazla adım gerektirdi; daha küçük parçalara bölmeyi deneyin.");
+    if (lastKind === "network") throw new AgentError("network", "Gemini'ye ulaşılamadı. İnternet bağlantınızı kontrol edip “Tekrar dene”ye basın.");
+    throw new AgentError(
+      lastKind ?? "busy",
+      lastKind === "quota"
+        ? `Tüm Gemini modellerinin ücretsiz kotası şimdilik dolu (${tried.join(", ")}). Bir süre sonra “Tekrar dene”ye basın; günlük kota gece Pasifik saatiyle sıfırlanır.`
+        : `Tüm Gemini modelleri denendi ama şu an yanıt alınamadı: ${tried.join(", ")}. Birkaç dakika sonra “Tekrar dene”ye basın.`,
+    );
   } catch (err) {
     const message = err instanceof AgentError || err instanceof NodeError ? err.message : `Beklenmeyen hata: ${(err as Error).message ?? err}`;
-    return o.activity.completeRequest(req.id, message, true);
+    return { request: await o.activity.completeRequest(req.id, message, true), model: null };
   }
 }

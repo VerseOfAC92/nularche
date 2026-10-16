@@ -73,6 +73,8 @@ export interface DesktopBridge {
   autoEnable(enabled: boolean): Promise<void>;
   /** İsteği Gemini ile arka planda işler. */
   autoRun(requestId: string): Promise<{ ok: boolean; status?: string; error?: string }>;
+  /** Başarısız ya da takılı isteği yeniden işler. */
+  autoRetry(requestId: string): Promise<{ ok: boolean; status?: string; error?: string }>;
   /** AI uygulamasını yeniden başlatır (Claude Desktop: kapat + aç; diğerleri: aç). */
   aiRestart(launcher: LauncherId): Promise<{ ok: boolean; error?: string }>;
   aiOpen(launcher: LauncherId, prompt: string | null): Promise<{ opened: boolean; message?: string }>;

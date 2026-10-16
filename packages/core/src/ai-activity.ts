@@ -180,11 +180,23 @@ export class AiActivity {
     return req;
   }
 
-  async completeRequest(id: string, reply: string, failed = false): Promise<AiRequest> {
+  async completeRequest(id: string, reply: string, failed = false, client?: string): Promise<AiRequest> {
     const req = await this.getRequest(id);
     req.status = failed ? "failed" : "done";
+    if (client) req.client = client;
     req.completedAt = Date.now();
     req.reply = reply.slice(0, 50_000);
+    return this.save(req);
+  }
+
+  /** Başarısız ya da takılı kalmış bir isteği yeniden işlenmek üzere bekleyen duruma döndürür. */
+  async retryRequest(id: string): Promise<AiRequest> {
+    const req = await this.getRequest(id);
+    if (req.status === "done") throw new NodeError("invalid", "Tamamlanmış istek yeniden denenemez");
+    req.status = "pending";
+    delete req.reply;
+    delete req.completedAt;
+    delete req.receivedAt;
     return this.save(req);
   }
 

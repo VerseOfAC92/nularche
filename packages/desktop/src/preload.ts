@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("nularche", {
   autoClear: () => invoke("auto-clear"),
   autoEnable: (enabled: boolean) => invoke("auto-enable", enabled),
   autoRun: (requestId: string) => invoke("auto-run", requestId),
+  autoRetry: (requestId: string) => invoke("auto-retry", requestId),
   aiDownload: (url: string) => invoke("ai-download", url),
   onAiConnected: (cb: (client: unknown) => void) => {
     const listener = (_e: IpcRendererEvent, c: unknown) => cb(c);

@@ -35,7 +35,19 @@ const gemini = createServer(async (req, res) => {
   for await (const c of req) raw += c;
   res.setHeader("content-type", "application/json");
   if (req.url?.startsWith("/models?")) {
-    return res.end(JSON.stringify({ models: [{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] }] }));
+    return res.end(
+      JSON.stringify({
+        models: [
+          { name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] },
+          { name: "models/gemini-3.6-flash", supportedGenerationMethods: ["generateContent"] },
+        ],
+      }),
+    );
+  }
+  // En yeni model sürekli "yüksek talep" (503) verir; Nularche eski modele geçmeli.
+  if (req.url?.includes("gemini-3.8-flash")) {
+    res.statusCode = 503;
+    return res.end(JSON.stringify({ error: { message: "This model is currently experiencing high demand." } }));
   }
   geminiCalls++;
   const body = JSON.parse(raw);
@@ -125,6 +137,7 @@ try {
   await page.getByRole("button", { name: /Düzelt/ }).click();
   await page.getByText("İçeriği düzelttim.").waitFor({ timeout: 15_000 });
   await page.getByText("Gemini tarafından düzeltilmiş içerik").first().waitFor({ timeout: 10_000 });
+  await page.getByText("gemini-3.6-flash", { exact: false }).first().waitFor({ timeout: 5_000 });
   assert.equal(geminiCalls, 2);
   await shot("7-otomatik-cevap");
   console.log(`Tamam. Ekran görüntüleri: ${shots ?? "(yok)"}`);

@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, test } from "node:test";
-import { AiActivity, checkGeminiKey, NodeStore, pickGeminiModel, runGeminiAgent } from "../src/index.ts";
+import { AiActivity, checkGeminiKey, NodeStore, pickGeminiModel, rankGeminiModels, runGeminiAgent } from "../src/index.ts";
 
 let dir: string;
 let store: NodeStore;
@@ -31,6 +31,10 @@ test("en uygun kararlı Flash modeli seçilir", () => {
     "gemini-3.8-flash",
   );
   assert.equal(pickGeminiModel([m("gemini-3.5-flash-lite")]), "gemini-3.5-flash-lite");
+  assert.deepEqual(
+    rankGeminiModels([m("gemini-3.1-flash-lite"), m("gemini-3.6-flash"), m("gemini-3.8-flash"), m("gemini-3.5-flash-lite"), m("gemini-2.5-pro")]),
+    ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-pro"],
+  );
   assert.equal(pickGeminiModel([{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["embedContent"] }]), null);
 });
 
@@ -38,7 +42,7 @@ test("anahtar doğrulama hataları anlaşılır mesaja çevrilir", async () => {
   const bad = async () => json(400, { error: { message: "API key not valid. Please pass a valid API key." } });
   await assert.rejects(checkGeminiKey("x", bad as typeof fetch), /geçersiz/);
   const ok = async () => json(200, { models: [{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] }] });
-  assert.equal(await checkGeminiKey("x", ok as typeof fetch), "gemini-3.8-flash");
+  assert.deepEqual(await checkGeminiKey("x", ok as typeof fetch), { model: "gemini-3.8-flash", models: ["gemini-3.8-flash"] });
 });
 
 test("aracı Node'u araçlarla düzenler, cevabı yazar ve değişiklik geri alınabilir", async () => {
@@ -83,18 +87,19 @@ test("aracı Node'u araçlarla düzenler, cevabı yazar ve değişiklik geri al�
       candidates: [{ content: { role: "model", parts: [{ text: "“dağnık” → “dağınık” olarak düzeltildi." }] }, finishReason: "STOP" }],
     });
   };
-  const done = await runGeminiAgent({
+  const { request: done, model } = await runGeminiAgent({
     store,
     activity: ai,
     requestId: req.id,
     apiKey: "anahtar",
-    model: "gemini-3.8-flash",
+    models: ["gemini-3.8-flash"],
     fetchImpl: fake as typeof fetch,
   });
+  assert.equal(model, "gemini-3.8-flash");
   assert.equal(done.status, "done");
   assert.match(done.reply!, /dağınık/);
   assert.equal(done.changes.length, 1);
-  assert.equal(done.client, "nularche-auto (Gemini)");
+  assert.equal(done.client, "Gemini · gemini-3.8-flash");
   assert.equal(sent[0].key, "anahtar");
   assert.match(sent[0].url, /models\/gemini-3\.8-flash:generateContent$/);
   assert.equal((await store.read(node.id)).body.trim(), "dağınık metin");
@@ -102,10 +107,68 @@ test("aracı Node'u araçlarla düzenler, cevabı yazar ve değişiklik geri al�
   assert.equal((await store.read(node.id)).body.trim(), "dağnık metin");
 });
 
-test("kota hatasında istek başarısız olarak işaretlenir", async () => {
+test("yoğun model bir kez yeniden denenir, sonra eski modele geçilir ve cevap döner", async () => {
+  const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "Merhaba de" });
+  const calls: string[] = [];
+  const fake = async (url: string) => {
+    const model = /models\/([^:]+):/.exec(url)![1];
+    calls.push(model);
+    if (model === "gemini-3.8-flash") return json(503, { error: { message: "This model is currently experiencing high demand." } });
+    if (model === "gemini-3.6-flash") return json(429, { error: { message: "Resource exhausted" } });
+    return json(200, { candidates: [{ content: { role: "model", parts: [{ text: "Merhaba!" }] } }] });
+  };
+  const { request, model } = await runGeminiAgent({
+    store,
+    activity: ai,
+    requestId: req.id,
+    apiKey: "k",
+    models: ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"],
+    fetchImpl: fake as typeof fetch,
+    retryDelayMs: 1,
+  });
+  assert.deepEqual(calls, ["gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]);
+  assert.equal(model, "gemini-3.5-flash-lite");
+  assert.equal(request.status, "done");
+  assert.equal(request.reply, "Merhaba!");
+  assert.equal(request.client, "Gemini · gemini-3.5-flash-lite");
+});
+
+test("tüm modeller başarısızsa anlaşılır mesajla başarısız olur; tekrar denenebilir", async () => {
   const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "x" });
   const quota = async () => json(429, { error: { message: "Resource exhausted" } });
-  const done = await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", model: "m", fetchImpl: quota as typeof fetch });
-  assert.equal(done.status, "failed");
-  assert.match(done.reply!, /kota/);
+  const { request } = await runGeminiAgent({
+    store,
+    activity: ai,
+    requestId: req.id,
+    apiKey: "k",
+    models: ["a", "b"],
+    fetchImpl: quota as typeof fetch,
+    retryDelayMs: 1,
+  });
+  assert.equal(request.status, "failed");
+  assert.match(request.reply!, /kota/);
+  assert.match(request.reply!, /a \(kota dolu\), b \(kota dolu\)/);
+  const again = await ai.retryRequest(req.id);
+  assert.equal(again.status, "pending");
+  const ok = async () => json(200, { candidates: [{ content: { parts: [{ text: "tamam" }] } }] });
+  assert.equal(
+    (await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["a"], fetchImpl: ok as typeof fetch })).request.status,
+    "done",
+  );
+});
+
+test("geçersiz anahtarda diğer modeller denenmez", async () => {
+  const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "x" });
+  let n = 0;
+  const bad = async () => (n++, json(400, { error: { message: "API key not valid." } }));
+  const { request } = await runGeminiAgent({
+    store,
+    activity: ai,
+    requestId: req.id,
+    apiKey: "k",
+    models: ["a", "b", "c"],
+    fetchImpl: bad as typeof fetch,
+  });
+  assert.equal(n, 1);
+  assert.match(request.reply!, /anahtar/);
 });

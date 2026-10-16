@@ -394,3 +394,4 @@ button.nai-chip:hover { color: var(--nlc-text-primary); border-color: var(--nlc-
 .auto-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .key-input { flex: 1; background: var(--nlc-bg-surface); border: 1px solid var(--nlc-border-subtle); border-radius: 6px; padding: 5px 8px; outline: none; font-family: var(--nlc-mono); font-size: 12px; min-width: 0; }
 .key-input:focus { border-color: var(--nlc-accent-primary); }
+.nai-model { color: var(--nlc-text-shadow); font-size: 11px; }
