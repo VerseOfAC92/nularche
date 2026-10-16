@@ -27,6 +27,7 @@ async function aiEdit(id: string, body: string) {
 
 test("istemci adından sağlayıcı tahmini", () => {
   assert.equal(providerFromClient("claude-ai"), "claude");
+  assert.equal(providerFromClient("local-agent-mode-nularche"), "claude");
   assert.equal(providerFromClient("codex-mcp-client"), "chatgpt");
   assert.equal(providerFromClient("antigravity"), "gemini");
   assert.equal(providerFromClient("bilinmeyen"), null);

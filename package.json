@@ -14,7 +14,7 @@
     "start": "node packages/server/src/index.ts",
     "desktop": "npm run build:desktop && electron .",
     "dist": "npm run build:desktop && electron-builder --publish never",
-    "dist:mac": "npm run build:desktop && electron-builder --mac --publish never",
+    "dist:mac": "npm run build:desktop && node scripts/dist-mac.ts",
     "dist:win": "npm run build:desktop && electron-builder --win --publish never",
     "dist:linux": "npm run build:desktop && electron-builder --linux --publish never",
     "mcp": "node packages/mcp/src/index.ts",

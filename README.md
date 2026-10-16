@@ -44,12 +44,12 @@
 
 ## Kurulum
 
-[Releases](https://github.com/VerseOfAC92/nularche/releases/latest) sayfasından sisteminize uygun dosyayı indirin:
+[Releases](https://github.com/VerseOfAC92/nularche/releases/latest) sayfasından sisteminize uygun dosyayı indirin. Mac'inizin işlemcisini  → *Bu Mac Hakkında* bölümünden görebilirsiniz ("Apple M…" yazıyorsa Apple Silicon):
 
 | Sistem | Dosya |
 | --- | --- |
-| macOS (Apple Silicon: M1/M2/M3/M4) | `Nularche-x.y.z-mac-arm64.dmg` |
-| macOS (Intel) | `Nularche-x.y.z-mac-x64.dmg` |
+| macOS (Apple Silicon: M1–M5) | `Nularche-x.y.z-macOS-AppleSilicon.dmg` |
+| macOS (Intel) | `Nularche-x.y.z-macOS-Intel.dmg` |
 | Windows (x64 / ARM64) | `Nularche-x.y.z-win-x64.exe` / `…-win-arm64.exe` |
 | Linux | `.AppImage` veya `.deb` |
 

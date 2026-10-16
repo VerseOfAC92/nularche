@@ -92,8 +92,18 @@ function mcpEntry(mcpScript: string, originDir: string): McpEntry {
   return { command, args: [mcpScript], env: { ELECTRON_RUN_AS_NODE: "1", NULARCHE_ORIGIN: originDir } };
 }
 
+const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
+
+/** Apple Silicon bir Mac'te Intel (x64) sürümü Rosetta ile çalışıyorsa doğru sürüm önerilir. */
+function wrongArchitecture(): boolean {
+  return process.platform === "darwin" && app.runningUnderARM64Translation;
+}
+
 /** Uygulama geçici bir konumdan (DMG, İndirilenler karantinası) çalışıyorsa MCP kaydı kalıcı olmaz. */
 function unstableLocation(): string | null {
+  if (wrongArchitecture()) {
+    return "Bu Mac Apple Silicon işlemcili ama Nularche'nin Intel sürümü kurulu. Daha hızlı çalışması ve gelecekteki macOS sürümlerinde açılabilmesi için Apple Silicon sürümünü kurun.";
+  }
   const exe = process.execPath;
   if (process.platform === "darwin" && (exe.startsWith("/Volumes/") || exe.includes("/AppTranslocation/"))) {
     return "Nularche disk görüntüsünden ya da karantinadaki bir konumdan çalışıyor. Yapay zekâ bağlantısının kalıcı olması için önce uygulamayı Uygulamalar klasörüne taşıyıp oradan açın.";
@@ -103,7 +113,16 @@ function unstableLocation(): string | null {
 
 async function chooseOriginOnFirstRun(): Promise<string | null> {
   const documents = app.getPath("documents");
-  const defaultDir = path.join(documents, "Nularche");
+  // Varsayılan "Belgeler/Nularche"; bu ad başka bir şey için kullanılıyorsa (macOS büyük/küçük harf
+  // ayırmadığından ör. "nularche" adlı bir proje klasörü) "Nularche Origin" kullanılır.
+  const candidates = ["Nularche", "Nularche Origin", ...Array.from({ length: 8 }, (_, i) => `Nularche Origin ${i + 2}`)];
+  const defaultDir = path.join(
+    documents,
+    candidates.find((n) => {
+      const p = path.join(documents, n);
+      return !existsSync(p) || existsSync(path.join(p, ".nularche", "origin.json"));
+    }) ?? "Nularche Origin",
+  );
   const legacy = [path.join(documents, "nularche", "origin"), path.join(documents, "notlar", "vault")].find((p) => existsSync(p));
   const buttons = ["Varsayılan Origin'i kullan", "Klasör seç…", "Çık"];
   if (legacy) buttons.unshift("Mevcut notları kullan");
@@ -455,6 +474,20 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     settings = await loadSettings();
+    if (wrongArchitecture()) {
+      const { response } = await dialog.showMessageBox({
+        type: "warning",
+        title: "Nularche",
+        message: "Bu Mac için doğru sürüm kurulu değil",
+        detail:
+          "Mac'iniz Apple Silicon (M serisi) işlemcili, ancak Nularche'nin Intel sürümü kurulu ve Rosetta ile çalışıyor. " +
+          "macOS'un gelecek sürümleri Intel uygulamalarını açmayacak. Lütfen “Apple Silicon” sürümünü indirip kurun; notlarınız ve ayarlarınız korunur.",
+        buttons: ["Apple Silicon sürümünü indir", "Şimdilik devam et"],
+        defaultId: 0,
+        cancelId: 1,
+      });
+      if (response === 0) void shell.openExternal(RELEASES_URL);
+    }
     mcpScript = await installMcpScript();
     registerIpc();
     buildMenu();

@@ -49,21 +49,10 @@ mac:
   # Apple Developer kimliği olmadan ad-hoc imza (Apple Silicon'da çalışması için gerekli).
   identity: "-"
   hardenedRuntime: false
+  # Apple Silicon ve Intel paketleri, adları karışmasın diye scripts/dist-mac.ts ile ayrı ayrı derlenir.
   target:
-    # Önerilen: adım adım (Devam → Kur) yükleyici. DMG: sürükle-bırak alternatifi.
-    - target: pkg
-      arch: [arm64, x64]
     - target: dmg
       arch: [arm64, x64]
-pkg:
-  installLocation: /Applications
-  isRelocatable: false
-  isVersionChecked: false
-  overwriteAction: upgrade
-  welcome: build/pkg/welcome.html
-  conclusion: build/pkg/conclusion.html
-  license: LICENSE
-  mustClose: [io.nularche.app]
 dmg:
   title: Nularche ${version}
 win:

@@ -16,7 +16,7 @@ jobs:
       matrix:
         include:
           - os: macos-14
-            args: --mac --arm64 --x64
+            args: mac
           - os: windows-latest
             args: --win --x64 --arm64
           - os: ubuntu-latest
@@ -31,7 +31,10 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build:desktop
-      - run: npx electron-builder ${{ matrix.args }} --publish never
+      - if: matrix.args == 'mac'
+        run: node scripts/dist-mac.ts
+      - if: matrix.args != 'mac'
+        run: npx electron-builder ${{ matrix.args }} --publish never
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.os }}
@@ -60,7 +63,7 @@ jobs:
           cat >> notes.md <<'MD'
 
           ### İndirme
-          - **macOS Apple Silicon:** `*-mac-arm64.dmg` · **macOS Intel:** `*-mac-x64.dmg`
+          - **macOS Apple Silicon (M1–M5):** `*-macOS-AppleSilicon.dmg` · **macOS Intel:** `*-macOS-Intel.dmg`
           - **Windows:** `*-win-x64.exe` / `*-win-arm64.exe`
           - **Linux:** `.AppImage` / `.deb`
 

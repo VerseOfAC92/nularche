@@ -60,7 +60,7 @@ export interface AiRequest {
 /** MCP istemci adından sağlayıcıyı tahmin eder. */
 export function providerFromClient(name: string): ProviderId | null {
   const n = name.toLowerCase();
-  if (/claude|anthropic/.test(n)) return "claude";
+  if (/claude|anthropic|local-agent-mode/.test(n)) return "claude";
   if (/codex|openai|chatgpt/.test(n)) return "chatgpt";
   if (/gemini|antigravity|agy|google/.test(n)) return "gemini";
   return null;
