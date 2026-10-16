@@ -1,9 +1,10 @@
-// Ayarlar: görünüm, Origin klasörü, Claude bağlantısı (MCP kaydı), arşivler, sürüm.
+// Ayarlar: görünüm, dil, Origin klasörü, arşivler, yapay zekâ bağlantıları, sürüm.
 
 import { useCallback, useEffect, useState } from "react";
 import { AiSetup } from "./ai/AiSetup.tsx";
 import { desktop } from "./desktop.ts";
 import { getTheme, setTheme, type ThemeChoice } from "./theme.ts";
+import { setLang, t, useLang } from "./i18n/index.ts";
 
 export function Settings({
   onClose,
@@ -18,6 +19,7 @@ export function Settings({
 }) {
   const [info, setInfo] = useState<{ version: string; originDir: string; warning: string | null } | null>(null);
   const [theme, setThemeState] = useState<ThemeChoice>(getTheme);
+  const lang = useLang();
 
   const refresh = useCallback(async () => {
     if (!desktop) return;
@@ -35,22 +37,36 @@ export function Settings({
     <div className="overlay" onMouseDown={onClose}>
       <div className="dialog" onMouseDown={(e) => e.stopPropagation()}>
         <header>
-          <h2>Ayarlar</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Kapat">
+          <h2>{t("settings.title")}</h2>
+          <button className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
             ✕
           </button>
         </header>
 
-        <h3>Görünüm</h3>
+        <h3>{t("settings.appearance")}</h3>
         <div className="segmented">
           {(
             [
-              ["dark", "Koyu"],
-              ["light", "Açık"],
-              ["system", "Sistem"],
+              ["dark", t("settings.themeDark")],
+              ["light", t("settings.themeLight")],
+              ["system", t("settings.themeSystem")],
             ] as const
           ).map(([value, label]) => (
             <button key={value} className={theme === value ? "on" : ""} onClick={() => (setTheme(value), setThemeState(value))}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <h3>{t("settings.language")}</h3>
+        <div className="segmented">
+          {(
+            [
+              ["tr", "Türkçe"],
+              ["en", "English"],
+            ] as const
+          ).map(([value, label]) => (
+            <button key={value} className={lang === value ? "on" : ""} onClick={() => (setLang(value), void desktop?.setLanguage(value))}>
               {label}
             </button>
           ))}
@@ -60,38 +76,37 @@ export function Settings({
         {desktop && info ? (
           <>
             <p className="muted">
-              Tüm Node'larınız bu klasörde düz Markdown (.md) dosyaları olarak durur; Time Machine, iCloud ya da git ile yedekleyebilirsiniz.
+              {t("settings.originHint")}
             </p>
             <code className="path">{info.originDir}</code>
             <div className="row">
               <button className="secondary" onClick={() => desktop!.revealOrigin()}>
-                Klasörü göster
+                {t("settings.revealFolder")}
               </button>
               <button className="secondary" onClick={async () => (await desktop!.changeOrigin()) && onClose()}>
-                Başka Origin aç…
+                {t("settings.openOtherOrigin")}
               </button>
             </div>
           </>
         ) : (
-          <p className="muted">Tarayıcı sürümünde Origin klasörü sunucunun NULARCHE_ORIGIN ayarıyla belirlenir.</p>
+          <p className="muted">{t("settings.originBrowser")}</p>
         )}
 
         {desktop && (
           <>
-            <h3>Arşivler</h3>
+            <h3>{t("settings.archives")}</h3>
             <p className="muted">
-              <b>.nla</b> (Nularche Archive) tüm Origin'in ya da bir şablon setinin yedeğidir; <b>.nlc</b> (Nularche Container) tek bir Node'u
-              ekleriyle birlikte taşır. İçe aktarılanlar Shadow'a gelir.
+              {t("settings.archivesHint")}
             </p>
             <div className="row">
               <button
                 className="secondary"
                 onClick={async () => {
                   const out = await desktop!.exportArchive(null, "nla");
-                  if (out) onToast(`Arşiv kaydedildi: ${out}`);
+                  if (out) onToast(t("settings.archiveSaved", { path: out }));
                 }}
               >
-                Origin'i .nla olarak dışa aktar…
+                {t("settings.exportNla")}
               </button>
               <button
                 className="secondary"
@@ -99,27 +114,23 @@ export function Settings({
                   const res = await desktop!.importArchive();
                   if (res) {
                     onChanged();
-                    onToast(`${res.imported} Node içe aktarıldı (Shadow).`);
+                    onToast(t("settings.imported", { count: res.imported }));
                   }
                 }}
               >
-                .nla / .nlc içe aktar…
+                {t("settings.importArchive")}
               </button>
             </div>
           </>
         )}
 
-        <h3>Yapay zekâ</h3>
-        <p className="muted">
-          Nularche AI iki şekilde çalışır. <b>Otomatik mod</b>da istekleriniz ücretsiz Gemini anahtarınızla arka planda işlenir; düzenleme ve cevap
-          doğrudan sağ alttaki <b>Nularche AI</b> penceresinde görünür. <b>Üyelik modu</b>nda Claude, ChatGPT ya da Gemini uygulamanıza kendi
-          hesabınızla giriş yaparsınız ve isteği o uygulamada gönderirsiniz.
-        </p>
+        <h3>{t("settings.ai")}</h3>
+        <p className="muted">{t("settings.aiIntro")}</p>
         <AiSetup tick={aiTick} onToast={onToast} />
 
-        <h3>Hakkında</h3>
+        <h3>{t("settings.about")}</h3>
         <p className="muted">
-          Nularche {info?.version ?? ""} · /ˈnʌl.ɑːrk/ · MIT lisansı ·{" "}
+          Nularche {info?.version ?? ""} · /ˈnʌl.ɑːrk/ · {t("settings.license")} ·{" "}
           <a href="https://github.com/VerseOfAC92/nularche" target="_blank" rel="noreferrer">
             GitHub
           </a>

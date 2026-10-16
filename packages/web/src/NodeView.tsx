@@ -6,16 +6,17 @@ import { api, ApiError, SHADOW, type NodeDoc, type NodeMeta, type PageFieldPatch
 import { desktop } from "./desktop.ts";
 import { Editor } from "./editor/Editor.tsx";
 import { NularcheMark } from "./ai/NularcheMark.tsx";
+import { t, type StringKey } from "./i18n/index.ts";
 import { fileUrl, resolveRelative } from "./editor/paths.ts";
 
 type Status = "saved" | "dirty" | "saving" | "conflict" | "error";
 const SAVE_DELAY_MS = 800;
-const STATUS_TEXT: Record<Status, string> = {
-  saved: "Kaydedildi",
-  dirty: "Düzenleniyor…",
-  saving: "Kaydediliyor…",
-  conflict: "Çakışma",
-  error: "Kaydedilemedi",
+const STATUS_KEY: Record<Status, StringKey> = {
+  saved: "node.saved",
+  dirty: "node.editing",
+  saving: "node.saving",
+  conflict: "node.conflict",
+  error: "node.saveFailed",
 };
 const GRADIENTS = ["gradient-1", "gradient-2", "gradient-3", "gradient-4", "gradient-5", "gradient-6"];
 const EMOJIS =
@@ -176,7 +177,7 @@ export function NodeView(props: NodeViewProps) {
   useEffect(() => {
     if (!doc || focusedNew.current) return;
     focusedNew.current = true;
-    if (doc.title === "Adsız" && doc.body.trim() === "" && Date.now() - doc.createdAt < 15_000) {
+    if (["Adsız", "Untitled"].includes(doc.title) && doc.body.trim() === "" && Date.now() - doc.createdAt < 15_000) {
       titleRef.current?.focus();
       titleRef.current?.select();
     }
@@ -267,22 +268,22 @@ export function NodeView(props: NodeViewProps) {
               /{" "}
             </span>
           ))}
-          <span>{title || "Adsız"}</span>
+          <span>{title || t("common.untitled")}</span>
         </div>
         <div className="topbar-right">
-          <span className={`status ${status}`}>{STATUS_TEXT[status]}</span>
-          <button className="claude-btn" onClick={props.onOpenAI} title="Bu Node için Nularche AI'ı aç">
+          <span className={`status ${status}`}>{t(STATUS_KEY[status])}</span>
+          <button className="claude-btn" onClick={props.onOpenAI} title={t("node.openAi")}>
             <NularcheMark size={15} /> Nularche AI
           </button>
           <button
             className={`icon-btn ${doc.favorite ? "on" : ""}`}
-            title={doc.favorite ? "Favorilerden çıkar" : "Favorilere ekle"}
+            title={doc.favorite ? t("node.unfavorite") : t("node.favorite")}
             onClick={() => setFields({ favorite: doc.favorite ? null : true })}
           >
             {doc.favorite ? "★" : "☆"}
           </button>
           <div className="rel">
-            <button className="icon-btn" title="Diğer" onClick={() => setMenu(menu === "more" ? null : "more")}>
+            <button className="icon-btn" title={t("node.more")} onClick={() => setMenu(menu === "more" ? null : "more")}>
               ⋯
             </button>
             {menu === "more" && (
@@ -296,7 +297,7 @@ export function NodeView(props: NodeViewProps) {
                       props.onChanged();
                     }}
                   >
-                    ◐ Shadow'a taşı
+                    ◐ {t("node.moveToShadow")}
                   </button>
                 )}
                 {isShadow && (
@@ -306,10 +307,10 @@ export function NodeView(props: NodeViewProps) {
                       await flush();
                       await api.move(id, null);
                       props.onChanged();
-                      props.onToast("Node artık bir Arche.");
+                      props.onToast(t("node.nowArche"));
                     }}
                   >
-                    ◈ Arche yap (köke taşı)
+                    ◈ {t("node.makeArche")}
                   </button>
                 )}
                 {desktop && (
@@ -318,10 +319,10 @@ export function NodeView(props: NodeViewProps) {
                       setMenu(null);
                       await flush();
                       const out = await desktop!.printPdf(title || doc.title);
-                      if (out) props.onToast(`PDF kaydedildi: ${out}`);
+                      if (out) props.onToast(t("node.pdfSaved", { path: out }));
                     }}
                   >
-                    ⎙ PDF olarak kaydet
+                    ⎙ {t("node.savePdf")}
                   </button>
                 )}
                 {desktop && (
@@ -330,10 +331,10 @@ export function NodeView(props: NodeViewProps) {
                       setMenu(null);
                       await flush();
                       const out = await desktop!.exportArchive(id, "nlc");
-                      if (out) props.onToast(`Dışa aktarıldı: ${out}`);
+                      if (out) props.onToast(t("node.exported", { path: out }));
                     }}
                   >
-                    ⇪ .nlc olarak dışa aktar
+                    ⇪ {t("node.exportNlc")}
                   </button>
                 )}
                 <hr />
@@ -345,7 +346,7 @@ export function NodeView(props: NodeViewProps) {
                     if (meta) props.onTrash(meta);
                   }}
                 >
-                  🗑 Çöpe taşı
+                  🗑 {t("common.moveToTrash")}
                 </button>
               </div>
             )}
@@ -355,9 +356,9 @@ export function NodeView(props: NodeViewProps) {
 
       {status === "conflict" && (
         <div className="banner conflict">
-          Bu Node siz düzenlerken başka bir yerde (ör. Claude tarafından) değiştirildi.
-          <button onClick={() => resolveConflict(false)}>Yeni sürümü yükle</button>
-          <button onClick={() => resolveConflict(true)}>Benimkiyle üzerine yaz</button>
+          {t("node.conflictBanner")}
+          <button onClick={() => resolveConflict(false)}>{t("node.loadNew")}</button>
+          <button onClick={() => resolveConflict(true)}>{t("node.keepMine")}</button>
         </div>
       )}
       {error && (
@@ -369,9 +370,9 @@ export function NodeView(props: NodeViewProps) {
       {cover && (
         <div className={`cover ${GRADIENTS.includes(cover) ? cover : ""}`} style={coverStyle}>
           <div className="cover-actions">
-            <button onClick={() => setFields({ cover: GRADIENTS[(GRADIENTS.indexOf(cover) + 1) % GRADIENTS.length] })}>Renk değiştir</button>
-            <button onClick={uploadCover}>Resim yükle</button>
-            <button onClick={() => setFields({ cover: null })}>Kaldır</button>
+            <button onClick={() => setFields({ cover: GRADIENTS[(GRADIENTS.indexOf(cover) + 1) % GRADIENTS.length] })}>{t("node.changeColor")}</button>
+            <button onClick={uploadCover}>{t("node.uploadImage")}</button>
+            <button onClick={() => setFields({ cover: null })}>{t("common.remove")}</button>
           </div>
         </div>
       )}
@@ -379,14 +380,14 @@ export function NodeView(props: NodeViewProps) {
       <article className={`page ${cover ? "has-cover" : ""}`}>
         {doc.icon && (
           <div className="rel">
-            <span className="page-icon" onClick={() => setMenu(menu === "icon" ? null : "icon")} title="İkonu değiştir">
+            <span className="page-icon" onClick={() => setMenu(menu === "icon" ? null : "icon")} title={t("node.changeIcon")}>
               {doc.icon}
             </span>
           </div>
         )}
         <div className="page-meta-actions">
-          {!doc.icon && <button onClick={() => setMenu("icon")}>☺ İkon ekle</button>}
-          {!cover && <button onClick={() => setFields({ cover: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)] })}>▭ Kapak ekle</button>}
+          {!doc.icon && <button onClick={() => setMenu("icon")}>☺ {t("node.addIcon")}</button>}
+          {!cover && <button onClick={() => setFields({ cover: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)] })}>▭ {t("node.addCover")}</button>}
         </div>
         {menu === "icon" && (
           <div className="pop anchored" style={{ top: doc.icon ? 80 : 70 }} onMouseLeave={() => setMenu(null)}>
@@ -400,7 +401,7 @@ export function NodeView(props: NodeViewProps) {
             {doc.icon && (
               <div className="row" style={{ padding: 4 }}>
                 <button className="secondary" onClick={() => (setMenu(null), setFields({ icon: null }))}>
-                  İkonu kaldır
+                  {t("node.removeIcon")}
                 </button>
               </div>
             )}
@@ -411,7 +412,7 @@ export function NodeView(props: NodeViewProps) {
           className="title-input"
           rows={1}
           value={title}
-          placeholder="Adsız"
+          placeholder={t("common.untitled")}
           onChange={(e) => {
             // Başlık tek satırlık bir metindir; yapıştırılan satır sonları boşluğa çevrilir.
             const value = e.target.value.replace(/\s*\n\s*/g, " ");
@@ -439,7 +440,7 @@ export function NodeView(props: NodeViewProps) {
         />
         {backlinks.length > 0 && (
           <section className="backlinks">
-            <h4>Geri bağlantılar · {backlinks.length}</h4>
+            <h4>{t("node.backlinks")} · {backlinks.length}</h4>
             {backlinks.map((b) => (
               <button key={b.id} onClick={() => props.onNavigate(b.id)}>
                 {b.icon ?? "◇"} {b.title}

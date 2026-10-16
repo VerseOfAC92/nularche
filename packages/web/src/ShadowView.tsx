@@ -4,13 +4,7 @@
 import { useEffect, useState } from "react";
 import { api, type NodeMeta, type ShadowView as ShadowData } from "./api.ts";
 
-const ago = (ms: number) => {
-  const d = (Date.now() - ms) / 1000;
-  if (d < 60) return "az önce";
-  if (d < 3600) return `${Math.floor(d / 60)} dk önce`;
-  if (d < 86400) return `${Math.floor(d / 3600)} sa önce`;
-  return new Date(ms).toLocaleDateString("tr-TR");
-};
+import { ago, t } from "./i18n/index.ts";
 
 export function ShadowView({
   nodes,
@@ -39,13 +33,13 @@ export function ShadowView({
     await api.capture(text);
     setText("");
     onChanged();
-    onToast("Shadow'a yakalandı.");
+    onToast(t("shadow.captured"));
   }
 
   async function moveTo(n: NodeMeta, target: string) {
     await api.move(n.id, target === "__root" ? null : target);
     onChanged();
-    onToast(target === "__root" ? `“${n.title}” artık bir Arche.` : `“${n.title}” taşındı.`);
+    onToast(target === "__root" ? t("shadow.nowArche", { title: n.title }) : t("shadow.moved", { title: n.title }));
   }
 
   const item = (n: NodeMeta, withMove: boolean) => (
@@ -56,9 +50,9 @@ export function ShadowView({
       </span>
       <small>{ago(n.updatedAt)}</small>
       {withMove && (
-        <select value="" onChange={(e) => e.target.value && moveTo(n, e.target.value)} title="Bir Arche'ye bağla">
-          <option value="">Bağla…</option>
-          <option value="__root">◈ Yeni Arche yap</option>
+        <select value="" onChange={(e) => e.target.value && moveTo(n, e.target.value)} title={t("shadow.linkToArche")}>
+          <option value="">{t("shadow.link")}</option>
+          <option value="__root">◈ {t("shadow.makeArche")}</option>
           {arches.map((a) => (
             <option key={a.id} value={a.id}>
               {a.icon ?? "◈"} {a.title}
@@ -72,10 +66,10 @@ export function ShadowView({
   return (
     <div className="shadow-view">
       <h1>◐ Shadow</h1>
-      <p className="muted">Henüz hiçbir Arche'ye bağlanmamış ham notlar ve bağlantısız fikirler. Yakalayın, sonra bilgi ağınıza bağlayın.</p>
+      <p className="muted">{t("shadow.intro")}</p>
       <div className="capture">
         <textarea
-          placeholder="Aklınızdakini yazın… (⌘Enter ile yakala)"
+          placeholder={t("shadow.capturePlaceholder")}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -86,23 +80,23 @@ export function ShadowView({
           }}
         />
         <button className="primary" onClick={capture} disabled={!text.trim()}>
-          Yakala
+          {t("shadow.capture")}
         </button>
       </div>
 
-      <h2 className="section-title">Gelen kutusu · {data?.inbox.length ?? 0}</h2>
+      <h2 className="section-title">{t("shadow.inbox")} · {data?.inbox.length ?? 0}</h2>
       <div className="shadow-list">
         {data?.inbox.map((n) => item(n, true))}
-        {data && data.inbox.length === 0 && <p className="empty">Gelen kutusu boş.</p>}
+        {data && data.inbox.length === 0 && <p className="empty">{t("shadow.inboxEmpty")}</p>}
       </div>
 
-      <h2 className="section-title">Bağlantısız Node'lar · {data?.unlinked.length ?? 0}</h2>
+      <h2 className="section-title">{t("shadow.unlinked")} · {data?.unlinked.length ?? 0}</h2>
       <p className="muted">
-        Bu Node'lar hiçbir Node'a bağlantı vermiyor ve bağlantı almıyor. Birbirleriyle ilişkilendirmek için açıp “[[” ile bağlayın.
+        {t("shadow.unlinkedHint")}
       </p>
       <div className="shadow-list">
         {data?.unlinked.map((n) => item(n, false))}
-        {data && data.unlinked.length === 0 && <p className="empty">Hepsi bağlantılı.</p>}
+        {data && data.unlinked.length === 0 && <p className="empty">{t("shadow.allLinked")}</p>}
       </div>
     </div>
   );

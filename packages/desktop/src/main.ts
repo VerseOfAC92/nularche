@@ -12,6 +12,7 @@ import path from "node:path";
 import { exportArchive, importArchive, type ArchiveKind } from "../../core/src/archive.ts";
 import type { McpEntry } from "../../core/src/ai-clients.ts";
 import { registerAiIpc, type AiSettings } from "./ai.ts";
+import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
 import { loadOrigin, type Origin } from "../../core/src/origin.ts";
 import { startServer, type RunningServer } from "../../server/src/app.ts";
 
@@ -49,6 +50,8 @@ app.setPath("userData", dirs.data);
 interface Settings extends AiSettings {
   originDir?: string;
   skipVersion?: string;
+  /** Arayüz dili; seçilmemişse sistem dilinden çıkarılır. */
+  language?: Lang;
 }
 
 const settingsPath = () => path.join(dirs.config, "settings.json");
@@ -102,11 +105,11 @@ function wrongArchitecture(): boolean {
 /** Uygulama geçici bir konumdan (DMG, İndirilenler karantinası) çalışıyorsa MCP kaydı kalıcı olmaz. */
 function unstableLocation(): string | null {
   if (wrongArchitecture()) {
-    return "Bu Mac Apple Silicon işlemcili ama Nularche'nin Intel sürümü kurulu. Daha hızlı çalışması ve gelecekteki macOS sürümlerinde açılabilmesi için Apple Silicon sürümünü kurun.";
+    return d("warn.rosetta");
   }
   const exe = process.execPath;
   if (process.platform === "darwin" && (exe.startsWith("/Volumes/") || exe.includes("/AppTranslocation/"))) {
-    return "Nularche disk görüntüsünden ya da karantinadaki bir konumdan çalışıyor. Yapay zekâ bağlantısının kalıcı olması için önce uygulamayı Uygulamalar klasörüne taşıyıp oradan açın.";
+    return d("warn.translocated");
   }
   return null;
 }
@@ -124,24 +127,23 @@ async function chooseOriginOnFirstRun(): Promise<string | null> {
     }) ?? "Nularche Origin",
   );
   const legacy = [path.join(documents, "nularche", "origin"), path.join(documents, "notlar", "vault")].find((p) => existsSync(p));
-  const buttons = ["Varsayılan Origin'i kullan", "Klasör seç…", "Çık"];
-  if (legacy) buttons.unshift("Mevcut notları kullan");
+  const choices = [...(legacy ? (["legacy"] as const) : []), "default", "pick", "quit"] as const;
+  const label = { legacy: d("origin.useLegacy"), default: d("origin.useDefault"), pick: d("origin.pick"), quit: d("menu.quit") };
+  const buttons = choices.map((c) => label[c]);
   const { response } = await dialog.showMessageBox({
     type: "question",
     title: "Nularche",
-    message: "Origin'iniz nerede olsun?",
-    detail:
-      `Origin, tüm Node'larınızın düz Markdown (.md) dosyaları olarak durduğu ana veri kasasıdır.\n\nVarsayılan: ${defaultDir}` +
-      (legacy ? `\nMevcut notlar: ${legacy}` : ""),
+    message: d("origin.question"),
+    detail: d("origin.detail", { dir: defaultDir }) + (legacy ? d("origin.legacy", { dir: legacy }) : ""),
     buttons,
     defaultId: 0,
     cancelId: buttons.length - 1,
   });
-  const choice = buttons[response];
-  if (choice === "Mevcut notları kullan") return legacy!;
+  const choice = choices[response];
+  if (choice === "legacy") return legacy!;
   let dir: string | null = null;
-  if (choice === "Varsayılan Origin'i kullan") dir = defaultDir;
-  else if (choice === "Klasör seç…") dir = await pickFolder();
+  if (choice === "default") dir = defaultDir;
+  else if (choice === "pick") dir = await pickFolder();
   if (!dir) return null;
   return (await confirmOriginFolder(dir)) ? dir : chooseOriginOnFirstRun();
 }
@@ -167,12 +169,9 @@ async function confirmOriginFolder(dir: string): Promise<boolean> {
   const { response } = await dialog.showMessageBox({
     type: "warning",
     title: "Nularche",
-    message: "Bu klasör bir Nularche Origin'i gibi görünmüyor.",
-    detail:
-      `${dir}\n\nKlasörde ${[...markers, ...foreign].slice(0, 5).join(", ")} gibi başka dosyalar var. ` +
-      "Nularche buradaki .md dosyalarını Node olarak gösterir ve uygulamada düzenlediğiniz dosyaların başına kimlik bilgisi (frontmatter) ekler. " +
-      "Notlarınız için boş ya da yalnızca notlardan oluşan bir klasör seçmeniz önerilir.",
-    buttons: ["Başka klasör seç", "Yine de kullan", "Vazgeç"],
+    message: d("origin.notOrigin"),
+    detail: d("origin.notOriginDetail", { dir, files: [...markers, ...foreign].slice(0, 5).join(", ") }),
+    buttons: [d("origin.pickOther"), d("origin.useAnyway"), d("common.cancel")],
     defaultId: 0,
     cancelId: 2,
   });
@@ -180,7 +179,7 @@ async function confirmOriginFolder(dir: string): Promise<boolean> {
 }
 
 async function pickFolder(): Promise<string | null> {
-  const res = await dialog.showOpenDialog({ title: "Origin klasörünü seçin", properties: ["openDirectory", "createDirectory"] });
+  const res = await dialog.showOpenDialog({ title: d("origin.pickTitle"), properties: ["openDirectory", "createDirectory"] });
   return res.canceled || res.filePaths.length === 0 ? null : res.filePaths[0];
 }
 
@@ -236,8 +235,8 @@ async function handleOpen(target: string): Promise<void> {
         if (wantOrigin && origin && wantOrigin !== origin.id) {
           dialog.showMessageBox({
             type: "info",
-            message: "Bu bağlantı başka bir Origin'e ait.",
-            detail: "Bağlantının ait olduğu Origin'i Dosya → Başka Origin aç ile açın.",
+            message: d("link.otherOrigin"),
+            detail: d("link.otherOriginDetail"),
           });
           return;
         }
@@ -261,9 +260,9 @@ async function importArchiveFile(file: string): Promise<{ imported: number; root
   if (!server) return null;
   const { response } = await dialog.showMessageBox({
     type: "question",
-    message: `“${path.basename(file)}” içe aktarılsın mı?`,
-    detail: "Arşivdeki Node'lar Shadow gelen kutusuna eklenir; mevcut Node'lara dokunulmaz.",
-    buttons: ["İçe aktar", "Vazgeç"],
+    message: d("archive.importQuestion", { name: path.basename(file) }),
+    detail: d("archive.importDetail"),
+    buttons: [d("archive.import"), d("common.cancel")],
     defaultId: 0,
     cancelId: 1,
   });
@@ -282,7 +281,14 @@ function createWindow(): void {
     title: "Nularche",
     backgroundColor: DARK_BG,
     show: false,
-    webPreferences: { preload: resourcePath("preload.cjs"), contextIsolation: true, sandbox: true, nodeIntegration: false },
+    webPreferences: {
+      preload: resourcePath("preload.cjs"),
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      // Arayüz dili ilk çizimden önce bilinsin (yerel sunucunun portu her açılışta değiştiği için tarayıcı deposu kalıcı değildir).
+      additionalArguments: [`--nlc-lang=${desktopLang()}`],
+    },
   });
   win.once("ready-to-show", () => win?.show());
   // Dış bağlantılar varsayılan tarayıcıda açılır; uygulama penceresi yalnızca yerel sunucuyu gösterir.
@@ -312,26 +318,26 @@ function buildMenu(): void {
   const template: MenuItemConstructorOptions[] = [
     ...(isMac ? [{ role: "appMenu" as const }] : []),
     {
-      label: "Dosya",
+      label: d("menu.file"),
       submenu: [
-        { label: "Başka Origin aç…", click: () => void changeOrigin() },
-        { label: "Origin klasörünü göster", click: () => settings.originDir && void shell.openPath(settings.originDir) },
+        { label: d("menu.openOrigin"), click: () => void changeOrigin() },
+        { label: d("menu.revealOrigin"), click: () => settings.originDir && void shell.openPath(settings.originDir) },
         { type: "separator" },
-        { label: "Arşiv içe aktar (.nla / .nlc)…", click: () => void pickAndImport() },
-        { label: "Origin'i dışa aktar (.nla)…", click: () => void saveArchive(null, "nla") },
+        { label: d("menu.importArchive"), click: () => void pickAndImport() },
+        { label: d("menu.exportOrigin"), click: () => void saveArchive(null, "nla") },
         { type: "separator" },
-        isMac ? { role: "close", label: "Pencereyi kapat" } : { role: "quit", label: "Çık" },
+        isMac ? { role: "close", label: d("menu.closeWindow") } : { role: "quit", label: d("menu.quit") },
       ],
     },
-    { role: "editMenu", label: "Düzen" },
-    { role: "viewMenu", label: "Görünüm" },
-    { role: "windowMenu", label: "Pencere" },
+    { role: "editMenu", label: d("menu.edit") },
+    { role: "viewMenu", label: d("menu.view") },
+    { role: "windowMenu", label: d("menu.window") },
     {
       role: "help",
-      label: "Yardım",
+      label: d("menu.help"),
       submenu: [
-        { label: "GitHub sayfası", click: () => void shell.openExternal(`https://github.com/${REPO}`) },
-        { label: "Sorun bildir", click: () => void shell.openExternal(`https://github.com/${REPO}/issues`) },
+        { label: d("menu.github"), click: () => void shell.openExternal(`https://github.com/${REPO}`) },
+        { label: d("menu.issue"), click: () => void shell.openExternal(`https://github.com/${REPO}/issues`) },
       ],
     },
   ];
@@ -348,9 +354,9 @@ async function changeOrigin(): Promise<string | null> {
 
 async function pickAndImport(): Promise<{ imported: number; rootIds: string[] } | null> {
   const res = await dialog.showOpenDialog({
-    title: "Arşiv seçin",
+    title: d("archive.pickTitle"),
     properties: ["openFile"],
-    filters: [{ name: "Nularche arşivi", extensions: ["nla", "nlc"] }],
+    filters: [{ name: d("archive.filter"), extensions: ["nla", "nlc"] }],
   });
   if (res.canceled || !res.filePaths[0]) return null;
   return importArchiveFile(res.filePaths[0]);
@@ -405,6 +411,13 @@ function registerIpc(): void {
     warning: unstableLocation(),
   }));
   ipcMain.handle("nularche:change-origin", () => changeOrigin());
+  ipcMain.handle("nularche:set-language", async (_e, lang: unknown) => {
+    if (!isLang(lang)) return;
+    settings.language = lang;
+    setDesktopLang(lang);
+    await saveSettings(settings);
+    buildMenu();
+  });
   ipcMain.handle("nularche:reveal-origin", () => settings.originDir && shell.openPath(settings.originDir));
   ipcMain.handle("nularche:copy", (_e, text: unknown) => {
     if (typeof text === "string") clipboard.writeText(text);
@@ -475,15 +488,14 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     settings = await loadSettings();
+    setDesktopLang(settings.language ?? systemLang(app.getLocale()));
     if (wrongArchitecture()) {
       const { response } = await dialog.showMessageBox({
         type: "warning",
         title: "Nularche",
-        message: "Bu Mac için doğru sürüm kurulu değil",
-        detail:
-          "Mac'iniz Apple Silicon (M serisi) işlemcili, ancak Nularche'nin Intel sürümü kurulu ve Rosetta ile çalışıyor. " +
-          "macOS'un gelecek sürümleri Intel uygulamalarını açmayacak. Lütfen “Apple Silicon” sürümünü indirip kurun; notlarınız ve ayarlarınız korunur.",
-        buttons: ["Apple Silicon sürümünü indir", "Şimdilik devam et"],
+        message: d("rosetta.message"),
+        detail: d("rosetta.detail"),
+        buttons: [d("rosetta.download"), d("rosetta.later")],
         defaultId: 0,
         cancelId: 1,
       });
@@ -497,7 +509,7 @@ if (!app.requestSingleInstanceLock()) {
     try {
       await openOrigin(originDir);
     } catch (err) {
-      dialog.showErrorBox("Nularche başlatılamadı", String(err));
+      dialog.showErrorBox(d("start.failed"), String(err));
       return app.quit();
     }
     createWindow();

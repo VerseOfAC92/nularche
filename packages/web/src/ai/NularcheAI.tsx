@@ -8,7 +8,9 @@ import { copyText, desktop } from "../desktop.ts";
 import { AiSetup, isProviderConnected, preferredLauncher, useAiStatus } from "./AiSetup.tsx";
 import { useAutoStatus } from "./AutoModeSetup.tsx";
 import { NularcheMark } from "./NularcheMark.tsx";
-import { AI_ACTIONS, PROVIDER_LABEL, requestPrompt } from "./prompts.ts";
+import { aiActions, PROVIDER_LABEL, requestPrompt } from "./prompts.ts";
+import { getLang, t } from "../i18n/index.ts";
+import { useDraggable } from "./useDraggable.ts";
 
 export interface AiContext {
   nodeId?: string;
@@ -19,13 +21,13 @@ export interface AiContext {
 const STATUS_TEXT = (r: AiRequest, ai: string, auto: boolean) =>
   r.status === "pending"
     ? auto
-      ? "Gönderiliyor…"
-      : `${ai} uygulamasında gönderin…`
+      ? t("nai.sending")
+      : t("nai.sendInApp", { ai })
     : r.status === "received"
-      ? `${ai} çalışıyor…`
+      ? t("nai.working", { ai })
       : r.status === "failed"
-        ? "Tamamlanamadı"
-        : "Tamamlandı";
+        ? t("nai.failed")
+        : t("nai.done");
 
 export function NularcheAI({
   open,
@@ -51,6 +53,7 @@ export function NularcheAI({
   const [useSelection, setUseSelection] = useState(true);
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const drag = useDraggable("nlc-nai-pos");
 
   useEffect(() => {
     api.aiState().then(
@@ -77,7 +80,7 @@ export function NularcheAI({
     if (!instruction.trim() || sending) return;
     setSending(true);
     try {
-      const req = await api.aiRequest({ provider, label, instruction, nodeId: context.nodeId, nodeTitle: context.nodeTitle, selection });
+      const req = await api.aiRequest({ provider, label, instruction, nodeId: context.nodeId, nodeTitle: context.nodeTitle, selection, language: getLang() });
       setRequests((r) => [req, ...r]);
       setText("");
       const prompt = requestPrompt(req);
@@ -91,13 +94,13 @@ export function NularcheAI({
         const res = await desktop.aiOpen(preferredLauncher(status, provider), prompt);
         onToast(
           res.opened
-            ? `İstek ${ai}'da hazır: Enter'a basın (kutu boşsa ⌘V ile yapıştırın).`
-            : (res.message ?? "AI aracı açılamadı; istem panoya kopyalandı."),
+            ? t("nai.readyIn", { ai })
+            : (res.message ?? t("nai.openFailed")),
         );
       } else {
         await copyText(prompt).then(
-          () => onToast("İstem panoya kopyalandı; bağlı AI aracınıza yapıştırın."),
-          () => onToast("İstek oluşturuldu. “İstemi kopyala” ile kopyalayıp AI aracınıza yapıştırın."),
+          () => onToast(t("nai.copiedPaste")),
+          () => onToast(t("nai.createdCopy")),
         );
       }
     } catch (e) {
@@ -108,11 +111,11 @@ export function NularcheAI({
   }
 
   async function clearHistory() {
-    if (!confirm("Nularche AI sohbet geçmişi temizlensin mi? Notlarınız değişmez; geçmiş arşivlenir.")) return;
+    if (!confirm(t("nai.clearConfirm"))) return;
     try {
       const res = await api.aiClear();
       setRequests((await api.aiState()).requests);
-      onToast(res.kept ? `Geçmiş temizlendi (${res.kept} işlenmekte olan istek bırakıldı).` : "Sohbet geçmişi temizlendi.");
+      onToast(res.kept ? t("nai.clearedKept", { count: res.kept }) : t("nai.cleared"));
     } catch (e) {
       onToast((e as Error).message);
     }
@@ -122,8 +125,8 @@ export function NularcheAI({
     const res = await api.aiUndo(r.id);
     onToast(
       res.restored.length
-        ? `Geri alındı: ${res.restored.join(", ")}${res.skipped.length ? ` · Atlanan (sonradan değişmiş): ${res.skipped.join(", ")}` : ""}`
-        : `Geri alınamadı; Node'lar sonradan değişmiş: ${res.skipped.join(", ")}`,
+        ? t("nai.undone", { list: res.restored.join(", ") }) + (res.skipped.length ? t("nai.undoSkipped", { list: res.skipped.join(", ") }) : "")
+        : t("nai.undoFailed", { list: res.skipped.join(", ") }),
     );
   }
 
@@ -137,23 +140,23 @@ export function NularcheAI({
   }
 
   return (
-    <div className="nai-panel" role="dialog" aria-label="Nularche AI">
-      <header className="nai-head">
+    <div className={`nai-panel ${drag.dragging ? "dragging" : ""}`} role="dialog" aria-label="Nularche AI" ref={drag.ref} style={drag.style}>
+      <header className="nai-head" onPointerDown={drag.onPointerDown} onDoubleClick={drag.reset} title={t("nai.dragHint")}>
         <span className="nai-title">
           <NularcheMark size={18} /> Nularche AI
         </span>
         {provider && (
-          <button className={`nai-provider ${connected ? "on" : ""}`} onClick={onOpenSettings} title="Yapay zekâ ayarları">
+          <button className={`nai-provider ${connected ? "on" : ""}`} onClick={onOpenSettings} title={t("nai.aiSettings")}>
             <span className={`nai-dot ${connected ? "on" : ""}`} /> {ai}
-            {autoOn ? " · Otomatik" : ""}
+            {autoOn ? ` · ${t("nai.auto")}` : ""}
           </button>
         )}
         {requests.length > 0 && (
-          <button className="icon-btn" onClick={clearHistory} title="Sohbet geçmişini temizle">
+          <button className="icon-btn" onClick={clearHistory} title={t("nai.clearHistory")}>
             ⌫
           </button>
         )}
-        <button className="icon-btn" onClick={() => onOpenChange(false)} title="Küçült">
+        <button className="icon-btn" onClick={() => onOpenChange(false)} title={t("nai.minimize")}>
           —
         </button>
       </header>
@@ -167,10 +170,7 @@ export function NularcheAI({
           <div className="nai-body" ref={listRef}>
             {ordered.length === 0 && (
               <div className="nai-empty">
-                <p>
-                  Merhaba! Bir Node açıp aşağıdan bir eylem seçin ya da ne istediğinizi yazın. İstek {ai}'a gider, {ai} notlarınızda çalışır; sonuç ve
-                  cevap burada görünür.
-                </p>
+                <p>{t("nai.empty", { ai })}</p>
               </div>
             )}
             {ordered.map((r) => (
@@ -182,7 +182,7 @@ export function NularcheAI({
                       ◇ {r.nodeTitle}
                     </button>
                   )}
-                  {r.selection && <span className="nai-chip">seçili metin</span>}
+                  {r.selection && <span className="nai-chip">{t("nai.selection")}</span>}
                 </div>
                 <div className={`nai-status ${r.status}`}>
                   {STATUS_TEXT(r, r.provider ? PROVIDER_LABEL[r.provider] : ai, autoOn)}
@@ -195,7 +195,7 @@ export function NularcheAI({
                         if (!res.ok && res.error) onToast(res.error);
                       }}
                     >
-                      ↻ Tekrar dene
+                      ↻ {t("nai.retry")}
                     </button>
                   )}
                   {r.status === "pending" && !autoOn && (
@@ -203,12 +203,12 @@ export function NularcheAI({
                       className="nai-copy"
                       onClick={() =>
                         copyText(requestPrompt(r)).then(
-                          () => onToast("İstem panoya kopyalandı."),
-                          () => onToast("Pano izni yok; istemi kopyalayamadım."),
+                          () => onToast(t("nai.copied")),
+                          () => onToast(t("nai.copyDenied")),
                         )
                       }
                     >
-                      İstemi kopyala
+                      {t("nai.copyPrompt")}
                     </button>
                   )}
                 </div>
@@ -221,10 +221,10 @@ export function NularcheAI({
                       </button>
                     ))}
                     {r.undoneAt ? (
-                      <span className="muted small">Geri alındı</span>
+                      <span className="muted small">{t("nai.undoneShort")}</span>
                     ) : (
                       <button className="nai-undo" onClick={() => undo(r)}>
-                        ↶ Geri al
+                        ↶ {t("nai.undo")}
                       </button>
                     )}
                   </div>
@@ -238,22 +238,22 @@ export function NularcheAI({
               {context.nodeTitle ? (
                 <span className="nai-chip">◇ {context.nodeTitle}</span>
               ) : (
-                <span className="muted small">Bir Node açın ya da genel bir soru sorun</span>
+                <span className="muted small">{t("nai.noNode")}</span>
               )}
               {context.selection?.trim() && (
                 <label className="nai-chip">
-                  <input type="checkbox" checked={useSelection} onChange={(e) => setUseSelection(e.target.checked)} /> seçili metin (
+                  <input type="checkbox" checked={useSelection} onChange={(e) => setUseSelection(e.target.checked)} /> {t("nai.selection")} (
                   {context.selection.trim().length})
                 </label>
               )}
             </div>
             {context.nodeId && (
               <div className="nai-actions">
-                {AI_ACTIONS.map((a) => (
+                {aiActions().map((a) => (
                   <button
                     key={a.label}
                     disabled={sending}
-                    onClick={() => send(a.label, selection ? `${a.instruction} Yalnızca kullanıcının seçtiği metne uygula.` : a.instruction)}
+                    onClick={() => send(a.label, selection ? `${a.instruction} ${t("nai.onlySelection")}` : a.instruction)}
                   >
                     <span>{a.icon}</span> {a.label}
                   </button>
@@ -269,7 +269,7 @@ export function NularcheAI({
             >
               <textarea
                 value={text}
-                placeholder={`${ai}'a ne yaptırmak istersiniz?`}
+                placeholder={t("nai.placeholder", { ai })}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {

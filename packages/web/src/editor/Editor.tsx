@@ -6,6 +6,7 @@ import { EditorContent, useEditor, type Editor as TiptapEditor } from "@tiptap/r
 import { BubbleMenu } from "@tiptap/react/menus";
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import { api, type NodeMeta } from "../api.ts";
+import { t, type StringKey } from "../i18n/index.ts";
 import { buildExtensions } from "./extensions.ts";
 import { CALLOUT_KINDS, type CalloutKind } from "./markdown-extensions.ts";
 import { fileUrl, fromEditorMarkdown, toEditorMarkdown, vaultPathFromUrl } from "./paths.ts";
@@ -25,142 +26,142 @@ interface CommandContext {
   createChild: (title: string) => Promise<NodeMeta | null>;
 }
 
-const CALLOUT_LABELS: Record<CalloutKind, [string, string]> = {
-  note: ["Not", "ℹ️"],
-  tip: ["İpucu", "💡"],
-  important: ["Önemli", "❗"],
-  warning: ["Uyarı", "⚠️"],
-  caution: ["Dikkat", "⛔"],
+const CALLOUT_LABELS: Record<CalloutKind, [StringKey, string]> = {
+  note: ["ed.callout.note", "ℹ️"],
+  tip: ["ed.callout.tip", "💡"],
+  important: ["ed.callout.important", "❗"],
+  warning: ["ed.callout.warning", "⚠️"],
+  caution: ["ed.callout.caution", "⛔"],
 };
 
-const COMMANDS: Command[] = [
+const commands = (): Command[] => [
   {
-    group: "Temel",
-    label: "Metin",
-    hint: "Düz paragraf",
+    group: t("ed.g.basic"),
+    label: t("ed.c.text"),
+    hint: t("ed.c.textHint"),
     icon: "¶",
     keywords: "text paragraf metin",
     run: (e) => void e.chain().focus().setParagraph().run(),
   },
   {
-    group: "Temel",
-    label: "Başlık 1",
-    hint: "Büyük başlık",
+    group: t("ed.g.basic"),
+    label: t("ed.c.h1"),
+    hint: t("ed.c.h1Hint"),
     icon: "H1",
     keywords: "h1 baslik heading",
     run: (e) => void e.chain().focus().setHeading({ level: 1 }).run(),
   },
   {
-    group: "Temel",
-    label: "Başlık 2",
-    hint: "Orta başlık",
+    group: t("ed.g.basic"),
+    label: t("ed.c.h2"),
+    hint: t("ed.c.h2Hint"),
     icon: "H2",
     keywords: "h2 baslik heading",
     run: (e) => void e.chain().focus().setHeading({ level: 2 }).run(),
   },
   {
-    group: "Temel",
-    label: "Başlık 3",
-    hint: "Küçük başlık",
+    group: t("ed.g.basic"),
+    label: t("ed.c.h3"),
+    hint: t("ed.c.h3Hint"),
     icon: "H3",
     keywords: "h3 baslik heading",
     run: (e) => void e.chain().focus().setHeading({ level: 3 }).run(),
   },
   {
-    group: "Temel",
-    label: "Madde listesi",
+    group: t("ed.g.basic"),
+    label: t("ed.c.bullet"),
     hint: "• liste",
     icon: "•",
     keywords: "liste bullet ul madde",
     run: (e) => void e.chain().focus().toggleBulletList().run(),
   },
   {
-    group: "Temel",
-    label: "Numaralı liste",
+    group: t("ed.g.basic"),
+    label: t("ed.c.ordered"),
     hint: "1. liste",
     icon: "1.",
     keywords: "liste numbered ol numara",
     run: (e) => void e.chain().focus().toggleOrderedList().run(),
   },
   {
-    group: "Temel",
-    label: "Yapılacaklar",
-    hint: "Onay kutuları",
+    group: t("ed.g.basic"),
+    label: t("ed.c.todo"),
+    hint: t("ed.c.todoHint"),
     icon: "☑",
     keywords: "todo yapilacak gorev task checkbox",
     run: (e) => void e.chain().focus().toggleTaskList().run(),
   },
   {
-    group: "Temel",
-    label: "Açılır blok",
-    hint: "Gizlenebilir içerik",
+    group: t("ed.g.basic"),
+    label: t("ed.c.toggle"),
+    hint: t("ed.c.toggleHint"),
     icon: "▸",
     keywords: "toggle acilir details gizle",
     run: (e) => void e.chain().focus().setDetails().run(),
   },
   {
-    group: "Temel",
-    label: "Alıntı",
-    hint: "Alıntı bloğu",
+    group: t("ed.g.basic"),
+    label: t("ed.c.quote"),
+    hint: t("ed.c.quoteHint"),
     icon: "❝",
     keywords: "quote alinti",
     run: (e) => void e.chain().focus().toggleBlockquote().run(),
   },
   {
-    group: "Temel",
-    label: "Ayırıcı",
-    hint: "Yatay çizgi",
+    group: t("ed.g.basic"),
+    label: t("ed.c.divider"),
+    hint: t("ed.c.dividerHint"),
     icon: "—",
     keywords: "divider hr ayirici cizgi",
     run: (e) => void e.chain().focus().setHorizontalRule().run(),
   },
   ...CALLOUT_KINDS.map((kind): Command => ({
     group: "Callout",
-    label: `Callout: ${CALLOUT_LABELS[kind][0]}`,
-    hint: "Vurgulu kutu",
+    label: `Callout: ${t(CALLOUT_LABELS[kind][0])}`,
+    hint: t("ed.c.calloutHint"),
     icon: CALLOUT_LABELS[kind][1],
-    keywords: `callout kutu ${kind} ${CALLOUT_LABELS[kind][0]}`,
+    keywords: `callout kutu box ${kind} ${t(CALLOUT_LABELS[kind][0])}`,
     run: (e) => void e.chain().focus().setCallout(kind).run(),
   })),
   {
-    group: "Gelişmiş",
-    label: "Tablo",
-    hint: "3×3 tablo",
+    group: t("ed.g.advanced"),
+    label: t("ed.c.table"),
+    hint: t("ed.c.tableHint"),
     icon: "▦",
     keywords: "table tablo",
     run: (e) => void e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
   },
   {
-    group: "Gelişmiş",
-    label: "Kod bloğu",
-    hint: "Sözdizimi renklendirmeli",
+    group: t("ed.g.advanced"),
+    label: t("ed.c.code"),
+    hint: t("ed.c.codeHint"),
     icon: "</>",
     keywords: "code kod",
     run: (e) => void e.chain().focus().toggleCodeBlock().run(),
   },
   {
-    group: "Bağlantı",
-    label: "Node bağlantısı",
-    hint: "Başka bir Node'a bağlan ([[)",
+    group: t("ed.g.link"),
+    label: t("ed.c.nodeLink"),
+    hint: t("ed.c.nodeLinkHint"),
     icon: "↗",
     keywords: "link baglanti sayfa node mention",
     run: (e) => void e.chain().focus().insertContent("[[").run(),
   },
   {
-    group: "Bağlantı",
-    label: "Alt Node",
-    hint: "Bu Node'un altında yeni Node",
+    group: t("ed.g.link"),
+    label: t("ed.c.child"),
+    hint: t("ed.c.childHint"),
     icon: "⤷",
     keywords: "alt sayfa subpage child node",
     run: async (e, ctx) => {
-      const node = await ctx.createChild("Adsız");
+      const node = await ctx.createChild(t("common.untitled"));
       if (node) e.chain().focus().insertContent(linkContent(node)).run();
     },
   },
   {
-    group: "Medya",
-    label: "Resim",
-    hint: "Bilgisayardan yükle",
+    group: t("ed.g.media"),
+    label: t("ed.c.image"),
+    hint: t("ed.c.imageHint"),
     icon: "🖼",
     keywords: "image resim gorsel foto",
     run: async (e, ctx) => {
@@ -169,9 +170,9 @@ const COMMANDS: Command[] = [
     },
   },
   {
-    group: "Medya",
-    label: "Dosya",
-    hint: "Ek olarak yükle",
+    group: t("ed.g.media"),
+    label: t("ed.c.file"),
+    hint: t("ed.c.fileHint"),
     icon: "📎",
     keywords: "file dosya ek pdf",
     run: async (e, ctx) => {
@@ -180,13 +181,13 @@ const COMMANDS: Command[] = [
     },
   },
   {
-    group: "Medya",
+    group: t("ed.g.media"),
     label: "YouTube",
-    hint: "Video göm",
+    hint: t("ed.c.youtubeHint"),
     icon: "▶",
     keywords: "youtube video embed gom",
     run: (e) => {
-      const src = prompt("YouTube bağlantısı:");
+      const src = prompt(t("ed.youtubePrompt"));
       if (src) e.chain().focus().setYoutubeVideo({ src }).run();
     },
   },
@@ -211,16 +212,16 @@ interface Trigger {
 
 type Item = { key: string; label: string; hint: string; icon: string; group: string; run: (e: TiptapEditor) => void | Promise<void> };
 
-const TEXT_COLORS = [
-  ["Varsayılan", ""],
-  ["Gri", "#8b949e"],
-  ["Cyan", "#00a8b5"],
-  ["Mavi", "#2f81f7"],
-  ["Yeşil", "#3fb950"],
-  ["Sarı", "#d29922"],
-  ["Turuncu", "#f0883e"],
-  ["Kırmızı", "#f85149"],
-  ["Mor", "#a371f7"],
+const TEXT_COLORS: [StringKey, string][] = [
+  ["ed.color.default", ""],
+  ["ed.color.gray", "#8b949e"],
+  ["ed.color.cyan", "#00a8b5"],
+  ["ed.color.blue", "#2f81f7"],
+  ["ed.color.green", "#3fb950"],
+  ["ed.color.yellow", "#d29922"],
+  ["ed.color.orange", "#f0883e"],
+  ["ed.color.red", "#f85149"],
+  ["ed.color.purple", "#a371f7"],
 ] as const;
 
 export interface EditorProps {
@@ -267,7 +268,7 @@ export function Editor(props: EditorProps) {
           if (pos !== undefined) e.chain().focus().insertContentAt(pos, content).run();
           else e.chain().focus().insertContent(content).run();
         } catch (err) {
-          propsRef.current.onError(`Yüklenemedi: ${file.name} (${(err as Error).message})`);
+          propsRef.current.onError(t("ed.uploadFailed", { name: file.name, error: (err as Error).message }));
         }
       }
     },
@@ -280,7 +281,7 @@ export function Editor(props: EditorProps) {
     if (!trigger) return [];
     const q = fold(trigger.query);
     if (trigger.kind === "slash") {
-      return COMMANDS.filter((c) => fold(`${c.label} ${c.keywords}`).includes(q)).map((c) => ({
+      return commands().filter((c) => fold(`${c.label} ${c.keywords}`).includes(q)).map((c) => ({
         key: c.label,
         label: c.label,
         hint: c.hint,
@@ -297,7 +298,7 @@ export function Editor(props: EditorProps) {
         label: n.title,
         hint: n.path.replace(/\.md$/, ""),
         icon: n.icon ?? "◇",
-        group: "Node'lar",
+        group: t("ed.g.nodes"),
         run: (e: TiptapEditor) => void e.chain().focus().insertContent(linkContent(n)).run(),
       }));
   }, [trigger]);
@@ -306,8 +307,8 @@ export function Editor(props: EditorProps) {
   stateRef.current = { trigger, items, active };
 
   const choose = (e: TiptapEditor, item: Item) => {
-    const t = stateRef.current.trigger;
-    if (t) e.chain().focus().deleteRange({ from: t.from, to: e.state.selection.from }).run();
+    const trig = stateRef.current.trigger;
+    if (trig) e.chain().focus().deleteRange({ from: trig.from, to: e.state.selection.from }).run();
     setTrigger(null);
     void item.run(e);
   };
@@ -330,7 +331,7 @@ export function Editor(props: EditorProps) {
   }
 
   const editor = useEditor({
-    extensions: buildExtensions({ placeholder: "Yazmaya başlayın; komutlar için “/”, Node bağlantısı için “[[”" }),
+    extensions: buildExtensions({ placeholder: t("ed.placeholder") }),
     content: "",
     editorProps: {
       handleKeyDown: (_view, event) => {
@@ -406,7 +407,7 @@ export function Editor(props: EditorProps) {
       {editor && (
         <>
           <DragHandle editor={editor}>
-            <div className="drag-handle" title="Sürükleyerek taşı">
+            <div className="drag-handle" title={t("ed.dragMove")}>
               ⋮⋮
             </div>
           </DragHandle>
@@ -426,11 +427,11 @@ export function Editor(props: EditorProps) {
             options={{ placement: "top" }}
           >
             <div className="bubble">
-              <button onClick={() => editor.chain().focus().addRowAfter().run()}>+ Satır</button>
-              <button onClick={() => editor.chain().focus().addColumnAfter().run()}>+ Sütun</button>
-              <button onClick={() => editor.chain().focus().deleteRow().run()}>− Satır</button>
-              <button onClick={() => editor.chain().focus().deleteColumn().run()}>− Sütun</button>
-              <button onClick={() => editor.chain().focus().toggleHeaderRow().run()}>Başlık satırı</button>
+              <button onClick={() => editor.chain().focus().addRowAfter().run()}>+ {t("ed.row")}</button>
+              <button onClick={() => editor.chain().focus().addColumnAfter().run()}>+ {t("ed.col")}</button>
+              <button onClick={() => editor.chain().focus().deleteRow().run()}>− {t("ed.row")}</button>
+              <button onClick={() => editor.chain().focus().deleteColumn().run()}>− {t("ed.col")}</button>
+              <button onClick={() => editor.chain().focus().toggleHeaderRow().run()}>{t("ed.headerRow")}</button>
               <span className="sep" />
               <button onClick={() => editor.chain().focus().deleteTable().run()}>Tabloyu sil</button>
             </div>
@@ -483,7 +484,7 @@ function FormatBar({ editor }: { editor: TiptapEditor }) {
           <button
             key={name}
             className="swatch"
-            title={name}
+            title={t(name)}
             style={{ background: value || "var(--nlc-text-primary)" }}
             onClick={() => {
               if (value) editor.chain().focus().setColor(value).run();
@@ -498,19 +499,19 @@ function FormatBar({ editor }: { editor: TiptapEditor }) {
   }
   return (
     <div className="bubble">
-      {mark("bold", "B", "Kalın (⌘B)", () => editor.chain().focus().toggleBold().run())}
-      {mark("italic", "İ", "İtalik (⌘I)", () => editor.chain().focus().toggleItalic().run())}
-      {mark("underline", "U", "Altı çizili (⌘U)", () => editor.chain().focus().toggleUnderline().run())}
-      {mark("strike", "S", "Üstü çizili", () => editor.chain().focus().toggleStrike().run())}
-      {mark("code", "</>", "Satır içi kod", () => editor.chain().focus().toggleCode().run())}
-      {mark("highlight", "▮", "Vurgula", () => editor.chain().focus().toggleHighlight().run())}
-      <button title="Metin rengi" onClick={() => setColors(true)}>
+      {mark("bold", "B", t("ed.bold"), () => editor.chain().focus().toggleBold().run())}
+      {mark("italic", t("ed.italicMark"), t("ed.italic"), () => editor.chain().focus().toggleItalic().run())}
+      {mark("underline", "U", t("ed.underline"), () => editor.chain().focus().toggleUnderline().run())}
+      {mark("strike", "S", t("ed.strike"), () => editor.chain().focus().toggleStrike().run())}
+      {mark("code", "</>", t("ed.inlineCode"), () => editor.chain().focus().toggleCode().run())}
+      {mark("highlight", "▮", t("ed.highlight"), () => editor.chain().focus().toggleHighlight().run())}
+      <button title={t("ed.textColor")} onClick={() => setColors(true)}>
         A
       </button>
       <span className="sep" />
-      {mark("link", "Bağlantı", "Bağlantı ekle/kaldır", () => {
+      {mark("link", t("ed.g.link"), t("ed.linkToggle"), () => {
         if (editor.isActive("link")) return void editor.chain().focus().unsetLink().run();
-        const href = prompt("Bağlantı adresi (https://…):");
+        const href = prompt(t("ed.linkPrompt"));
         if (href) editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
       })}
     </div>

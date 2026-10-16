@@ -37,6 +37,12 @@ export interface AiChange {
 
 export type AiRequestStatus = "pending" | "received" | "done" | "failed";
 
+export type ReplyLanguage = "tr" | "en";
+
+export const REPLY_LANGUAGE_NAME: Record<ReplyLanguage, string> = { tr: "Turkish (Türkçe)", en: "English" };
+
+export const isReplyLanguage = (v: unknown): v is ReplyLanguage => v === "tr" || v === "en";
+
 export interface AiRequest {
   id: string;
   createdAt: number;
@@ -48,6 +54,8 @@ export interface AiRequest {
   nodeTitle?: string;
   /** Kullanıcının seçtiği metin (varsa). */
   selection?: string;
+  /** Cevabın yazılacağı dil (kullanıcının arayüz dili); eski isteklerde yoktur. */
+  language?: ReplyLanguage;
   status: AiRequestStatus;
   receivedAt?: number;
   completedAt?: number;
@@ -119,6 +127,7 @@ export class AiActivity {
     nodeId?: string;
     nodeTitle?: string;
     selection?: string;
+    language?: ReplyLanguage;
   }): Promise<AiRequest> {
     const label = input.label.trim().slice(0, 120);
     const instruction = input.instruction.trim().slice(0, 20_000);
@@ -132,6 +141,7 @@ export class AiActivity {
       nodeId: input.nodeId,
       nodeTitle: input.nodeTitle,
       selection: input.selection?.slice(0, 20_000) || undefined,
+      language: input.language,
       status: "pending",
       changes: [],
     };

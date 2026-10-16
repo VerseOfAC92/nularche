@@ -30,6 +30,7 @@ if (shots) await mkdir(shots, { recursive: true });
 
 // Sahte Gemini sunucusu: model listesi + önce update_node çağrısı, sonra metin cevap.
 let geminiCalls = 0;
+const systems: string[] = [];
 const gemini = createServer(async (req, res) => {
   let raw = "";
   for await (const c of req) raw += c;
@@ -51,6 +52,7 @@ const gemini = createServer(async (req, res) => {
   }
   geminiCalls++;
   const body = JSON.parse(raw);
+  systems.push(body.systemInstruction?.parts?.[0]?.text ?? "");
   const text: string = body.contents[0].parts[0].text;
   if (body.contents.length === 1) {
     const id = /id: ([\w-]+), revision: (\w+)/.exec(text)!;
@@ -76,7 +78,8 @@ const geminiUrl = `http://127.0.0.1:${(gemini.address() as { port: number }).por
 
 const app = await electron.launch({
   executablePath: path.join(root, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"),
-  args: [root],
+  // Sistem dilinden bağımsız olsun: ilk açılış Türkçe, sonra Ayarlar'dan İngilizceye geçilir.
+  args: [root, "--lang=tr"],
   env: { ...process.env, HOME: home, NULARCHE_USER_DATA: userData, NULARCHE_E2E: "1", NULARCHE_GEMINI_API: geminiUrl },
 });
 const page = await app.firstWindow();
@@ -164,6 +167,48 @@ try {
   await page.getByText("Merhaba! Bir Node açıp").waitFor({ timeout: 5_000 });
   await page.getByText("Gemini tarafından düzeltilmiş içerik").first().waitFor();
   await shot("8-gecmis-temizlendi");
+  assert.match(systems.at(-1)!, /reply to the user in Turkish/);
+
+  // Nularche AI penceresi başlığından sürüklenir; konum kalıcıdır, çift tıklayınca yerine döner.
+  const head = page.locator(".nai-head");
+  const before = (await page.locator(".nai-panel").boundingBox())!;
+  const hb = (await head.boundingBox())!;
+  await page.mouse.move(hb.x + 60, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x - 240, hb.y - 120, { steps: 8 });
+  await page.mouse.up();
+  const after = (await page.locator(".nai-panel").boundingBox())!;
+  assert.ok(Math.abs(after.x - (before.x - 300)) < 3 && Math.abs(after.y - (before.y - 120 - hb.height / 2)) < 3, `sürüklenmedi: ${JSON.stringify({ before, after })}`);
+  assert.ok(await page.evaluate(() => localStorage.getItem("nlc-nai-pos")), "konum kaydedilmedi");
+  // Görüş alanının dışına taşınamaz.
+  await page.mouse.move(after.x + 60, after.y + 15);
+  await page.mouse.down();
+  await page.mouse.move(-500, -500, { steps: 4 });
+  await page.mouse.up();
+  const clamped = (await page.locator(".nai-panel").boundingBox())!;
+  assert.ok(clamped.x >= 7 && clamped.y >= 7, `pencere dışarı taştı: ${JSON.stringify(clamped)}`);
+  await shot("9-surukle");
+  await head.dblclick({ position: { x: 60, y: hb.height / 2 } });
+  const reset = (await page.locator(".nai-panel").boundingBox())!;
+  assert.ok(Math.abs(reset.x - before.x) < 2 && Math.abs(reset.y - before.y) < 2, "çift tıklama konumu sıfırlamadı");
+
+  // Dil: Ayarlar → English; arayüz, kayıtlı ayar ve yapay zekâ cevap dili İngilizceye geçer.
+  await page.locator(".sidebar-foot .side-btn").click();
+  await page.getByRole("button", { name: "English", exact: true }).click();
+  await page.getByRole("heading", { name: "Settings" }).waitFor({ timeout: 5_000 });
+  await page.getByRole("heading", { name: "Appearance" }).waitFor();
+  await shot("10-settings-en");
+  await page.waitForTimeout(300);
+  const saved = JSON.parse(await readFile(path.join(userData, "config", "settings.json"), "utf8"));
+  assert.equal(saved.language, "en");
+  await page.getByRole("button", { name: "Close" }).first().click();
+  await page.getByPlaceholder("What should Gemini do?").fill("Fix this note");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => document.querySelectorAll(".nai-reply").length >= 1, undefined, { timeout: 15_000 });
+  await page.getByRole("button", { name: /Fix/ }).first().waitFor();
+  await page.waitForTimeout(500);
+  assert.match(systems.at(-1)!, /reply to the user in English/);
+  await shot("11-nai-en");
   console.log(`Tamam. Ekran görüntüleri: ${shots ?? "(yok)"}`);
 } catch (err) {
   await shot("hata").catch(() => undefined);

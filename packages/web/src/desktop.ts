@@ -55,6 +55,9 @@ export interface AiStatus {
 
 export interface DesktopBridge {
   /** Arayüz hazır; ana süreçte bekleyen gezinme varsa döndürür. */
+  /** Masaüstü ayarlarında kayıtlı arayüz dili (yoksa null). */
+  language: "tr" | "en" | null;
+  setLanguage(lang: "tr" | "en"): Promise<void>;
   rendererReady(): Promise<string | null>;
   info(): Promise<{ version: string; platform: string; originDir: string; warning: string | null }>;
   changeOrigin(): Promise<string | null>;

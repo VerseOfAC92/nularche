@@ -4,6 +4,7 @@
 import { useMemo, useState, type DragEvent } from "react";
 import { api, SHADOW, type NodeMeta, type ParentTarget } from "./api.ts";
 import type { Route } from "./App.tsx";
+import { t } from "./i18n/index.ts";
 
 const DRAG_TYPE = "application/x-nularche-node";
 
@@ -132,7 +133,7 @@ export function Sidebar(props: SidebarProps) {
         >
           <button
             className="twisty"
-            aria-label={open ? "Daralt" : "Genişlet"}
+            aria-label={open ? t("sidebar.collapse") : t("sidebar.expand")}
             onClick={(e) => {
               e.stopPropagation();
               setExpanded((s) => {
@@ -150,7 +151,7 @@ export function Sidebar(props: SidebarProps) {
           {inTree && (
             <span className="row-actions">
               <button
-                title="Alt Node ekle"
+                title={t("sidebar.addChild")}
                 onClick={(e) => {
                   e.stopPropagation();
                   setExpanded((s) => new Set(s).add(n.id));
@@ -160,7 +161,7 @@ export function Sidebar(props: SidebarProps) {
                 +
               </button>
               <button
-                title="Çöpe taşı"
+                title={t("common.moveToTrash")}
                 onClick={(e) => {
                   e.stopPropagation();
                   props.onTrash(n);
@@ -188,41 +189,41 @@ export function Sidebar(props: SidebarProps) {
         </div>
       </div>
       <button className="side-btn" onClick={props.onOpenSearch}>
-        ⌕ Ara <kbd>⌘K</kbd>
+        ⌕ {t("sidebar.search")} <kbd>⌘K</kbd>
       </button>
       <button
         className={`side-btn ${route.kind === "shadow" ? "active" : ""} ${dropTarget === "shadow" ? "drop-target" : ""}`}
         onClick={() => props.onNavigate({ kind: "shadow" })}
-        title="Henüz bir Arche'ye bağlanmamış ham notlar"
+        title={t("sidebar.shadowHint")}
         {...dropHandlers("shadow")}
       >
         ◐ Shadow {props.shadowCount > 0 && <span className="badge">{props.shadowCount}</span>}
       </button>
       <button className="side-btn" onClick={() => props.onCreate(SHADOW)}>
-        ＋ Hızlı not <kbd>⌘N</kbd>
+        ＋ {t("common.quickNote")} <kbd>⌘N</kbd>
       </button>
 
       {favorites.length > 0 && (
         <div className="side-section">
-          <div className="side-section-head">Favoriler</div>
+          <div className="side-section-head">{t("sidebar.favorites")}</div>
           {favorites.map((n) => renderRow(n, 0, false))}
         </div>
       )}
 
       <div className="side-section tree">
         <div className={`side-section-head ${dropTarget === "root" ? "drop-target" : ""}`} {...dropHandlers("root")}>
-          <span>Arche'ler</span>
-          <button title="Yeni Arche" onClick={() => props.onCreate(null)}>
+          <span>{t("sidebar.arches")}</span>
+          <button title={t("common.newArche")} onClick={() => props.onCreate(null)}>
             +
           </button>
         </div>
         {arches.map((n) => renderRow(n, 0, true))}
-        {arches.length === 0 && <p className="empty">Henüz Arche yok. “+” ile bir ana alan oluşturun.</p>}
+        {arches.length === 0 && <p className="empty">{t("sidebar.noArches")}</p>}
       </div>
 
       <div className="sidebar-foot">
         <button className="side-btn" onClick={props.onOpenSettings}>
-          ⚙ Ayarlar
+          ⚙ {t("settings.title")}
         </button>
       </div>
     </aside>

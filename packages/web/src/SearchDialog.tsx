@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type NodeMeta, type SearchHit } from "./api.ts";
+import { t } from "./i18n/index.ts";
 
 export function SearchDialog({ onClose, onPick, nodes }: { onClose: () => void; onPick: (id: string) => void; nodes: NodeMeta[] }) {
   const [q, setQ] = useState("");
@@ -23,7 +24,7 @@ export function SearchDialog({ onClose, onPick, nodes }: { onClose: () => void; 
       <div className="search" onMouseDown={(e) => e.stopPropagation()}>
         <input
           autoFocus
-          placeholder="Origin'de ara…"
+          placeholder={t("search.placeholder")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -36,7 +37,7 @@ export function SearchDialog({ onClose, onPick, nodes }: { onClose: () => void; 
         <div className="results">
           {!q && hits.length > 0 && (
             <div className="muted" style={{ padding: "4px 10px", fontSize: 12 }}>
-              Son düzenlenenler
+              {t("search.recent")}
             </div>
           )}
           {hits.map((h, i) => (
@@ -48,7 +49,7 @@ export function SearchDialog({ onClose, onPick, nodes }: { onClose: () => void; 
               </span>
             </button>
           ))}
-          {q && hits.length === 0 && <p className="empty">Sonuç yok</p>}
+          {q && hits.length === 0 && <p className="empty">{t("search.noResults")}</p>}
         </div>
       </div>
     </div>

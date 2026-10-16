@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { desktop } from "../desktop.ts";
+import { t } from "../i18n/index.ts";
 
 export const GEMINI_KEY_URL = "https://aistudio.google.com/app/apikey";
 
@@ -43,24 +44,21 @@ export function AutoModeSetup({ onToast, onChanged }: { onToast: (msg: string) =
     setBusy(false);
     if (res.ok) {
       setKey("");
-      onToast("✓ Otomatik mod hazır. Nularche AI istekleri artık arka planda işlenecek.");
+      onToast(t("auto.ready"));
       await refresh();
       announce();
       onChanged?.();
-    } else setError(res.error ?? "Anahtar doğrulanamadı.");
+    } else setError(res.error ?? t("auto.keyInvalid"));
   }
 
   if (status.hasKey) {
     return (
       <div className="auto-box on">
         <div className="auto-head">
-          <span className="ok">✓ Otomatik mod {status.enabled ? "açık" : "kapalı"}</span>
+          <span className="ok">✓ {status.enabled ? t("auto.on") : t("auto.off")}</span>
           <span className="pill">Gemini · {status.model}</span>
         </div>
-        <p className="muted small">
-          Nularche AI'a yazdığınız istekler arka planda Gemini'ye gider; düzenleme uygulanır ve cevap aynı pencerede görünür. Kopyalama ya da
-          yapıştırma gerekmez.
-        </p>
+        <p className="muted small">{t("auto.onText")}</p>
         <div className="row" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             className="secondary"
@@ -71,19 +69,19 @@ export function AutoModeSetup({ onToast, onChanged }: { onToast: (msg: string) =
                 .then(() => (announce(), onChanged?.()))
             }
           >
-            {status.enabled ? "Otomatik modu kapat" : "Otomatik modu aç"}
+            {status.enabled ? t("auto.turnOff") : t("auto.turnOn")}
           </button>
           <button
             className="secondary"
             onClick={() =>
-              confirm("Gemini anahtarı silinsin mi?") &&
+              confirm(t("auto.removeConfirm")) &&
               desktop!
                 .autoClear()
                 .then(refresh)
                 .then(() => (announce(), onChanged?.()))
             }
           >
-            Anahtarı kaldır
+            {t("auto.removeKey")}
           </button>
         </div>
       </div>
@@ -92,15 +90,12 @@ export function AutoModeSetup({ onToast, onChanged }: { onToast: (msg: string) =
 
   return (
     <div className="auto-box">
-      <p className="muted small">
-        Tamamen otomatik çalışma için Google'ın <b>ücretsiz</b> Gemini anahtarını kullanın: kredi kartı gerekmez, Gemini/Google üyeliğinizden
-        bağımsızdır ve günlük bir ücretsiz kotası vardır.
-      </p>
+      <p className="muted small">{t("auto.intro")}</p>
       <div className="ai-row">
         <span className="ai-step-no">a</span>
-        <span className="ai-row-name">Tarayıcıda Google hesabınızla giriş yapın ve “API anahtarı oluştur”a basın</span>
+        <span className="ai-row-name">{t("auto.stepA")}</span>
         <button className="primary" onClick={() => desktop!.aiDownload(GEMINI_KEY_URL)}>
-          Anahtar al
+          {t("auto.getKey")}
         </button>
       </div>
       <div className="ai-row">
@@ -108,19 +103,16 @@ export function AutoModeSetup({ onToast, onChanged }: { onToast: (msg: string) =
         <input
           className="key-input"
           type="password"
-          placeholder="Anahtarı buraya yapıştırın (AIza…)"
+          placeholder={t("auto.keyPlaceholder")}
           value={key}
           onChange={(e) => setKey(e.target.value)}
         />
         <button className="primary" disabled={!key.trim() || busy} onClick={save}>
-          {busy ? "Doğrulanıyor…" : "Kaydet"}
+          {busy ? t("auto.verifying") : t("common.save")}
         </button>
       </div>
       {error && <p className="warn small">{error}</p>}
-      <p className="muted small">
-        Anahtar bu Mac'te şifreli saklanır ve yalnızca Google'a gönderilir. Not: Google'ın ücretsiz katmanında gönderilen içerik ürün geliştirmede
-        kullanılabilir; çok gizli notlar için bunu göz önünde bulundurun.
-      </p>
+      <p className="muted small">{t("auto.privacy")}</p>
     </div>
   );
 }

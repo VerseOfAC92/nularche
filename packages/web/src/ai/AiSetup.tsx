@@ -8,16 +8,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { copyText, desktop, type AiStatus, type ConnectionStatus, type LauncherId, type ProviderId } from "../desktop.ts";
 import { AutoModeSetup } from "./AutoModeSetup.tsx";
+import { ago, t } from "../i18n/index.ts";
 
 const LOGOS: Record<ProviderId, string> = { claude: "✳", chatgpt: "◎", gemini: "✦" };
-
-const ago = (ms: number) => {
-  const d = (Date.now() - ms) / 1000;
-  if (d < 60) return "az önce";
-  if (d < 3600) return `${Math.floor(d / 60)} dk önce`;
-  if (d < 86400) return `${Math.floor(d / 3600)} sa önce`;
-  return new Date(ms).toLocaleDateString("tr-TR");
-};
 
 export function useAiStatus(tick = 0): [AiStatus | null, () => Promise<void>] {
   const [status, setStatus] = useState<AiStatus | null>(null);
@@ -49,21 +42,21 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
 
   // Bağlantı beklenirken durumu sık sık yenile (AI aracı bağlanınca algılansın).
   useEffect(() => {
-    const t = setInterval(refresh, 3000);
-    return () => clearInterval(t);
+    const timer = setInterval(refresh, 3000);
+    return () => clearInterval(timer);
   }, [refresh]);
 
   if (!desktop) {
     return (
       <div className="ai-setup">
         <p className="muted">
-          Tarayıcı sürümünde bağlantıyı terminalden kurun: <code>npm run connect -- claude-desktop</code> (ya da <code>codex</code>,{" "}
-          <code>antigravity</code>, <code>claude-code</code>). Masaüstü uygulamasında bu adımlar tek tıkla yapılır.
+          {t("ais.browser1")} <code>npm run connect -- claude-desktop</code> ({t("ais.browserOr")} <code>codex</code>, <code>antigravity</code>,{" "}
+          <code>claude-code</code>). {t("ais.browser2")}
         </p>
       </div>
     );
   }
-  if (!status) return <p className="muted">Yükleniyor…</p>;
+  if (!status) return <p className="muted">{t("common.loading")}</p>;
 
   const provider = status.provider;
   const p = status.providers.find((x) => x.id === provider);
@@ -79,11 +72,11 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
     const l = fresh.launcherStatus.find((x) => x.id === launcher)!;
     if (l.installed === false) {
       await desktop!.aiDownload(l.downloadUrl);
-      onToast(`${l.name} kurulu değil; indirme sayfası açıldı. Kurup ${name} hesabınızla giriş yapın, sonra “Bağla”ya basın.`);
+      onToast(t("ais.notInstalled", { app: l.name, name }));
     } else {
       const res = await desktop!.aiOpen(launcher, null);
       onToast(
-        res.opened ? `${l.name} açıldı. ${name} hesabınızla giriş yaptığınızdan emin olun, sonra Nularche'de “Bağla”ya basın.` : (res.message ?? ""),
+        res.opened ? t("ais.opened", { app: l.name, name }) : (res.message ?? ""),
       );
     }
   }
@@ -91,7 +84,7 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
   async function restartApp() {
     if (!provider) return;
     const res = await desktop!.aiRestart(preferredLauncher(status!, provider));
-    onToast(res.ok ? "Yeniden başlatıldı. Yeni bir sohbet açın; Nularche bağlantıyı algılayacak." : (res.error ?? "Yeniden başlatılamadı."));
+    onToast(res.ok ? t("ais.restarted") : (res.error ?? t("ais.restartFailed")));
   }
 
   async function connect(c: ConnectionStatus) {
@@ -101,7 +94,7 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
     if (!res.ok && res.needsRestart) {
       if (
         confirm(
-          `${c.mustBeClosed} şu an açık. Bağlantının yüklenmesi için Claude kapatılıp yeniden açılacak; açık sohbet pencereleri kapanır (sohbetleriniz kaybolmaz). Devam edilsin mi?`,
+          t("ais.restartConfirm", { app: c.mustBeClosed ?? "" }),
         )
       ) {
         res = await desktop!.aiConnect(c.id, { restartApp: true });
@@ -118,14 +111,14 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
     if (res.ok) {
       setMessage(
         c.id === "codex"
-          ? "Bağlantı yazıldı. ChatGPT masaüstü uygulamasını (ya da Codex'i) yeniden başlatın; ilk kullanımda Nularche “✓ Bağlandı” diyecek."
+          ? t("ais.writtenCodex")
           : c.id === "antigravity"
-            ? "Bağlantı yazıldı. Terminalde agy'yi yeniden başlatın; ilk kullanımda Nularche “✓ Bağlandı” diyecek."
+            ? t("ais.writtenAgy")
             : res.restarted
-              ? "Bağlantı yazıldı ve Claude yeniden açıldı. Yeni bir sohbet açtığınızda Nularche “✓ Bağlandı” diyecek."
-              : "Bağlantı yazıldı. AI aracında yeni bir sohbet açtığınızda Nularche “✓ Bağlandı” diyecek.",
+              ? t("ais.writtenRestarted")
+              : t("ais.written"),
       );
-    } else setMessage(`Bağlanamadı: ${res.error}`);
+    } else setMessage(t("ais.connectFailed", { error: res.error ?? "" }));
     await refresh();
   }
 
@@ -133,12 +126,12 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
     if (!provider) return;
     if (!isProviderConnected(status!, provider)) {
       setMessage(
-        "Henüz bağlanmadı: AI uygulaması Nularche'yi yalnızca açılışta yükler. Bağlantıyı kurduktan sonra uygulamayı yeniden başlatın (“Yeniden başlat”) ve yeni bir sohbet açın.",
+        t("ais.notYet"),
       );
     }
     const launcher = preferredLauncher(status!, provider);
-    const res = await desktop!.aiOpen(launcher, "“nularche” MCP araçlarıyla list_nodes çağır ve Origin'de kaç Node olduğunu bir cümleyle söyle.");
-    onToast(res.opened ? "Test istemi panoya kopyalandı; AI penceresine yapıştırıp gönderin." : (res.message ?? "Açılamadı."));
+    const res = await desktop!.aiOpen(launcher, t("ais.testPrompt"));
+    onToast(res.opened ? t("ais.testCopied") : (res.message ?? t("ais.openFailed")));
   }
 
   const connected = provider ? status.clients.filter((c) => c.provider === provider) : [];
@@ -146,13 +139,13 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
   return (
     <div className={`ai-setup ${compact ? "compact" : ""}`}>
       {status.warning && <p className="warn">{status.warning}</p>}
-      <div className="ai-mode-title">⚡ Otomatik mod (önerilen)</div>
+      <div className="ai-mode-title">⚡ {t("ais.autoTitle")}</div>
       <AutoModeSetup onToast={onToast} onChanged={refresh} />
-      <div className="ai-mode-title">Üyelik modu: Claude, ChatGPT ya da Gemini uygulamanızla</div>
-      <p className="muted small">Ek ücret yok; ancak her istekte AI uygulamasında göndermeniz gerekir. Otomatik mod açıkken bu bölüm kullanılmaz.</p>
+      <div className="ai-mode-title">{t("ais.subTitle")}</div>
+      <p className="muted small">{t("ais.subHint")}</p>
       <div className="ai-step">
         <div className="ai-step-head">
-          <span className="ai-step-no">1</span> Yapay zekânızı seçin
+          <span className="ai-step-no">1</span> {t("ais.step1")}
         </div>
         <div className="provider-cards">
           {status.providers.map((x) => (
@@ -160,15 +153,11 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
               <span className="provider-logo">{LOGOS[x.id]}</span>
               <strong>{x.name}</strong>
               <small>{x.company}</small>
-              {isProviderConnected(status, x.id) && <span className="provider-ok">✓ Bağlı</span>}
+              {isProviderConnected(status, x.id) && <span className="provider-ok">✓ {t("ais.connected")}</span>}
             </button>
           ))}
         </div>
-        <p className="muted small">
-          Hangisinin üyeliği sizde varsa onu seçin: <b>Claude</b> (Pro, Max, Team), <b>ChatGPT</b> (Plus, Pro, Business) ya da <b>Gemini</b> (Google
-          AI Pro, Ultra). Nularche, seçtiğiniz yapay zekânın kendi resmi uygulamasıyla çalışır; giriş o uygulamada yapılır ve Nularche hesap
-          bilgilerinize hiçbir zaman erişmez. Seçiminizi istediğiniz zaman değiştirebilirsiniz.
-        </p>
+        <p className="muted small">{t("ais.chooseHint")}</p>
         <AiHowTo connected={connected.length > 0} compact={compact} />
       </div>
 
@@ -176,7 +165,7 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
         <>
           <div className="ai-step">
             <div className="ai-step-head">
-              <span className="ai-step-no">2</span> {p.name} uygulamasını açın ve hesabınızla giriş yapın
+              <span className="ai-step-no">2</span> {t("ais.step2", { name: p.name })}
             </div>
             {p.launchers.map((id) => {
               const l = status.launcherStatus.find((x) => x.id === id)!;
@@ -188,22 +177,22 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
                       type="radio"
                       name={`launcher-${p.id}`}
                       checked={preferred}
-                      title="Nularche AI bu aracı açsın"
+                      title={t("ais.launcherPick")}
                       onChange={() => desktop!.aiSet({ provider: p.id, launcher: id }).then(refresh)}
                     />
                   )}
                   <span className="ai-row-name">{l.name}</span>
                   <span className={`pill ${l.installed ? "ok" : l.installed === false ? "off" : ""}`}>
-                    {l.installed ? "Kurulu" : l.installed === false ? "Kurulu değil" : "Bilinmiyor"}
+                    {l.installed ? t("ais.installed") : l.installed === false ? t("ais.notInstalledPill") : t("ais.unknown")}
                   </span>
                   {l.installed !== false && (
                     <button className="secondary" onClick={() => desktop!.aiOpen(id, null).then((r) => !r.opened && r.message && onToast(r.message))}>
-                      Aç
+                      {t("ais.open")}
                     </button>
                   )}
                   {l.installed !== true && (
                     <button className="secondary" onClick={() => desktop!.aiDownload(l.downloadUrl)}>
-                      İndir
+                      {t("ais.download")}
                     </button>
                   )}
                 </div>
@@ -213,7 +202,7 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
 
           <div className="ai-step">
             <div className="ai-step-head">
-              <span className="ai-step-no">3</span> Nularche'yi {p.name}'a bağlayın
+              <span className="ai-step-no">3</span> {t("ais.step3", { name: p.name })}
             </div>
             {p.connections.map((id) => {
               const c = status.connections.find((x) => x.id === id)!;
@@ -225,26 +214,25 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
                       {c.name}
                     </span>
                     {plan?.status === "unchanged" ? (
-                      <span className="pill ok">Bağlantı kurulu</span>
+                      <span className="pill ok">{t("ais.linkReady")}</span>
                     ) : (
                       <button className="primary" disabled={busy === id || !!("error" in c.plan)} onClick={() => connect(c)}>
-                        {busy === id ? "Bağlanıyor…" : plan?.status === "update" ? "Bağlantıyı yenile" : "Bağla"}
+                        {busy === id ? t("ais.connecting") : plan?.status === "update" ? t("ais.refreshLink") : t("ais.connect")}
                       </button>
                     )}
                   </div>
                   {"error" in c.plan && <p className="warn small">{c.plan.error}</p>}
                   {!compact && plan && plan.status !== "unchanged" && (
                     <p className="muted small">
-                      <code>{plan.configPath}</code> dosyasına yalnızca <code>nularche</code> girdisi eklenir; diğer ayarlar korunur ve önce yedek
-                      alınır.
+                      <code>{plan.configPath}</code>: {t("ais.configHint")}
                     </p>
                   )}
                   {!compact && c.manualCommand && (
                     <details className="manual">
-                      <summary>Terminalden elle bağlamak için komut</summary>
+                      <summary>{t("ais.manual")}</summary>
                       <pre className="cmd">{c.manualCommand}</pre>
-                      <button className="secondary" onClick={() => copyText(c.manualCommand!).then(() => onToast("Komut kopyalandı"))}>
-                        Kopyala
+                      <button className="secondary" onClick={() => copyText(c.manualCommand!).then(() => onToast(t("ais.cmdCopied")))}>
+                        {t("ais.copy")}
                       </button>
                     </details>
                   )}
@@ -256,29 +244,25 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
 
           <div className="ai-step">
             <div className="ai-step-head">
-              <span className="ai-step-no">4</span> Bağlantı
+              <span className="ai-step-no">4</span> {t("ais.step4")}
             </div>
             {connected.length ? (
               connected.map((c) => (
                 <p key={c.name} className="ok">
-                  ✓ {p.name} bağlandı{" "}
-                  <span className="muted small">
-                    ({c.name}, son kullanım {ago(c.lastSeen)})
-                  </span>
+                  ✓ {t("ais.providerConnected", { name: p.name })}{" "}
+                  <span className="muted small">({t("ais.lastUsed", { client: c.name, when: ago(c.lastSeen) })})</span>
                 </p>
               ))
             ) : (
-              <p className="muted small">
-                Bekleniyor… {p.name} uygulamasında yeni bir sohbet açtığınızda Nularche bağlantıyı otomatik algılar ve öne gelir.
-              </p>
+              <p className="muted small">{t("ais.waiting", { name: p.name })}</p>
             )}
             <div className="row" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button className="secondary" onClick={test}>
-                Bağlantıyı test et
+                {t("ais.test")}
               </button>
               {!connected.length && (
-                <button className="secondary" onClick={restartApp} title="AI uygulaması Nularche bağlantısını açılışta yükler">
-                  {p.name} uygulamasını yeniden başlat
+                <button className="secondary" onClick={restartApp} title={t("ais.restartHint")}>
+                  {t("ais.restartApp", { name: p.name })}
                 </button>
               )}
             </div>
@@ -289,58 +273,41 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
   );
 }
 
-const APPS: { name: string; apps: string }[] = [
-  { name: "Claude", apps: "Claude Desktop ya da Claude Code (terminal)" },
-  { name: "ChatGPT", apps: "ChatGPT masaüstü uygulaması ya da Codex (terminal)" },
-  { name: "Gemini", apps: "Google Antigravity (terminal aracı agy)" },
-];
+const APPS = [
+  ["Claude", "howto.appsClaude"],
+  ["ChatGPT", "howto.appsChatgpt"],
+  ["Gemini", "howto.appsGemini"],
+] as const;
 
 /** Yapay zekânın nasıl bağlanıp kullanılacağını anlatan adım adım rehber. */
 function AiHowTo({ connected, compact }: { connected: boolean; compact: boolean }) {
   return (
     <details className="ai-howto" open={!connected && !compact}>
-      <summary>Nasıl bağlanır ve nasıl kullanılır?</summary>
+      <summary>{t("howto.title")}</summary>
       <div className="ai-howto-body">
-        <h5>Bağlantı (bir kez yapılır)</h5>
+        <h5>{t("howto.connectTitle")}</h5>
         <ol>
-          <li>Yukarıdan yapay zekânızı seçin. Nularche onun resmi uygulamasını açar; uygulama kurulu değilse indirme sayfasını açar.</li>
-          <li>Açılan uygulamada kendi hesabınızla (üyeliğinizle) giriş yapın.</li>
-          <li>
-            Aşağıdaki <b>3. adımda</b> “Bağla”ya basın. Nularche bağlantıyı kendisi kurar; gerekirse uygulamayı yeniden başlatır.
-          </li>
-          <li>
-            Yapay zekâ uygulamasında yeni bir sohbet açın. Nularche bağlantıyı algılar, öne gelir ve <b>“✓ … bağlandı”</b> der.
-          </li>
+          <li>{t("howto.c1")}</li>
+          <li>{t("howto.c2")}</li>
+          <li>{t("howto.c3")}</li>
+          <li>{t("howto.c4")}</li>
         </ol>
-        <h5>Kullanım</h5>
+        <h5>{t("howto.useTitle")}</h5>
         <ol>
-          <li>
-            Bir Node (sayfa) açın ve sağ alttaki <b>Nularche AI</b> penceresini açın.
-          </li>
-          <li>
-            Hazır eylemlerden birini seçin (Düzelt, Özetle, Genişlet, Yapılacaklar, Bağla, Çevir) ya da ne istediğinizi yazın. Metin seçerseniz
-            yalnızca o bölüm işlenir.
-          </li>
-          <li>
-            <b>Üyelik modunda</b> istek, seçtiğiniz yapay zekâ uygulamasında hazır açılır; göndermeniz yeterlidir. <b>Otomatik modda</b> hiçbir şey
-            yapmanız gerekmez, istek arka planda işlenir.
-          </li>
-          <li>
-            Yapılan düzenleme notunuza uygulanır; cevap, ilerleme ve <b>Geri al</b> düğmesi Nularche AI penceresinde görünür.
-          </li>
+          <li>{t("howto.u1")}</li>
+          <li>{t("howto.u2")}</li>
+          <li>{t("howto.u3")}</li>
+          <li>{t("howto.u4")}</li>
         </ol>
-        <h5>Hangi uygulama kullanılır?</h5>
+        <h5>{t("howto.appsTitle")}</h5>
         <ul>
-          {APPS.map((a) => (
-            <li key={a.name}>
-              <b>{a.name}:</b> {a.apps}
+          {APPS.map(([name, key]) => (
+            <li key={name}>
+              <b>{name}:</b> {t(key)}
             </li>
           ))}
         </ul>
-        <p className="muted small">
-          İpucu: Her istekte uygulamaya geçmek istemiyorsanız yukarıdaki <b>Otomatik mod</b>u (ücretsiz Gemini anahtarı) açın; o zaman her şey
-          Nularche içinde kendiliğinden olur.
-        </p>
+        <p className="muted small">{t("howto.tip")}</p>
       </div>
     </details>
   );

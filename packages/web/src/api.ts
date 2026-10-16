@@ -117,7 +117,7 @@ export const api = {
   capture: (text: string, title?: string) => request<NodeDoc>("POST", "/api/capture", { text, title }),
   aiState: () =>
     request<{ clients: { name: string; provider: string | null; firstSeen: number; lastSeen: number }[]; requests: AiRequest[] }>("GET", "/api/ai"),
-  aiRequest: (input: { provider: string | null; label: string; instruction: string; nodeId?: string; nodeTitle?: string; selection?: string }) =>
+  aiRequest: (input: { provider: string | null; label: string; instruction: string; nodeId?: string; nodeTitle?: string; selection?: string; language?: string }) =>
     request<AiRequest>("POST", "/api/ai/requests", input),
   aiClear: () => request<{ archived: number; kept: number }>("POST", "/api/ai/clear"),
   aiUndo: (id: string) => request<{ restored: string[]; skipped: string[] }>("POST", `/api/ai/requests/${enc(id)}/undo`),

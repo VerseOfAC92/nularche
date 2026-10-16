@@ -2,7 +2,7 @@
 // arka planda işler. Gemini, notları aşağıdaki araçlarla okur ve düzenler; her düzenlemeden önce geri
 // alma kopyası alınır ve sonuç, isteğin cevabı olarak Nularche AI penceresinde görünür.
 
-import { AiActivity, type AiRequest } from "./ai-activity.ts";
+import { AiActivity, REPLY_LANGUAGE_NAME, type AiRequest } from "./ai-activity.ts";
 import { NodeError, NodeStore, SHADOW, type NodeMeta } from "./node-store.ts";
 
 // Testlerde sahte bir Gemini sunucusu kullanılabilir.
@@ -140,8 +140,12 @@ const SYSTEM = [
   "Sen Nularche AI'sın: kullanıcının Nularche not uygulamasındaki notları (Node'lar) üzerinde çalışan bir asistansın.",
   "Kullanıcının isteğini araçları kullanarak yerine getir. Bir Node'u değiştirirken update_node'a güncel revision'ı base_revision olarak ver; çakışma olursa read_node ile yeniden oku.",
   "İçerik uydurma; teknik bilgileri değiştirme, yalnızca isteneni yap. Markdown biçimini koru ve düzgün kullan.",
-  "İş bitince araç çağırmadan, kullanıcıya Türkçe, kısa ve net bir cevap yaz: ne yaptığını ya da sorunun cevabını. Bu cevap Nularche AI penceresinde gösterilir.",
+  "İş bitince araç çağırmadan, kullanıcıya kısa ve net bir cevap yaz: ne yaptığını ya da sorunun cevabını. Bu cevap Nularche AI penceresinde gösterilir.",
 ].join("\n");
+
+/** Cevap dili: kullanıcının arayüz dili (eski isteklerde Türkçe). Not içeriğinin dili istek gerektirmedikçe değişmez. */
+const replyLanguageRule = (req: AiRequest) =>
+  `Write your final reply to the user in ${REPLY_LANGUAGE_NAME[req.language ?? "tr"]}. Do not change the language of the notes unless the request asks for it.`;
 
 const summary = (m: NodeMeta) => ({ id: m.id, title: m.title, path: m.path, parent_node_id: m.parentNodeId });
 
@@ -228,7 +232,7 @@ async function converse(o: AgentOptions, req: AiRequest, model: string, fetchImp
   const contents: any[] = [{ role: "user", parts: [{ text: await buildIntro(o, req) }] }];
   for (let step = 0; step < (o.maxSteps ?? 12); step++) {
     const data = await call(fetchImpl, o.apiKey, `models/${encodeURIComponent(model)}:generateContent`, {
-      systemInstruction: { parts: [{ text: SYSTEM }] },
+      systemInstruction: { parts: [{ text: `${SYSTEM}\n${replyLanguageRule(req)}` }] },
       contents,
       tools: [{ functionDeclarations: TOOLS }],
       generationConfig: { temperature: 0.3 },

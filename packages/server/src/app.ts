@@ -7,7 +7,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import path from "node:path";
 import { NodeError, NodeStore } from "../../core/src/node-store.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
-import { AI_DIR, AiActivity } from "../../core/src/ai-activity.ts";
+import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import type { ProviderId } from "../../core/src/ai-clients.ts";
 
 const HOST = "127.0.0.1";
@@ -139,6 +139,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
             nodeId: str(b.nodeId),
             nodeTitle: str(b.nodeTitle),
             selection: str(b.selection),
+            language: isReplyLanguage(b.language) ? b.language : undefined,
           }),
         );
       }

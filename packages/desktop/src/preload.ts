@@ -3,7 +3,11 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 
 const invoke = (channel: string, ...args: unknown[]) => ipcRenderer.invoke(`nularche:${channel}`, ...args);
 
+const langArg = process.argv.find((a) => a.startsWith("--nlc-lang="))?.slice("--nlc-lang=".length);
+
 contextBridge.exposeInMainWorld("nularche", {
+  language: langArg === "tr" || langArg === "en" ? langArg : null,
+  setLanguage: (lang: string) => invoke("set-language", lang),
   rendererReady: () => invoke("renderer-ready"),
   info: () => invoke("info"),
   changeOrigin: () => invoke("change-origin"),

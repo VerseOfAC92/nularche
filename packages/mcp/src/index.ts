@@ -5,7 +5,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { AiActivity, NodeError, NodeStore, resolveOriginDir, SHADOW, type NodeDoc, type NodeMeta } from "../../core/src/index.ts";
+import { AiActivity, NodeError, NodeStore, REPLY_LANGUAGE_NAME, resolveOriginDir, SHADOW, type NodeDoc, type NodeMeta } from "../../core/src/index.ts";
 
 const store = new NodeStore(resolveOriginDir());
 await store.ensureRoot();
@@ -22,7 +22,7 @@ const server = new McpServer(
       "çakışma hatası alırsanız yeniden okuyun. Node'lar arası bağlantılar göreli Markdown bağlantılarıdır (ör. [Plan](../Plan.md)). " +
       "Kalıcı silme yoktur; trash_node çöp klasörüne taşır. " +
       "Kullanıcı Nularche AI penceresinden istek gönderdiğinde önce get_nularche_request ile isteği al, işi yap, " +
-      "sonra complete_nularche_request ile kullanıcıya kısa bir Türkçe cevap/özet yaz; bu cevap Nularche'de görünür.",
+      "sonra complete_nularche_request ile kullanıcıya kısa bir cevap/özet yaz (isteğin reply_language dilinde); bu cevap Nularche'de görünür.",
   },
 );
 
@@ -254,9 +254,18 @@ server.registerTool(
         }
       }
       return {
-        request: { id: req.id, label: req.label, instruction: req.instruction, selection: req.selection ?? null, created_at: iso(req.createdAt) },
+        request: {
+          id: req.id,
+          label: req.label,
+          instruction: req.instruction,
+          selection: req.selection ?? null,
+          reply_language: req.language ?? "tr",
+          created_at: iso(req.createdAt),
+        },
         node,
-        next: "İşi read_node/update_node gibi araçlarla yap (update_node'a base_revision ver), sonra complete_nularche_request ile kısa bir cevap yaz.",
+        next:
+          "İşi read_node/update_node gibi araçlarla yap (update_node'a base_revision ver), sonra complete_nularche_request ile kısa bir cevap yaz. " +
+          `Write the reply in ${REPLY_LANGUAGE_NAME[req.language ?? "tr"]}.`,
       };
     }),
 );

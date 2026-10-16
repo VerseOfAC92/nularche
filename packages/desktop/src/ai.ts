@@ -26,6 +26,7 @@ import {
   type ProviderId,
 } from "../../core/src/ai-clients.ts";
 import { openInTerminal } from "./terminal.ts";
+import { d } from "./i18n.ts";
 
 const run = promisify(execFile);
 /** Uçtan uca testlerde dış uygulama/tarayıcı açılmaz ve hiçbir uygulama kapatılmaz. */
@@ -100,16 +101,16 @@ async function openLauncher(id: LauncherId, prompt: string | null): Promise<{ op
         return { opened: true };
       } catch {
         await shell.openExternal(spec.downloadUrl);
-        return { opened: false, message: `${spec.name} kurulu değil; indirme sayfası açıldı.` };
+        return { opened: false, message: d("ai.notInstalled", { name: spec.name }) };
       }
     }
     await shell.openExternal(spec.downloadUrl);
-    return { opened: false, message: `${spec.name} bu sistemde otomatik açılamıyor; uygulamayı kendiniz açın (istem panoya kopyalandı).` };
+    return { opened: false, message: d("ai.cantOpen", { name: spec.name }) };
   }
   const exe = await findExecutable(spec.executable!);
   if (!exe) {
     await shell.openExternal(spec.downloadUrl);
-    return { opened: false, message: `${spec.name} bulunamadı; kurulum sayfası açıldı.` };
+    return { opened: false, message: d("ai.notFound", { name: spec.name }) };
   }
   await openInTerminal(exe, spec.promptArg ? prompt : null);
   return { opened: true };
@@ -168,14 +169,14 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
   });
 
   ipcMain.handle("nularche:ai-connect", async (_e, id: unknown, options: unknown) => {
-    if (!isConnection(id)) return { ok: false, error: "Bilinmeyen bağlantı" };
+    if (!isConnection(id)) return { ok: false, error: d("ai.unknownConnection") };
     const spec = CONNECTIONS[id];
     const restart = !!(options as { restartApp?: boolean } | undefined)?.restartApp;
     try {
       let reopened = false;
       if (spec.mustBeClosed && isAppRunning("Claude")) {
-        if (!restart) return { ok: false, needsRestart: true, error: `${spec.mustBeClosed} açık.` };
-        if (!(await quitClaudeDesktop())) return { ok: false, error: `${spec.mustBeClosed} kapatılamadı; lütfen kendiniz kapatıp tekrar deneyin.` };
+        if (!restart) return { ok: false, needsRestart: true, error: d("ai.isOpen", { name: spec.mustBeClosed ?? "" }) };
+        if (!(await quitClaudeDesktop())) return { ok: false, error: d("ai.cantQuit", { name: spec.mustBeClosed ?? "" }) };
         reopened = true;
       }
       const res = await applyConnection(id, ctx.entry(), { claudeExecutable: id === "claude-code" ? await findExecutable("claude") : undefined });
@@ -187,7 +188,7 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
   });
 
   ipcMain.handle("nularche:ai-open", async (_e, id: unknown, prompt: unknown) => {
-    if (!isLauncher(id)) return { opened: false, message: "Bilinmeyen araç" };
+    if (!isLauncher(id)) return { opened: false, message: d("ai.unknownTool") };
     try {
       return await openLauncher(id, typeof prompt === "string" ? prompt : null);
     } catch (err) {
@@ -196,10 +197,10 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
   });
 
   ipcMain.handle("nularche:ai-restart", async (_e, id: unknown) => {
-    if (!isLauncher(id)) return { ok: false, error: "Bilinmeyen araç" };
+    if (!isLauncher(id)) return { ok: false, error: d("ai.unknownTool") };
     try {
       if (id === "claude-desktop" && isAppRunning("Claude")) {
-        if (!(await quitClaudeDesktop())) return { ok: false, error: "Claude Desktop kapatılamadı; lütfen kendiniz kapatıp yeniden açın." };
+        if (!(await quitClaudeDesktop())) return { ok: false, error: d("ai.cantQuitClaude") };
       }
       const res = await openLauncher(id, null);
       return res.opened ? { ok: true } : { ok: false, error: res.message };
@@ -231,8 +232,8 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
   }));
 
   ipcMain.handle("nularche:auto-set-key", async (_e, key: unknown) => {
-    if (typeof key !== "string" || !key.trim()) return { ok: false, error: "Anahtar boş." };
-    if (!canEncrypt()) return { ok: false, error: "Bu sistemde güvenli anahtar saklama kullanılamıyor." };
+    if (typeof key !== "string" || !key.trim()) return { ok: false, error: d("ai.emptyKey") };
+    if (!canEncrypt()) return { ok: false, error: d("ai.noEncryption") };
     try {
       const { model, models } = await checkGeminiKey(key.trim());
       await mkdir(ctx.configDir(), { recursive: true });
@@ -274,15 +275,15 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
 
   async function processRequest(requestId: string): Promise<{ ok: boolean; status?: string; error?: string }> {
     const root = ctx.originRoot();
-    if (!root) return { ok: false, error: "Origin açık değil." };
+    if (!root) return { ok: false, error: d("ai.noOrigin") };
     const activity = new AiActivity(root);
     const key = await readKey();
     if (!key) {
       // İstek askıda kalmasın: ne yapılması gerektiğini cevap olarak yaz.
       await activity
-        .completeRequest(requestId, "Gemini anahtarı bulunamadı. Ayarlar → Yapay zekâ → Otomatik mod bölümünden anahtarı yeniden girin.", true)
+        .completeRequest(requestId, d("ai.keyMissingReply"), true)
         .catch(() => undefined);
-      return { ok: false, error: "Gemini anahtarı yok." };
+      return { ok: false, error: d("ai.noKey") };
     }
     try {
       const { request, model } = await runGeminiAgent({
@@ -307,13 +308,13 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
   };
 
   ipcMain.handle("nularche:auto-run", async (_e, requestId: unknown) => {
-    if (typeof requestId !== "string") return { ok: false, error: "Geçersiz istek." };
+    if (typeof requestId !== "string") return { ok: false, error: d("ai.badRequest") };
     return enqueue(requestId);
   });
 
   ipcMain.handle("nularche:auto-retry", async (_e, requestId: unknown) => {
     const root = ctx.originRoot();
-    if (typeof requestId !== "string" || !root) return { ok: false, error: "Geçersiz istek." };
+    if (typeof requestId !== "string" || !root) return { ok: false, error: d("ai.badRequest") };
     try {
       await new AiActivity(root).retryRequest(requestId);
     } catch (err) {

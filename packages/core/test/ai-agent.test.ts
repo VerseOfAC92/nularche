@@ -172,3 +172,18 @@ test("geçersiz anahtarda diğer modeller denenmez", async () => {
   assert.equal(n, 1);
   assert.match(request.reply!, /anahtar/);
 });
+
+test("cevap dili isteğin diline göre modele bildirilir; dil verilmemiş eski isteklerde Türkçe kalır", async () => {
+  const systems: string[] = [];
+  const fake = async (_url: string, init?: RequestInit) => {
+    systems.push(JSON.parse(String(init?.body)).systemInstruction.parts[0].text);
+    return json(200, { candidates: [{ content: { role: "model", parts: [{ text: "OK" }] } }] });
+  };
+  for (const language of ["en", undefined] as const) {
+    const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "Say hi", language });
+    assert.equal(req.language, language);
+    await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["m"], fetchImpl: fake as typeof fetch });
+  }
+  assert.match(systems[0], /reply to the user in English/);
+  assert.match(systems[1], /reply to the user in Turkish/);
+});

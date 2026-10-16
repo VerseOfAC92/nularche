@@ -9,6 +9,7 @@ import { Sidebar } from "./Sidebar.tsx";
 import { NularcheAI, type AiContext } from "./ai/NularcheAI.tsx";
 import { Onboarding } from "./ai/Onboarding.tsx";
 import { PROVIDER_LABEL } from "./ai/prompts.ts";
+import { t } from "./i18n/index.ts";
 
 export type Route = { kind: "home" } | { kind: "shadow" } | { kind: "node"; id: string };
 
@@ -89,7 +90,7 @@ export function App() {
     desktop?.aiStatus().then((s) => !s.onboarded && setOnboarding(true));
     const offAi = desktop?.onAiConnected((c) => {
       setAiTick((t) => t + 1);
-      showToast(`✓ ${c.provider ? PROVIDER_LABEL[c.provider] : c.name} bağlandı. Artık Nularche AI ile kullanabilirsiniz.`);
+      showToast(t("app.aiConnected", { name: c.provider ? PROVIDER_LABEL[c.provider] : c.name }));
     });
     return () => {
       removeEventListener("hashchange", onHash);
@@ -112,7 +113,7 @@ export function App() {
   const create = useCallback(
     async (parent: ParentTarget) => {
       try {
-        const n = await api.create("Adsız", parent);
+        const n = await api.create(t("common.untitled"), parent);
         await refresh();
         navigate({ kind: "node", id: n.id });
       } catch (e) {
@@ -125,7 +126,7 @@ export function App() {
   const trash = useCallback(
     async (n: NodeMeta) => {
       const subCount = nodes.filter((x) => x.path.startsWith(n.path.slice(0, -3) + "/")).length;
-      const msg = subCount ? `“${n.title}” ve ${subCount} alt Node çöpe taşınsın mı?` : `“${n.title}” çöpe taşınsın mı?`;
+      const msg = subCount ? t("app.trashConfirmChildren", { title: n.title, count: subCount }) : t("app.trashConfirm", { title: n.title });
       if (!confirm(msg)) return;
       await api.trash(n.id);
       if (route.kind === "node") {
@@ -133,7 +134,7 @@ export function App() {
         if (cur && (cur.id === n.id || cur.path.startsWith(n.path.slice(0, -3) + "/"))) navigate({ kind: "home" });
       }
       refresh();
-      showToast("Çöpe taşındı (Origin içindeki .trash klasörü).");
+      showToast(t("app.trashed"));
     },
     [nodes, route, navigate, refresh, showToast],
   );
@@ -142,7 +143,7 @@ export function App() {
     (p: string) => {
       const n = nodes.find((x) => x.path === p);
       if (n) navigate({ kind: "node", id: n.id });
-      else showToast(`Bağlantı hedefi bulunamadı: ${p}`);
+      else showToast(t("app.linkNotFound", { path: p }));
     },
     [nodes, navigate, showToast],
   );
@@ -183,9 +184,9 @@ export function App() {
       <main className="main">
         {update && (
           <div className="banner">
-            Yeni sürüm hazır: {update.version}
-            <button onClick={() => desktop?.openExternal(update.url)}>İndir</button>
-            <button onClick={() => (desktop?.skipUpdate(update.version), setUpdate(null))}>Bu sürümü atla</button>
+            {t("app.updateReady", { version: update.version })}
+            <button onClick={() => desktop?.openExternal(update.url)}>{t("common.download")}</button>
+            <button onClick={() => (desktop?.skipUpdate(update.version), setUpdate(null))}>{t("app.skipVersion")}</button>
           </div>
         )}
         {error && (
@@ -240,28 +241,28 @@ function Welcome({ onCreate, onShadow }: { onCreate: (p: ParentTarget) => void; 
       <img src="/logo.png" alt="Nularche" />
       <h1>Nularche</h1>
       <div className="phonetic">/ˈnʌl.ɑːrk/ · nul-ark</div>
-      <p className="muted">Sıfır noktasından ilk prensiplere: düşüncelerinizi bağlantılı bir bilgi ağına dönüştürün.</p>
+      <p className="muted">{t("welcome.tagline")}</p>
       <div className="terms">
         <b>Origin</b>
-        <span>Ana veri kasanız; her şeyin başladığı sıfır noktası (diskteki klasör).</span>
+        <span>{t("term.origin")}</span>
         <b>Arche</b>
-        <span>En üst düzey ana alanlar ve projeler.</span>
+        <span>{t("term.arche")}</span>
         <b>Node</b>
-        <span>Her bir sayfa ya da çalışma yüzeyi.</span>
+        <span>{t("term.node")}</span>
         <b>Shard</b>
-        <span>Bir Node'u oluşturan bloklar: metin, kod, tablo, görsel…</span>
+        <span>{t("term.shard")}</span>
         <b>Shadow</b>
-        <span>Henüz hiçbir yere bağlanmamış ham notlar ve bağlantısız fikirler.</span>
+        <span>{t("term.shadow")}</span>
       </div>
       <div className="row" style={{ display: "flex", gap: 8 }}>
         <button className="primary" onClick={() => onCreate(null)}>
-          ◈ Yeni Arche
+          ◈ {t("common.newArche")}
         </button>
         <button className="secondary" onClick={() => onCreate(SHADOW)}>
-          ＋ Hızlı not
+          ＋ {t("common.quickNote")}
         </button>
         <button className="secondary" onClick={onShadow}>
-          ◐ Shadow'u aç
+          ◐ {t("welcome.openShadow")}
         </button>
       </div>
     </div>

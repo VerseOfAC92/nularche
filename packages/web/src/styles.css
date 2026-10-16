@@ -321,7 +321,9 @@ kbd { font: 11px var(--nlc-mono); color: var(--nlc-text-secondary); border: 1px 
 .nai-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--nlc-text-shadow); display: inline-block; }
 .nai-dot.on { background: var(--nlc-ok); box-shadow: 0 0 6px var(--nlc-ok); }
 .nai-panel { position: fixed; right: 20px; bottom: 20px; z-index: 35; width: min(400px, calc(100vw - 32px)); height: min(600px, calc(100vh - 40px)); display: flex; flex-direction: column; background: var(--nlc-bg-elevated); border: 1px solid var(--nlc-border-focus); border-radius: 14px; box-shadow: var(--nlc-shadow-pop); overflow: hidden; }
-.nai-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--nlc-border-subtle); }
+.nai-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--nlc-border-subtle); cursor: grab; user-select: none; touch-action: none; }
+.nai-panel.dragging { user-select: none; }
+.nai-panel.dragging .nai-head { cursor: grabbing; }
 .nai-title { font-weight: 600; flex: 1; display: flex; align-items: center; gap: 7px; }
 .nai-provider { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--nlc-border-subtle); color: var(--nlc-text-secondary); }
 .nai-provider.on { color: var(--nlc-text-primary); }
