@@ -8,7 +8,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promise
 import path from "node:path";
 import type { ProviderId } from "./ai-clients.ts";
 import { parseNodeFile } from "./node-file.ts";
-import { NodeError, type NodeStore } from "./node-store.ts";
+import { NodeError, type NodeDoc, type NodeStore } from "./node-store.ts";
 
 export const AI_DIR = ".nularche/ai";
 /** Node başına saklanan en fazla anlık kopya. */
@@ -212,12 +212,29 @@ export class AiActivity {
     return path.relative(this.dir, path.join(dir, name)).split(path.sep).join("/");
   }
 
-  /** AI'ın bir Node'a yaptığı değişikliği etkin isteğe (varsa) bağlar. */
-  async recordChange(change: AiChange): Promise<AiRequest | null> {
-    const req = await this.activeRequest();
+  /** AI'ın bir Node'a yaptığı değişikliği verilen isteğe ya da etkin isteğe (varsa) bağlar. */
+  async recordChange(change: AiChange, requestId?: string): Promise<AiRequest | null> {
+    const req = requestId ? await this.getRequest(requestId) : await this.activeRequest();
     if (!req) return null;
     req.changes.push(change);
     return this.save(req);
+  }
+
+  /**
+   * AI düzenlemesi: önce geri alma için anlık kopya alır, düzenlemeyi yapar ve değişikliği isteğe bağlar.
+   * MCP sunucusu (resmi AI uygulamaları) ve Nularche'nin otomatik modu aynı yolu kullanır.
+   */
+  async editWithSnapshot(store: NodeStore, ref: string, edit: (before: NodeDoc) => Promise<NodeDoc>, requestId?: string): Promise<NodeDoc> {
+    const before = await store.read(ref);
+    const snapshot = await this.snapshot(before.id, (await store.readRaw(before.path)).toString("utf8"));
+    const after = await edit(before);
+    if (after.revision !== before.revision) {
+      await this.recordChange(
+        { nodeId: after.id, title: after.title, snapshot, beforeRevision: before.revision, afterRevision: after.revision, at: Date.now() },
+        requestId,
+      ).catch(() => undefined);
+    }
+    return after;
   }
 
   /**

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type AiRequest } from "../api.ts";
 import { copyText, desktop } from "../desktop.ts";
 import { AiSetup, isProviderConnected, preferredLauncher, useAiStatus } from "./AiSetup.tsx";
+import { useAutoStatus } from "./AutoModeSetup.tsx";
 import { AI_ACTIONS, PROVIDER_LABEL, requestPrompt } from "./prompts.ts";
 
 export interface AiContext {
@@ -14,9 +15,11 @@ export interface AiContext {
   selection?: string;
 }
 
-const STATUS_TEXT = (r: AiRequest, ai: string) =>
+const STATUS_TEXT = (r: AiRequest, ai: string, auto: boolean) =>
   r.status === "pending"
-    ? `${ai} penceresine yapıştırıp gönderin (⌘V, Enter)…`
+    ? auto
+      ? "Gönderiliyor…"
+      : `${ai} uygulamasında gönderin…`
     : r.status === "received"
       ? `${ai} çalışıyor…`
       : r.status === "failed"
@@ -41,6 +44,7 @@ export function NularcheAI({
   onOpenSettings: () => void;
 }) {
   const [status, refreshStatus] = useAiStatus(aiTick);
+  const [auto, refreshAuto] = useAutoStatus(aiTick);
   const [requests, setRequests] = useState<AiRequest[]>([]);
   const [text, setText] = useState("");
   const [useSelection, setUseSelection] = useState(true);
@@ -53,16 +57,18 @@ export function NularcheAI({
       () => undefined,
     );
     void refreshStatus();
-  }, [aiTick, refreshStatus]);
+    void refreshAuto();
+  }, [aiTick, refreshStatus, refreshAuto]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [requests.length, open]);
 
-  const provider = status?.provider ?? null;
-  const ai = provider ? PROVIDER_LABEL[provider] : "AI";
-  const connected = !!(status && provider && isProviderConnected(status, provider));
-  const needsSetup = !!desktop && (!status || !provider || !connected);
+  const autoOn = !!(auto?.enabled && auto.hasKey);
+  const provider = autoOn ? "gemini" : (status?.provider ?? null);
+  const ai = autoOn ? "Gemini" : provider ? PROVIDER_LABEL[provider] : "AI";
+  const connected = autoOn || !!(status && provider && isProviderConnected(status, provider));
+  const needsSetup = !!desktop && !autoOn && (!status || !provider || !connected);
   const ordered = useMemo(() => [...requests].reverse().slice(-30), [requests]);
   const selection = useSelection && context.selection?.trim() ? context.selection.trim() : undefined;
 
@@ -74,11 +80,17 @@ export function NularcheAI({
       setRequests((r) => [req, ...r]);
       setText("");
       const prompt = requestPrompt(req);
-      if (desktop && status && provider) {
+      // Modu gönderimden hemen önce yeniden denetle (ayar az önce değişmiş olabilir).
+      const current = desktop ? await desktop.autoStatus() : null;
+      if (desktop && current?.enabled && current.hasKey) {
+        // Otomatik mod: istek arka planda işlenir; ilerleme ve cevap canlı olarak bu pencerede görünür.
+        const res = await desktop.autoRun(req.id);
+        if (!res.ok && res.error) onToast(res.error);
+      } else if (desktop && status && provider) {
         const res = await desktop.aiOpen(preferredLauncher(status, provider), prompt);
         onToast(
           res.opened
-            ? `İstek hazır: ${ai} penceresine yapıştırıp gönderin (⌘V, Enter).`
+            ? `İstek ${ai}'da hazır: Enter'a basın (kutu boşsa ⌘V ile yapıştırın).`
             : (res.message ?? "AI aracı açılamadı; istem panoya kopyalandı."),
         );
       } else {
@@ -119,6 +131,7 @@ export function NularcheAI({
         {provider && (
           <button className={`nai-provider ${connected ? "on" : ""}`} onClick={onOpenSettings} title="Yapay zekâ ayarları">
             <span className={`nai-dot ${connected ? "on" : ""}`} /> {ai}
+            {autoOn ? " · Otomatik" : ""}
           </button>
         )}
         <button className="icon-btn" onClick={() => onOpenChange(false)} title="Küçült">
@@ -153,8 +166,8 @@ export function NularcheAI({
                   {r.selection && <span className="nai-chip">seçili metin</span>}
                 </div>
                 <div className={`nai-status ${r.status}`}>
-                  {STATUS_TEXT(r, r.provider ? PROVIDER_LABEL[r.provider] : ai)}
-                  {r.status === "pending" && (
+                  {STATUS_TEXT(r, r.provider ? PROVIDER_LABEL[r.provider] : ai, autoOn)}
+                  {r.status === "pending" && !autoOn && (
                     <button
                       className="nai-copy"
                       onClick={() =>

@@ -46,25 +46,8 @@ server.server.oninitialized = () => {
   void activity.recordClient(clientName, info?.version ?? "").catch(() => undefined);
 };
 
-/** AI düzenlemesi: önce geri alma için anlık kopya al, sonra değişikliği etkin Nularche AI isteğine bağla. */
-async function editWithSnapshot(ref: string, edit: (before: NodeDoc) => Promise<NodeDoc>): Promise<NodeDoc> {
-  const before = await store.read(ref);
-  const snapshot = await activity.snapshot(before.id, (await store.readRaw(before.path)).toString("utf8"));
-  const after = await edit(before);
-  if (after.revision !== before.revision) {
-    await activity
-      .recordChange({
-        nodeId: after.id,
-        title: after.title,
-        snapshot,
-        beforeRevision: before.revision,
-        afterRevision: after.revision,
-        at: Date.now(),
-      })
-      .catch(() => undefined);
-  }
-  return after;
-}
+/** AI düzenlemesi: geri alma kopyası alınır ve değişiklik etkin Nularche AI isteğine bağlanır. */
+const editWithSnapshot = (ref: string, edit: (before: NodeDoc) => Promise<NodeDoc>) => activity.editWithSnapshot(store, ref, edit);
 
 const iso = (ms: number) => new Date(ms).toISOString();
 const summary = (m: NodeMeta) => ({

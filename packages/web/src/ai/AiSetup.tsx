@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { copyText, desktop, type AiStatus, type ConnectionStatus, type LauncherId, type ProviderId } from "../desktop.ts";
+import { AutoModeSetup } from "./AutoModeSetup.tsx";
 
 const LOGOS: Record<ProviderId, string> = { claude: "✳", chatgpt: "◎", gemini: "✦" };
 
@@ -145,6 +146,10 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
   return (
     <div className={`ai-setup ${compact ? "compact" : ""}`}>
       {status.warning && <p className="warn">{status.warning}</p>}
+      <div className="ai-mode-title">⚡ Otomatik mod (önerilen)</div>
+      <AutoModeSetup onToast={onToast} onChanged={refresh} />
+      <div className="ai-mode-title">Üyelik modu: Claude, ChatGPT ya da Gemini uygulamanızla</div>
+      <p className="muted small">Ek ücret yok; ancak her istekte AI uygulamasında göndermeniz gerekir. Otomatik mod açıkken bu bölüm kullanılmaz.</p>
       <div className="ai-step">
         <div className="ai-step-head">
           <span className="ai-step-no">1</span> Yapay zekânızı seçin

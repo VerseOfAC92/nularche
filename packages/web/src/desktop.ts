@@ -67,6 +67,12 @@ export interface DesktopBridge {
     id: ConnectionId,
     options?: { restartApp?: boolean },
   ): Promise<{ ok: boolean; backup?: string | null; error?: string; needsRestart?: boolean; restarted?: boolean }>;
+  autoStatus(): Promise<{ enabled: boolean; hasKey: boolean; model: string | null; encryption: boolean }>;
+  autoSetKey(key: string): Promise<{ ok: boolean; model?: string; error?: string }>;
+  autoClear(): Promise<void>;
+  autoEnable(enabled: boolean): Promise<void>;
+  /** İsteği Gemini ile arka planda işler. */
+  autoRun(requestId: string): Promise<{ ok: boolean; status?: string; error?: string }>;
   /** AI uygulamasını yeniden başlatır (Claude Desktop: kapat + aç; diğerleri: aç). */
   aiRestart(launcher: LauncherId): Promise<{ ok: boolean; error?: string }>;
   aiOpen(launcher: LauncherId, prompt: string | null): Promise<{ opened: boolean; message?: string }>;

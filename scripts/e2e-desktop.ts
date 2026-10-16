@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { createServer } from "node:http";
 import { _electron as electron } from "playwright-core";
 import { projectRoot } from "../packages/core/src/config.ts";
 
@@ -27,12 +28,48 @@ await mkdir(origin, { recursive: true });
 await writeFile(path.join(userData, "config", "settings.json"), JSON.stringify({ originDir: origin }));
 if (shots) await mkdir(shots, { recursive: true });
 
+// Sahte Gemini sunucusu: model listesi + önce update_node çağrısı, sonra metin cevap.
+let geminiCalls = 0;
+const gemini = createServer(async (req, res) => {
+  let raw = "";
+  for await (const c of req) raw += c;
+  res.setHeader("content-type", "application/json");
+  if (req.url?.startsWith("/models?")) {
+    return res.end(JSON.stringify({ models: [{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] }] }));
+  }
+  geminiCalls++;
+  const body = JSON.parse(raw);
+  const text: string = body.contents[0].parts[0].text;
+  if (body.contents.length === 1) {
+    const id = /id: ([\w-]+), revision: (\w+)/.exec(text)!;
+    return res.end(
+      JSON.stringify({
+        candidates: [
+          {
+            content: {
+              role: "model",
+              parts: [
+                { functionCall: { name: "update_node", args: { node: id[1], body: "Gemini tarafından düzeltilmiş içerik", base_revision: id[2] } } },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+  }
+  res.end(JSON.stringify({ candidates: [{ content: { role: "model", parts: [{ text: "İçeriği düzelttim." }] }, finishReason: "STOP" }] }));
+});
+await new Promise<void>((r) => gemini.listen(0, "127.0.0.1", () => r()));
+const geminiUrl = `http://127.0.0.1:${(gemini.address() as { port: number }).port}`;
+
 const app = await electron.launch({
   executablePath: path.join(root, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"),
   args: [root],
-  env: { ...process.env, HOME: home, NULARCHE_USER_DATA: userData, NULARCHE_E2E: "1" },
+  env: { ...process.env, HOME: home, NULARCHE_USER_DATA: userData, NULARCHE_E2E: "1", NULARCHE_GEMINI_API: geminiUrl },
 });
 const page = await app.firstWindow();
+app.process().stderr?.on("data", (d) => process.env.E2E_VERBOSE && process.stderr.write(d));
+page.on("console", (m) => process.env.E2E_VERBOSE && m.type() === "error" && console.error("[sayfa]", m.text()));
 const shot = async (name: string) => shots && (await page.screenshot({ path: path.join(shots, `${name}.png`) }));
 
 try {
@@ -67,7 +104,52 @@ try {
   await page.locator(".nai-panel").waitFor();
   await shot("5-nularche-ai");
   await client.close();
+
+  // Otomatik mod: Gemini anahtarı → Nularche AI isteği arka planda işlenir, cevap pencerede görünür.
+  await page.locator(".nai-panel .icon-btn").click(); // küçült
+  await page.locator(".sidebar-foot .side-btn").click(); // Ayarlar
+  await page.getByPlaceholder(/Anahtarı buraya yapıştırın/).fill("AIza-test-anahtari");
+  await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+  await page.getByText("✓ Otomatik mod açık").waitFor({ timeout: 10_000 });
+  await shot("6-otomatik-mod");
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: /Yeni Arche/ })
+    .first()
+    .click();
+  await page.locator(".title-input").fill("Test notu");
+  await page.locator(".ProseMirror").click();
+  await page.keyboard.type("hatalı içerik");
+  await page.waitForTimeout(1200);
+  await page.locator(".claude-btn").click();
+  await page.getByRole("button", { name: /Düzelt/ }).click();
+  await page.getByText("İçeriği düzelttim.").waitFor({ timeout: 15_000 });
+  await page.getByText("Gemini tarafından düzeltilmiş içerik").first().waitFor({ timeout: 10_000 });
+  assert.equal(geminiCalls, 2);
+  await shot("7-otomatik-cevap");
   console.log(`Tamam. Ekran görüntüleri: ${shots ?? "(yok)"}`);
+} catch (err) {
+  await shot("hata").catch(() => undefined);
+  console.error("Gemini çağrıları:", geminiCalls);
+  console.error(
+    "Köprü:",
+    await page
+      .evaluate(async () => {
+        const b = (window as any).nularche;
+        const keys = Object.keys(b);
+        const reqs = await (await fetch("/api/ai")).json();
+        let run: unknown = null;
+        try {
+          run = await b.autoRun(reqs.requests[0]?.id);
+        } catch (e) {
+          run = String(e);
+        }
+        return { keys, toast: document.querySelector(".toast")?.textContent ?? null, first: reqs.requests[0]?.status, run };
+      })
+      .catch((e) => String(e)),
+  );
+  throw err;
 } finally {
   await app.close();
+  gemini.close();
 }

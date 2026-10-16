@@ -388,3 +388,9 @@ button.nai-chip:hover { color: var(--nlc-text-primary); border-color: var(--nlc-
 .wizard-foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--nlc-border-subtle); padding-top: 12px; margin-top: 8px; }
 .nai-copy { margin-left: 8px; font-size: 11px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--nlc-border-subtle); color: var(--nlc-text-secondary); }
 .nai-copy:hover { color: var(--nlc-text-primary); background: var(--nlc-hover); }
+.ai-mode-title { font-weight: 600; font-size: 14px; margin-top: 4px; color: var(--nlc-text-primary); }
+.auto-box { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--nlc-accent-deep); background: var(--nlc-accent-glow); }
+.auto-box.on { border-color: rgba(63, 185, 80, 0.45); background: rgba(63, 185, 80, 0.08); }
+.auto-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.key-input { flex: 1; background: var(--nlc-bg-surface); border: 1px solid var(--nlc-border-subtle); border-radius: 6px; padding: 5px 8px; outline: none; font-family: var(--nlc-mono); font-size: 12px; min-width: 0; }
+.key-input:focus { border-color: var(--nlc-accent-primary); }

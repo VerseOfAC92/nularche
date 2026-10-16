@@ -5,7 +5,11 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { app, BrowserWindow, clipboard, ipcMain, shell } from "electron";
+import { app, BrowserWindow, clipboard, ipcMain, safeStorage, shell } from "electron";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { checkGeminiKey, runGeminiAgent } from "../../core/src/ai-agent.ts";
+import { NodeStore } from "../../core/src/node-store.ts";
 import { AiActivity, type AiClientRecord } from "../../core/src/ai-activity.ts";
 import {
   applyConnection,
@@ -32,6 +36,9 @@ export interface AiSettings {
   /** Sağlayıcı başına tercih edilen açma yolu (ör. ChatGPT için masaüstü uygulaması ya da Codex). */
   aiLaunchers?: Partial<Record<ProviderId, LauncherId>>;
   onboarded?: boolean;
+  /** Otomatik mod: istekler kullanıcının Gemini API anahtarıyla arka planda işlenir. */
+  autoMode?: boolean;
+  geminiModel?: string;
 }
 
 export interface AiContext {
@@ -41,12 +48,14 @@ export interface AiContext {
   settings: () => AiSettings;
   save: (patch: AiSettings) => Promise<void>;
   warning: () => string | null;
+  configDir: () => string;
 }
 
 const isProvider = (v: unknown): v is ProviderId => PROVIDERS.some((p) => p.id === v);
 const isLauncher = (v: unknown): v is LauncherId => typeof v === "string" && v in LAUNCHERS;
 const isConnection = (v: unknown): v is ConnectionId => typeof v === "string" && v in CONNECTIONS;
-const ALLOWED_DOWNLOADS = new Set([...Object.values(CONNECTIONS), ...Object.values(LAUNCHERS)].map((s) => s.downloadUrl));
+export const GEMINI_KEY_URL = "https://aistudio.google.com/app/apikey";
+const ALLOWED_DOWNLOADS = new Set([...Object.values(CONNECTIONS), ...Object.values(LAUNCHERS)].map((s) => s.downloadUrl).concat(GEMINI_KEY_URL));
 
 async function waitUntil(check: () => boolean, timeoutMs: number): Promise<boolean> {
   const end = Date.now() + timeoutMs;
@@ -75,7 +84,9 @@ async function openLauncher(id: LauncherId, prompt: string | null): Promise<{ op
   if (prompt) clipboard.writeText(prompt);
   if (dryRun) return { opened: true };
   if (spec.kind === "url") {
-    await shell.openExternal(spec.url!);
+    // Claude Desktop: istem yeni sohbette önceden yazılı açılır (destekleniyorsa); panoda da hazırdır.
+    const url = prompt && id === "claude-desktop" ? `claude://claude.ai/new?q=${encodeURIComponent(prompt)}` : spec.url!;
+    await shell.openExternal(url);
     return { opened: true };
   }
   if (spec.kind === "app") {
@@ -191,6 +202,62 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
     } catch (err) {
       return { ok: false, error: (err as Error).message };
     }
+  });
+
+  // --- Otomatik mod (Gemini API anahtarı) -------------------------------------------------------
+  const keyFile = () => path.join(ctx.configDir(), "gemini-key.bin");
+  // Uçtan uca testlerde gerçek Anahtar Zinciri kullanılmaz.
+  const canEncrypt = () => dryRun || safeStorage.isEncryptionAvailable();
+  const encrypt = (k: string) => (dryRun ? Buffer.from(k) : safeStorage.encryptString(k));
+  async function readKey(): Promise<string | null> {
+    try {
+      const buf = await readFile(keyFile());
+      if (dryRun) return buf.toString("utf8");
+      return safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(buf) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  ipcMain.handle("nularche:auto-status", async () => ({
+    enabled: !!ctx.settings().autoMode,
+    hasKey: !!(await readKey()),
+    model: ctx.settings().geminiModel ?? null,
+    encryption: canEncrypt(),
+  }));
+
+  ipcMain.handle("nularche:auto-set-key", async (_e, key: unknown) => {
+    if (typeof key !== "string" || !key.trim()) return { ok: false, error: "Anahtar boş." };
+    if (!canEncrypt()) return { ok: false, error: "Bu sistemde güvenli anahtar saklama kullanılamıyor." };
+    try {
+      const model = await checkGeminiKey(key.trim());
+      await mkdir(ctx.configDir(), { recursive: true });
+      await writeFile(keyFile(), encrypt(key.trim()), { mode: 0o600 });
+      await ctx.save({ geminiModel: model, autoMode: true });
+      return { ok: true, model };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle("nularche:auto-clear", async () => {
+    await rm(keyFile(), { force: true });
+    await ctx.save({ autoMode: false, geminiModel: undefined });
+  });
+
+  ipcMain.handle("nularche:auto-enable", async (_e, enabled: unknown) => {
+    await ctx.save({ autoMode: !!enabled });
+  });
+
+  ipcMain.handle("nularche:auto-run", async (_e, requestId: unknown) => {
+    const root = ctx.originRoot();
+    const key = await readKey();
+    const model = ctx.settings().geminiModel;
+    if (process.env.NULARCHE_DEBUG) console.error("[nularche] auto-run", { requestId, root, hasKey: !!key, model });
+    if (typeof requestId !== "string" || !root) return { ok: false, error: "Origin açık değil." };
+    if (!key || !model) return { ok: false, error: "Önce Ayarlar → Yapay zekâ bölümünden Gemini anahtarını girin." };
+    const req = await runGeminiAgent({ store: new NodeStore(root), activity: new AiActivity(root), requestId, apiKey: key, model });
+    return { ok: req.status === "done", status: req.status };
   });
 
   ipcMain.handle("nularche:ai-download", (_e, url: unknown) => {

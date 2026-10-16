@@ -15,6 +15,11 @@ contextBridge.exposeInMainWorld("nularche", {
   aiConnect: (id: string, options?: { restartApp?: boolean }) => invoke("ai-connect", id, options),
   aiOpen: (launcher: string, prompt: string | null) => invoke("ai-open", launcher, prompt),
   aiRestart: (launcher: string) => invoke("ai-restart", launcher),
+  autoStatus: () => invoke("auto-status"),
+  autoSetKey: (key: string) => invoke("auto-set-key", key),
+  autoClear: () => invoke("auto-clear"),
+  autoEnable: (enabled: boolean) => invoke("auto-enable", enabled),
+  autoRun: (requestId: string) => invoke("auto-run", requestId),
   aiDownload: (url: string) => invoke("ai-download", url),
   onAiConnected: (cb: (client: unknown) => void) => {
     const listener = (_e: IpcRendererEvent, c: unknown) => cb(c);

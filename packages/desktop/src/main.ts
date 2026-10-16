@@ -390,6 +390,7 @@ function registerIpc(): void {
       await saveSettings(settings);
     },
     warning: unstableLocation,
+    configDir: () => dirs.config,
   });
   ipcMain.handle("nularche:renderer-ready", () => {
     rendererReady = true;

@@ -111,8 +111,9 @@ export function Settings({
 
         <h3>Yapay zekâ</h3>
         <p className="muted">
-          Nularche'nin içinde yapay zekâ yoktur. Seçtiğiniz yapay zekânın resmi uygulamasına kendi hesabınızla giriş yaparsınız; Nularche o uygulamaya
-          “nularche” bağlantısını (MCP) kurar ve isteklerinizi sağ alttaki <b>Nularche AI</b> penceresinden iletirsiniz.
+          Nularche AI iki şekilde çalışır. <b>Otomatik mod</b>da istekleriniz ücretsiz Gemini anahtarınızla arka planda işlenir; düzenleme ve cevap
+          doğrudan sağ alttaki <b>Nularche AI</b> penceresinde görünür. <b>Üyelik modu</b>nda Claude, ChatGPT ya da Gemini uygulamanıza kendi
+          hesabınızla giriş yaparsınız ve isteği o uygulamada gönderirsiniz.
         </p>
         <AiSetup tick={aiTick} onToast={onToast} />
 
