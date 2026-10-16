@@ -47,9 +47,9 @@ export function Settings({
         <div className="segmented">
           {(
             [
-              ["dark", t("settings.themeDark")],
-              ["light", t("settings.themeLight")],
               ["system", t("settings.themeSystem")],
+              ["light", t("settings.themeLight")],
+              ["dark", t("settings.themeDark")],
             ] as const
           ).map(([value, label]) => (
             <button key={value} className={theme === value ? "on" : ""} onClick={() => (setTheme(value), setThemeState(value))}>
@@ -57,6 +57,8 @@ export function Settings({
             </button>
           ))}
         </div>
+
+        {theme === "system" && <p className="muted small">{t("settings.themeHint")}</p>}
 
         <h3>{t("settings.language")}</h3>
         <div className="segmented">

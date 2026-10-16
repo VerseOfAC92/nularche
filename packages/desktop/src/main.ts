@@ -4,7 +4,7 @@
 // .nlc/.nla dosyalarını karşılar. Uygulama hiçbir AI kimlik bilgisine dokunmaz; AI işi kullanıcının
 // seçtiği resmi araçta (Claude, ChatGPT, Gemini) "nularche" MCP sunucusuyla yapılır.
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, shell, type MenuItemConstructorOptions } from "electron";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -20,6 +20,10 @@ const REPO = "VerseOfAC92/nularche";
 const PROTOCOL = "nularche";
 const ARCHIVE_EXTS = [".nlc", ".nla"];
 const DARK_BG = "#0b0d10";
+const LIGHT_BG = "#eef1f4";
+
+type ThemeChoice = "dark" | "light" | "system";
+const isTheme = (v: unknown): v is ThemeChoice => v === "dark" || v === "light" || v === "system";
 
 // --- İşletim sistemi dizin standartları (RFC-001 §3.3) ---------------------------------------
 //   macOS   config: ~/Library/Preferences/io.nularche.app   data: ~/Library/Application Support/Nularche
@@ -52,6 +56,8 @@ interface Settings extends AiSettings {
   skipVersion?: string;
   /** Arayüz dili; seçilmemişse sistem dilinden çıkarılır. */
   language?: Lang;
+  /** Görünüm; seçilmemişse ("system") işletim sisteminin koyu/açık teması izlenir. */
+  theme?: ThemeChoice;
 }
 
 const settingsPath = () => path.join(dirs.config, "settings.json");
@@ -279,7 +285,7 @@ function createWindow(): void {
     minWidth: 720,
     minHeight: 480,
     title: "Nularche",
-    backgroundColor: DARK_BG,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? DARK_BG : LIGHT_BG,
     show: false,
     webPreferences: {
       preload: resourcePath("preload.cjs"),
@@ -287,7 +293,7 @@ function createWindow(): void {
       sandbox: true,
       nodeIntegration: false,
       // Arayüz dili ilk çizimden önce bilinsin (yerel sunucunun portu her açılışta değiştiği için tarayıcı deposu kalıcı değildir).
-      additionalArguments: [`--nlc-lang=${desktopLang()}`],
+      additionalArguments: [`--nlc-lang=${desktopLang()}`, `--nlc-theme=${settings.theme ?? "system"}`],
     },
   });
   win.once("ready-to-show", () => win?.show());
@@ -411,6 +417,12 @@ function registerIpc(): void {
     warning: unstableLocation(),
   }));
   ipcMain.handle("nularche:change-origin", () => changeOrigin());
+  ipcMain.handle("nularche:set-theme", async (_e, theme: unknown) => {
+    if (!isTheme(theme)) return;
+    settings.theme = theme;
+    nativeTheme.themeSource = theme;
+    await saveSettings(settings);
+  });
   ipcMain.handle("nularche:set-language", async (_e, lang: unknown) => {
     if (!isLang(lang)) return;
     settings.language = lang;
@@ -489,6 +501,8 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     settings = await loadSettings();
     setDesktopLang(settings.language ?? systemLang(app.getLocale()));
+    // Yerel menüler, iletişim kutuları ve pencere arka planı da seçilen temaya uysun.
+    nativeTheme.themeSource = settings.theme ?? "system";
     if (wrongArchitecture()) {
       const { response } = await dialog.showMessageBox({
         type: "warning",

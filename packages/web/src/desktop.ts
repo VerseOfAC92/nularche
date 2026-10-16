@@ -57,6 +57,9 @@ export interface DesktopBridge {
   /** Arayüz hazır; ana süreçte bekleyen gezinme varsa döndürür. */
   /** Masaüstü ayarlarında kayıtlı arayüz dili (yoksa null). */
   language: "tr" | "en" | null;
+  /** Masaüstü ayarlarında kayıtlı tema seçimi (yoksa null = sistem). */
+  theme: "dark" | "light" | "system" | null;
+  setTheme(theme: "dark" | "light" | "system"): Promise<void>;
   setLanguage(lang: "tr" | "en"): Promise<void>;
   rendererReady(): Promise<string | null>;
   info(): Promise<{ version: string; platform: string; originDir: string; warning: string | null }>;

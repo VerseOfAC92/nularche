@@ -209,6 +209,24 @@ try {
   await page.waitForTimeout(500);
   assert.match(systems.at(-1)!, /reply to the user in English/);
   await shot("11-nai-en");
+
+  // Tema: varsayılan "sistem" ve işletim sisteminin koyu/açık temasını anında izler; seçim ayarlara kaydedilir.
+  const themeNow = () => page.evaluate(() => document.documentElement.dataset.theme);
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === "light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
+  await page.locator(".sidebar-foot .side-btn").click();
+  assert.equal(await page.locator(".segmented button.on").first().textContent(), "System (automatic)");
+  await page.getByRole("button", { name: "Light", exact: true }).click();
+  assert.equal(await themeNow(), "light");
+  await shot("12-light");
+  await page.waitForTimeout(300);
+  assert.equal(JSON.parse(await readFile(path.join(userData, "config", "settings.json"), "utf8")).theme, "light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  assert.equal(await themeNow(), "light", "elle seçilen tema sistem değişince bozulmamalı");
+  await page.getByRole("button", { name: "System (automatic)", exact: true }).click();
+  await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
   console.log(`Tamam. Ekran görüntüleri: ${shots ?? "(yok)"}`);
 } catch (err) {
   await shot("hata").catch(() => undefined);
