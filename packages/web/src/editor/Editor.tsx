@@ -235,6 +235,8 @@ export interface EditorProps {
   onOpenPath: (vaultPath: string) => void;
   onCreateChild: (title: string) => Promise<NodeMeta | null>;
   onError: (message: string) => void;
+  /** Seçili metin değiştiğinde (Nularche AI bağlamı için). */
+  onSelectionText?: (text: string) => void;
 }
 
 export function Editor(props: EditorProps) {
@@ -376,7 +378,11 @@ export function Editor(props: EditorProps) {
       }
       updateTrigger(e);
     },
-    onSelectionUpdate: ({ editor: e }) => updateTrigger(e),
+    onSelectionUpdate: ({ editor: e }) => {
+      updateTrigger(e);
+      const { from, to, empty } = e.state.selection;
+      propsRef.current.onSelectionText?.(empty ? "" : e.state.doc.textBetween(from, to, "\n").slice(0, 20_000));
+    },
   });
   const editorRef = useRef<TiptapEditor | null>(null);
   editorRef.current = editor;

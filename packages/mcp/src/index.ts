@@ -5,10 +5,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { NodeError, NodeStore, resolveOriginDir, SHADOW, type NodeMeta } from "../../core/src/index.ts";
+import { AiActivity, NodeError, NodeStore, resolveOriginDir, SHADOW, type NodeDoc, type NodeMeta } from "../../core/src/index.ts";
 
 const store = new NodeStore(resolveOriginDir());
 await store.ensureRoot();
+const activity = new AiActivity(store.root);
+let clientName = "";
 
 const server = new McpServer(
   { name: "nularche", version: "0.2.0" },
@@ -18,7 +20,9 @@ const server = new McpServer(
       "(proje/alan); Node = sayfa; Shadow = henüz bir Arche'ye bağlanmamış ham notların gelen kutusu. " +
       "Düzenlemeden önce read_node ile Node'u okuyun ve dönen revision değerini update_node/append_to_node çağrısına base_revision olarak verin; " +
       "çakışma hatası alırsanız yeniden okuyun. Node'lar arası bağlantılar göreli Markdown bağlantılarıdır (ör. [Plan](../Plan.md)). " +
-      "Kalıcı silme yoktur; trash_node çöp klasörüne taşır.",
+      "Kalıcı silme yoktur; trash_node çöp klasörüne taşır. " +
+      "Kullanıcı Nularche AI penceresinden istek gönderdiğinde önce get_nularche_request ile isteği al, işi yap, " +
+      "sonra complete_nularche_request ile kullanıcıya kısa bir Türkçe cevap/özet yaz; bu cevap Nularche'de görünür.",
   },
 );
 
@@ -33,6 +37,33 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
     }
     throw err;
   }
+}
+
+// Hangi yapay zekâ aracının bağlandığını kaydet (Nularche "✓ Bağlandı" bilgisini buradan gösterir).
+server.server.oninitialized = () => {
+  const info = server.server.getClientVersion();
+  clientName = info?.name ?? "bilinmeyen";
+  void activity.recordClient(clientName, info?.version ?? "").catch(() => undefined);
+};
+
+/** AI düzenlemesi: önce geri alma için anlık kopya al, sonra değişikliği etkin Nularche AI isteğine bağla. */
+async function editWithSnapshot(ref: string, edit: (before: NodeDoc) => Promise<NodeDoc>): Promise<NodeDoc> {
+  const before = await store.read(ref);
+  const snapshot = await activity.snapshot(before.id, (await store.readRaw(before.path)).toString("utf8"));
+  const after = await edit(before);
+  if (after.revision !== before.revision) {
+    await activity
+      .recordChange({
+        nodeId: after.id,
+        title: after.title,
+        snapshot,
+        beforeRevision: before.revision,
+        afterRevision: after.revision,
+        at: Date.now(),
+      })
+      .catch(() => undefined);
+  }
+  return after;
 }
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -135,7 +166,7 @@ server.registerTool(
   },
   ({ node, body, title, base_revision }) =>
     run(async () => {
-      const n = await store.update(node, { body, title, baseRevision: base_revision });
+      const n = await editWithSnapshot(node, () => store.update(node, { body, title, baseRevision: base_revision }));
       return { ...summary(n), revision: n.revision };
     }),
 );
@@ -149,7 +180,7 @@ server.registerTool(
   },
   ({ node, text, base_revision }) =>
     run(async () => {
-      const n = await store.append(node, text, base_revision);
+      const n = await editWithSnapshot(node, () => store.append(node, text, base_revision));
       return { ...summary(n), revision: n.revision };
     }),
 );
@@ -215,6 +246,55 @@ server.registerTool(
     annotations: { readOnlyHint: true },
   },
   ({ node }) => run(async () => ({ backlinks: (await store.backlinks(node)).map(summary) })),
+);
+
+server.registerTool(
+  "get_nularche_request",
+  {
+    title: "Nularche AI isteğini al",
+    description:
+      "Kullanıcının Nularche AI penceresinden gönderdiği isteği getirir (request_id verilmezse en son bekleyen istek). " +
+      "İstek talimatı, ilgili Node'un id/başlık/içeriği/revision'ı ve varsa kullanıcının seçtiği metni içerir. İşi yaptıktan sonra complete_nularche_request çağır.",
+    inputSchema: { request_id: z.string().optional() },
+  },
+  ({ request_id }) =>
+    run(async () => {
+      const req = await activity.takeRequest(request_id, clientName || undefined);
+      if (!req) return { request: null, message: "Bekleyen Nularche AI isteği yok." };
+      let node: Record<string, unknown> | null = null;
+      if (req.nodeId) {
+        try {
+          const n = await store.read(req.nodeId);
+          node = { ...summary(n), revision: n.revision, body: n.body };
+        } catch {
+          node = null;
+        }
+      }
+      return {
+        request: { id: req.id, label: req.label, instruction: req.instruction, selection: req.selection ?? null, created_at: iso(req.createdAt) },
+        node,
+        next: "İşi read_node/update_node gibi araçlarla yap (update_node'a base_revision ver), sonra complete_nularche_request ile kısa bir cevap yaz.",
+      };
+    }),
+);
+
+server.registerTool(
+  "complete_nularche_request",
+  {
+    title: "Nularche AI isteğini tamamla",
+    description:
+      "Nularche AI isteğini tamamlandı (ya da başarısız) olarak işaretler ve kullanıcıya gösterilecek kısa cevabı yazar. Soru yanıtıysa cevabın tamamını buraya yaz.",
+    inputSchema: {
+      request_id: z.string(),
+      reply: z.string().min(1).describe("Kullanıcıya gösterilecek cevap/özet (Markdown)"),
+      failed: z.boolean().default(false),
+    },
+  },
+  ({ request_id, reply, failed }) =>
+    run(async () => {
+      const req = await activity.completeRequest(request_id, reply, failed);
+      return { id: req.id, status: req.status, changes: req.changes.length };
+    }),
 );
 
 await server.connect(new StdioServerTransport());

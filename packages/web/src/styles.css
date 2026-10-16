@@ -312,3 +312,79 @@ kbd { font: 11px var(--nlc-mono); color: var(--nlc-text-secondary); border: 1px 
   .main { overflow: visible; }
   .page { padding: 0; max-width: none; }
 }
+
+/* Nularche AI penceresi */
+.small { font-size: 12px; }
+.nai-fab { position: fixed; right: 20px; bottom: 20px; z-index: 35; display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; background: var(--nlc-bg-elevated); border: 1px solid var(--nlc-border-focus); color: var(--nlc-text-primary); font-size: 14px; box-shadow: var(--nlc-shadow-pop); }
+.nai-fab:hover { border-color: var(--nlc-accent-primary); box-shadow: var(--nlc-shadow-pop), 0 0 0 4px var(--nlc-accent-glow); }
+.nai-fab-icon { color: var(--nlc-accent-primary); font-size: 16px; }
+.nai-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--nlc-text-shadow); display: inline-block; }
+.nai-dot.on { background: var(--nlc-ok); box-shadow: 0 0 6px var(--nlc-ok); }
+.nai-panel { position: fixed; right: 20px; bottom: 20px; z-index: 35; width: min(400px, calc(100vw - 32px)); height: min(600px, calc(100vh - 40px)); display: flex; flex-direction: column; background: var(--nlc-bg-elevated); border: 1px solid var(--nlc-border-focus); border-radius: 14px; box-shadow: var(--nlc-shadow-pop); overflow: hidden; }
+.nai-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--nlc-border-subtle); }
+.nai-title { font-weight: 600; flex: 1; }
+.nai-provider { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--nlc-border-subtle); color: var(--nlc-text-secondary); }
+.nai-provider.on { color: var(--nlc-text-primary); }
+.nai-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 14px; }
+.nai-empty { color: var(--nlc-text-secondary); font-size: 14px; margin: auto 0; text-align: center; padding: 0 10px; }
+.nai-turn { display: flex; flex-direction: column; gap: 6px; }
+.nai-user { align-self: flex-end; max-width: 88%; background: var(--nlc-accent-glow); border: 1px solid var(--nlc-accent-deep); border-radius: 12px 12px 2px 12px; padding: 8px 10px; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+.nai-status { font-size: 12px; color: var(--nlc-text-secondary); }
+.nai-status.pending::before, .nai-status.received::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--nlc-accent-primary); margin-right: 6px; animation: nai-pulse 1.2s infinite; }
+.nai-status.done { color: var(--nlc-ok); }
+.nai-status.done::before { content: "✓ "; }
+.nai-status.failed { color: var(--nlc-danger); }
+@keyframes nai-pulse { 50% { opacity: 0.25; } }
+.nai-reply { background: var(--nlc-bg-surface); border: 1px solid var(--nlc-border-subtle); border-radius: 12px 12px 12px 2px; padding: 8px 10px; font-size: 14px; white-space: pre-wrap; max-width: 92%; }
+.nai-changes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.nai-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--nlc-border-subtle); background: var(--nlc-bg-surface); color: var(--nlc-text-secondary); align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.nai-chip:hover { color: var(--nlc-text-primary); border-color: var(--nlc-border-focus); }
+.nai-chip input { accent-color: var(--nlc-accent-primary); margin: 0; }
+.nai-undo { font-size: 12px; color: var(--nlc-warn); padding: 1px 8px; border-radius: 999px; border: 1px solid var(--nlc-border-subtle); }
+.nai-undo:hover { background: var(--nlc-hover); }
+.nai-composer { border-top: 1px solid var(--nlc-border-subtle); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.nai-context { display: flex; gap: 6px; flex-wrap: wrap; }
+.nai-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.nai-actions button { font-size: 12px; padding: 3px 9px; border-radius: 6px; border: 1px solid var(--nlc-border-subtle); color: var(--nlc-text-secondary); }
+.nai-actions button span { color: var(--nlc-accent-primary); }
+.nai-actions button:hover { background: var(--nlc-hover); color: var(--nlc-text-primary); }
+.nai-input { display: flex; gap: 6px; align-items: flex-end; }
+.nai-input textarea { flex: 1; resize: none; height: 56px; background: var(--nlc-bg-surface); border: 1px solid var(--nlc-border-subtle); border-radius: 10px; padding: 8px 10px; outline: none; font-size: 14px; }
+.nai-input textarea:focus { border-color: var(--nlc-accent-primary); box-shadow: 0 0 0 3px var(--nlc-accent-glow); }
+.nai-input .primary { height: 36px; width: 36px; padding: 0; border-radius: 10px; font-size: 16px; }
+
+/* Yapay zekâ kurulumu */
+.ai-setup { display: flex; flex-direction: column; gap: 14px; }
+.ai-step { display: flex; flex-direction: column; gap: 6px; }
+.ai-step-head { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.ai-step-no { width: 22px; height: 22px; border-radius: 50%; background: var(--nlc-accent-deep); color: var(--nlc-text-primary); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.provider-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.provider-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 6px; border-radius: 10px; border: 1px solid var(--nlc-border-subtle); background: var(--nlc-bg-surface); }
+.provider-card:hover { border-color: var(--nlc-border-focus); }
+.provider-card.on { border-color: var(--nlc-accent-primary); box-shadow: 0 0 0 3px var(--nlc-accent-glow); }
+.provider-logo { font-size: 22px; color: var(--nlc-accent-primary); }
+.provider-card small { color: var(--nlc-text-secondary); font-size: 11px; }
+.provider-ok { position: absolute; top: 4px; right: 6px; font-size: 10px; color: var(--nlc-ok); }
+.ai-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--nlc-border-subtle); background: var(--nlc-bg-surface); }
+.ai-row input[type="radio"] { accent-color: var(--nlc-accent-primary); }
+.ai-row-name { flex: 1; font-size: 14px; }
+.ai-row .primary, .ai-row .secondary { padding: 3px 10px; font-size: 13px; }
+.pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--nlc-border-subtle); color: var(--nlc-text-secondary); white-space: nowrap; }
+.pill.ok { color: var(--nlc-ok); border-color: rgba(63, 185, 80, 0.4); }
+.pill.off { color: var(--nlc-text-shadow); }
+.manual summary { cursor: pointer; font-size: 12px; color: var(--nlc-text-secondary); margin-top: 4px; }
+.ai-setup.compact .provider-card { padding: 8px 4px; }
+.ai-setup.compact .muted.small { margin: 0; }
+
+/* İlk açılış sihirbazı */
+.onboarding { width: min(620px, 94vw); padding: 16px 24px 16px; display: flex; flex-direction: column; max-height: 88vh; }
+.wizard-steps { display: flex; gap: 6px; margin-bottom: 10px; }
+.wizard-steps span { flex: 1; font-size: 12px; text-align: center; padding: 6px; border-radius: 6px; color: var(--nlc-text-shadow); border-bottom: 2px solid var(--nlc-border-subtle); }
+.wizard-steps span.on { color: var(--nlc-text-primary); border-color: var(--nlc-accent-primary); }
+.wizard-steps span.done { color: var(--nlc-ok); border-color: var(--nlc-ok); }
+.wizard-body { flex: 1; overflow-y: auto; padding: 8px 2px; min-height: 280px; }
+.wizard-body.center { text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.wizard-logo { width: 110px; height: 110px; border-radius: 50%; box-shadow: 0 0 60px var(--nlc-accent-glow); }
+.wizard-foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--nlc-border-subtle); padding-top: 12px; margin-top: 8px; }
+.nai-copy { margin-left: 8px; font-size: 11px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--nlc-border-subtle); color: var(--nlc-text-secondary); }
+.nai-copy:hover { color: var(--nlc-text-primary); background: var(--nlc-hover); }

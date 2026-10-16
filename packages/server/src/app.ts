@@ -7,6 +7,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import path from "node:path";
 import { NodeError, NodeStore } from "../../core/src/node-store.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
+import { AI_DIR, AiActivity } from "../../core/src/ai-activity.ts";
+import type { ProviderId } from "../../core/src/ai-clients.ts";
 
 const HOST = "127.0.0.1";
 
@@ -18,6 +20,8 @@ export interface ServerOptions {
   port: number;
   /** Ek izinli Origin'ler (ör. Vite geliştirme sunucusu). */
   extraOrigins?: string[];
+  /** Nularche AI etkinliği değiştiğinde (ör. masaüstünde "✓ Bağlandı" bildirimi için). */
+  onAiActivity?: () => void;
 }
 
 export interface RunningServer {
@@ -31,13 +35,25 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const WEB_DIST = path.resolve(options.webDist);
   let PORT = options.port;
   const store = new NodeStore(options.originDir);
+  const activity = new AiActivity(store.root);
   await store.ensureRoot();
 
-  // --- Canlı bildirim: Origin.de (Claude MCP ile dahil) bir dosya değişince istemcilere haber ver.
+  // --- Canlı bildirim: Origin'de (AI araçları dahil) bir dosya değişince istemcilere haber ver.
   const clients = new Set<ServerResponse>();
   let pending: NodeJS.Timeout | undefined;
+  let pendingAi: NodeJS.Timeout | undefined;
+  const aiPrefix = AI_DIR.split("/").join(path.sep);
   const watcher = watch(store.root, { recursive: true }, (_event, filename) => {
     const name = filename?.toString() ?? "";
+    // Nularche AI etkinliği (istekler, bağlanan istemciler) ayrı bir olay olarak bildirilir.
+    if (name.startsWith(aiPrefix)) {
+      clearTimeout(pendingAi);
+      pendingAi = setTimeout(() => {
+        for (const res of clients) res.write(`event: ai\ndata: {}\n\n`);
+        options.onAiActivity?.();
+      }, 100);
+      return;
+    }
     if (name.split(path.sep).some((seg) => seg.startsWith("."))) return; // .trash, geçici dosyalar
     clearTimeout(pending);
     pending = setTimeout(() => {
@@ -105,6 +121,32 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     const method = req.method ?? "GET";
     const route = `${method} ${parts[0] ?? ""}${parts[2] ? `/:id/${parts[2]}` : parts[1] ? "/:id" : ""}`;
     const id = parts[1];
+
+    if (parts[0] === "ai") {
+      if (method === "GET" && parts.length === 1) {
+        return send(res, 200, { clients: await activity.clients(), requests: await activity.listRequests(30) });
+      }
+      if (method === "POST" && parts[1] === "requests" && parts.length === 2) {
+        const b = await readJson(req);
+        const provider = ["claude", "chatgpt", "gemini"].includes(String(b.provider)) ? (b.provider as ProviderId) : null;
+        return send(
+          res,
+          201,
+          await activity.createRequest({
+            provider,
+            label: str(b.label) ?? "",
+            instruction: str(b.instruction) ?? "",
+            nodeId: str(b.nodeId),
+            nodeTitle: str(b.nodeTitle),
+            selection: str(b.selection),
+          }),
+        );
+      }
+      if (method === "POST" && parts[1] === "requests" && parts[3] === "undo") {
+        return send(res, 200, await activity.undo(store, parts[2]));
+      }
+      return send(res, 404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+    }
 
     switch (route) {
       case "GET events":

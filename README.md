@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/VerseOfAC92/nularche/releases/latest">İndir</a> ·
-  <a href="#claude-ile-kullanım">Claude ile kullanım</a> ·
+  <a href="#yapay-zekâ-ile-kullanım-claude-chatgpt-gemini">Yapay zekâ</a> ·
   <a href="#geliştirme">Geliştirme</a> ·
   <a href="#english">English</a>
 </p>
@@ -29,7 +29,7 @@
   - `.nlc` (Nularche Container): tek bir Node'u ekleriyle taşır.
   - `.nla` (Nularche Archive): tüm Origin'in yedeği.
 - **Diğer:** PDF dışa aktarma, `nularche://` derin bağlantıları, koyu öncelikli tasarım (açık tema da var).
-- **Claude entegrasyonu (MCP):** Claude Desktop ve Claude Code, Node'larınızı okuyup düzenleyebilir. Her sayfada **“Claude'da düzenle”** menüsü bulunur.
+- **Yapay zekâ (Claude, ChatGPT, Gemini):** kendi üyeliğinizle giriş yaptığınız resmi AI uygulaması, MCP üzerinden Node'larınızı okuyup düzenler. İstekler sağ alttaki **Nularche AI** penceresinden verilir; cevaplar ve geri alma da orada görünür.
 
 ### Ortak dil
 
@@ -70,32 +70,41 @@
 
 İlk açılışta Origin klasörünüz sorulur; varsayılanı `~/Documents/Nularche`.
 
-## Claude ile kullanım
+## Yapay zekâ ile kullanım (Claude, ChatGPT, Gemini)
 
-Nularche'nin içinde yapay zekâ yoktur ve hiçbir Claude kimlik bilgisine dokunmaz. Bunun yerine bir **MCP sunucusu** ile gelir. Claude Desktop ya da Claude Code, kendi Claude aboneliğinizle Node'larınızı bu sunucu üzerinden okuyup düzenler; API anahtarı gerekmez.
+Nularche'nin içinde yapay zekâ yoktur ve hiçbir AI hesabına, oturumuna ya da API anahtarına dokunmaz. Seçtiğiniz yapay zekânın **resmi uygulamasına kendi üyeliğinizle** giriş yaparsınız; Nularche o uygulamaya yerel bir **MCP bağlantısı** kurar.
 
-1. **Ayarlar → Claude bağlantısı** bölümünü açın.
-2. **Claude Desktop:**
-   - Claude Desktop'tan tamamen çıkın (macOS: ⌘Q), sonra **“Claude Desktop'a bağlan”**a basın.
-   - Nularche, Claude Desktop yapılandırmasına yalnızca `nularche` girdisini ekler ve önce yedek alır.
-3. **Claude Code:** ekranda gösterilen tek satırlık `claude mcp add …` komutunu kopyalayıp terminalde çalıştırın.
-4. Bir Node'da **“Claude'da düzenle”** menüsünden bir eylem seçin: düzelt, özetle, yapılacakları çıkar, ilgili Node'lara bağla, çevir… Hazır istem panoya kopyalanır ve Claude açılır. Yapıştırdığınızda Claude düzenlemeyi yapar ve sayfa canlı olarak yenilenir.
+| Yapay zekâ | Resmi araç | Bağlantı dosyası |
+| --- | --- | --- |
+| **Claude** | Claude Desktop, Claude Code | `claude_desktop_config.json`, `~/.claude.json` |
+| **ChatGPT** | ChatGPT masaüstü uygulaması, Codex CLI / IDE | `~/.codex/config.toml` (hepsi bu dosyayı paylaşır) |
+| **Gemini** | Google Antigravity CLI (`agy`) | `~/.gemini/config/mcp_config.json` |
+
+1. **Ayarlar → Yapay zekâ** bölümünde (ilk açılışta sihirbaz da gelir) Claude, ChatGPT ya da Gemini'yi seçin.
+2. **Aç / İndir** ile resmi uygulamayı açın ve kendi hesabınızla giriş yapın.
+3. **Bağla**'ya basın. Nularche, aracın yapılandırmasına yalnızca `nularche` girdisini ekler ve önce yedek alır. Claude Desktop açıksa izninizle kapatılıp yeniden açılır.
+4. Yapay zekâ aracı Nularche'ye ilk bağlandığında Nularche öne gelir ve **“✓ … bağlandı”** der.
+
+### Nularche AI
+
+Sağ alttaki **✳ Nularche AI** penceresi her zaman elinizin altındadır:
+
+1. Hazır eylemlerden birini seçin (düzelt, özetle, genişlet, yapılacaklar, ilgili Node'lara bağla, çevir) ya da ne istediğinizi yazın. Seçili metin de bağlam olarak gönderilebilir.
+2. Nularche bağlı yapay zekâ uygulamasını açar ve kısa istemi panoya koyar. Bir kez yapıştırıp (⌘V) gönderin.
+3. Yapay zekâ isteği `nularche` araçlarıyla alır, Node'larınızda çalışır ve cevabını yazar.
+4. İlerleme ("çalışıyor… tamamlandı"), cevap, değişen Node'lar ve **Geri al** düğmesi Nularche AI penceresinde görünür.
+
+> Resmi AI uygulamaları dışarıdan otomatik komut almaya izin vermediği için her istekte bir kez yapıştırıp göndermeniz gerekir. Geri kalan her şey Nularche içinde akar.
 
 MCP araçları:
 
 | Araç | Ne yapar |
 | --- | --- |
-| `list_nodes` | Node listesi (yalnızca başlık/yol/id) |
-| `read_node` | Markdown içerik ve `revision` |
-| `search_nodes` | Tam metin arama |
-| `create_node` | Yeni Node (üst Node, `root` ya da `shadow`) |
-| `update_node` | İçerik/başlık; `base_revision` ile çakışma koruması |
-| `append_to_node` | Sona ekleme |
-| `move_node` | Taşıma; bağlantılar otomatik güncellenir |
-| `trash_node` | Çöpe taşıma (kalıcı silme yok) |
-| `capture_to_shadow` | Shadow'a hızlı not |
-| `list_shadow` | Gelen kutusu ve bağlantısız Node'lar |
-| `get_backlinks` | Geri bağlantılar |
+| `list_nodes`, `read_node`, `search_nodes` | Listeleme, okuma (`revision` ile), tam metin arama |
+| `create_node`, `update_node`, `append_to_node` | Oluşturma ve düzenleme; `base_revision` ile çakışma koruması, her düzenlemeden önce geri alma kopyası |
+| `move_node`, `trash_node` | Taşıma (bağlantılar güncellenir), çöpe taşıma |
+| `capture_to_shadow`, `list_shadow`, `get_backlinks` | Shadow ve bağlantılar |
+| `get_nularche_request`, `complete_nularche_request` | Nularche AI isteklerini alma ve cevaplama |
 
 ## Derin bağlantılar
 
@@ -141,6 +150,8 @@ npm ci
 npm test              # çekirdek + editör testleri
 npm run typecheck
 npm run mcp:smoke     # MCP sunucusunu gerçek bir MCP istemcisiyle dener
+npm run e2e           # masaüstü uygulamasında uçtan uca test (sahte ev klasörüyle)
+npm run connect -- codex          # kaynak koddan çalışırken bir AI aracına bağlan
 npm run build && npm start        # tarayıcı sürümü: http://localhost:5178
 npm run desktop                   # masaüstü uygulamasını kaynaktan çalıştır
 npm run dist:mac                  # yerel paket (release/ altında)
@@ -148,7 +159,7 @@ npm run dist:mac                  # yerel paket (release/ altında)
 
 | Paket | Görevi |
 | --- | --- |
-| `packages/core` | Origin'in tek sahibi: Node okuma/yazma, bağlantılar, Shadow, arama, arşivler, Claude yapılandırması. |
+| `packages/core` | Origin'in tek sahibi: Node okuma/yazma, bağlantılar, Shadow, arama, arşivler, AI bağlantıları ve Nularche AI kaydı. |
 | `packages/server` | Yerel HTTP API (yalnızca `127.0.0.1`), canlı değişiklik bildirimi, ek dosyaları. |
 | `packages/web` | React + TipTap arayüzü. |
 | `packages/mcp` | stdio MCP sunucusu. |
@@ -178,6 +189,9 @@ TypeScript dosyaları Node 24'ün yerleşik tip ayıklamasıyla derlemesiz çal�
 - **Storage:** your notes (Nodes) live as plain `.md` files in a folder you own (your Origin).
 - **Editing:** a block editor with slash commands, tables, toggles, callouts, attachments and drag-and-drop.
 - **Connections:** Nodes link to each other with `[[`, and backlinks are shown under each Node. The Shadow inbox collects unfiled ideas.
-- **AI:** Nularche contains no AI and never touches your Claude credentials. It ships a local **MCP server**, so Claude Desktop or Claude Code can read and edit your notes using your own Claude subscription. Connect it under *Settings → Claude connection*.
+- **AI:** Nularche contains no AI and never touches your AI credentials. Pick Claude, ChatGPT or Gemini under *Settings → AI* and sign in to that provider's official app with your own subscription.
+  - Nularche registers its local **MCP server** with that app: Claude Desktop/Code, the ChatGPT desktop app/Codex, or Google Antigravity.
+  - It detects automatically when the app connects.
+  - Requests go through the floating **Nularche AI** panel, which shows progress, the AI's reply and an undo button.
 
 Download the latest build for macOS (Apple Silicon / Intel), Windows or Linux from [Releases](https://github.com/VerseOfAC92/nularche/releases/latest). Builds are not code-signed yet, so see the warnings above.

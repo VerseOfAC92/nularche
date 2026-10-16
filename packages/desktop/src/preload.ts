@@ -10,9 +10,17 @@ contextBridge.exposeInMainWorld("nularche", {
   revealOrigin: () => invoke("reveal-origin"),
   copy: (text: string) => invoke("copy", text),
   openExternal: (url: string) => invoke("open-external", url),
-  claudeStatus: () => invoke("claude-status"),
-  claudeApply: () => invoke("claude-apply"),
-  openClaude: (prompt: string) => invoke("open-claude", prompt),
+  aiStatus: () => invoke("ai-status"),
+  aiSet: (patch: unknown) => invoke("ai-set", patch),
+  aiConnect: (id: string, options?: { restartApp?: boolean }) => invoke("ai-connect", id, options),
+  aiOpen: (launcher: string, prompt: string | null) => invoke("ai-open", launcher, prompt),
+  aiRestart: (launcher: string) => invoke("ai-restart", launcher),
+  aiDownload: (url: string) => invoke("ai-download", url),
+  onAiConnected: (cb: (client: unknown) => void) => {
+    const listener = (_e: IpcRendererEvent, c: unknown) => cb(c);
+    ipcRenderer.on("nularche:ai-connected", listener);
+    return () => ipcRenderer.removeListener("nularche:ai-connected", listener);
+  },
   printPdf: (name: string) => invoke("print-pdf", name),
   exportArchive: (nodeId: string | null, kind: "nlc" | "nla") => invoke("export-archive", nodeId, kind),
   importArchive: () => invoke("import-archive"),

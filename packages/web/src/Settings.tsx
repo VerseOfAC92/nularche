@@ -1,20 +1,27 @@
 // Ayarlar: görünüm, Origin klasörü, Claude bağlantısı (MCP kaydı), arşivler, sürüm.
 
 import { useCallback, useEffect, useState } from "react";
-import { copyText, desktop, type ClaudeStatus } from "./desktop.ts";
+import { AiSetup } from "./ai/AiSetup.tsx";
+import { desktop } from "./desktop.ts";
 import { getTheme, setTheme, type ThemeChoice } from "./theme.ts";
 
-export function Settings({ onClose, onToast, onChanged }: { onClose: () => void; onToast: (msg: string) => void; onChanged: () => void }) {
+export function Settings({
+  onClose,
+  onToast,
+  onChanged,
+  aiTick,
+}: {
+  onClose: () => void;
+  onToast: (msg: string) => void;
+  onChanged: () => void;
+  aiTick: number;
+}) {
   const [info, setInfo] = useState<{ version: string; originDir: string; warning: string | null } | null>(null);
-  const [status, setStatus] = useState<ClaudeStatus | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
   const [theme, setThemeState] = useState<ThemeChoice>(getTheme);
 
   const refresh = useCallback(async () => {
     if (!desktop) return;
     setInfo(await desktop.info());
-    setStatus(await desktop.claudeStatus());
   }, []);
 
   useEffect(() => {
@@ -23,18 +30,6 @@ export function Settings({ onClose, onToast, onChanged }: { onClose: () => void;
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
   }, [refresh, onClose]);
-
-  async function apply() {
-    if (!desktop) return;
-    setBusy(true);
-    const res = await desktop.claudeApply();
-    setBusy(false);
-    setResult(res.ok ? `Bağlandı.${res.backup ? ` Yedek: ${res.backup}` : ""} Şimdi Claude Desktop'ı açın.` : `Bağlanamadı: ${res.error}`);
-    refresh();
-  }
-
-  const plan = status && "status" in status.plan ? status.plan : null;
-  const planError = status && "error" in status.plan ? status.plan.error : null;
 
   return (
     <div className="overlay" onMouseDown={onClose}>
@@ -114,55 +109,12 @@ export function Settings({ onClose, onToast, onChanged }: { onClose: () => void;
           </>
         )}
 
-        <h3>Claude bağlantısı</h3>
+        <h3>Yapay zekâ</h3>
         <p className="muted">
-          Nularche AI içermez. Claude Desktop veya Claude Code, “nularche” MCP sunucusu üzerinden Node'larınızı okuyup düzenler; kendi Claude
-          aboneliğiniz kullanılır, API anahtarı gerekmez.
+          Nularche'nin içinde yapay zekâ yoktur. Seçtiğiniz yapay zekânın resmi uygulamasına kendi hesabınızla giriş yaparsınız; Nularche o uygulamaya
+          “nularche” bağlantısını (MCP) kurar ve isteklerinizi sağ alttaki <b>Nularche AI</b> penceresinden iletirsiniz.
         </p>
-        {desktop ? (
-          <>
-            {(info?.warning || status?.warning) && <p className="warn">{info?.warning || status?.warning}</p>}
-            <h4>Claude Desktop</h4>
-            {planError && <p className="warn">{planError}</p>}
-            {plan && plan.status === "unchanged" && <p className="ok">✓ Bağlı. Claude Desktop'ta “nularche” araçları kullanılabilir.</p>}
-            {plan && plan.status !== "unchanged" && (
-              <>
-                <p>
-                  {plan.status === "add" ? "Henüz bağlı değil." : "Kayıt bu kurulumla eşleşmiyor (uygulama ya da Origin taşınmış olabilir)."}{" "}
-                  Bağlanınca <code>{plan.configPath}</code> dosyasına yalnızca <code>nularche</code> girdisi yazılır
-                  {plan.legacyServers.length ? `, eski “${plan.legacyServers.join(", ")}” kaydı kaldırılır` : ""}
-                  {plan.otherServers.length ? `; diğer sunucular (${plan.otherServers.join(", ")}) korunur` : ""} ve önce yedek alınır.
-                </p>
-                {status?.running && (
-                  <p className="warn">
-                    Claude Desktop açık. Değişiklik kapanışta silineceği için önce Claude Desktop'tan tamamen çıkın (⌘Q), sonra “Yeniden denetle”ye
-                    basın.
-                  </p>
-                )}
-                <div className="row">
-                  <button className="primary" disabled={busy || !!status?.running} onClick={apply}>
-                    {plan.status === "add" ? "Claude Desktop'a bağlan" : "Kaydı güncelle"}
-                  </button>
-                  <button className="secondary" onClick={refresh}>
-                    Yeniden denetle
-                  </button>
-                </div>
-              </>
-            )}
-            {result && <p className="muted">{result}</p>}
-            <h4>Claude Code</h4>
-            <p className="muted">Terminalde bir kez çalıştırın:</p>
-            <pre className="cmd">{status?.claudeCode}</pre>
-            <button className="secondary" onClick={() => status && copyText(status.claudeCode).then(() => onToast("Komut kopyalandı"))}>
-              Komutu kopyala
-            </button>
-          </>
-        ) : (
-          <p className="muted">
-            Kaynak koddan çalıştırırken Claude Desktop'ı kapatıp <code>npm run register:desktop</code> komutunu çalıştırın. Masaüstü uygulamasında bu
-            işlem bu ekrandan tek tıkla yapılır.
-          </p>
-        )}
+        <AiSetup tick={aiTick} onToast={onToast} />
 
         <h3>Hakkında</h3>
         <p className="muted">

@@ -39,6 +39,35 @@ export interface SearchHit {
   snippet: string;
 }
 
+export type AiRequestStatus = "pending" | "received" | "done" | "failed";
+
+export interface AiChange {
+  nodeId: string;
+  title: string;
+  snapshot: string;
+  beforeRevision: string;
+  afterRevision: string;
+  at: number;
+}
+
+export interface AiRequest {
+  id: string;
+  createdAt: number;
+  provider: "claude" | "chatgpt" | "gemini" | null;
+  label: string;
+  instruction: string;
+  nodeId?: string;
+  nodeTitle?: string;
+  selection?: string;
+  status: AiRequestStatus;
+  receivedAt?: number;
+  completedAt?: number;
+  client?: string;
+  reply?: string;
+  changes: AiChange[];
+  undoneAt?: number;
+}
+
 export interface ShadowView {
   inbox: NodeMeta[];
   unlinked: NodeMeta[];
@@ -86,5 +115,10 @@ export const api = {
   search: (q: string) => request<{ results: SearchHit[] }>("GET", `/api/search?q=${enc(q)}`).then((r) => r.results),
   shadow: () => request<ShadowView>("GET", "/api/shadow"),
   capture: (text: string, title?: string) => request<NodeDoc>("POST", "/api/capture", { text, title }),
+  aiState: () =>
+    request<{ clients: { name: string; provider: string | null; firstSeen: number; lastSeen: number }[]; requests: AiRequest[] }>("GET", "/api/ai"),
+  aiRequest: (input: { provider: string | null; label: string; instruction: string; nodeId?: string; nodeTitle?: string; selection?: string }) =>
+    request<AiRequest>("POST", "/api/ai/requests", input),
+  aiUndo: (id: string) => request<{ restored: string[]; skipped: string[] }>("POST", `/api/ai/requests/${enc(id)}/undo`),
   upload: (file: File) => request<{ path: string }>("POST", `/api/attachments?name=${enc(file.name)}`, undefined, file),
 };

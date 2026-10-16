@@ -10,6 +10,7 @@ import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { projectRoot } from "../packages/core/src/config.ts";
+import { AiActivity } from "../packages/core/src/ai-activity.ts";
 
 const vaultArg = process.argv.indexOf("--vault");
 const vault = vaultArg > 0 ? path.resolve(process.argv[vaultArg + 1]) : await mkdtemp(path.join(tmpdir(), "nularche-smoke-"));
@@ -39,8 +40,10 @@ try {
   assert.deepEqual(tools, [
     "append_to_node",
     "capture_to_shadow",
+    "complete_nularche_request",
     "create_node",
     "get_backlinks",
+    "get_nularche_request",
     "list_nodes",
     "list_shadow",
     "move_node",
@@ -71,6 +74,30 @@ try {
   const shadow = await call("list_shadow", {});
   assert.ok(shadow.data.inbox.some((n: { id: string }) => n.id === captured.data.id));
   await call("move_node", { node: captured.data.id, new_parent_node_id: arche.data.id });
+
+  // Nularche AI akışı: arayüz istek oluşturur, AI alır, düzenler, cevap yazar; istemci kaydedilir.
+  const activity = new AiActivity(vault);
+  const clients = await activity.clients();
+  assert.ok(
+    clients.some((c) => c.name === "nularche-smoke"),
+    JSON.stringify(clients),
+  );
+  const req = await activity.createRequest({
+    provider: "claude",
+    label: "Özetle",
+    instruction: "Özet ekle",
+    nodeId: created.data.id,
+    nodeTitle: "MCP duman testi",
+  });
+  const got = await call("get_nularche_request", {});
+  assert.equal(got.data.request.id, req.id);
+  assert.equal(got.data.node.id, created.data.id);
+  await call("update_node", { node: created.data.id, body: "## Özet\n- tamam\n\n" + got.data.node.body, base_revision: got.data.node.revision });
+  const done = await call("complete_nularche_request", { request_id: req.id, reply: "Özet eklendi." });
+  assert.equal(done.data.status, "done");
+  assert.equal(done.data.changes, 1);
+  const undo = await activity.undo(new (await import("../packages/core/src/node-store.ts")).NodeStore(vault), req.id);
+  assert.equal(undo.restored.length, 1);
   if (temporary) await call("trash_node", { node: arche.data.id });
   console.log(`\nTamam. Origin: ${vault}`);
 } finally {

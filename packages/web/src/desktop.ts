@@ -1,11 +1,55 @@
 // Masaüstü uygulamasında preload'un açtığı köprü; tarayıcıda çalışırken undefined'dır.
 
-export interface ClaudeStatus {
-  plan:
-    | { configPath: string; status: "unchanged" | "add" | "update"; entry: unknown; otherServers: string[]; legacyServers: string[] }
-    | { error: string };
-  running: boolean;
-  claudeCode: string;
+export type ProviderId = "claude" | "chatgpt" | "gemini";
+export type ConnectionId = "claude-desktop" | "claude-code" | "codex" | "antigravity";
+export type LauncherId = "claude-desktop" | "claude-code" | "chatgpt-desktop" | "codex-cli" | "antigravity-cli";
+
+export interface Provider {
+  id: ProviderId;
+  name: string;
+  company: string;
+  plans: string;
+  connections: ConnectionId[];
+  launchers: LauncherId[];
+}
+
+export interface ConnectionStatus {
+  id: ConnectionId;
+  provider: ProviderId;
+  name: string;
+  description: string;
+  installed: boolean | null;
+  plan: { configPath: string; status: "unchanged" | "add" | "update"; otherServers: string[]; legacyServers: string[] } | { error: string };
+  manualCommand: string | null;
+  downloadUrl: string;
+  mustBeClosed?: string;
+  running?: boolean;
+}
+
+export interface LauncherStatus {
+  id: LauncherId;
+  provider: ProviderId;
+  name: string;
+  installed: boolean | null;
+  downloadUrl: string;
+}
+
+export interface AiClientRecord {
+  name: string;
+  version: string;
+  provider: ProviderId | null;
+  firstSeen: number;
+  lastSeen: number;
+}
+
+export interface AiStatus {
+  provider: ProviderId | null;
+  launchers: Partial<Record<ProviderId, LauncherId>>;
+  onboarded: boolean;
+  providers: Provider[];
+  connections: ConnectionStatus[];
+  launcherStatus: LauncherStatus[];
+  clients: AiClientRecord[];
   warning: string | null;
 }
 
@@ -17,9 +61,18 @@ export interface DesktopBridge {
   revealOrigin(): Promise<void>;
   copy(text: string): Promise<void>;
   openExternal(url: string): Promise<void>;
-  claudeStatus(): Promise<ClaudeStatus>;
-  claudeApply(): Promise<{ ok: boolean; backup?: string | null; error?: string }>;
-  openClaude(prompt: string): Promise<{ opened: boolean }>;
+  aiStatus(): Promise<AiStatus>;
+  aiSet(patch: { provider?: ProviderId | null; launcher?: LauncherId; onboarded?: boolean }): Promise<void>;
+  aiConnect(
+    id: ConnectionId,
+    options?: { restartApp?: boolean },
+  ): Promise<{ ok: boolean; backup?: string | null; error?: string; needsRestart?: boolean; restarted?: boolean }>;
+  /** AI uygulamasını yeniden başlatır (Claude Desktop: kapat + aç; diğerleri: aç). */
+  aiRestart(launcher: LauncherId): Promise<{ ok: boolean; error?: string }>;
+  aiOpen(launcher: LauncherId, prompt: string | null): Promise<{ opened: boolean; message?: string }>;
+  aiDownload(url: string): Promise<void>;
+  /** Bir AI aracı Nularche'ye ilk kez bağlandığında. */
+  onAiConnected(cb: (client: AiClientRecord) => void): () => void;
   printPdf(name: string): Promise<string | null>;
   exportArchive(nodeId: string | null, kind: "nlc" | "nla"): Promise<string | null>;
   importArchive(): Promise<{ imported: number; rootIds: string[] } | null>;

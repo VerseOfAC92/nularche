@@ -1,8 +1,8 @@
 // Nularche masaüstü uygulaması: Electron ana süreci.
 // Yerel sunucuyu süreç içinde başlatır, arayüzü bir pencerede açar ve küçük bir köprü (preload)
 // üzerinden yalnızca masaüstüne özgü işlemleri sunar. `nularche://` derin bağlantılarını ve
-// .nlc/.nla dosyalarını karşılar. Uygulama hiçbir Claude kimlik bilgisine dokunmaz; AI işi
-// Claude Desktop/Code'da "nularche" MCP sunucusuyla yapılır.
+// .nlc/.nla dosyalarını karşılar. Uygulama hiçbir AI kimlik bilgisine dokunmaz; AI işi kullanıcının
+// seçtiği resmi araçta (Claude, ChatGPT, Gemini) "nularche" MCP sunucusuyla yapılır.
 
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from "electron";
 import { existsSync } from "node:fs";
@@ -10,7 +10,8 @@ import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises"
 import { homedir } from "node:os";
 import path from "node:path";
 import { exportArchive, importArchive, type ArchiveKind } from "../../core/src/archive.ts";
-import { applyClaudeDesktop, claudeCodeCommand, isClaudeDesktopRunning, planClaudeDesktop, type McpEntry } from "../../core/src/claude-config.ts";
+import type { McpEntry } from "../../core/src/ai-clients.ts";
+import { registerAiIpc, type AiSettings } from "./ai.ts";
 import { loadOrigin, type Origin } from "../../core/src/origin.ts";
 import { startServer, type RunningServer } from "../../server/src/app.ts";
 
@@ -45,7 +46,7 @@ const dirs = override ? { config: path.join(override, "config"), data: path.join
 app.setName("Nularche");
 app.setPath("userData", dirs.data);
 
-interface Settings {
+interface Settings extends AiSettings {
   originDir?: string;
   skipVersion?: string;
 }
@@ -85,7 +86,7 @@ async function installMcpScript(): Promise<string> {
   return target;
 }
 
-/** Claude'un MCP sunucusunu başlatırken kullanacağı komut: uygulamanın kendi ikilisi Node olarak. */
+/** AI aracının MCP sunucusunu başlatırken kullanacağı komut: uygulamanın kendi ikilisi Node olarak. */
 function mcpEntry(mcpScript: string, originDir: string): McpEntry {
   const command = process.env.APPIMAGE || process.execPath;
   return { command, args: [mcpScript], env: { ELECTRON_RUN_AS_NODE: "1", NULARCHE_ORIGIN: originDir } };
@@ -95,7 +96,7 @@ function mcpEntry(mcpScript: string, originDir: string): McpEntry {
 function unstableLocation(): string | null {
   const exe = process.execPath;
   if (process.platform === "darwin" && (exe.startsWith("/Volumes/") || exe.includes("/AppTranslocation/"))) {
-    return "Nularche disk görüntüsünden ya da karantinadaki bir konumdan çalışıyor. Claude bağlantısının kalıcı olması için önce uygulamayı Uygulamalar klasörüne taşıyıp oradan açın.";
+    return "Nularche disk görüntüsünden ya da karantinadaki bir konumdan çalışıyor. Yapay zekâ bağlantısının kalıcı olması için önce uygulamayı Uygulamalar klasörüne taşıyıp oradan açın.";
   }
   return null;
 }
@@ -178,8 +179,9 @@ let rendererReady = false;
 
 async function openOrigin(originDir: string): Promise<void> {
   await server?.close();
-  server = await startServer({ originDir, webDist: webDist(), port: 0 });
+  server = await startServer({ originDir, webDist: webDist(), port: 0, onAiActivity: () => aiHooks?.onActivity() });
   origin = await loadOrigin(server.store.root);
+  await aiHooks?.resetBaseline();
   settings.originDir = originDir;
   await saveSettings(settings);
   if (win) await win.loadURL(server.url);
@@ -356,7 +358,20 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+let aiHooks: ReturnType<typeof registerAiIpc> | null = null;
+
 function registerIpc(): void {
+  aiHooks = registerAiIpc({
+    entry: () => mcpEntry(mcpScript, settings.originDir!),
+    window: () => win,
+    originRoot: () => server?.store.root ?? null,
+    settings: () => settings,
+    save: async (patch) => {
+      settings = { ...settings, ...patch };
+      await saveSettings(settings);
+    },
+    warning: unstableLocation,
+  });
   ipcMain.handle("nularche:renderer-ready", () => {
     rendererReady = true;
     const nav = pendingNav;
@@ -376,29 +391,6 @@ function registerIpc(): void {
   });
   ipcMain.handle("nularche:open-external", (_e, url: unknown) => {
     if (typeof url === "string" && /^https:\/\//.test(url)) return shell.openExternal(url);
-  });
-  ipcMain.handle("nularche:claude-status", async () => {
-    const entry = mcpEntry(mcpScript, settings.originDir!);
-    const plan = await planClaudeDesktop(entry).catch((err: Error) => ({ error: err.message }));
-    return { plan, running: isClaudeDesktopRunning(), claudeCode: claudeCodeCommand(entry), warning: unstableLocation() };
-  });
-  ipcMain.handle("nularche:claude-apply", async () => {
-    try {
-      const res = await applyClaudeDesktop(mcpEntry(mcpScript, settings.originDir!));
-      return { ok: true, backup: res.backup };
-    } catch (err) {
-      return { ok: false, error: (err as Error).message };
-    }
-  });
-  /** İstemi panoya kopyalar ve Claude Desktop'ı açar (claude:// URL şeması). */
-  ipcMain.handle("nularche:open-claude", async (_e, prompt: unknown) => {
-    if (typeof prompt === "string") clipboard.writeText(prompt);
-    try {
-      await shell.openExternal("claude://");
-      return { opened: true };
-    } catch {
-      return { opened: false };
-    }
   });
   ipcMain.handle("nularche:print-pdf", async (e, suggestedName: unknown) => {
     const name = typeof suggestedName === "string" && suggestedName ? suggestedName.replace(/[\\/:*?"<>|]/g, "-") : "Node";

@@ -6,6 +6,9 @@ import { SearchDialog } from "./SearchDialog.tsx";
 import { Settings } from "./Settings.tsx";
 import { ShadowView } from "./ShadowView.tsx";
 import { Sidebar } from "./Sidebar.tsx";
+import { NularcheAI, type AiContext } from "./ai/NularcheAI.tsx";
+import { Onboarding } from "./ai/Onboarding.tsx";
+import { PROVIDER_LABEL } from "./ai/prompts.ts";
 
 export type Route = { kind: "home" } | { kind: "shadow" } | { kind: "node"; id: string };
 
@@ -31,6 +34,24 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [update, setUpdate] = useState<{ version: string; url: string } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  const [aiOpen, setAiOpenState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("nlc-ai-open") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const setAiOpen = useCallback((v: boolean) => {
+    setAiOpenState(v);
+    try {
+      localStorage.setItem("nlc-ai-open", v ? "1" : "0");
+    } catch {
+      // yalnızca bu oturum
+    }
+  }, []);
+  const [aiContext, setAiContext] = useState<AiContext>({});
+  const [aiTick, setAiTick] = useState(0);
+  const [onboarding, setOnboarding] = useState(false);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -65,9 +86,15 @@ export function App() {
       navigate({ kind: "node", id });
     });
     desktop?.rendererReady().then((id) => id && (refresh(), navigate({ kind: "node", id })));
+    desktop?.aiStatus().then((s) => !s.onboarded && setOnboarding(true));
+    const offAi = desktop?.onAiConnected((c) => {
+      setAiTick((t) => t + 1);
+      showToast(`✓ ${c.provider ? PROVIDER_LABEL[c.provider] : c.name} bağlandı. Artık Nularche AI ile kullanabilirsiniz.`);
+    });
     return () => {
       removeEventListener("hashchange", onHash);
       off?.();
+      offAi?.();
     };
   }, [refresh, navigate]);
 
@@ -78,6 +105,7 @@ export function App() {
       refresh();
       setChangeTick((t) => t + 1);
     });
+    es.addEventListener("ai", () => setAiTick((t) => t + 1));
     return () => es.close();
   }, [refresh]);
 
@@ -135,6 +163,7 @@ export function App() {
   }, [create]);
 
   const shadowCount = nodes.filter((n) => n.archeId === null).length;
+  const context = route.kind === "node" && aiContext.nodeId === route.id ? aiContext : {};
 
   return (
     <div className="app">
@@ -176,6 +205,8 @@ export function App() {
             onTrash={trash}
             onToast={showToast}
             onGone={() => navigate({ kind: "home" })}
+            onContext={setAiContext}
+            onOpenAI={() => setAiOpen(true)}
           />
         )}
         {route.kind === "shadow" && (
@@ -184,7 +215,17 @@ export function App() {
         {route.kind === "home" && <Welcome onCreate={create} onShadow={() => navigate({ kind: "shadow" })} />}
       </main>
 
-      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} onToast={showToast} onChanged={refresh} />}
+      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} onToast={showToast} onChanged={refresh} aiTick={aiTick} />}
+      <NularcheAI
+        open={aiOpen}
+        onOpenChange={setAiOpen}
+        context={context}
+        aiTick={aiTick}
+        onToast={showToast}
+        onOpenNode={(id) => navigate({ kind: "node", id })}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+      {onboarding && <Onboarding aiTick={aiTick} onToast={showToast} onDone={() => (setOnboarding(false), setAiOpen(true))} />}
       {searchOpen && (
         <SearchDialog nodes={nodes} onClose={() => setSearchOpen(false)} onPick={(id) => (setSearchOpen(false), navigate({ kind: "node", id }))} />
       )}

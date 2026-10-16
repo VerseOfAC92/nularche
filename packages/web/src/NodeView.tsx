@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, SHADOW, type NodeDoc, type NodeMeta, type PageFieldPatch } from "./api.ts";
-import { ClaudeMenu } from "./ClaudeMenu.tsx";
 import { desktop } from "./desktop.ts";
 import { Editor } from "./editor/Editor.tsx";
 import { fileUrl, resolveRelative } from "./editor/paths.ts";
@@ -31,6 +30,9 @@ export interface NodeViewProps {
   onTrash: (node: NodeMeta) => void;
   onToast: (msg: string) => void;
   onGone: () => void;
+  /** Nularche AI'a bağlam: açık Node ve seçili metin. */
+  onContext: (ctx: { nodeId: string; nodeTitle: string; selection?: string }) => void;
+  onOpenAI: () => void;
 }
 
 export function NodeView(props: NodeViewProps) {
@@ -145,6 +147,11 @@ export function NodeView(props: NodeViewProps) {
       .catch(() => propsRef.current.onGone());
   }, [props.changeTick, id, load]);
 
+  // Nularche AI'a açık Node'u bildir.
+  useEffect(() => {
+    if (doc) propsRef.current.onContext({ nodeId: doc.id, nodeTitle: title || doc.title });
+  }, [doc?.id, title]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Yeni oluşturulmuş (adsız) Node açıldığında başlık seçili gelsin.
   useEffect(() => {
     if (!doc || focusedNew.current) return;
@@ -244,7 +251,9 @@ export function NodeView(props: NodeViewProps) {
         </div>
         <div className="topbar-right">
           <span className={`status ${status}`}>{STATUS_TEXT[status]}</span>
-          <ClaudeMenu node={{ id, title: title || doc.title }} onToast={props.onToast} />
+          <button className="claude-btn" onClick={props.onOpenAI} title="Bu Node için Nularche AI'ı aç">
+            ✳ Nularche AI
+          </button>
           <button
             className={`icon-btn ${doc.favorite ? "on" : ""}`}
             title={doc.favorite ? "Favorilerden çıkar" : "Favorilere ekle"}
@@ -403,6 +412,7 @@ export function NodeView(props: NodeViewProps) {
           onOpenPath={(p) => (void flush(), props.onOpenPath(p))}
           onCreateChild={createChild}
           onError={setError}
+          onSelectionText={(sel) => props.onContext({ nodeId: id, nodeTitle: title || doc.title, selection: sel })}
         />
         {backlinks.length > 0 && (
           <section className="backlinks">
