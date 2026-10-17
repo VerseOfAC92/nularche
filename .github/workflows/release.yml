@@ -24,24 +24,47 @@ jobs:
       - run: npm test
       - run: npm run build:desktop
       - run: node scripts/dist-mac.ts
-      - name: Install from each DMG and smoke test (Apple Silicon, Intel via Rosetta)
+      - name: Install from the Apple Silicon DMG and smoke test
         run: |
           set -e
-          for v in AppleSilicon Intel; do
-            dmg=$(ls release/Nularche-*-macOS-$v.dmg)
-            mnt=$(hdiutil attach -nobrowse -readonly "$dmg" | tail -n1 | awk -F'\t' '{print $NF}')
-            ditto "$mnt/Nularche.app" "$RUNNER_TEMP/$v/Nularche.app"
-            hdiutil detach "$mnt" -quiet
-            echo "== macOS $v =="; file "$RUNNER_TEMP/$v/Nularche.app/Contents/MacOS/Nularche"
-            # Intel build runs under Rosetta here; the first translation of Electron can take minutes on a cold runner.
-            if [ "$v" = "Intel" ]; then export SMOKE_TIMEOUT_MS=480000; else export SMOKE_TIMEOUT_MS=120000; fi
-            node scripts/smoke-packaged.ts "$RUNNER_TEMP/$v/Nularche.app/Contents/MacOS/Nularche"
-          done
+          dmg=$(ls release/Nularche-*-macOS-AppleSilicon.dmg)
+          mnt=$(hdiutil attach -nobrowse -readonly "$dmg" | tail -n1 | awk -F'\t' '{print $NF}')
+          ditto "$mnt/Nularche.app" "$RUNNER_TEMP/AppleSilicon/Nularche.app"
+          hdiutil detach "$mnt" -quiet
+          file "$RUNNER_TEMP/AppleSilicon/Nularche.app/Contents/MacOS/Nularche"
+          node scripts/smoke-packaged.ts "$RUNNER_TEMP/AppleSilicon/Nularche.app/Contents/MacOS/Nularche"
       - uses: actions/upload-artifact@v4
         with:
           name: macos
           if-no-files-found: error
           path: release/*.dmg
+
+  # The Intel DMG built above is tested natively on an Intel Mac (Electron under Rosetta does not start on the
+  # virtualised Apple Silicon runners, although it works under Rosetta on real Macs).
+  macos-intel:
+    needs: macos
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos
+          path: release
+      - name: Install from the Intel DMG and smoke test
+        run: |
+          set -e
+          uname -m
+          dmg=$(ls release/Nularche-*-macOS-Intel.dmg)
+          mnt=$(hdiutil attach -nobrowse -readonly "$dmg" | tail -n1 | awk -F'\t' '{print $NF}')
+          ditto "$mnt/Nularche.app" "$RUNNER_TEMP/Intel/Nularche.app"
+          hdiutil detach "$mnt" -quiet
+          file "$RUNNER_TEMP/Intel/Nularche.app/Contents/MacOS/Nularche"
+          node scripts/smoke-packaged.ts "$RUNNER_TEMP/Intel/Nularche.app/Contents/MacOS/Nularche"
 
   windows:
     runs-on: windows-latest
@@ -100,7 +123,7 @@ jobs:
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [macos, windows, linux]
+    needs: [macos, macos-intel, windows, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
