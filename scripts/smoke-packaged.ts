@@ -22,6 +22,8 @@ if (!exe || !existsSync(exe)) {
   process.exit(2);
 }
 const extraArgs = process.argv.includes("--no-sandbox") ? ["--no-sandbox"] : [];
+// İlk açılış yavaş olabilir (ör. CI'da Rosetta'nın Intel ikilisini ilk kez çevirmesi): SMOKE_TIMEOUT_MS ile uzatılır.
+const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS || 120_000);
 const resources =
   process.platform === "darwin" ? path.resolve(path.dirname(exe), "..", "Resources") : path.join(path.dirname(exe), "resources");
 const mcpScript = path.join(resources, "mcp.mjs");
@@ -32,16 +34,18 @@ try {
   // 1) Arayüz duman testi
   const code = await new Promise<number | null>((resolve, reject) => {
     const child = spawn(exe, [...extraArgs, "--lang=en"], {
-      env: { ...process.env, NULARCHE_SMOKE: result, NULARCHE_USER_DATA: path.join(work, "ud"), NULARCHE_E2E: "1", ELECTRON_ENABLE_LOGGING: "1" },
+      env: { ...process.env, NULARCHE_SMOKE: result, NULARCHE_SMOKE_TIMEOUT_MS: String(Math.max(30_000, timeoutMs - 20_000)), NULARCHE_USER_DATA: path.join(work, "ud"), NULARCHE_E2E: "1", ELECTRON_ENABLE_LOGGING: "1" },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let log = "";
     child.stdout.on("data", (d) => (log += d));
     child.stderr.on("data", (d) => (log += d));
-    const timer = setTimeout(() => (child.kill(), reject(new Error(`zaman aşımı\n${log.slice(-2000)}`))), 120_000);
+    const started = Date.now();
+    const timer = setTimeout(() => (child.kill(), reject(new Error(`zaman aşımı (${timeoutMs} ms)\n${log.slice(-4000)}`))), timeoutMs);
     child.on("error", reject);
     child.on("exit", (c) => {
       clearTimeout(timer);
+      console.log(`Uygulama ${((Date.now() - started) / 1000).toFixed(1)} sn içinde kapandı (çıkış kodu ${c})`);
       if (c !== 0) console.error(log.slice(-3000));
       resolve(c);
     });

@@ -586,7 +586,8 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     buildMenu();
     if (SMOKE) {
-      setTimeout(() => (void writeFile(SMOKE, JSON.stringify({ ok: false, error: "timeout" })).finally(() => app.exit(2))), 90_000);
+      const limit = Number(process.env.NULARCHE_SMOKE_TIMEOUT_MS || 90_000);
+      setTimeout(() => (void writeFile(SMOKE, JSON.stringify({ ok: false, error: "timeout", rendererReady })).finally(() => app.exit(2))), limit);
       settings.originDir = path.join(dirs.data, "smoke-origin");
       settings.onboarded = true;
     }

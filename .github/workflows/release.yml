@@ -33,6 +33,8 @@ jobs:
             ditto "$mnt/Nularche.app" "$RUNNER_TEMP/$v/Nularche.app"
             hdiutil detach "$mnt" -quiet
             echo "== macOS $v =="; file "$RUNNER_TEMP/$v/Nularche.app/Contents/MacOS/Nularche"
+            # Intel build runs under Rosetta here; the first translation of Electron can take minutes on a cold runner.
+            if [ "$v" = "Intel" ]; then export SMOKE_TIMEOUT_MS=480000; else export SMOKE_TIMEOUT_MS=120000; fi
             node scripts/smoke-packaged.ts "$RUNNER_TEMP/$v/Nularche.app/Contents/MacOS/Nularche"
           done
       - uses: actions/upload-artifact@v4
