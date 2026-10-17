@@ -245,6 +245,15 @@ Press **⌘ /** (macOS) or **Ctrl + /** (Windows, Linux) in the app to see this 
 **Uninstall:** delete `Nularche.app` (macOS), use **Settings → Apps** (Windows) or run `sudo apt remove nularche`
 (Linux). Uninstalling never deletes your notes.
 
+Uninstalling also keeps your settings, including a saved Gemini API key, so a reinstall picks up where you left off.
+Nothing personal is ever stored inside the app itself: every new installation starts with an empty AI setup. To remove
+a saved key, use **Settings → AI → Automatic mode → Remove key**. To reset Nularche completely, quit it and delete the
+**Settings** and **App data** folders listed above, for example on macOS:
+
+```bash
+rm -rf ~/Library/Preferences/io.nularche.app ~/Library/Application\ Support/Nularche
+```
+
 ## Glossary
 
 | Term | Meaning |
