@@ -198,6 +198,33 @@ let mcpScript = "";
 /** Sunucu başlamadan gelen derin bağlantılar ve dosyalar. */
 const pendingOpens: string[] = [];
 let ready = false;
+/**
+ * Paketlenmiş uygulama duman testi (scripts/smoke-packaged.ts): NULARCHE_SMOKE=<sonuç dosyası> ile açılan uygulama
+ * ilk açılış pencerelerini atlar, geçici bir Origin kullanır, arayüz çizilince doğrulama sonucunu yazar ve kapanır.
+ */
+const SMOKE = process.env.NULARCHE_SMOKE || null;
+
+async function finishSmoke(): Promise<void> {
+  if (!SMOKE || !win || !server) return;
+  const result: Record<string, unknown> = { version: app.getVersion(), platform: process.platform, arch: process.arch };
+  try {
+    await new Promise((r) => setTimeout(r, 1500));
+    result.ui = await win.webContents.executeJavaScript(
+      `({ title: document.title, sidebar: !!document.querySelector(".sidebar"), arches: document.body.innerText.includes("Arche") || document.body.innerText.includes("ARCHES"), lang: document.documentElement.lang })`,
+    );
+    const created = await server.store.create({ title: "Smoke", body: "ok" });
+    result.storeRoundtrip = (await server.store.read(created.id)).body.trim() === "ok";
+    const res = await fetch(`${server.url}/api/nodes`);
+    result.api = res.ok && ((await res.json()) as { nodes: unknown[] }).nodes.length >= 1;
+    result.ok = !!(result.ui as { sidebar?: boolean }).sidebar && result.storeRoundtrip === true && result.api === true;
+  } catch (err) {
+    result.ok = false;
+    result.error = String(err);
+  }
+  await writeFile(SMOKE, JSON.stringify(result, null, 2));
+  app.exit(result.ok ? 0 : 1);
+}
+
 /** Arayüz yüklenmeden istenen gezinme; arayüz açılışta `renderer-ready` ile alır. */
 let pendingNav: string | null = null;
 let rendererReady = false;
@@ -437,6 +464,7 @@ function registerIpc(): void {
   });
   ipcMain.handle("nularche:renderer-ready", () => {
     rendererReady = true;
+    if (SMOKE) void finishSmoke();
     const nav = pendingNav;
     pendingNav = null;
     return nav;
@@ -542,7 +570,7 @@ if (!app.requestSingleInstanceLock()) {
     setDesktopLang(settings.language ?? systemLang(app.getLocale()));
     // Yerel menüler, iletişim kutuları ve pencere arka planı da seçilen temaya uysun.
     nativeTheme.themeSource = settings.theme ?? "system";
-    if (wrongArchitecture()) {
+    if (wrongArchitecture() && !SMOKE) {
       const { response } = await dialog.showMessageBox({
         type: "warning",
         title: "Nularche",
@@ -557,7 +585,12 @@ if (!app.requestSingleInstanceLock()) {
     mcpScript = await installMcpScript();
     registerIpc();
     buildMenu();
-    const originDir = settings.originDir && existsSync(settings.originDir) ? settings.originDir : await chooseOriginOnFirstRun();
+    if (SMOKE) {
+      setTimeout(() => (void writeFile(SMOKE, JSON.stringify({ ok: false, error: "timeout" })).finally(() => app.exit(2))), 90_000);
+      settings.originDir = path.join(dirs.data, "smoke-origin");
+      settings.onboarded = true;
+    }
+    const originDir = settings.originDir && existsSync(settings.originDir) && !SMOKE ? settings.originDir : SMOKE ? settings.originDir! : await chooseOriginOnFirstRun();
     if (!originDir) return app.quit();
     try {
       await openOrigin(originDir);

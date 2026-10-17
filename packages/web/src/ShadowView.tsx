@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api, type NodeMeta, type ShadowView as ShadowData } from "./api.ts";
 
 import { ago, t } from "./i18n/index.ts";
+import { keys, modPressed } from "./shortcuts.tsx";
 
 export function ShadowView({
   nodes,
@@ -69,11 +70,11 @@ export function ShadowView({
       <p className="muted">{t("shadow.intro")}</p>
       <div className="capture">
         <textarea
-          placeholder={t("shadow.capturePlaceholder")}
+          placeholder={t("shadow.capturePlaceholder", { key: keys("Mod+Enter") })}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            if (e.key === "Enter" && modPressed(e)) {
               e.preventDefault();
               void capture();
             }

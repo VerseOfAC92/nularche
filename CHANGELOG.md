@@ -1,6 +1,35 @@
-# Değişiklik günlüğü
+# Changelog
 
-## 0.2.0: ilk herkese açık sürüm
+## 1.0.0
+
+First public release.
+
+### Notes and structure
+- Notes are plain Markdown files in your **Origin** folder; a page with sub-pages lives in its own folder (`Project/Project.md`) and attachments in `Attachments/`.
+- Arche (top-level areas), unlimited nested pages, Shadow inbox, daily note, favourites, icons and covers.
+- Trash with restore to the original place (or Shadow) and delete forever.
+- `[[` page links, backlinks, and automatic link and cover updates when pages move or are renamed.
+
+### Databases and templates
+- Table, Board, List, Gallery, Calendar and Timeline views; filters, sorting, grouping, search, column widths, hidden properties, CSV export.
+- 15 property types including status, date ranges, relation, rollup and a safe formula language.
+- Inline databases (`/` → Database), row property panel, "Turn into database".
+- Eight ready-made templates, user templates, database row templates and page duplication.
+
+### Editor, export and AI
+- Block editor with `/` commands, tables, toggles, callouts, code highlighting, images, files and YouTube.
+- Export to Markdown (.zip), self-contained HTML and PDF; static website from pages marked "Publish to web"; `.nla` / `.nlc` archives.
+- Nularche AI window (draggable): Automatic mode with a free Gemini key and model fallback, or Subscription mode with Claude, ChatGPT or Gemini through their official apps; one-click undo.
+- `nularche` MCP server with 19 tools, including databases and `duplicate_node`.
+
+### App
+- Installers for macOS (Apple Silicon and Intel), Windows (x64 and x86) and Linux (.deb); each one is installed and smoke-tested on its own OS in CI.
+- English and Turkish interface, theme that follows the system, keyboard shortcuts shown for your operating system (`⌘/` or `Ctrl+/`).
+- Terminal install scripts (`install.sh`, `install.ps1`) and build-from-source scripts.
+
+## Earlier development notes (Turkish)
+
+### 0.2.0: ilk herkese açık sürüm
 
 ### Veritabanları, şablonlar, yayınlama
 - Veritabanları: tablo, pano, liste, galeri, takvim ve zaman çizelgesi görünümleri; filtre (hepsi/herhangi biri), sıralama, gruplama, sütun genişliği, özellik gizleme, arama, CSV dışa aktarma.

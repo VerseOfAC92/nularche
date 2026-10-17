@@ -57,9 +57,10 @@ dmg:
   title: Nularche ${version}
 win:
   icon: build/icon.png
+  # 64 ve 32 bit kurulum dosyaları scripts/dist-win.ts ile ayrı ayrı (adlarında x64 / x86) derlenir.
   target:
     - target: nsis
-      arch: [x64, arm64]
+      arch: [x64, ia32]
 nsis:
   oneClick: false
   perMachine: false
@@ -70,12 +71,14 @@ linux:
   category: Office
   executableName: nularche
   maintainer: VerseOfAC92 <noreply@github.com>
-  synopsis: Yerel, Markdown tabanlı bilgi yönetimi
+  synopsis: Local-first, AI-native notes, databases and templates in plain Markdown
+  description: Nularche keeps your notes as plain Markdown files on your own computer, with Notion-style databases, templates, publishing and an AI assistant.
   desktop:
     entry:
       StartupWMClass: Nularche
   target:
-    - target: AppImage
-      arch: [x64]
     - target: deb
       arch: [x64]
+deb:
+  artifactName: Nularche-${version}-Linux-amd64.${ext}
+  packageName: nularche

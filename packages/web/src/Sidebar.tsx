@@ -5,6 +5,7 @@ import { useMemo, useState, type DragEvent } from "react";
 import { api, SHADOW, type NodeMeta, type ParentTarget } from "./api.ts";
 import type { Route } from "./App.tsx";
 import { t } from "./i18n/index.ts";
+import { keys } from "./shortcuts.tsx";
 
 const DRAG_TYPE = "application/x-nularche-node";
 
@@ -196,7 +197,7 @@ export function Sidebar(props: SidebarProps) {
         </div>
       </div>
       <button className="side-btn" onClick={props.onOpenSearch}>
-        ⌕ {t("sidebar.search")} <kbd>⌘K</kbd>
+        ⌕ {t("sidebar.search")} <kbd>{keys("Mod+K")}</kbd>
       </button>
       <button
         className={`side-btn ${route.kind === "shadow" ? "active" : ""} ${dropTarget === "shadow" ? "drop-target" : ""}`}
@@ -207,10 +208,10 @@ export function Sidebar(props: SidebarProps) {
         ◐ Shadow {props.shadowCount > 0 && <span className="badge">{props.shadowCount}</span>}
       </button>
       <button className="side-btn" onClick={() => props.onCreate(SHADOW)}>
-        ＋ {t("common.quickNote")} <kbd>⌘N</kbd>
+        ＋ {t("common.quickNote")} <kbd>{keys("Mod+N")}</kbd>
       </button>
       <button className="side-btn" onClick={props.onDaily}>
-        📅 {t("daily.today")} <kbd>⇧⌘D</kbd>
+        📅 {t("daily.today")} <kbd>{keys("Mod+Shift+D")}</kbd>
       </button>
       <button className="side-btn" onClick={props.onOpenTemplates}>
         📋 {t("tpl.title")}

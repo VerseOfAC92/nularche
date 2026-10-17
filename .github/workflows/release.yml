@@ -1,27 +1,19 @@
 name: Release
 
-# `v0.2.0` gibi bir etiket gönderildiğinde macOS (Apple Silicon + Intel), Windows ve Linux
-# paketlerini derler ve GitHub Release'e yükler. Paketler imzasızdır (README'ye bakın).
+# Builds every installer on its own operating system, installs it the way a user would and runs the
+# packaged-app smoke test (scripts/smoke-packaged.ts). A `v*` tag publishes the tested installers as a
+# GitHub Release; "Run workflow" (workflow_dispatch) builds and tests without publishing.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-14
-            args: mac
-          - os: windows-latest
-            args: --win --x64 --arm64
-          - os: ubuntu-latest
-            args: --linux --x64
-    runs-on: ${{ matrix.os }}
+  macos:
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,22 +23,82 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build:desktop
-      - if: matrix.args == 'mac'
-        run: node scripts/dist-mac.ts
-      - if: matrix.args != 'mac'
-        run: npx electron-builder ${{ matrix.args }} --publish never
+      - run: node scripts/dist-mac.ts
+      - name: Install from each DMG and smoke test (Apple Silicon, Intel via Rosetta)
+        run: |
+          set -e
+          for v in AppleSilicon Intel; do
+            dmg=$(ls release/Nularche-*-macOS-$v.dmg)
+            mnt=$(hdiutil attach -nobrowse -readonly "$dmg" | tail -n1 | awk -F'\t' '{print $NF}')
+            ditto "$mnt/Nularche.app" "$RUNNER_TEMP/$v/Nularche.app"
+            hdiutil detach "$mnt" -quiet
+            echo "== macOS $v =="; file "$RUNNER_TEMP/$v/Nularche.app/Contents/MacOS/Nularche"
+            node scripts/smoke-packaged.ts "$RUNNER_TEMP/$v/Nularche.app/Contents/MacOS/Nularche"
+          done
       - uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.os }}
+          name: macos
           if-no-files-found: error
-          path: |
-            release/*.dmg
-            release/*.exe
-            release/*.AppImage
-            release/*.deb
+          path: release/*.dmg
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:desktop
+      - run: node scripts/dist-win.ts
+      - name: Install each installer silently and smoke test (x64, x86)
+        shell: pwsh
+        run: |
+          foreach ($a in "x64", "x86") {
+            $setup = Get-ChildItem "release\Nularche-*-Windows-$a-Setup.exe" | Select-Object -First 1
+            $dir = Join-Path $env:RUNNER_TEMP "nularche-$a"
+            Write-Host "== Windows ${a}: $($setup.Name) =="
+            Start-Process -FilePath $setup.FullName -ArgumentList "/S", "/D=$dir" -Wait
+            if (-not (Test-Path "$dir\Nularche.exe")) { throw "Installer did not create $dir\Nularche.exe" }
+            node scripts/smoke-packaged.ts "$dir\Nularche.exe"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          if-no-files-found: error
+          path: release/*-Setup.exe
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run dist:linux
+      - name: Install the .deb with apt and smoke test
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          sudo apt-get install -y ./release/Nularche-*-Linux-amd64.deb
+          which nularche
+          xvfb-run -a node scripts/smoke-packaged.ts /opt/Nularche/nularche
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          if-no-files-found: error
+          path: release/*.deb
 
   publish:
-    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [macos, windows, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -56,20 +108,25 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Sürüm notlarını CHANGELOG'dan çıkar
+      - name: Release notes from CHANGELOG
         run: |
           version="${GITHUB_REF_NAME#v}"
           awk -v v="$version" '$0 ~ "^## "v {f=1; next} /^## / && f {exit} f' CHANGELOG.md > notes.md
           cat >> notes.md <<'MD'
 
-          ### İndirme
-          - **macOS Apple Silicon (M1–M5):** `*-macOS-AppleSilicon.dmg` · **macOS Intel:** `*-macOS-Intel.dmg`
-          - **Windows:** `*-win-x64.exe` / `*-win-arm64.exe`
-          - **Linux:** `.AppImage` / `.deb`
+          ### Downloads
+          | System | File |
+          | --- | --- |
+          | macOS, Apple Silicon (M1–M5) | `Nularche-*-macOS-AppleSilicon.dmg` |
+          | macOS, Intel | `Nularche-*-macOS-Intel.dmg` |
+          | Windows, 64-bit | `Nularche-*-Windows-x64-Setup.exe` |
+          | Windows, 32-bit | `Nularche-*-Windows-x86-Setup.exe` |
+          | Linux (Debian/Ubuntu, amd64) | `Nularche-*-Linux-amd64.deb` |
 
-          Paketler imzasızdır; ilk açılış adımları için README'deki “Kurulum” bölümüne bakın.
+          Every installer above was installed and smoke-tested on its own operating system by this workflow.
+          The apps are not code-signed; see “Installation” in the README for first-launch steps.
           MD
-      - name: GitHub Release oluştur
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" dist/* --title "Nularche ${GITHUB_REF_NAME#v}" --notes-file notes.md --verify-tag

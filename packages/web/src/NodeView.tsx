@@ -10,6 +10,7 @@ import { t, type StringKey } from "./i18n/index.ts";
 import { fileUrl, resolveRelative } from "./editor/paths.ts";
 import { DatabaseView } from "./database/DatabaseView.tsx";
 import { exportNode, type ExportKind } from "./exporting.ts";
+import { modPressed } from "./shortcuts.tsx";
 import { RowProperties } from "./database/RowProperties.tsx";
 import { DatabaseHostContext } from "./database/InlineDatabase.tsx";
 import { freshDatabase, serializeDatabase } from "./database/model.ts";
@@ -190,7 +191,7 @@ export function NodeView(props: NodeViewProps) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+      if (modPressed(e) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         void flush();
       }

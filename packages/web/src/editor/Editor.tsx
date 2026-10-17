@@ -7,6 +7,7 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import { api, type NodeMeta } from "../api.ts";
 import { t, type StringKey } from "../i18n/index.ts";
+import { keys } from "../shortcuts.tsx";
 import { buildExtensions } from "./extensions.ts";
 import { CALLOUT_KINDS, type CalloutKind } from "./markdown-extensions.ts";
 import { fileUrl, fromEditorMarkdown, toEditorMarkdown, vaultPathFromUrl } from "./paths.ts";
@@ -513,9 +514,9 @@ function FormatBar({ editor }: { editor: TiptapEditor }) {
   }
   return (
     <div className="bubble">
-      {mark("bold", "B", t("ed.bold"), () => editor.chain().focus().toggleBold().run())}
-      {mark("italic", t("ed.italicMark"), t("ed.italic"), () => editor.chain().focus().toggleItalic().run())}
-      {mark("underline", "U", t("ed.underline"), () => editor.chain().focus().toggleUnderline().run())}
+      {mark("bold", "B", t("ed.bold", { key: keys("Mod+B") }), () => editor.chain().focus().toggleBold().run())}
+      {mark("italic", t("ed.italicMark"), t("ed.italic", { key: keys("Mod+I") }), () => editor.chain().focus().toggleItalic().run())}
+      {mark("underline", "U", t("ed.underline", { key: keys("Mod+U") }), () => editor.chain().focus().toggleUnderline().run())}
       {mark("strike", "S", t("ed.strike"), () => editor.chain().focus().toggleStrike().run())}
       {mark("code", "</>", t("ed.inlineCode"), () => editor.chain().focus().toggleCode().run())}
       {mark("highlight", "▮", t("ed.highlight"), () => editor.chain().focus().toggleHighlight().run())}

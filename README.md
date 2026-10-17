@@ -1,197 +1,307 @@
 <p align="center">
-  <img src="packages/web/public/logo.png" width="128" alt="Nularche" />
+  <img src="packages/web/public/logo.png" width="128" alt="Nularche logo" />
 </p>
 
 <h1 align="center">Nularche</h1>
 <p align="center"><code>/ˈnʌl.ɑːrk/</code> · <em>nul-ark</em></p>
-<p align="center">Yerel, Markdown tabanlı kişisel bilgi yönetimi (PKM) ve düşünce mimarisi aracı.<br/>Notlarınız sizde kalır; Claude ile düzenlemek için kendi Claude aboneliğinizi kullanırsınız.</p>
+<p align="center"><b>Local-first, AI-native notes, databases and templates in plain Markdown.</b><br/>
+Your notes stay on your computer. Your AI is the one you already pay for.</p>
 
 <p align="center">
-  <a href="https://github.com/VerseOfAC92/nularche/releases/latest">İndir</a> ·
-  <a href="#yapay-zekâ-ile-kullanım-claude-chatgpt-gemini">Yapay zekâ</a> ·
-  <a href="#geliştirme">Geliştirme</a> ·
-  <a href="#english">English</a>
+  <a href="https://github.com/VerseOfAC92/nularche/releases/latest"><b>Download</b></a> ·
+  <a href="#install-from-the-terminal">Terminal install</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#ai-claude-chatgpt-gemini">AI</a> ·
+  <a href="#keyboard-shortcuts">Shortcuts</a> ·
+  <a href="#development">Development</a> ·
+  <a href="#türkçe">Türkçe</a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/project-dark.png" width="860" alt="A project page with an embedded task board" />
 </p>
 
 ---
 
-**Nularche** adı iki kavramdan gelir: **Null** (sıfır noktası, arındırılmış başlangıç) ve **Arche** (ilk prensip, kök). Uygulama bilgiyi yalnızca klasör hiyerarşisinde değil, birbirine bağlı Node'lardan oluşan bir ağ olarak ele alır.
+Nularche takes architectural and UX cues from Notion, Microsoft OneNote and Obsidian, but keeps everything as ordinary
+Markdown files in a folder you own. There is no account, no cloud and no subscription. AI editing works through the
+official Claude, ChatGPT or Gemini app you already use, or for free with a Gemini API key.
 
-## Özellikler
+The name comes from **Null** (a clean starting point) and **Arche** (first principle, root).
 
-- **Notion benzeri blok editörü:** `/` komutları, başlıklar, listeler, yapılacaklar, tablolar, açılır bloklar, callout'lar, sözdizimi renklendirmeli kod, resim ve dosya ekleri, YouTube, vurgu ve metin rengi.
-- **Sürükle-bırak:** blokları tutamaçla, Node'ları kenar çubuğunda taşıyın ve sıralayın.
-- **Bağlantılı Node'lar:** `[[` ile başka bir Node'a bağlanın. Altta geri bağlantılar görünür. Yeniden adlandırma ve taşımada bağlantılar otomatik güncellenir.
-- **Shadow gelen kutusu:** hızlı not yakalama (⌘N) ve henüz hiçbir yere bağlanmamış fikirlerin listesi.
-- **Sayfa görünümü:** ikon, kapak, favoriler, ⌘K arama, otomatik kaydetme.
-- **Düz dosya:** her Node bir `.md` dosyasıdır. Obsidian, VS Code ya da GitHub'da da okunur; Time Machine, iCloud ya da git ile yedeklenir.
-- **Arşivler:**
-  - `.nlc` (Nularche Container): tek bir Node'u ekleriyle taşır.
-  - `.nla` (Nularche Archive): tüm Origin'in yedeği.
-- **Diğer:** PDF dışa aktarma, `nularche://` derin bağlantıları, koyu öncelikli tasarım (açık tema da var).
-- **Yapay zekâ (Claude, ChatGPT, Gemini):** kendi üyeliğinizle giriş yaptığınız resmi AI uygulaması, MCP üzerinden Node'larınızı okuyup düzenler. İstekler sağ alttaki **Nularche AI** penceresinden verilir; cevaplar ve geri alma da orada görünür.
+## Download
 
-### Ortak dil
-
-| Terim | Anlamı |
+| System | Installer |
 | --- | --- |
-| **Origin** | Ana veri kasanız: tüm Node'ların bulunduğu klasör. |
-| **Arche** | Origin kökündeki ana alanlar ve projeler. |
-| **Node** | Her bir sayfa ya da çalışma yüzeyi. |
-| **Shard** | Bir Node'u oluşturan bloklar (metin, kod, tablo, görsel…). |
-| **Shadow** | Henüz bir Arche'ye bağlanmamış ham notlar ve bağlantısız fikirler. |
-| **Lattice** | Node'lar arası bağlantı grafiği *(yakında)*. |
+| macOS, Apple Silicon (M1–M5) | [`Nularche-1.0.0-macOS-AppleSilicon.dmg`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-macOS-AppleSilicon.dmg) |
+| macOS, Intel | [`Nularche-1.0.0-macOS-Intel.dmg`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-macOS-Intel.dmg) |
+| Windows 10/11, 64-bit | [`Nularche-1.0.0-Windows-x64-Setup.exe`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-Windows-x64-Setup.exe) |
+| Windows 10/11, 32-bit | [`Nularche-1.0.0-Windows-x86-Setup.exe`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-Windows-x86-Setup.exe) |
+| Linux, Debian/Ubuntu (amd64) | [`Nularche-1.0.0-Linux-amd64.deb`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-Linux-amd64.deb) |
 
-## Kurulum
+Not sure which Mac you have? Open  → **About This Mac**. "Apple M…" means Apple Silicon; "Intel" means Intel.
+Every installer is built, installed and smoke-tested on its own operating system by the
+[release workflow](.github/workflows/release.yml) before it is published.
 
-[Releases](https://github.com/VerseOfAC92/nularche/releases/latest) sayfasından sisteminize uygun dosyayı indirin. Mac'inizin işlemcisini  → *Bu Mac Hakkında* bölümünden görebilirsiniz ("Apple M…" yazıyorsa Apple Silicon):
+### First launch
 
-| Sistem | Dosya |
-| --- | --- |
-| macOS (Apple Silicon: M1–M5) | `Nularche-x.y.z-macOS-AppleSilicon.dmg` |
-| macOS (Intel) | `Nularche-x.y.z-macOS-Intel.dmg` |
-| Windows (x64 / ARM64) | `Nularche-x.y.z-win-x64.exe` / `…-win-arm64.exe` |
-| Linux | `.AppImage` veya `.deb` |
+The apps are not code-signed yet, so your operating system may ask you to confirm the first time:
 
-> **İmzasız uygulama uyarısı.** Nularche henüz Apple ve Microsoft tarafından imzalanmıyor. Bu yüzden ilk açılışta işletim sistemi uyarı verir.
->
-> - **macOS:** DMG'deki Nularche'yi **Uygulamalar** klasörüne sürükleyin, sonra sağ tık → **Aç** deyin. macOS 15 ve sonrasında *Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç* adımını kullanın. Alternatif olarak Terminal'de:
->
->   ```bash
->   xattr -dr com.apple.quarantine /Applications/Nularche.app
->   ```
->
-> - **Windows:** SmartScreen uyarısında **Ek bilgi → Yine de çalıştır** seçin.
-> - **Linux (AppImage):** dosyayı çalıştırılabilir yapın:
->
->   ```bash
->   chmod +x Nularche-*.AppImage
->   ```
+- **macOS:** if you downloaded the DMG in a browser and macOS says the app "cannot be opened", right-click
+  **Nularche** in Applications → **Open** → **Open**. Alternatively run
+  `xattr -dr com.apple.quarantine /Applications/Nularche.app`. The terminal installer below does not need this.
+- **Windows:** if SmartScreen appears, click **More info** → **Run anyway**. Nularche installs for your user only;
+  no administrator rights are needed.
+- **Linux:** install with `sudo apt install ./Nularche-1.0.0-Linux-amd64.deb`, then start it from the
+  applications menu or run `nularche`.
 
-İlk açılışta Origin klasörünüz sorulur; varsayılanı `~/Documents/Nularche`.
+On first launch Nularche asks where your notes should live (your **Origin** folder) and offers to connect an AI.
+Both can be changed later in **Settings**.
 
-## Yapay zekâ ile kullanım (Claude, ChatGPT, Gemini)
+## Install from the terminal
 
-Nularche'nin içinde yapay zekâ yoktur ve hiçbir AI hesabına, oturumuna ya da API anahtarına dokunmaz. Seçtiğiniz yapay zekânın **resmi uygulamasına kendi üyeliğinizle** giriş yaparsınız; Nularche o uygulamaya yerel bir **MCP bağlantısı** kurar.
+### Option 1: download the latest release (recommended)
 
-| Yapay zekâ | Resmi araç | Bağlantı dosyası |
-| --- | --- | --- |
-| **Claude** | Claude Desktop, Claude Code | `claude_desktop_config.json`, `~/.claude.json` |
-| **ChatGPT** | ChatGPT masaüstü uygulaması, Codex CLI / IDE | `~/.codex/config.toml` (hepsi bu dosyayı paylaşır) |
-| **Gemini** | Google Antigravity CLI (`agy`) | `~/.gemini/config/mcp_config.json` |
-
-1. **Ayarlar → Yapay zekâ** bölümünde (ilk açılışta sihirbaz da gelir) Claude, ChatGPT ya da Gemini'yi seçin.
-2. **Aç / İndir** ile resmi uygulamayı açın ve kendi hesabınızla giriş yapın.
-3. **Bağla**'ya basın. Nularche, aracın yapılandırmasına yalnızca `nularche` girdisini ekler ve önce yedek alır. Claude Desktop açıksa izninizle kapatılıp yeniden açılır.
-4. Yapay zekâ aracı Nularche'ye ilk bağlandığında Nularche öne gelir ve **“✓ … bağlandı”** der.
-
-### Nularche AI
-
-Sağ alttaki **Nularche AI** penceresi her zaman elinizin altındadır:
-
-1. Hazır eylemlerden birini seçin (düzelt, özetle, genişlet, yapılacaklar, ilgili Node'lara bağla, çevir) ya da ne istediğinizi yazın. Seçili metin de bağlam olarak gönderilebilir.
-2. Nularche bağlı yapay zekâ uygulamasını açar ve kısa istemi panoya koyar. Bir kez yapıştırıp (⌘V) gönderin.
-3. Yapay zekâ isteği `nularche` araçlarıyla alır, Node'larınızda çalışır ve cevabını yazar.
-4. İlerleme ("çalışıyor… tamamlandı"), cevap, değişen Node'lar ve **Geri al** düğmesi Nularche AI penceresinde görünür.
-
-> Resmi AI uygulamaları dışarıdan otomatik komut almaya izin vermediği için her istekte bir kez yapıştırıp göndermeniz gerekir. Geri kalan her şey Nularche içinde akar.
-
-MCP araçları:
-
-| Araç | Ne yapar |
-| --- | --- |
-| `list_nodes`, `read_node`, `search_nodes` | Listeleme, okuma (`revision` ile), tam metin arama |
-| `create_node`, `update_node`, `append_to_node` | Oluşturma ve düzenleme; `base_revision` ile çakışma koruması, her düzenlemeden önce geri alma kopyası |
-| `move_node`, `trash_node` | Taşıma (bağlantılar güncellenir), çöpe taşıma |
-| `capture_to_shadow`, `list_shadow`, `get_backlinks` | Shadow ve bağlantılar |
-| `get_nularche_request`, `complete_nularche_request` | Nularche AI isteklerini alma ve cevaplama |
-
-## Derin bağlantılar
-
-| Bağlantı | Ne yapar |
-| --- | --- |
-| `nularche://open?node=<id>` | Node'u açar. `origin=<id>` ile Origin de denetlenir. |
-| `nularche://capture?text=<metin>&title=<başlık>` | Shadow'a hızlı not ekler. |
-
-## Dosya biçimi
-
-```
-Origin/
-  Proje.md                ← Arche
-  Proje/
-    Plan.md               ← Proje'nin alt Node'u
-  Shadow/
-    Ham fikir.md          ← gelen kutusu
-  ekler/
-    sema.png              ← ekler
-  .nularche/origin.json   ← Origin kimliği
-  .trash/                 ← çöp kutusu
-```
-
-Her Node, YAML frontmatter (`id`, `title`, `created`, `updated`, isteğe bağlı `icon`, `cover`, `favorite`…) ve Markdown gövdeden oluşur.
-
-Bağlantılar notun konumuna göre görelidir, ör. `[Plan](Proje/Plan.md)`. Markdown karşılığı olmayan bloklar başka araçlarda da okunabilir biçimde saklanır:
-
-| Blok | Markdown biçimi |
-| --- | --- |
-| Callout | `> [!NOTE]` |
-| Açılır blok | `<details>` |
-| Vurgu | `==metin==` |
-| YouTube | `@[youtube](url)` |
-
-Nularche, Origin'deki dosyaları yalnızca okuduğunda hiç değiştirmez. Dışarıdan eklenmiş bir `.md` dosyasına kimlik bilgisi, ancak o Node'u uygulamada düzenlediğinizde yazılır.
-
-## Geliştirme
-
-Gereksinim: Node.js 24 (`.nvmrc`).
+**macOS** (Terminal), picks the Apple Silicon or Intel build automatically:
 
 ```bash
-npm ci
-npm test              # çekirdek + editör testleri
-npm run typecheck
-npm run mcp:smoke     # MCP sunucusunu gerçek bir MCP istemcisiyle dener
-npm run e2e           # masaüstü uygulamasında uçtan uca test (sahte ev klasörüyle)
-npm run connect -- codex          # kaynak koddan çalışırken bir AI aracına bağlan
-npm run build && npm start        # tarayıcı sürümü: http://localhost:5178
-npm run desktop                   # masaüstü uygulamasını kaynaktan çalıştır
-npm run dist:mac                  # yerel paket (release/ altında)
+curl -fsSL https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.sh | bash
 ```
 
-| Paket | Görevi |
+**Linux, Debian/Ubuntu** (Terminal):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.sh | bash
+```
+
+**Windows** (PowerShell), picks the 64-bit or 32-bit build automatically:
+
+```powershell
+irm https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.ps1 | iex
+```
+
+The scripts install only Nularche. You can read them first:
+[`install.sh`](scripts/install/install.sh) · [`install.ps1`](scripts/install/install.ps1).
+
+### Option 2: clone with git and build from source
+
+Requirements: [git](https://git-scm.com) and [Node.js 24 or newer](https://nodejs.org) (with npm). The scripts
+check for them but do not install them.
+
+**macOS / Linux** (Terminal):
+
+```bash
+git clone https://github.com/VerseOfAC92/nularche.git
+cd nularche
+./scripts/install/build-from-source.sh
+```
+
+**Windows** (PowerShell):
+
+```powershell
+git clone https://github.com/VerseOfAC92/nularche.git
+cd nularche
+.\scripts\install\build-from-source.ps1
+```
+
+They run `npm ci` and the test suite, build the installer for your machine into `release/` and install it.
+
+## Features
+
+<p align="center">
+  <img src="docs/screenshots/board-dark.png" width="49%" alt="Kanban board view" />
+  <img src="docs/screenshots/gallery-light.png" width="49%" alt="Gallery view in the light theme" />
+</p>
+
+### Your data, as plain files
+
+- Every page is a Markdown (`.md`) file inside your **Origin** folder. A page with sub-pages lives in its own folder
+  (`Project/Project.md`), and images and files go into `Attachments/`.
+- Open and edit your notes in any editor (Obsidian, VS Code, TextEdit…) and back them up with Time Machine, iCloud,
+  OneDrive or Git.
+- **Trash:** deleted pages, with their sub-pages, wait in the Trash and can be restored to their original place.
+
+### Structure
+
+- **Arche:** top-level areas or projects, with unlimited nested pages (**Nodes**) beneath them.
+- **Shadow:** an inbox for quick thoughts that do not belong anywhere yet, plus a list of unlinked pages.
+- **Daily note:** one click (or a shortcut) opens today's journal page.
+- Drag and drop pages in the sidebar, favourites, emoji icons and cover images.
+
+### Databases
+
+<p align="center"><img src="docs/screenshots/calendar-dark.png" width="860" alt="Calendar view" /></p>
+
+- Six views: **Table, Board (Kanban), List, Gallery, Calendar and Timeline**.
+- 15 property types:
+  - text, number, date (with ranges) and checkbox;
+  - select, multi-select and status;
+  - URL, email and phone;
+  - relation, rollup and formula;
+  - created time and last edited time.
+- Filters (all/any), sorting, grouping, search, hidden and resizable columns, and CSV export.
+- Drag cards across the board to change their status, or across the calendar to reschedule them.
+- Every row is a full page, with its properties on top and free-form notes below.
+- Type `/` → **Database** to embed one inside any page.
+- Formulas use a small, safe expression language (no code execution), for example
+  `if(prop("Done"), "✓", "")` or `dateBetween(prop("Due"), today(), "days")`.
+
+### Templates
+
+<p align="center"><img src="docs/screenshots/templates-light.png" width="860" alt="Template gallery" /></p>
+
+- Eight ready-made templates: Meeting Notes, Project, Reading List, Task Board, Habit Tracker, Contacts (CRM),
+  Daily Journal and Weekly Plan.
+- Turn any page into your own template. It is copied together with its sub-pages and databases.
+- Row templates for databases, and **Duplicate** for any page.
+
+### Writing
+
+- Type `/` for the block menu: headings, lists, to-dos, toggles, quotes, dividers, callouts, tables, code with syntax
+  highlighting, images, files and YouTube.
+- Bold, italic, underline, strikethrough, highlights, text colours and drag-and-drop block reordering.
+- Type `[[` to link another page. Backlinks appear at the bottom, and links and covers update automatically when
+  pages are renamed or moved.
+- Search everything with a keyboard shortcut. Search is case-insensitive and handles Turkish characters correctly.
+
+### Export and publishing
+
+- Export a page as **Markdown (.zip)**, a **self-contained HTML** file or a **PDF**.
+- Mark pages with **Publish to web** and generate a **static website** from them (one HTML page per note, navigation,
+  images), ready for GitHub Pages or Netlify. Pages you have not marked are never included, and Nularche never
+  uploads anything itself.
+- **Archives:** back up the whole Origin as `.nla`, or share one page with its attachments as `.nlc`.
+
+### Settings
+
+- **Appearance:** System (the default, which follows your OS), Light or Dark.
+- **Language:** English or Turkish. The interface, menus and AI replies switch instantly.
+- **Origin:** show, open or switch your notes folder.
+- **Keyboard shortcuts:** the full list for your operating system.
+- **Publishing**, **Archives**, **AI** and **About**.
+
+## AI (Claude, ChatGPT, Gemini)
+
+<p align="center"><img src="docs/screenshots/ai-dark.png" width="860" alt="Nularche AI window" /></p>
+
+The **Nularche AI** window sits at the bottom right. You can drag it anywhere or minimise it. Open a page and choose
+an action: **Fix · Summarise · Expand · To-dos · Link related notes · Translate**. You can also write your own request
+or select text to work on just that part. Every AI edit can be undone with one click.
+
+| Mode | How it works | Cost |
+| --- | --- | --- |
+| **Automatic** | Requests run in the background with a free Gemini API key from Google AI Studio. If a model is busy, Nularche falls back to another. The key is stored encrypted on your computer. | Free tier |
+| **Subscription** | Use your own **Claude** (Claude Desktop / Claude Code), **ChatGPT** (desktop app / Codex) or **Gemini** (Antigravity) account. Nularche registers its MCP server with that app in one click and detects when it connects. | Your existing plan; no API fees |
+
+Nularche never sees or stores your AI account credentials. In subscription mode the AI app talks to your notes
+through the local `nularche` MCP server, which offers 19 tools: read/search/create/update pages, Shadow, databases
+(`create_database`, `query_database`, `add_database_row`, `set_row_properties`, `update_database_schema`),
+`duplicate_node`, and the Nularche AI request tools.
+
+## Keyboard shortcuts
+
+Press **⌘ /** (macOS) or **Ctrl + /** (Windows, Linux) in the app to see this list.
+
+| Action | macOS | Windows / Linux |
+| --- | --- | --- |
+| Search | ⌘ K | Ctrl + K |
+| Quick note (Shadow) | ⌘ N | Ctrl + N |
+| Today's daily note | ⇧ ⌘ D | Ctrl + Shift + D |
+| Save now | ⌘ S | Ctrl + S |
+| Settings | ⌘ , | Ctrl + , |
+| Keyboard shortcuts | ⌘ / | Ctrl + / |
+| Capture to Shadow (in the capture box) | ⌘ ↩ | Ctrl + Enter |
+| Command menu / page link | `/` · `[[` | `/` · `[[` |
+| Bold · Italic · Underline | ⌘ B · ⌘ I · ⌘ U | Ctrl + B · Ctrl + I · Ctrl + U |
+| Strikethrough · Inline code · Highlight | ⇧ ⌘ S · ⌘ E · ⇧ ⌘ H | Ctrl + Shift + S · Ctrl + E · Ctrl + Shift + H |
+| Undo · Redo | ⌘ Z · ⇧ ⌘ Z | Ctrl + Z · Ctrl + Y |
+| Heading 1 / 2 / 3 | ⌥ ⌘ 1 / 2 / 3 | Ctrl + Alt + 1 / 2 / 3 |
+| Bulleted · Numbered · To-do list | ⇧ ⌘ 8 · ⇧ ⌘ 7 · ⇧ ⌘ 9 | Ctrl + Shift + 8 · 7 · 9 |
+| Quote · Code block | ⇧ ⌘ B · ⌥ ⌘ C | Ctrl + Shift + B · Ctrl + Alt + C |
+
+## Where things are stored
+
+| | macOS | Windows | Linux |
+| --- | --- | --- | --- |
+| Notes (default Origin) | `~/Documents/Nularche` | `Documents\Nularche` | `~/Documents/Nularche` |
+| Settings | `~/Library/Preferences/io.nularche.app` | `%APPDATA%\Nularche\config` | `~/.config/nularche` |
+| App data | `~/Library/Application Support/Nularche` | `%LOCALAPPDATA%\Nularche\data` | `~/.local/share/nularche` |
+
+**Uninstall:** delete `Nularche.app` (macOS), use **Settings → Apps** (Windows) or run `sudo apt remove nularche`
+(Linux). Uninstalling never deletes your notes.
+
+## Glossary
+
+| Term | Meaning |
 | --- | --- |
-| `packages/core` | Origin'in tek sahibi: Node okuma/yazma, bağlantılar, Shadow, arama, arşivler, AI bağlantıları ve Nularche AI kaydı. |
-| `packages/server` | Yerel HTTP API (yalnızca `127.0.0.1`), canlı değişiklik bildirimi, ek dosyaları. |
-| `packages/web` | React + TipTap arayüzü. |
-| `packages/mcp` | stdio MCP sunucusu. |
-| `packages/desktop` | Electron kabuğu, derin bağlantılar, arşiv içe/dışa aktarma. |
+| **Origin** | Your notes folder. |
+| **Arche** | A top-level area or project. |
+| **Node** | A page. |
+| **Shard** | A block inside a page (text, table, image…). |
+| **Shadow** | The inbox for quick, not-yet-filed notes. |
 
-TypeScript dosyaları Node 24'ün yerleşik tip ayıklamasıyla derlemesiz çalışır. Masaüstü paketi için esbuild, arayüz için Vite kullanılır. Sürümler `v*` etiketiyle GitHub Actions üzerinde macOS (arm64 ve x64), Windows ve Linux için derlenir.
+## Development
 
-## Yol haritası
+Nularche is TypeScript end to end. Node.js 24 runs the source directly (type stripping), so tests need no build step.
 
-- **Lattice:** bağlantı grafiği (görüş alanı sanallaştırmalı).
-- **Canvas modu:** OneNote benzeri serbest tuval; her kutu kendi içinde bir blok akışı.
-- **Veritabanları:** tablo, pano, takvim ve galeri görünümleri.
-- **Şablonlar ve Notion içe aktarma** (Markdown & CSV dışa aktarımı).
-- **Yayınlama:** HTML dışa aktarma, statik site.
-- `nlc` komut satırı aracı; winget, Homebrew ve Flathub paketleri.
+```text
+packages/
+  core/      Note store (Markdown files, links, layout, trash), databases, formulas, export, archives, AI activity
+  server/    Local HTTP API on 127.0.0.1 (Host/Origin checked) used by the UI
+  mcp/       The `nularche` MCP server for Claude / ChatGPT / Gemini apps
+  web/       React 19 + TipTap 3 interface (Vite)
+  desktop/   Electron main process, menus, dialogs, AI connections, installers
+scripts/     build, packaging (dist-mac / dist-win), tests (e2e, MCP, packaged smoke), install scripts
+```
 
-## Lisans
+```bash
+git clone https://github.com/VerseOfAC92/nularche.git && cd nularche
+nvm use            # Node.js version from .nvmrc
+npm ci
+npm test           # core (node:test) + UI (vitest)
+npm run typecheck
+npm run mcp:smoke  # MCP server end to end
+npm start          # browser version at http://localhost:5178 (set NULARCHE_ORIGIN to choose a folder)
+npm run desktop    # run the desktop app from source
+npm run e2e        # desktop end-to-end test with a temporary home folder
+```
+
+Building installers:
+
+| Command | Output (`release/`) |
+| --- | --- |
+| `npm run dist:mac` | `Nularche-<version>-macOS-AppleSilicon.dmg`, `Nularche-<version>-macOS-Intel.dmg` |
+| `npm run dist:win` | `Nularche-<version>-Windows-x64-Setup.exe`, `Nularche-<version>-Windows-x86-Setup.exe` |
+| `npm run dist:linux` | `Nularche-<version>-Linux-amd64.deb` |
+| `npm run smoke:packaged -- <app executable>` | Opens an installed build with a temporary profile and checks the UI, storage, API and MCP server |
+
+The 32-bit Windows installer is built with Electron 43, the newest release line that still ships 32-bit Windows
+binaries; all other builds use Electron 44.
+
+**Releasing:** bump `version` in `package.json`, add a `## <version>` section to `CHANGELOG.md`, then push a tag
+(`git tag v1.0.1 && git push --tags`). The release workflow builds, installs and tests every installer, and publishes
+them only if all the tests pass.
+
+Contributions are welcome: open an issue or a pull request. Please keep notes as plain Markdown, keep the app
+local-first, and add tests for behaviour changes.
+
+## Licence
 
 [MIT](LICENSE) © 2026 VerseOfAC92
 
 ---
 
-## English
+## Türkçe
 
-**Nularche** (/ˈnʌl.ɑːrk/) is a local-first, Markdown-based personal knowledge manager inspired by Notion and OneNote.
+**Nularche**, notlarınızı kendi bilgisayarınızda düz Markdown dosyaları olarak tutan, yapay zekâ destekli bir not ve
+bilgi yönetimi uygulamasıdır. Veritabanları (tablo, pano, takvim, galeri, liste, zaman çizelgesi), şablonlar, günlük
+not, Çöp, statik site yayınlama ve Claude / ChatGPT / Gemini entegrasyonu içerir. Arayüz Ayarlar'dan Türkçeye
+alınabilir.
 
-- **Storage:** your notes (Nodes) live as plain `.md` files in a folder you own (your Origin).
-- **Editing:** a block editor with slash commands, tables, toggles, callouts, attachments and drag-and-drop.
-- **Connections:** Nodes link to each other with `[[`, and backlinks are shown under each Node. The Shadow inbox collects unfiled ideas.
-- **AI:** Nularche contains no AI and never touches your AI credentials. Pick Claude, ChatGPT or Gemini under *Settings → AI* and sign in to that provider's official app with your own subscription.
-  - Nularche registers its local **MCP server** with that app: Claude Desktop/Code, the ChatGPT desktop app/Codex, or Google Antigravity.
-  - It detects automatically when the app connects.
-  - Requests go through the floating **Nularche AI** panel, which shows progress, the AI's reply and an undo button.
-
-Download the latest build for macOS (Apple Silicon / Intel), Windows or Linux from [Releases](https://github.com/VerseOfAC92/nularche/releases/latest). Builds are not code-signed yet, so see the warnings above.
+- **İndirme:** yukarıdaki [Download](#download) tablosundan sisteminize uygun dosyayı seçin.
+- **Terminalden kurulum (macOS / Linux):**
+  `curl -fsSL https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.sh | bash`
+- **Terminalden kurulum (Windows PowerShell):**
+  `irm https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.ps1 | iex`
+- **Git ile kaynaktan:** `git clone https://github.com/VerseOfAC92/nularche.git`, sonra macOS/Linux'ta
+  `./scripts/install/build-from-source.sh`, Windows'ta `.\scripts\install\build-from-source.ps1`.

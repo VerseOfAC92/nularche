@@ -6,6 +6,7 @@ import { desktop } from "./desktop.ts";
 import { getTheme, setTheme, type ThemeChoice } from "./theme.ts";
 import { setLang, t, useLang } from "./i18n/index.ts";
 import { exportNode } from "./exporting.ts";
+import { keys } from "./shortcuts.tsx";
 import { api } from "./api.ts";
 
 export function Settings({
@@ -13,7 +14,9 @@ export function Settings({
   onToast,
   onChanged,
   aiTick,
+  onShortcuts,
 }: {
+  onShortcuts: () => void;
   onClose: () => void;
   onToast: (msg: string) => void;
   onChanged: () => void;
@@ -131,6 +134,14 @@ export function Settings({
             </div>
           </>
         )}
+
+        <h3>{t("keys.title")}</h3>
+        <p className="muted">{t("keys.settingsHint", { key: keys("Mod+/") })}</p>
+        <div className="row">
+          <button className="secondary" onClick={onShortcuts}>
+            ⌨ {t("keys.show")}
+          </button>
+        </div>
 
         <h3>{t("export.publishTitle")}</h3>
         <p className="muted">{t("export.publishHint", { count: published ?? 0 })}</p>

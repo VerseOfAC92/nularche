@@ -6,6 +6,7 @@ import { SearchDialog } from "./SearchDialog.tsx";
 import { Settings } from "./Settings.tsx";
 import { ShadowView } from "./ShadowView.tsx";
 import { TrashView } from "./TrashView.tsx";
+import { modPressed, ShortcutsDialog } from "./shortcuts.tsx";
 import { TemplateGallery } from "./templates/TemplateGallery.tsx";
 import { BUILTIN_TEMPLATES } from "./templates/builtins.ts";
 import { todayIso } from "./database/model.ts";
@@ -48,6 +49,7 @@ export function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [update, setUpdate] = useState<{ version: string; url: string } | null>(null);
@@ -188,7 +190,7 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
+      const mod = modPressed(e);
       if (mod && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchOpen(true);
@@ -198,6 +200,12 @@ export function App() {
       } else if (mod && e.shiftKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
         void openDaily();
+      } else if (mod && (e.key === "/" || e.code === "Slash")) {
+        e.preventDefault();
+        setShortcutsOpen((v) => !v);
+      } else if (mod && e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen(true);
       }
     };
     addEventListener("keydown", onKey);
@@ -272,7 +280,8 @@ export function App() {
           onToast={showToast}
         />
       )}
-      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} onToast={showToast} onChanged={refresh} aiTick={aiTick} />}
+      {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} onToast={showToast} onChanged={refresh} aiTick={aiTick} onShortcuts={() => setShortcutsOpen(true)} />}
+      {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
       <NularcheAI
         open={aiOpen}
         onOpenChange={setAiOpen}

@@ -11,6 +11,7 @@ import { NularcheMark } from "./NularcheMark.tsx";
 import { aiActions, PROVIDER_LABEL, requestPrompt } from "./prompts.ts";
 import { getLang, t } from "../i18n/index.ts";
 import { useDraggable } from "./useDraggable.ts";
+import { keys } from "../shortcuts.tsx";
 
 export interface AiContext {
   nodeId?: string;
@@ -94,7 +95,7 @@ export function NularcheAI({
         const res = await desktop.aiOpen(preferredLauncher(status, provider), prompt);
         onToast(
           res.opened
-            ? t("nai.readyIn", { ai })
+            ? t("nai.readyIn", { ai, paste: keys("Mod+V") })
             : (res.message ?? t("nai.openFailed")),
         );
       } else {
