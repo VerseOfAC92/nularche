@@ -14,9 +14,11 @@ https://github.com/VerseOfAC92/nularche/releases/latest
   Windows 10/11, 32-bit .......... Nularche-1.0.0-Windows-x86-Setup.exe
   Linux, Debian/Ubuntu (amd64) ... Nularche-1.0.0-Linux-amd64.deb
 
-macOS:   open the DMG and drag Nularche to Applications. The app is not code-signed:
-         if macOS says it "cannot be opened", right-click Nularche > Open > Open, or run
+macOS:   open the DMG and drag Nularche to Applications. The app is not yet notarised by Apple,
+         so macOS 15+ shows '"Nularche.app" Not Opened'. Click Done (not Move to Bin), then
+         System Settings > Privacy & Security > "Open Anyway" (once). Or run once in Terminal:
          xattr -dr com.apple.quarantine /Applications/Nularche.app
+         The terminal installer (section 2) avoids this step.
 Windows: run the Setup file. If SmartScreen appears, click "More info" > "Run anyway".
          Nularche installs for your user only (no administrator rights needed).
 Linux:   sudo apt install ./Nularche-1.0.0-Linux-amd64.deb   then run: nularche

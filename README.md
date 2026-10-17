@@ -45,15 +45,21 @@ Every installer is built, installed and smoke-tested on its own operating system
 
 ### First launch
 
-The apps are not code-signed yet, so your operating system may ask you to confirm the first time:
+The apps are not yet signed with paid Apple and Microsoft developer certificates, so the first launch needs one
+extra step:
 
-- **macOS:** if you downloaded the DMG in a browser and macOS says the app "cannot be opened", right-click
-  **Nularche** in Applications → **Open** → **Open**. Alternatively run
-  `xattr -dr com.apple.quarantine /Applications/Nularche.app`. The terminal installer below does not need this.
-- **Windows:** if SmartScreen appears, click **More info** → **Run anyway**. Nularche installs for your user only;
-  no administrator rights are needed.
+- **macOS:** the easiest way is the [terminal installer](#install-from-the-terminal), which opens Nularche without
+  any warning. If you downloaded the DMG in a browser, macOS 15 or newer shows **"Nularche.app" Not Opened**. Click
+  **Done** (not *Move to Bin*), open **System Settings → Privacy & Security**, scroll down to
+  *"Nularche.app" was blocked…* and click **Open Anyway**, then confirm with your password. You only do this once.
+  Alternatively, run this once in Terminal:
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/Nularche.app
+  ```
+- **Windows:** if SmartScreen shows *Windows protected your PC*, click **More info** → **Run anyway**. Nularche
+  installs for your user only; no administrator rights are needed.
 - **Linux:** install with `sudo apt install ./Nularche-1.0.0-Linux-amd64.deb`, then start it from the
-  applications menu or run `nularche`.
+  applications menu or run `nularche`. No extra step is needed.
 
 On first launch Nularche asks where your notes should live (your **Origin** folder) and offers to connect an AI.
 Both can be changed later in **Settings**.
