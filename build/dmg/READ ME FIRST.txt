@@ -1,0 +1,53 @@
+NULARCHE - FIRST LAUNCH ON macOS
+================================
+
+1. Drag Nularche into the Applications folder (in this window).
+
+2. Open Nularche from Applications.
+   Nularche is free, open-source software that is not yet notarised by Apple, so
+   macOS 15 or newer shows:  "Nularche.app" Not Opened
+
+   - Click "Done"  (do NOT click "Move to Bin").
+   - Right away, open  System Settings > Privacy & Security  and scroll down to
+     the Security section. Under "Allow applications from" you will see
+     '"Nularche.app" was blocked to protect your Mac'. Click  "Open Anyway"
+     and confirm with your password or Touch ID.
+   - The "Open Anyway" button only appears for a short while after the
+     warning. If you don't see it, open Nularche once more, click Done and
+     go straight to Privacy & Security again.
+
+   You only need to do this once. After that Nularche opens normally.
+
+Prefer the Terminal? Either of these opens Nularche without the warning:
+
+   xattr -dr com.apple.quarantine /Applications/Nularche.app
+
+   or install with:
+   curl -fsSL https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.sh | bash
+
+Source code and help: https://github.com/VerseOfAC92/nularche
+
+
+NULARCHE - macOS'TA İLK AÇILIŞ
+==============================
+
+1. Nularche'yi (bu penceredeki) Uygulamalar klasörüne sürükleyin.
+
+2. Nularche'yi Uygulamalar'dan açın. Nularche ücretsiz, açık kaynak bir uygulamadır ve
+   henüz Apple tarafından onaylatılmamıştır (notarize). Bu yüzden macOS 15 ve sonrası
+   "Nularche.app Açılmadı / Not Opened" uyarısı gösterir:
+
+   - "Done / Bitti" düğmesine basın ("Move to Bin / Çöp Sepeti'ne Taşı"ya DEĞİL).
+   - Hemen ardından Sistem Ayarları > Gizlilik ve Güvenlik'i açıp Güvenlik
+     bölümüne inin. "Uygulamalara izin ver" satırının altında "Nularche.app
+     engellendi" yazısını ve "Open Anyway / Yine de Aç" düğmesini göreceksiniz;
+     basıp parolanızla ya da Touch ID ile onaylayın.
+   - Bu düğme uyarıdan sonra yalnızca kısa bir süre görünür. Göremezseniz
+     Nularche'yi bir kez daha açın, Done / Bitti'ye basın ve hemen tekrar
+     Gizlilik ve Güvenlik'e gidin.
+
+   Bu yalnızca bir kez gerekir; sonrasında Nularche normal şekilde açılır.
+
+Terminal'i tercih ederseniz şu komut uyarıyı tamamen kaldırır:
+
+   xattr -dr com.apple.quarantine /Applications/Nularche.app

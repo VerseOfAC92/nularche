@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1
+
+Easier first launch for the unsigned builds.
+
+- macOS DMG window now shows the drag-to-Applications arrow and the one-time "Open Anyway" step for macOS 15+, and includes a *READ ME FIRST* file (English and Turkish).
+- Release notes and README put the no-prompt terminal installer first and give the correct macOS 15+ steps (right-click → Open no longer works on recent macOS).
+
 ## 1.0.0
 
 First public release.

@@ -1,4 +1,4 @@
-NULARCHE 1.0.0
+NULARCHE 1.0.1
 Local-first, AI-native notes, databases and templates in plain Markdown.
 https://github.com/VerseOfAC92/nularche   (full documentation with screenshots: README.md)
 
@@ -8,20 +8,21 @@ https://github.com/VerseOfAC92/nularche   (full documentation with screenshots: 
 Download the installer for your system from
 https://github.com/VerseOfAC92/nularche/releases/latest
 
-  macOS, Apple Silicon (M1-M5) ... Nularche-1.0.0-macOS-AppleSilicon.dmg
-  macOS, Intel ................... Nularche-1.0.0-macOS-Intel.dmg
-  Windows 10/11, 64-bit .......... Nularche-1.0.0-Windows-x64-Setup.exe
-  Windows 10/11, 32-bit .......... Nularche-1.0.0-Windows-x86-Setup.exe
-  Linux, Debian/Ubuntu (amd64) ... Nularche-1.0.0-Linux-amd64.deb
+  macOS, Apple Silicon (M1-M5) ... Nularche-macOS-AppleSilicon.dmg
+  macOS, Intel ................... Nularche-macOS-Intel.dmg
+  Windows 10/11, 64-bit .......... Nularche-Windows-x64-Setup.exe
+  Windows 10/11, 32-bit .......... Nularche-Windows-x86-Setup.exe
+  Linux, Debian/Ubuntu (amd64) ... Nularche-Linux-amd64.deb
 
 macOS:   open the DMG and drag Nularche to Applications. The app is not yet notarised by Apple,
          so macOS 15+ shows '"Nularche.app" Not Opened'. Click Done (not Move to Bin), then
-         System Settings > Privacy & Security > "Open Anyway" (once). Or run once in Terminal:
+         RIGHT AWAY open System Settings > Privacy & Security > Security section and click
+         "Open Anyway" (it only appears briefly after the warning). Or run once in Terminal:
          xattr -dr com.apple.quarantine /Applications/Nularche.app
          The terminal installer (section 2) avoids this step.
 Windows: run the Setup file. If SmartScreen appears, click "More info" > "Run anyway".
          Nularche installs for your user only (no administrator rights needed).
-Linux:   sudo apt install ./Nularche-1.0.0-Linux-amd64.deb   then run: nularche
+Linux:   sudo apt install ./Nularche-Linux-amd64.deb   then run: nularche
 
 ------------------------------------------------------------------------------
 2. INSTALL FROM THE TERMINAL (latest release)

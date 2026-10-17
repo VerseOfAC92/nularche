@@ -21,7 +21,7 @@ case "$(uname -s)" in
   Darwin)
     if [ "$(uname -m)" = "arm64" ]; then ARCH=arm64; LABEL=AppleSilicon; else ARCH=x64; LABEL=Intel; fi
     node scripts/dist-mac.ts --only "$ARCH"
-    DMG="$(ls release/Nularche-*-macOS-$LABEL.dmg | head -n1)"
+    DMG="$(ls release/Nularche-macOS-$LABEL.dmg | head -n1)"
     say "Installing $DMG to /Applications"
     MNT="$(hdiutil attach -nobrowse -readonly "$DMG" | tail -n1 | awk -F'\t' '{print $NF}')"
     rm -rf /Applications/Nularche.app 2>/dev/null || true
@@ -31,7 +31,7 @@ case "$(uname -s)" in
     ;;
   Linux)
     npx electron-builder --linux deb --x64 --publish never
-    DEB="$(ls release/Nularche-*-Linux-amd64.deb | head -n1)"
+    DEB="$(ls release/Nularche-Linux-amd64.deb | head -n1)"
     say "Installing $DEB (sudo apt install)"
     sudo apt-get install -y "./$DEB"
     say "Done. Run: nularche"

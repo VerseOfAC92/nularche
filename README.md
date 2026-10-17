@@ -31,13 +31,20 @@ The name comes from **Null** (a clean starting point) and **Arche** (first princ
 
 ## Download
 
+> **Easiest on a Mac:** paste this into Terminal. It downloads the right build for your Mac, installs it and opens
+> it, with no security prompt:
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.sh | bash
+> ```
+> Downloading the DMG in a browser works too; see [First launch](#first-launch) for the one-time step.
+
 | System | Installer |
 | --- | --- |
-| macOS, Apple Silicon (M1–M5) | [`Nularche-1.0.0-macOS-AppleSilicon.dmg`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-macOS-AppleSilicon.dmg) |
-| macOS, Intel | [`Nularche-1.0.0-macOS-Intel.dmg`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-macOS-Intel.dmg) |
-| Windows 10/11, 64-bit | [`Nularche-1.0.0-Windows-x64-Setup.exe`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-Windows-x64-Setup.exe) |
-| Windows 10/11, 32-bit | [`Nularche-1.0.0-Windows-x86-Setup.exe`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-Windows-x86-Setup.exe) |
-| Linux, Debian/Ubuntu (amd64) | [`Nularche-1.0.0-Linux-amd64.deb`](https://github.com/VerseOfAC92/nularche/releases/download/v1.0.0/Nularche-1.0.0-Linux-amd64.deb) |
+| macOS, Apple Silicon (M1–M5) | [`Nularche-macOS-AppleSilicon.dmg`](https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-macOS-AppleSilicon.dmg) |
+| macOS, Intel | [`Nularche-macOS-Intel.dmg`](https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-macOS-Intel.dmg) |
+| Windows 10/11, 64-bit | [`Nularche-Windows-x64-Setup.exe`](https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-Windows-x64-Setup.exe) |
+| Windows 10/11, 32-bit | [`Nularche-Windows-x86-Setup.exe`](https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-Windows-x86-Setup.exe) |
+| Linux, Debian/Ubuntu (amd64) | [`Nularche-Linux-amd64.deb`](https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-Linux-amd64.deb) |
 
 Not sure which Mac you have? Open  → **About This Mac**. "Apple M…" means Apple Silicon; "Intel" means Intel.
 Every installer is built, installed and smoke-tested on its own operating system by the
@@ -50,15 +57,17 @@ extra step:
 
 - **macOS:** the easiest way is the [terminal installer](#install-from-the-terminal), which opens Nularche without
   any warning. If you downloaded the DMG in a browser, macOS 15 or newer shows **"Nularche.app" Not Opened**. Click
-  **Done** (not *Move to Bin*), open **System Settings → Privacy & Security**, scroll down to
-  *"Nularche.app" was blocked…* and click **Open Anyway**, then confirm with your password. You only do this once.
+  **Done** (not *Move to Bin*), then right away open **System Settings → Privacy & Security** and scroll to the
+  **Security** section. Under *Allow applications from* you will see *"Nularche.app" was blocked…*; click
+  **Open Anyway** and confirm with your password. You only do this once. The button only appears for a short while
+  after the warning, so if it is missing, open Nularche again, click **Done** and go straight back.
   Alternatively, run this once in Terminal:
   ```bash
   xattr -dr com.apple.quarantine /Applications/Nularche.app
   ```
 - **Windows:** if SmartScreen shows *Windows protected your PC*, click **More info** → **Run anyway**. Nularche
   installs for your user only; no administrator rights are needed.
-- **Linux:** install with `sudo apt install ./Nularche-1.0.0-Linux-amd64.deb`, then start it from the
+- **Linux:** install with `sudo apt install ./Nularche-Linux-amd64.deb`, then start it from the
   applications menu or run `nularche`. No extra step is needed.
 
 On first launch Nularche asks where your notes should live (your **Origin** folder) and offers to connect an AI.
@@ -276,9 +285,9 @@ Building installers:
 
 | Command | Output (`release/`) |
 | --- | --- |
-| `npm run dist:mac` | `Nularche-<version>-macOS-AppleSilicon.dmg`, `Nularche-<version>-macOS-Intel.dmg` |
-| `npm run dist:win` | `Nularche-<version>-Windows-x64-Setup.exe`, `Nularche-<version>-Windows-x86-Setup.exe` |
-| `npm run dist:linux` | `Nularche-<version>-Linux-amd64.deb` |
+| `npm run dist:mac` | `Nularche-macOS-AppleSilicon.dmg`, `Nularche-macOS-Intel.dmg` |
+| `npm run dist:win` | `Nularche-Windows-x64-Setup.exe`, `Nularche-Windows-x86-Setup.exe` |
+| `npm run dist:linux` | `Nularche-Linux-amd64.deb` |
 | `npm run smoke:packaged -- <app executable>` | Opens an installed build with a temporary profile and checks the UI, storage, API and MCP server |
 
 The 32-bit Windows installer is built with Electron 43, the newest release line that still ships 32-bit Windows

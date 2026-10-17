@@ -14,7 +14,7 @@ npm run build:desktop; if ($LASTEXITCODE) { exit $LASTEXITCODE }
 $arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "ia32" }
 node scripts/dist-win.ts --only $arch; if ($LASTEXITCODE) { exit $LASTEXITCODE }
 $label = if ($arch -eq "x64") { "x64" } else { "x86" }
-$setup = Get-ChildItem "release\Nularche-*-Windows-$label-Setup.exe" | Select-Object -First 1
+$setup = Get-ChildItem "release\Nularche-Windows-$label-Setup.exe" | Select-Object -First 1
 Write-Host "==> Installing $($setup.Name)" -ForegroundColor Cyan
 Start-Process -FilePath $setup.FullName -ArgumentList "/S" -Wait
 Write-Host "==> Done. Start Nularche from the Start menu." -ForegroundColor Green

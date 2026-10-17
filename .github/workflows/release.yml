@@ -27,7 +27,7 @@ jobs:
       - name: Install from the Apple Silicon DMG and smoke test
         run: |
           set -e
-          dmg=$(ls release/Nularche-*-macOS-AppleSilicon.dmg)
+          dmg=$(ls release/Nularche-macOS-AppleSilicon.dmg)
           mnt=$(hdiutil attach -nobrowse -readonly "$dmg" | tail -n1 | awk -F'\t' '{print $NF}')
           ditto "$mnt/Nularche.app" "$RUNNER_TEMP/AppleSilicon/Nularche.app"
           hdiutil detach "$mnt" -quiet
@@ -59,7 +59,7 @@ jobs:
         run: |
           set -e
           uname -m
-          dmg=$(ls release/Nularche-*-macOS-Intel.dmg)
+          dmg=$(ls release/Nularche-macOS-Intel.dmg)
           mnt=$(hdiutil attach -nobrowse -readonly "$dmg" | tail -n1 | awk -F'\t' '{print $NF}')
           ditto "$mnt/Nularche.app" "$RUNNER_TEMP/Intel/Nularche.app"
           hdiutil detach "$mnt" -quiet
@@ -82,7 +82,7 @@ jobs:
         shell: pwsh
         run: |
           foreach ($a in "x64", "x86") {
-            $setup = Get-ChildItem "release\Nularche-*-Windows-$a-Setup.exe" | Select-Object -First 1
+            $setup = Get-ChildItem "release\Nularche-Windows-$a-Setup.exe" | Select-Object -First 1
             $dir = Join-Path $env:RUNNER_TEMP "nularche-$a"
             Write-Host "== Windows ${a}: $($setup.Name) =="
             Start-Process -FilePath $setup.FullName -ArgumentList "/S", "/D=$dir" -Wait
@@ -112,7 +112,7 @@ jobs:
           set -e
           sudo apt-get update
           sudo apt-get install -y xvfb
-          sudo apt-get install -y ./release/Nularche-*-Linux-amd64.deb
+          sudo apt-get install -y ./release/Nularche-Linux-amd64.deb
           which nularche
           xvfb-run -a node scripts/smoke-packaged.ts /opt/Nularche/nularche
       - uses: actions/upload-artifact@v4
@@ -137,19 +137,29 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           awk -v v="$version" '$0 ~ "^## "v {f=1; next} /^## / && f {exit} f' CHANGELOG.md > notes.md
+          cat > first.md <<'MD'
+          ### First launch (one time)
+          Nularche is free and open source, and not yet signed with paid Apple or Microsoft certificates:
+          - **macOS (easiest):** paste into Terminal: `curl -fsSL https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.sh | bash`
+            No security prompt. If you install the DMG instead and see **"Nularche.app" Not Opened**, click **Done**, then
+            right away open **System Settings → Privacy & Security** (Security section) and click **Open Anyway** (once; it only appears briefly after the warning). The DMG window and its *READ ME FIRST* file show the same steps.
+          - **Windows:** if SmartScreen says *Windows protected your PC*, click **More info → Run anyway**.
+          - **Linux:** `sudo apt install ./Nularche-Linux-amd64.deb`. No extra step.
+
+          MD
+          cat first.md notes.md > notes2.md && mv notes2.md notes.md
           cat >> notes.md <<'MD'
 
           ### Downloads
           | System | File |
           | --- | --- |
-          | macOS, Apple Silicon (M1–M5) | `Nularche-*-macOS-AppleSilicon.dmg` |
-          | macOS, Intel | `Nularche-*-macOS-Intel.dmg` |
-          | Windows, 64-bit | `Nularche-*-Windows-x64-Setup.exe` |
-          | Windows, 32-bit | `Nularche-*-Windows-x86-Setup.exe` |
-          | Linux (Debian/Ubuntu, amd64) | `Nularche-*-Linux-amd64.deb` |
+          | macOS, Apple Silicon (M1–M5) | `Nularche-macOS-AppleSilicon.dmg` |
+          | macOS, Intel | `Nularche-macOS-Intel.dmg` |
+          | Windows, 64-bit | `Nularche-Windows-x64-Setup.exe` |
+          | Windows, 32-bit | `Nularche-Windows-x86-Setup.exe` |
+          | Linux (Debian/Ubuntu, amd64) | `Nularche-Linux-amd64.deb` |
 
           Every installer above was installed and smoke-tested on its own operating system by this workflow.
-          The apps are not code-signed; see “Installation” in the README for first-launch steps.
           MD
       - name: Create GitHub Release
         env:

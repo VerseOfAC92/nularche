@@ -55,6 +55,24 @@ mac:
       arch: [arm64, x64]
 dmg:
   title: Nularche ${version}
+  # Pencerede sürükle-bırak oku ve macOS 15+ ilk açılış adımı (scripts/dmg-background.swift ile üretilir).
+  background: build/dmg/background.png
+  window:
+    width: 660
+    height: 460
+  iconSize: 96
+  contents:
+    - x: 170
+      y: 175
+      type: file
+    - x: 490
+      y: 175
+      type: link
+      path: /Applications
+    - x: 600
+      y: 60
+      type: file
+      path: build/dmg/READ ME FIRST.txt
 win:
   icon: build/icon.png
   # 64 ve 32 bit kurulum dosyaları scripts/dist-win.ts ile ayrı ayrı (adlarında x64 / x86) derlenir.
@@ -80,5 +98,5 @@ linux:
     - target: deb
       arch: [x64]
 deb:
-  artifactName: Nularche-${version}-Linux-amd64.${ext}
+  artifactName: Nularche-Linux-amd64.${ext}
   packageName: nularche

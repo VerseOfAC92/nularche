@@ -1,6 +1,6 @@
 // macOS paketlerini işlemci türünü adında ve DMG başlığında açıkça belirterek derler:
-//   Nularche-<sürüm>-macOS-AppleSilicon.dmg  (M1, M2, M3, M4, M5…)
-//   Nularche-<sürüm>-macOS-Intel.dmg
+//   Nularche-macOS-AppleSilicon.dmg  (M1, M2, M3, M4, M5…)
+//   Nularche-macOS-Intel.dmg
 // Kullanım: node scripts/dist-mac.ts [--output <klasör>] [--only arm64|x64]
 
 import { spawnSync } from "node:child_process";
@@ -24,7 +24,7 @@ for (const b of builds) {
     `--${b.arch}`,
     "--publish",
     "never",
-    `-c.mac.artifactName=Nularche-\${version}-macOS-${b.label}.\${ext}`,
+    `-c.mac.artifactName=Nularche-macOS-${b.label}.\${ext}`,
     `-c.dmg.title=Nularche \${version} (${b.title})`,
     ...(output ? [`-c.directories.output=${output}`] : []),
   ];

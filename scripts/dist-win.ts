@@ -1,6 +1,6 @@
 // Windows kurulum dosyalarını (NSIS) işlemci türünü adında belirterek ayrı ayrı derler:
-//   Nularche-<sürüm>-Windows-x64-Setup.exe   (64 bit)
-//   Nularche-<sürüm>-Windows-x86-Setup.exe   (32 bit)
+//   Nularche-Windows-x64-Setup.exe   (64 bit)
+//   Nularche-Windows-x86-Setup.exe   (32 bit)
 // Electron 44'ten itibaren 32 bit Windows paketi yayınlanmadığı için x86 kurulum dosyası,
 // hâlâ desteklenen son Electron 43 sürümüyle derlenir (uygulama kodu aynıdır).
 // Kullanım: node scripts/dist-win.ts [--output <klasör>] [--only x64|ia32]
@@ -27,7 +27,7 @@ for (const b of builds) {
     `--${b.arch}`,
     "--publish",
     "never",
-    `-c.nsis.artifactName=Nularche-\${version}-Windows-${b.label}-Setup.\${ext}`,
+    `-c.nsis.artifactName=Nularche-Windows-${b.label}-Setup.\${ext}`,
     ...(b.electron ? [`-c.electronVersion=${b.electron}`] : []),
     ...(output ? [`-c.directories.output=${output}`] : []),
   ];
