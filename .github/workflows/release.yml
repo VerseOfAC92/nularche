@@ -161,7 +161,18 @@ jobs:
 
           Every installer above was installed and smoke-tested on its own operating system by this workflow.
           MD
-      - name: Create GitHub Release
+      - name: Create or update the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --title "Nularche ${GITHUB_REF_NAME#v}" --notes-file notes.md --verify-tag
+        run: |
+          title="Nularche ${GITHUB_REF_NAME#v}"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            # Re-published tag: replace every asset with the newly built and tested installers.
+            gh release view "$GITHUB_REF_NAME" --json assets -q '.assets[].name' | while read -r name; do
+              gh release delete-asset "$GITHUB_REF_NAME" "$name" -y
+            done
+            gh release upload "$GITHUB_REF_NAME" dist/*
+            gh release edit "$GITHUB_REF_NAME" --title "$title" --notes-file notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --title "$title" --notes-file notes.md --verify-tag
+          fi

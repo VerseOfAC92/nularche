@@ -1,4 +1,4 @@
-NULARCHE 1.0.1
+NULARCHE 1.0.0
 Local-first, AI-native notes, databases and templates in plain Markdown.
 https://github.com/VerseOfAC92/nularche   (full documentation with screenshots: README.md)
 

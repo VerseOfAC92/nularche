@@ -1,6 +1,6 @@
 {
   "name": "nularche",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "private": true,
   "description": "Nularche: yerel, Markdown tabanlı kişisel bilgi yönetimi (PKM) uygulaması; Claude ile MCP üzerinden düzenleme",
   "type": "module",

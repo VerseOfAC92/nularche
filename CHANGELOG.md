@@ -1,12 +1,5 @@
 # Changelog
 
-## 1.0.1
-
-Easier first launch for the unsigned builds.
-
-- macOS DMG window now shows the drag-to-Applications arrow and the one-time "Open Anyway" step for macOS 15+, and includes a *READ ME FIRST* file (English and Turkish).
-- Release notes and README put the no-prompt terminal installer first and give the correct macOS 15+ steps (right-click → Open no longer works on recent macOS).
-
 ## 1.0.0
 
 First public release.
@@ -30,6 +23,8 @@ First public release.
 - `nularche` MCP server with 19 tools, including databases and `duplicate_node`.
 
 ### App
+- Easier first launch for the unsigned builds: the macOS DMG window shows the drag-to-Applications arrow and the one-time "Open Anyway" step (with a *READ ME FIRST* file, English and Turkish); the README and release notes put the no-prompt terminal installer first.
+- Installer file names have no version number, so `releases/latest/download/…` links always work.
 - Installers for macOS (Apple Silicon and Intel), Windows (x64 and x86) and Linux (.deb); each one is installed and smoke-tested on its own OS in CI.
 - English and Turkish interface, theme that follows the system, keyboard shortcuts shown for your operating system (`⌘/` or `Ctrl+/`).
 - Terminal install scripts (`install.sh`, `install.ps1`) and build-from-source scripts.
