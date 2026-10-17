@@ -125,7 +125,7 @@ try {
 
   // Otomatik mod: Gemini anahtarı → Nularche AI isteği arka planda işlenir, cevap pencerede görünür.
   await page.locator(".nai-panel .icon-btn").click(); // küçült
-  await page.locator(".sidebar-foot .side-btn").click(); // Ayarlar
+  await page.locator(".sidebar-foot .side-btn").last().click(); // Ayarlar
   await page.getByPlaceholder(/Anahtarı buraya yapıştırın/).fill("AIza-test-anahtari");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
   await page.getByText("✓ Otomatik mod açık").waitFor({ timeout: 10_000 });
@@ -193,7 +193,7 @@ try {
   assert.ok(Math.abs(reset.x - before.x) < 2 && Math.abs(reset.y - before.y) < 2, "çift tıklama konumu sıfırlamadı");
 
   // Dil: Ayarlar → English; arayüz, kayıtlı ayar ve yapay zekâ cevap dili İngilizceye geçer.
-  await page.locator(".sidebar-foot .side-btn").click();
+  await page.locator(".sidebar-foot .side-btn").last().click();
   await page.getByRole("button", { name: "English", exact: true }).click();
   await page.getByRole("heading", { name: "Settings" }).waitFor({ timeout: 5_000 });
   await page.getByRole("heading", { name: "Appearance" }).waitFor();
@@ -216,7 +216,7 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset.theme === "light");
   await page.emulateMedia({ colorScheme: "dark" });
   await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
-  await page.locator(".sidebar-foot .side-btn").click();
+  await page.locator(".sidebar-foot .side-btn").last().click();
   assert.equal(await page.locator(".segmented button.on").first().textContent(), "System (automatic)");
   await page.getByRole("button", { name: "Light", exact: true }).click();
   assert.equal(await themeNow(), "light");
@@ -227,6 +227,35 @@ try {
   assert.equal(await themeNow(), "light", "elle seçilen tema sistem değişince bozulmamalı");
   await page.getByRole("button", { name: "System (automatic)", exact: true }).click();
   await page.waitForFunction(() => document.documentElement.dataset.theme === "dark");
+  await page.getByRole("button", { name: "Close" }).first().click();
+
+  // Şablon galerisi: hazır "Görev panosu" şablonu veritabanı olarak oluşur; pano ve satırlar görünür.
+  await page.locator(".side-btn", { hasText: "Templates" }).click();
+  await page.locator(".tpl-card", { hasText: "Task board" }).click();
+  await page.locator(".db .board-card").first().waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator(".title-input").inputValue(), "Task board");
+  assert.ok((await page.locator(".db .board-card").count()) >= 2);
+  // Yeni satır ekle ve tablo görünümünde durumunu seç.
+  await page.locator(".db-tab", { hasText: "Table" }).click();
+  await page.locator(".db-new-row").first().click();
+  await page.locator(".title-cell input").first().fill("E2E satırı");
+  await page.keyboard.press("Enter");
+  await page.locator(".row-title", { hasText: "E2E satırı" }).waitFor({ timeout: 5_000 });
+  await shot("13-veritabani");
+
+  // Çöp: veritabanını sil, Çöp'te gör, geri getir. (Nularche AI penceresi menüyü örtmesin diye küçültülür.)
+  if (await page.locator(".nai-panel").count()) await page.locator(".nai-panel .icon-btn").last().click();
+  page.once("dialog", (d) => void d.accept());
+  await page.locator(".topbar .icon-btn", { hasText: "⋯" }).click();
+  await page.locator(".menu-pop button.danger").click();
+  await page.locator(".side-btn", { hasText: "Trash" }).click();
+  await page.locator(".trash-row", { hasText: "Task board" }).waitFor({ timeout: 5_000 });
+  assert.match((await page.locator(".trash-row", { hasText: "Task board" }).textContent()) ?? "", /subpages/);
+  await shot("14-cop");
+  await page.locator(".trash-row", { hasText: "Task board" }).getByRole("button", { name: /Restore/ }).click();
+  await page.locator(".trash-none").waitFor({ timeout: 5_000 });
+  const restored = await page.evaluate(async () => (await (await fetch("/api/nodes")).json()).nodes.filter((n: { title: string }) => n.title === "Task board" || n.title === "E2E satırı").map((n: { path: string }) => n.path));
+  assert.equal(restored.length, 2, `geri gelenler: ${restored}`);
   console.log(`Tamam. Ekran görüntüleri: ${shots ?? "(yok)"}`);
 } catch (err) {
   await shot("hata").catch(() => undefined);

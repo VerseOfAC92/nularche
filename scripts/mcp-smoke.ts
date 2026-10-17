@@ -38,18 +38,24 @@ try {
   const tools = (await client.listTools()).tools.map((t) => t.name).sort();
   console.log("araçlar:", tools.join(", "));
   assert.deepEqual(tools, [
+    "add_database_row",
     "append_to_node",
     "capture_to_shadow",
     "complete_nularche_request",
+    "create_database",
     "create_node",
+    "duplicate_node",
     "get_backlinks",
     "get_nularche_request",
     "list_nodes",
     "list_shadow",
     "move_node",
+    "query_database",
     "read_node",
     "search_nodes",
+    "set_row_properties",
     "trash_node",
+    "update_database_schema",
     "update_node",
   ]);
 
@@ -98,6 +104,31 @@ try {
   assert.equal(done.data.changes, 1);
   const undo = await activity.undo(new (await import("../packages/core/src/node-store.ts")).NodeStore(vault), req.id);
   assert.equal(undo.restored.length, 1);
+
+  // Veritabanı: oluştur, satır ekle, değer değiştir, formül ekle, sorgula.
+  const tasks = await call("create_database", {
+    title: "Görevler",
+    parent_node_id: arche.data.id,
+    properties: [
+      { name: "Durum", type: "status", options: ["Yapılacak", "Bitti"] },
+      { name: "Saat", type: "number" },
+      { name: "Son tarih", type: "date" },
+    ],
+  });
+  assert.equal(tasks.isError, false);
+  await call("add_database_row", { database: tasks.data.id, title: "Rapor yaz", values: { Durum: "Yapılacak", Saat: 3, "Son tarih": "2026-10-20" } });
+  const second = await call("add_database_row", { database: tasks.data.id, title: "Sunum", values: { Durum: "Yapılacak", Saat: 5, Etiket: "x" } });
+  assert.equal(second.isError, true, "bilinmeyen özellik reddedilir");
+  const row2 = await call("add_database_row", { database: tasks.data.id, title: "Sunum", values: { Saat: 5 } });
+  const setv = await call("set_row_properties", { row: row2.data.id, values: { Durum: "Bitti" } });
+  assert.equal(setv.data.props.durum, "bitti");
+  await call("update_database_schema", { database: tasks.data.id, add: [{ name: "Gün", type: "formula", expression: 'round(prop("Saat") / 8, 2)' }] });
+  const q = await call("query_database", { database: tasks.data.id, filters: [{ property: "Durum", op: "is", value: "Bitti" }] });
+  assert.equal(q.data.total, 1);
+  assert.equal(q.data.rows[0].title, "Sunum");
+  assert.equal(q.data.rows[0].values["Gün"], "0.63");
+  const sorted = await call("query_database", { database: tasks.data.id, sorts: [{ property: "Saat", direction: "desc" }] });
+  assert.deepEqual(sorted.data.rows.map((r: { title: string }) => r.title), ["Sunum", "Rapor yaz"]);
   if (temporary) await call("trash_node", { node: arche.data.id });
   console.log(`\nTamam. Origin: ${vault}`);
 } finally {

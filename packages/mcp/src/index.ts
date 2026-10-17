@@ -5,7 +5,34 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { AiActivity, NodeError, NodeStore, REPLY_LANGUAGE_NAME, resolveOriginDir, SHADOW, type NodeDoc, type NodeMeta } from "../../core/src/index.ts";
+import {
+  addProperty,
+  addRow,
+  AiActivity,
+  createDatabase,
+  describeRows,
+  FILTER_OPS,
+  loadDatabase,
+  NodeError,
+  NodeStore,
+  OPTION_COLORS,
+  parseDatabase,
+  PROPERTY_TYPES,
+  removeProperty,
+  REPLY_LANGUAGE_NAME,
+  resolveOriginDir,
+  resolveProperty,
+  ROLLUP_FUNCTIONS,
+  saveSchema,
+  setRowValues,
+  SHADOW,
+  slugId,
+  TITLE_PROP,
+  updateProperty,
+  type Database,
+  type NodeDoc,
+  type NodeMeta,
+} from "../../core/src/index.ts";
 
 const store = new NodeStore(resolveOriginDir());
 await store.ensureRoot();
@@ -20,7 +47,9 @@ const server = new McpServer(
       "(proje/alan); Node = sayfa; Shadow = henüz bir Arche'ye bağlanmamış ham notların gelen kutusu. " +
       "Düzenlemeden önce read_node ile Node'u okuyun ve dönen revision değerini update_node/append_to_node çağrısına base_revision olarak verin; " +
       "çakışma hatası alırsanız yeniden okuyun. Node'lar arası bağlantılar göreli Markdown bağlantılarıdır (ör. [Plan](../Plan.md)). " +
-      "Kalıcı silme yoktur; trash_node çöp klasörüne taşır. " +
+      "Kalıcı silme yoktur; trash_node çöp klasörüne taşır (kullanıcı uygulamadaki Çöp bölümünden geri getirebilir). " +
+      "Veritabanları (tablo/pano/takvim): satırları alt Node'lardır; query_database, add_database_row, set_row_properties, update_database_schema ile çalışın. " +
+      "Şablondan sayfa oluşturmak ya da sayfayı alt sayfalarıyla kopyalamak için duplicate_node kullanın. " +
       "Kullanıcı Nularche AI penceresinden istek gönderdiğinde önce get_nularche_request ile isteği al, işi yap, " +
       "sonra complete_nularche_request ile kullanıcıya kısa bir cevap/özet yaz (isteğin reply_language dilinde); bu cevap Nularche'de görünür.",
   },
@@ -177,6 +206,207 @@ server.registerTool(
     inputSchema: { node: nodeRef, new_parent_node_id: parentRef },
   },
   ({ node, new_parent_node_id }) => run(async () => summary(await store.move(node, new_parent_node_id))),
+);
+
+// --- Veritabanları -----------------------------------------------------------------------------------
+
+const propertyInput = z.object({
+  name: z.string().min(1),
+  type: z.enum(PROPERTY_TYPES),
+  options: z.array(z.string()).optional().describe("select / multi_select / status seçenek adları"),
+  target_database_id: z.string().optional().describe("relation: hedef veritabanı Node id'si"),
+  relation: z.string().optional().describe("rollup: bu veritabanındaki relation özelliğinin adı"),
+  target_property: z.string().optional().describe("rollup: hedef veritabanındaki özelliğin adı"),
+  function: z.enum(ROLLUP_FUNCTIONS).optional().describe("rollup işlevi"),
+  expression: z.string().optional().describe('formula: ör. prop("Fiyat") * prop("Adet"), if(prop("Bitti"), "✓", "")'),
+});
+
+function withProperty(db: Database, input: z.infer<typeof propertyInput>): Database {
+  const rel = input.relation ? resolveProperty(db, input.relation) : null;
+  return addProperty(db, {
+    name: input.name,
+    type: input.type,
+    ...(input.options
+      ? { options: input.options.map((name, i) => ({ id: slugId(name), name, color: OPTION_COLORS[i % OPTION_COLORS.length] })) }
+      : {}),
+    ...(input.target_database_id ? { target: input.target_database_id } : {}),
+    ...(rel && rel !== TITLE_PROP ? { relation: rel.id } : {}),
+    ...(input.function ? { fn: input.function } : {}),
+    ...(input.expression !== undefined ? { expression: input.expression } : {}),
+  }).db;
+}
+
+/** Seçenek adlarını şemadaki biçime çevirmek için ayrıştırıcıdan geçirir (kimlik ve renk atanır). */
+const normalize = (db: Database) => parseDatabase(JSON.parse(JSON.stringify(db)));
+
+const schemaSummary = (db: Database) => ({
+  properties: [
+    { name: "title", type: "title" },
+    ...db.properties.map((p) => ({
+      name: p.name,
+      type: p.type,
+      ...(p.options ? { options: p.options.map((o) => o.name) } : {}),
+      ...(p.target ? { target_database_id: p.target } : {}),
+      ...(p.expression ? { expression: p.expression } : {}),
+      ...(p.fn ? { function: p.fn } : {}),
+    })),
+  ],
+  views: db.views.map((v) => ({ name: v.name, type: v.type })),
+});
+
+server.registerTool(
+  "create_database",
+  {
+    title: "Veritabanı oluştur",
+    description:
+      "Notion tarzı bir veritabanı (tablo/pano/takvim…) oluşturur. Veritabanı bir Node'dur; satırları onun alt Node'larıdır. " +
+      "Her satırın bir başlığı (title) ve tanımlanan özellikleri vardır. Varsayılan bir tablo görünümü eklenir.",
+    inputSchema: {
+      title: z.string().min(1),
+      parent_node_id: parentRef.optional().describe("Üst Node id'si, 'root' ya da 'shadow' (varsayılan: root)"),
+      properties: z.array(propertyInput).default([]),
+      description: z.string().default("").describe("Veritabanı sayfasının Markdown açıklaması"),
+    },
+  },
+  ({ title, parent_node_id, properties, description }) =>
+    run(async () => {
+      let db: Database = parseDatabase({});
+      for (const p of properties) db = withProperty(db, p);
+      db = normalize(db);
+      const n = await createDatabase(store, { title, parentNodeId: parent_node_id ?? null, db, body: description });
+      return { ...summary(n), revision: n.revision, schema: schemaSummary(db) };
+    }),
+);
+
+server.registerTool(
+  "query_database",
+  {
+    title: "Veritabanını sorgula",
+    description:
+      "Veritabanının şemasını ve satırlarını (okunur değerlerle) döndürür. view verilmezse ilk görünümün filtre/sıralaması kullanılır; " +
+      "filters/sorts verilirse onlar geçerli olur. Filtre/sıralamada özellik adı ya da 'title' kullanılır.",
+    inputSchema: {
+      database: nodeRef,
+      view: z.string().optional().describe("Görünüm adı"),
+      filters: z
+        .array(z.object({ property: z.string(), op: z.enum(FILTER_OPS), value: z.union([z.string(), z.number(), z.boolean()]).optional() }))
+        .optional(),
+      match: z.enum(["all", "any"]).optional(),
+      sorts: z.array(z.object({ property: z.string(), direction: z.enum(["asc", "desc"]).default("asc") })).optional(),
+      offset: z.number().int().min(0).default(0),
+      limit: z.number().int().min(1).max(500).default(100),
+    },
+    annotations: { readOnlyHint: true },
+  },
+  ({ database, view, filters, match, sorts, offset, limit }) =>
+    run(async () => {
+      const loaded = await loadDatabase(store, database);
+      const idOf = (ref: string) => {
+        const p = resolveProperty(loaded.db, ref);
+        if (!p) throw new NodeError("invalid", `Bilinmeyen özellik: ${ref}`);
+        return p === TITLE_PROP ? TITLE_PROP : p.id;
+      };
+      const optionId = (ref: string, v: unknown) => {
+        const p = resolveProperty(loaded.db, ref);
+        return p && p !== TITLE_PROP && p.options && typeof v === "string" ? (p.options.find((o) => o.name.toLocaleLowerCase("tr") === v.toLocaleLowerCase("tr"))?.id ?? v) : v;
+      };
+      const { view: used, rows } = describeRows(loaded, {
+        view,
+        match,
+        filters: filters?.map((f) => ({ prop: idOf(f.property), op: f.op, value: optionId(f.property, f.value) as string })),
+        sorts: sorts?.map((s) => ({ prop: idOf(s.property), dir: s.direction })),
+      });
+      return {
+        database: { ...summary(loaded.node), revision: loaded.node.revision },
+        schema: schemaSummary(loaded.db),
+        view: used.name,
+        total: rows.length,
+        offset,
+        rows: rows.slice(offset, offset + limit),
+      };
+    }),
+);
+
+server.registerTool(
+  "add_database_row",
+  {
+    title: "Veritabanına satır ekle",
+    description:
+      "Veritabanına yeni satır (alt Node) ekler. values: özellik adı → değer. Seçimlerde seçenek adı (yoksa eklenir), çoklu seçimde dizi, " +
+      "tarihte 2026-10-17 (ya da {start, end}), onay kutusunda true/false, ilişkide satır id dizisi verilir.",
+    inputSchema: {
+      database: nodeRef,
+      title: z.string().min(1),
+      values: z.record(z.string(), z.unknown()).default({}),
+      body: z.string().default("").describe("Satır sayfasının Markdown içeriği"),
+    },
+  },
+  ({ database, title, values, body }) =>
+    run(async () => {
+      const n = await addRow(store, database, { title, values, body });
+      return { ...summary(n), revision: n.revision };
+    }),
+);
+
+server.registerTool(
+  "set_row_properties",
+  {
+    title: "Satır özelliklerini değiştir",
+    description: "Bir veritabanı satırının özellik değerlerini değiştirir (verilmeyenler korunur; null değeri temizler). 'title' başlığı değiştirir.",
+    inputSchema: { row: nodeRef, values: z.record(z.string(), z.unknown()), base_revision: z.string().optional() },
+    annotations: { idempotentHint: true },
+  },
+  ({ row, values, base_revision }) =>
+    run(async () => {
+      const n = await editWithSnapshot(row, () => setRowValues(store, row, values, base_revision));
+      return { ...summary(n), revision: n.revision, props: n.props ?? {} };
+    }),
+);
+
+server.registerTool(
+  "update_database_schema",
+  {
+    title: "Veritabanı şemasını değiştir",
+    description:
+      "Özellik ekler, yeniden adlandırır, formülünü değiştirir ya da kaldırır. Kaldırılan özelliğin satırlardaki değerleri silinmez (yeniden eklenirse görünür).",
+    inputSchema: {
+      database: nodeRef,
+      add: z.array(propertyInput).default([]),
+      rename: z.array(z.object({ from: z.string(), to: z.string().min(1) })).default([]),
+      set_expression: z.array(z.object({ property: z.string(), expression: z.string() })).default([]),
+      remove: z.array(z.string()).default([]),
+      base_revision: z.string().optional(),
+    },
+    annotations: { destructiveHint: true },
+  },
+  ({ database, add, rename, set_expression, remove, base_revision }) =>
+    run(async () => {
+      const loaded = await loadDatabase(store, database);
+      let db = loaded.db;
+      const find = (ref: string) => {
+        const p = resolveProperty(db, ref);
+        if (!p || p === TITLE_PROP) throw new NodeError("invalid", `Bilinmeyen özellik: ${ref}`);
+        return p;
+      };
+      for (const r of rename) db = updateProperty(db, find(r.from).id, { name: r.to });
+      for (const e of set_expression) db = updateProperty(db, find(e.property).id, { expression: e.expression });
+      for (const r of remove) db = removeProperty(db, find(r).id);
+      for (const p of add) db = withProperty(db, p);
+      db = normalize(db);
+      const n = await editWithSnapshot(loaded.node.id, () => saveSchema(store, loaded.node.id, db, base_revision));
+      return { ...summary(n), revision: n.revision, schema: schemaSummary(db) };
+    }),
+);
+
+server.registerTool(
+  "duplicate_node",
+  {
+    title: "Node'u çoğalt / şablondan oluştur",
+    description:
+      "Node'u alt Node'larıyla birlikte kopyalar (şablondan yeni sayfa oluşturmak için de kullanılır). Kopyalar arasındaki bağlantılar ve ilişkiler kopyalara yönlenir.",
+    inputSchema: { node: nodeRef, parent_node_id: parentRef.optional().describe("Kopyanın üst Node'u (boşsa kaynakla aynı yer)"), title: z.string().optional() },
+  },
+  ({ node, parent_node_id, title }) => run(async () => summary(await store.duplicate(node, { parentNodeId: parent_node_id, title }))),
 );
 
 server.registerTool(

@@ -63,6 +63,8 @@ const STRINGS = {
   },
   "rosetta.download": { tr: "Apple Silicon sürümünü indir", en: "Download Apple Silicon Version" },
   "rosetta.later": { tr: "Şimdilik devam et", en: "Continue for Now" },
+  "export.siteFolder": { tr: "Sitenin yazılacağı klasörü seçin", en: "Choose a folder for the website" },
+  "export.siteButton": { tr: "Siteyi buraya oluştur", en: "Create site here" },
   "start.failed": { tr: "Nularche başlatılamadı", en: "Nularche couldn't start" },
   "ai.notInstalled": { tr: "{name} kurulu değil; indirme sayfası açıldı.", en: "{name} isn't installed; the download page was opened." },
   "ai.cantOpen": {

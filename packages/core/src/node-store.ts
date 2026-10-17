@@ -4,14 +4,15 @@
 // Nularche ortak dili:
 //   Origin  – kök veri kasası (bu klasör)
 //   Arche   – Origin kökündeki Node'lar (ana sütunlar/projeler)
-//   Node    – her sayfa; bir `.md` dosyası. `a/b.md` Node'unun alt Node'ları `a/b/` klasöründedir
+//   Node    – her sayfa; bir `.md` dosyası. Alt Node'u olan Node klasör notudur: `a/b/b.md`, alt Node'ları `a/b/` içinde (layout.ts)
 //   Shadow  – `Shadow/` klasöründeki henüz bir Arche'ye bağlanmamış ham notlar (gelen kutusu)
 // Kimlik (id) frontmatter'da saklanır ve yeniden adlandırma/taşımada değişmez.
-// Ekler Origin kökündeki `ekler/` klasörüne yazılır.
+// Ekler Origin kökündeki `Attachments/` klasörüne yazılır.
 
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { childDirOf, containerDirOf, isFolderNote, notePathFor, ownerPathsOf, unitNameOf } from "./layout.ts";
 import { extractLinks, rewriteLinks } from "./links.ts";
 import { parseNodeFile, revisionOf, serializeNodeFile, slugify, type Frontmatter } from "./node-file.ts";
 
@@ -84,10 +85,27 @@ export interface SearchHit {
 }
 
 export const TRASH_DIR = ".trash";
-export const ATTACHMENTS_DIR = "ekler";
+export const ATTACHMENTS_DIR = "Attachments";
+/** Eski sürümlerin ek klasörü; açılışta ATTACHMENTS_DIR'e taşınır ve bağlantılar güncellenir. */
+export const LEGACY_ATTACHMENTS_DIR = "ekler";
 export const SHADOW_DIR = "Shadow";
 /** `move` ve `create` için Shadow hedefi. */
 export const SHADOW = "shadow";
+
+/** Çöpteki bir öğe: `.trash/<zaman>/` klasörü (Node dosyası, alt Node klasörü ve konum kaydı). */
+export interface TrashEntry {
+  /** Çöp klasörünün adı (zaman damgası); geri getirme ve silmede kimlik olarak kullanılır. */
+  entry: string;
+  nodeId: string | null;
+  title: string;
+  /** Silinmeden önceki yolu; eski sürümlerin çöpe attıklarında bilinmez (null). */
+  originalPath: string | null;
+  trashedAt: number;
+  /** Birlikte çöpe giden alt Node sayısı. */
+  childCount: number;
+}
+
+const TRASH_META = ".nularche-trash.json";
 
 export interface ShadowView {
   /** `Shadow/` gelen kutusundaki ham notlar. */
@@ -129,6 +147,15 @@ function completeFrontmatter(fm: Frontmatter, meta: Pick<NodeMeta, "id" | "title
   return { id: meta.id, title: meta.title, created: iso(meta.createdAt), updated: iso(meta.updatedAt), ...fm };
 }
 
+/** Kapak göreli bir dosya yoluysa (renk ya da URL değilse) not ya da hedef taşınınca yeni göreli yolu verir. */
+function rewriteCover(cover: string | undefined, oldPath: string, newPath: string, moved: Map<string, string>): string | undefined {
+  if (!cover || /^[a-z]+:|^gradient-/i.test(cover)) return cover;
+  const target = path.posix.normalize(path.posix.join(path.posix.dirname(oldPath), cover));
+  const next = moved.get(target) ?? target;
+  if (next === target && newPath === oldPath) return cover;
+  return path.posix.relative(path.posix.dirname(newPath), next);
+}
+
 /** Taranmayan klasörler (gizli klasörler zaten atlanır). */
 const IGNORED_DIRS = new Set(["node_modules"]);
 
@@ -138,10 +165,6 @@ function lowerTr(s: string): string {
 
 function toPosix(p: string): string {
   return p.split(path.sep).join("/");
-}
-
-function childDirOf(notePath: string): string {
-  return notePath.slice(0, -3);
 }
 
 interface CacheEntry {
@@ -267,11 +290,16 @@ export class NodeStore {
       // Kopyalanmış dosyada çakışan id: dosyaya dokunmadan ikinciye yoldan türetilmiş id ver;
       // Node düzenlendiğinde bu id frontmatter'a yazılır.
       if (byId.has(meta.id)) meta = { ...meta, id: derivedId(`dup:${meta.path}`) };
-      const dir = path.posix.dirname(meta.path);
-      const parent = dir === "." || dir === SHADOW_DIR ? undefined : byPath.get(`${dir}.md`);
+      const dir = containerDirOf(meta.path);
+      const owner = (d: string) => ownerPathsOf(d).map((p) => byPath.get(p)).find((e) => e && e.meta.path !== meta.path);
+      const parent = dir === "" || dir === SHADOW_DIR ? undefined : owner(dir);
       const top = meta.path.split("/")[0];
       const inShadow = top === SHADOW_DIR && meta.path.includes("/");
-      const arche = inShadow ? undefined : byPath.get(top.endsWith(".md") ? top : `${top}.md`);
+      const arche = inShadow
+        ? undefined
+        : top.endsWith(".md") && !meta.path.includes("/")
+          ? entry
+          : ownerPathsOf(top).map((p) => byPath.get(p)).find(Boolean);
       byId.set(meta.id, { meta: { ...meta, parentNodeId: parent?.meta.id ?? null, archeId: arche?.meta.id ?? null }, body, frontmatter });
     }
     return byId;
@@ -296,7 +324,9 @@ export class NodeStore {
     const byId = all.get(ref);
     if (byId) return byId;
     const wanted = toPosix(ref.toLowerCase().endsWith(".md") ? ref : `${ref}.md`);
-    for (const n of all.values()) if (n.meta.path === wanted) return n;
+    // Klasör notları klasör yoluyla da bulunur ("Projeler" → "Projeler/Projeler.md").
+    const folderNote = ref.toLowerCase().endsWith(".md") ? null : `${toPosix(ref)}/${path.posix.basename(toPosix(ref))}.md`;
+    for (const n of all.values()) if (n.meta.path === wanted || n.meta.path === folderNote) return n;
     throw new NodeError("not_found", `Node bulunamadı: ${ref}`);
   }
 
@@ -314,15 +344,28 @@ export class NodeStore {
     }
   }
 
-  private async uniquePath(dirRel: string, title: string, except?: string): Promise<string> {
+  /** Klasörde boş bir Node adı (hem `ad.md` hem `ad/` boş olmalı). `except`: Node'un şu anki adı (kendisiyle çakışmaz). */
+  private async uniqueName(dirRel: string, title: string, except?: string): Promise<string> {
     const slug = slugify(title);
     for (let i = 1; ; i++) {
-      const name = i === 1 ? `${slug}.md` : `${slug} ${i}.md`;
-      const rel = dirRel ? `${dirRel}/${name}` : name;
-      if (rel === except) return rel;
-      if (!dirRel && [ATTACHMENTS_DIR, SHADOW_DIR.toLowerCase()].includes(name.slice(0, -3).toLowerCase())) continue;
-      if (!(await this.exists(rel)) && !(await this.exists(rel.slice(0, -3)))) return rel;
+      const name = i === 1 ? slug : `${slug} ${i}`;
+      if (except !== undefined && name.toLowerCase() === except.toLowerCase()) return name;
+      if (!dirRel && [ATTACHMENTS_DIR, SHADOW_DIR].some((d) => d.toLowerCase() === name.toLowerCase())) continue;
+      const base = dirRel ? `${dirRel}/${name}` : name;
+      if (!(await this.exists(`${base}.md`)) && !(await this.exists(base))) return name;
     }
+  }
+
+  /** Alt Node eklenecek Node'u klasör notuna çevirir (`a/b.md` → `a/b/b.md`) ve alt klasörünü döndürür. */
+  private async ensureChildDir(parent: Loaded): Promise<string> {
+    const p = parent.meta.path;
+    if (isFolderNote(p) || (await this.exists(p.slice(0, -3)))) {
+      if (!isFolderNote(p)) await this.relocate(p, containerDirOf(p), parent.meta.title, unitNameOf(p));
+      return childDirOf((await this.find(parent.meta.id)).meta.path);
+    }
+    const target = notePathFor(containerDirOf(p), unitNameOf(p), true);
+    await this.renameAndRewrite([[p, target]], new Map([[p, target]]));
+    return childDirOf(target);
   }
 
   /** `parentNodeId`: üst Node id'si, kök (yeni Arche) için null, gelen kutusu için `SHADOW`. */
@@ -331,8 +374,8 @@ export class NodeStore {
     if (!title) throw new NodeError("invalid", "Başlık boş olamaz");
     let dirRel = "";
     if (input.parentNodeId === SHADOW) dirRel = SHADOW_DIR;
-    else if (input.parentNodeId) dirRel = childDirOf((await this.find(input.parentNodeId)).meta.path);
-    const rel = await this.uniquePath(dirRel, title);
+    else if (input.parentNodeId) dirRel = await this.ensureChildDir(await this.find(input.parentNodeId));
+    const rel = notePathFor(dirRel, await this.uniqueName(dirRel, title), false);
     const now = new Date().toISOString();
     const fields = Object.fromEntries(
       Object.entries(input.fields ?? {}).filter(([k, v]) => (PAGE_FIELD_KEYS as readonly string[]).includes(k) && v != null),
@@ -352,33 +395,65 @@ export class NodeStore {
   }
 
   /**
-   * Notu (ve alt sayfa klasörünü) taşır; taşınan notlardaki ve onlara bağlantı veren
-   * diğer notlardaki göreli bağlantıları yeniden yazar.
+   * Node'u (alt Node'larıyla) `dirRel` klasörüne `title`'a uygun adla taşır/yeniden adlandırır; yeni yolu döndürür.
+   * Alt Node'u olan Node klasör notu olarak taşınır (eski düzendeki `ad.md` + `ad/` de klasör notuna çevrilir).
+   * Taşınan ve onlara bağlantı veren notlardaki göreli bağlantılar yeniden yazılır.
    */
-  private async moveTree(fromRel: string, toRel: string): Promise<void> {
-    if (fromRel === toRel) return;
+  private async relocate(fromRel: string, dirRel: string, title: string, keepName?: string): Promise<string> {
+    const folder = isFolderNote(fromRel);
+    const legacyDir = folder ? null : fromRel.slice(0, -3);
+    const hasLegacyChildren = legacyDir !== null && (await this.exists(legacyDir));
+    const currentName = unitNameOf(fromRel);
+    const sameDir = containerDirOf(fromRel) === dirRel;
+    const name = keepName ?? (await this.uniqueName(dirRel, title, sameDir ? currentName : undefined));
+    const asFolder = folder || hasLegacyChildren;
+    const toRel = notePathFor(dirRel, name, asFolder);
+    if (toRel === fromRel) return fromRel;
+    const toDir = dirRel ? `${dirRel}/${name}` : name;
     const all = await this.loadAll();
-    const fromDir = childDirOf(fromRel);
     const moved = new Map<string, string>();
-    for (const n of all.values()) {
-      if (n.meta.path === fromRel) moved.set(fromRel, toRel);
-      else if (n.meta.path.startsWith(`${fromDir}/`)) moved.set(n.meta.path, `${childDirOf(toRel)}/${n.meta.path.slice(fromDir.length + 1)}`);
+    const renames: [string, string][] = [];
+    if (folder) {
+      const fromDir = path.posix.dirname(fromRel);
+      for (const n of all.values()) if (n.meta.path.startsWith(`${fromDir}/`)) moved.set(n.meta.path, `${toDir}/${n.meta.path.slice(fromDir.length + 1)}`);
+      moved.set(fromRel, toRel);
+      if (fromDir !== toDir) renames.push([fromDir, toDir]);
+      if (currentName !== name) renames.push([`${toDir}/${currentName}.md`, toRel]);
+    } else if (hasLegacyChildren) {
+      for (const n of all.values()) if (n.meta.path.startsWith(`${legacyDir}/`)) moved.set(n.meta.path, `${toDir}/${n.meta.path.slice(legacyDir!.length + 1)}`);
+      moved.set(fromRel, toRel);
+      if (legacyDir !== toDir) renames.push([legacyDir!, toDir]);
+      renames.push([fromRel, toRel]);
+    } else {
+      moved.set(fromRel, toRel);
+      renames.push([fromRel, toRel]);
     }
-    await mkdir(path.dirname(this.abs(toRel)), { recursive: true });
-    await rename(this.abs(fromRel), this.abs(toRel));
-    if (await this.exists(fromDir)) await rename(this.abs(fromDir), this.abs(childDirOf(toRel)));
+    await this.renameAndRewrite(renames, moved, all);
+    return toRel;
+  }
 
+  /** Dosya/klasör yeniden adlandırmalarını uygular, sonra `moved` (eski → yeni Node yolu) ile bağlantıları yeniden yazar. */
+  private async renameAndRewrite(renames: [string, string][], moved: Map<string, string>, all?: Map<string, Loaded>): Promise<void> {
+    all ??= await this.loadAll();
+    for (const [from, to] of renames) {
+      if (from.toLowerCase() !== to.toLowerCase() && (await this.exists(to))) throw new NodeError("conflict", `Hedef zaten var: ${to}`);
+      await mkdir(path.dirname(this.abs(to)), { recursive: true });
+      await rename(this.abs(from), this.abs(to));
+    }
     for (const n of all.values()) {
       const oldPath = n.meta.path;
       const newPath = moved.get(oldPath) ?? oldPath;
+      const cover = rewriteCover(n.meta.cover, oldPath, newPath, moved);
       const links = extractLinks(oldPath, n.body);
-      if (newPath === oldPath && !links.some((l) => moved.has(l.target))) continue;
-      if (newPath !== oldPath && links.length === 0) continue;
-      const body = rewriteLinks(n.body, oldPath, newPath, moved);
-      if (body === n.body) continue;
+      if (cover === n.meta.cover && newPath === oldPath && !links.some((l) => moved.has(l.target))) continue;
+      const body = links.length ? rewriteLinks(n.body, oldPath, newPath, moved) : n.body;
+      if (body === n.body && cover === n.meta.cover) continue;
       const abs = this.abs(newPath);
-      const fm = parseNodeFile(await readFile(abs, "utf8")).frontmatter;
-      await this.atomicWrite(abs, serializeNodeFile(completeFrontmatter(fm, n.meta), body));
+      const text = await readFile(abs, "utf8");
+      const parsed = parseNodeFile(text);
+      const hasFrontmatter = /^---\r?\n/.test(text);
+      const fm = cover === n.meta.cover ? parsed.frontmatter : { ...parsed.frontmatter, cover };
+      await this.atomicWrite(abs, hasFrontmatter ? serializeNodeFile(fm, body) : body);
     }
   }
 
@@ -387,12 +462,7 @@ export class NodeStore {
     this.checkRevision(current.meta, input.baseRevision);
     const title = input.title?.trim() || current.meta.title;
     let rel = current.meta.path;
-    if (title !== current.meta.title) {
-      const dir = path.posix.dirname(rel);
-      const target = await this.uniquePath(dir === "." ? "" : dir, title, slugify(current.meta.title) === slugify(title) ? rel : undefined);
-      await this.moveTree(rel, target);
-      rel = target;
-    }
+    if (title !== current.meta.title) rel = await this.relocate(rel, containerDirOf(rel), title);
     const abs = this.abs(rel);
     const parsed = parseNodeFile(await readFile(abs, "utf8"));
     const fm: Frontmatter = {
@@ -427,17 +497,74 @@ export class NodeStore {
       dirRel = SHADOW_DIR;
     } else if (newParentNodeId) {
       const parent = await this.find(newParentNodeId, all);
-      const childDir = childDirOf(current.meta.path);
-      if (parent.meta.id === current.meta.id || parent.meta.path.startsWith(`${childDir}/`)) {
+      const ownDir = childDirOf(current.meta.path);
+      if (parent.meta.id === current.meta.id || parent.meta.path.startsWith(`${ownDir}/`)) {
         throw new NodeError("invalid", "Bir Node kendi altına taşınamaz");
       }
-      dirRel = childDirOf(parent.meta.path);
+      if (current.meta.parentNodeId === parent.meta.id) return this.read(current.meta.id);
+      dirRel = await this.ensureChildDir(parent);
     }
-    const currentDir = path.posix.dirname(current.meta.path);
-    if ((currentDir === "." ? "" : currentDir) === dirRel) return this.read(current.meta.id);
-    const target = await this.uniquePath(dirRel, current.meta.title);
-    await this.moveTree(current.meta.path, target);
+    const fresh = await this.find(current.meta.id);
+    if (containerDirOf(fresh.meta.path) === dirRel) return this.read(current.meta.id);
+    await this.relocate(fresh.meta.path, dirRel, fresh.meta.title);
     return this.read(current.meta.id);
+  }
+
+  /**
+   * Node'u alt Node'larıyla birlikte çoğaltır (şablondan sayfa oluşturma, "Çoğalt"). Kopyalar yeni id alır;
+   * kopyalanan Node'lar arasındaki bağlantılar ve ilişki (relation) değerleri kopyalara yönlendirilir.
+   * `title` verilirse kök kopyanın başlığı olur; `template` alanı kopyaya taşınmaz.
+   */
+  async duplicate(ref: string, input: { parentNodeId?: string | null; title?: string; fields?: PageFields } = {}): Promise<NodeDoc> {
+    const all = await this.loadAll();
+    const root = await this.find(ref, all);
+    const nodes = [...all.values()];
+    const subtree: Loaded[] = [];
+    const walk = (id: string) => {
+      for (const n of nodes) if (n.meta.parentNodeId === id) (subtree.push(n), walk(n.meta.id));
+    };
+    walk(root.meta.id);
+    const parent = input.parentNodeId === undefined ? (root.meta.archeId === null && root.meta.parentNodeId === null ? SHADOW : root.meta.parentNodeId) : input.parentNodeId;
+    const idMap = new Map<string, string>();
+    const pathMap = new Map<string, string>();
+    const copyFields = (n: Loaded, extra?: PageFields): PageFields => {
+      const { template: _t, ...rest } = pageFields(n.frontmatter);
+      return { ...rest, ...extra };
+    };
+    const created: { src: Loaded; copy: NodeDoc }[] = [];
+    const rootCopy = await this.create({
+      title: input.title?.trim() || root.meta.title,
+      parentNodeId: parent,
+      fields: copyFields(root, input.fields),
+    });
+    idMap.set(root.meta.id, rootCopy.id);
+    created.push({ src: root, copy: rootCopy });
+    for (const n of subtree) {
+      const copy = await this.create({ title: n.meta.title, parentNodeId: idMap.get(n.meta.parentNodeId!)!, fields: copyFields(n) });
+      idMap.set(n.meta.id, copy.id);
+      created.push({ src: n, copy });
+    }
+    // Alt Node eklenince üst Node'lar klasör notuna geçmiş olabilir: güncel yolları oku.
+    for (const c of created) {
+      c.copy = await this.read(c.copy.id);
+      pathMap.set(c.src.meta.path, c.copy.path);
+    }
+    const remap = (v: unknown): unknown =>
+      Array.isArray(v) ? v.map((x) => (typeof x === "string" && idMap.has(x) ? idMap.get(x) : x)) : typeof v === "string" && idMap.has(v) ? idMap.get(v) : v;
+    for (const { src, copy } of created) {
+      const body = rewriteLinks(src.body, src.meta.path, copy.path, pathMap);
+      const fields: PageFieldPatch = {};
+      if (src.meta.props) fields.props = Object.fromEntries(Object.entries(src.meta.props).map(([k, v]) => [k, remap(v)]));
+      if (src.meta.cover) fields.cover = rewriteCover(src.meta.cover, src.meta.path, copy.path, pathMap) ?? null;
+      if (src.meta.database) {
+        // İlişki hedefi kopyalanan bir veritabanıysa kopyaya yönlendir.
+        const db = JSON.parse(JSON.stringify(src.meta.database)) as { properties?: { target?: string }[] };
+        for (const p of db.properties ?? []) if (p.target && idMap.has(p.target)) p.target = idMap.get(p.target);
+        fields.database = db;
+      }
+      if (body || Object.keys(fields).length) await this.update(copy.id, { body, fields });
+    }
+    return this.read(rootCopy.id);
   }
 
   /** Kardeş sırasını belirler: `ids` sırasıyla `parentNodeId` altına taşır ve `order` alanını yazar. */
@@ -453,14 +580,141 @@ export class NodeStore {
   async trash(ref: string): Promise<{ id: string; trashedTo: string }> {
     const current = await this.find(ref);
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const destDir = path.join(this.root, TRASH_DIR, stamp);
+    // Aynı milisaniyede birden çok silme olursa her biri kendi klasörünü alır.
+    let destDir = path.join(this.root, TRASH_DIR, stamp);
+    for (let i = 2; await stat(destDir).then(() => true, () => false); i++) destDir = path.join(this.root, TRASH_DIR, `${stamp}-${i}`);
     await mkdir(destDir, { recursive: true });
     const name = path.posix.basename(current.meta.path);
-    await rename(this.abs(current.meta.path), path.join(destDir, name));
-    if (await this.exists(childDirOf(current.meta.path))) {
-      await rename(this.abs(childDirOf(current.meta.path)), path.join(destDir, name.slice(0, -3)));
+    if (isFolderNote(current.meta.path)) {
+      // Klasör notu: klasörüyle birlikte (`ad/ad.md` ve alt Node'lar) çöpe gider.
+      await rename(this.abs(path.posix.dirname(current.meta.path)), path.join(destDir, unitNameOf(current.meta.path)));
+    } else {
+      await rename(this.abs(current.meta.path), path.join(destDir, name));
+      if (await this.exists(childDirOf(current.meta.path))) {
+        await rename(this.abs(childDirOf(current.meta.path)), path.join(destDir, name.slice(0, -3)));
+      }
     }
-    return { id: current.meta.id, trashedTo: toPosix(path.relative(this.root, path.join(destDir, name))) };
+    // Geri getirme için eski konum kaydedilir.
+    await writeFile(
+      path.join(destDir, TRASH_META),
+      JSON.stringify({ id: current.meta.id, title: current.meta.title, path: current.meta.path, trashedAt: Date.now() }, null, 2),
+    );
+    return { id: current.meta.id, trashedTo: toPosix(path.relative(this.root, destDir)) };
+  }
+
+  private trashDir(entry: string): string {
+    if (!/^[\w.-]+$/.test(entry) || entry.startsWith(".")) throw new NodeError("invalid", `Geçersiz çöp öğesi: ${entry}`);
+    return path.join(this.root, TRASH_DIR, entry);
+  }
+
+  private async readTrashEntry(entry: string): Promise<(TrashEntry & { file: string }) | null> {
+    const dir = this.trashDir(entry);
+    let names: string[];
+    try {
+      names = await readdir(dir);
+    } catch {
+      return null;
+    }
+    let file = names.find((n) => n.toLowerCase().endsWith(".md") && !n.startsWith("."));
+    if (!file) {
+      // Klasör notu biçimi: `ad/ad.md`
+      for (const n of names) if (!n.startsWith(".") && (await stat(path.join(dir, n, `${n}.md`)).then(() => true, () => false))) file = `${n}/${n}.md`;
+    }
+    if (!file) return null;
+    let meta: Record<string, unknown> = {};
+    try {
+      meta = JSON.parse(await readFile(path.join(dir, TRASH_META), "utf8"));
+    } catch {
+      // Eski sürümde çöpe atılmış: konum bilinmiyor.
+    }
+    const fm = parseNodeFile(await readFile(path.join(dir, file), "utf8")).frontmatter;
+    const countMd = async (d: string): Promise<number> => {
+      let n = 0;
+      try {
+        for (const e of await readdir(d, { withFileTypes: true })) {
+          if (e.name.startsWith(".")) continue;
+          if (e.isDirectory()) n += await countMd(path.join(d, e.name));
+          else if (e.name.toLowerCase().endsWith(".md")) n++;
+        }
+      } catch {
+        // alt klasör yok
+      }
+      return n;
+    };
+    const stampMs = Date.parse(entry.replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z(-\d+)?$/, "T$1:$2:$3.$4Z"));
+    return {
+      entry,
+      file,
+      nodeId: typeof meta.id === "string" ? meta.id : (asString(fm.id) ?? null),
+      title: (typeof meta.title === "string" && meta.title) || asString(fm.title) || path.posix.basename(file, ".md"),
+      originalPath: typeof meta.path === "string" ? meta.path : null,
+      trashedAt: typeof meta.trashedAt === "number" ? meta.trashedAt : Number.isFinite(stampMs) ? stampMs : 0,
+      childCount: file.includes("/") ? (await countMd(path.join(dir, path.posix.dirname(file)))) - 1 : await countMd(path.join(dir, file.slice(0, -3))),
+    };
+  }
+
+  /** Çöpteki öğeler, en son silinen önce. */
+  async listTrash(): Promise<TrashEntry[]> {
+    let entries: string[];
+    try {
+      entries = (await readdir(path.join(this.root, TRASH_DIR), { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name);
+    } catch {
+      return [];
+    }
+    const out: TrashEntry[] = [];
+    for (const e of entries) {
+      if (e.startsWith(".")) continue;
+      const item = await this.readTrashEntry(e);
+      if (item) {
+        const { file: _file, ...rest } = item;
+        out.push(rest);
+      }
+    }
+    return out.sort((a, b) => b.trashedAt - a.trashedAt);
+  }
+
+  /**
+   * Çöpteki Node'u (alt Node'larıyla) geri getirir: eski yerine (üst Node hâlâ varsa), değilse Shadow'a.
+   * Aynı adda bir Node varsa ad sonuna numara eklenir.
+   */
+  async restoreTrash(entry: string): Promise<NodeDoc> {
+    const item = await this.readTrashEntry(entry);
+    if (!item) throw new NodeError("not_found", `Çöpte bulunamadı: ${entry}`);
+    const dir = this.trashDir(entry);
+    let targetDir = SHADOW_DIR;
+    if (item.originalPath) {
+      const parentDir = containerDirOf(item.originalPath);
+      if (parentDir === "") targetDir = "";
+      else {
+        // Üst Node hâlâ varsa onun altına; gerekirse üst Node klasör notuna çevrilir.
+        const parent = (await this.loadAll().then((all) => [...all.values()])).find((n) => ownerPathsOf(parentDir).includes(n.meta.path));
+        if (parent) targetDir = await this.ensureChildDir(parent);
+      }
+    }
+    const folderForm = item.file.includes("/");
+    const srcName = path.posix.basename(item.file, ".md");
+    const srcChildren = folderForm ? path.join(dir, path.posix.dirname(item.file)) : path.join(dir, srcName);
+    const hasChildren = folderForm || (await stat(srcChildren).then(() => true, () => false));
+    const free = async (n: string) => !(await this.exists(notePathFor(targetDir, n, false))) && !(await this.exists(targetDir ? `${targetDir}/${n}` : n));
+    const name = (await free(srcName)) ? srcName : await this.uniqueName(targetDir, item.title);
+    const target = notePathFor(targetDir, name, hasChildren);
+    const unitDir = targetDir ? `${targetDir}/${name}` : name;
+    await mkdir(path.dirname(this.abs(unitDir)), { recursive: true });
+    if (folderForm) {
+      await rename(srcChildren, this.abs(unitDir));
+      if (srcName !== name) await rename(this.abs(`${unitDir}/${srcName}.md`), this.abs(target));
+    } else {
+      if (hasChildren) await rename(srcChildren, this.abs(unitDir));
+      await rename(path.join(dir, item.file), this.abs(target));
+    }
+    await rm(dir, { recursive: true, force: true });
+    return this.read(target);
+  }
+
+  /** Çöpteki öğeyi kalıcı olarak siler (yalnızca kullanıcı arayüzden açıkça isterse). */
+  async deleteTrash(entry: string): Promise<void> {
+    if (!(await this.readTrashEntry(entry))) throw new NodeError("not_found", `Çöpte bulunamadı: ${entry}`);
+    await rm(this.trashDir(entry), { recursive: true, force: true });
   }
 
   /** Bu nota bağlantı veren notlar. */
@@ -506,7 +760,7 @@ export class NodeStore {
     return this.create({ title: name, parentNodeId: SHADOW, body: text });
   }
 
-  /** Eki `ekler/` klasörüne benzersiz adla yazar ve vault yolunu döndürür. */
+  /** Eki `Attachments/` klasörüne benzersiz adla yazar ve vault yolunu döndürür. */
   async saveAttachment(fileName: string, data: Uint8Array): Promise<string> {
     const ext = path
       .extname(fileName)
@@ -572,5 +826,68 @@ export class NodeStore {
 
   async ensureRoot(): Promise<void> {
     await mkdir(this.root, { recursive: true });
+    await this.migrateLegacyAttachments();
+    await this.normalizeLayout();
+  }
+
+  /**
+   * Eski düzeni (`ad.md` + yanında `ad/` klasörü) klasör notuna çevirir (`ad/ad.md`); bağlantılar güncellenir.
+   * Klasörde zaten `ad/ad.md` varsa o çift olduğu gibi bırakılır (her iki biçim de okunur).
+   */
+  async normalizeLayout(): Promise<number> {
+    const all = await this.loadAll();
+    const renames: [string, string][] = [];
+    const moved = new Map<string, string>();
+    for (const { meta } of all.values()) {
+      const p = meta.path;
+      if (isFolderNote(p)) continue;
+      const dir = p.slice(0, -3);
+      const target = `${dir}/${path.posix.basename(dir)}.md`;
+      if (!(await stat(this.abs(dir)).then((st) => st.isDirectory(), () => false)) || (await this.exists(target))) continue;
+      renames.push([p, target]);
+      moved.set(p, target);
+    }
+    if (renames.length) await this.renameAndRewrite(renames, moved, all);
+    return renames.length;
+  }
+
+  /**
+   * Eski `ekler/` klasörünü `Attachments/` klasörüne taşır ve notlardaki bağlantıları (kapaklar dahil) yeni yola çevirir.
+   * `ekler.md` adlı bir Node varsa klasör o Node'un alt klasörüdür; dokunulmaz.
+   */
+  private async migrateLegacyAttachments(): Promise<void> {
+    const legacy = LEGACY_ATTACHMENTS_DIR;
+    const isDir = await stat(this.abs(legacy)).then((st) => st.isDirectory(), () => false);
+    if (!isDir || (await this.exists(`${legacy}.md`))) return;
+    const moved = new Map<string, string>();
+    const files: string[] = [];
+    const walk = async (rel: string) => {
+      for (const e of await readdir(this.abs(rel), { withFileTypes: true })) {
+        if (e.isDirectory()) await walk(`${rel}/${e.name}`);
+        else if (!e.name.startsWith(".")) files.push(`${rel}/${e.name}`);
+      }
+    };
+    await walk(legacy);
+    for (const from of files) {
+      let to = `${ATTACHMENTS_DIR}${from.slice(legacy.length)}`;
+      const ext = path.posix.extname(to);
+      for (let i = 2; await this.exists(to); i++) to = `${ATTACHMENTS_DIR}${from.slice(legacy.length, from.length - ext.length)}-${i}${ext}`;
+      await mkdir(path.dirname(this.abs(to)), { recursive: true });
+      await rename(this.abs(from), this.abs(to));
+      moved.set(from, to);
+    }
+    await rm(this.abs(legacy), { recursive: true, force: true }).catch(() => undefined);
+    if (moved.size === 0) return;
+    for (const { meta } of (await this.loadAll()).values()) {
+      const abs = this.abs(meta.path);
+      const text = await readFile(abs, "utf8");
+      const hasFrontmatter = /^---\r?\n/.test(text);
+      const parsed = parseNodeFile(text);
+      const body = rewriteLinks(parsed.body, meta.path, meta.path, moved);
+      const fm = { ...parsed.frontmatter };
+      if (typeof fm.cover === "string") fm.cover = rewriteCover(fm.cover, meta.path, meta.path, moved);
+      if (body === parsed.body && fm.cover === parsed.frontmatter.cover) continue;
+      await this.atomicWrite(abs, hasFrontmatter ? serializeNodeFile(fm, body) : body);
+    }
   }
 }

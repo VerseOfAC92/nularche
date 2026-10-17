@@ -15,6 +15,7 @@ export interface SidebarProps {
   route: Route;
   originName: string;
   shadowCount: number;
+  trashCount: number;
   onNavigate: (route: Route) => void;
   onCreate: (parent: ParentTarget) => void;
   onTrash: (node: NodeMeta) => void;
@@ -22,6 +23,8 @@ export interface SidebarProps {
   onError: (msg: string) => void;
   onOpenSearch: () => void;
   onOpenSettings: () => void;
+  onOpenTemplates: () => void;
+  onDaily: () => void;
 }
 
 export function Sidebar(props: SidebarProps) {
@@ -32,8 +35,11 @@ export function Sidebar(props: SidebarProps) {
 
   const children = useMemo(() => {
     const map = new Map<string | null, NodeMeta[]>();
+    const databases = new Set(nodes.filter((n) => n.database).map((n) => n.id));
     for (const n of nodes) {
       if (n.archeId === null) continue; // Shadow'dakiler ağaçta görünmez
+      if (n.parentNodeId && databases.has(n.parentNodeId)) continue; // veritabanı satırları veritabanı görünümünde listelenir
+      if (n.template) continue; // şablonlar "Şablonlar" bölümünde
       map.set(n.parentNodeId, [...(map.get(n.parentNodeId) ?? []), n]);
     }
     return map;
@@ -53,6 +59,7 @@ export function Sidebar(props: SidebarProps) {
   }, [nodes, selectedId]);
 
   const favorites = nodes.filter((n) => n.favorite);
+  const templates = nodes.filter((n) => n.template && !(n.parentNodeId && nodes.find((p) => p.id === n.parentNodeId)?.database));
 
   async function run(action: () => Promise<unknown>) {
     try {
@@ -146,7 +153,7 @@ export function Sidebar(props: SidebarProps) {
           >
             {inTree && kids.length ? (open ? "▾" : "▸") : ""}
           </button>
-          <span className="tree-icon">{n.icon ?? (n.archeId === n.id ? "◈" : "◇")}</span>
+          <span className="tree-icon">{n.icon ?? (n.database ? "▦" : n.archeId === n.id ? "◈" : "◇")}</span>
           <span className="tree-title">{n.title}</span>
           {inTree && (
             <span className="row-actions">
@@ -202,6 +209,12 @@ export function Sidebar(props: SidebarProps) {
       <button className="side-btn" onClick={() => props.onCreate(SHADOW)}>
         ＋ {t("common.quickNote")} <kbd>⌘N</kbd>
       </button>
+      <button className="side-btn" onClick={props.onDaily}>
+        📅 {t("daily.today")} <kbd>⇧⌘D</kbd>
+      </button>
+      <button className="side-btn" onClick={props.onOpenTemplates}>
+        📋 {t("tpl.title")}
+      </button>
 
       {favorites.length > 0 && (
         <div className="side-section">
@@ -221,7 +234,21 @@ export function Sidebar(props: SidebarProps) {
         {arches.length === 0 && <p className="empty">{t("sidebar.noArches")}</p>}
       </div>
 
+      {templates.length > 0 && (
+        <div className="side-section">
+          <div className="side-section-head">{t("tpl.mine")}</div>
+          {templates.map((n) => renderRow(n, 0, false))}
+        </div>
+      )}
+
       <div className="sidebar-foot">
+        <button
+          className={`side-btn ${route.kind === "trash" ? "active" : ""}`}
+          onClick={() => props.onNavigate({ kind: "trash" })}
+          title={t("trash.title")}
+        >
+          🗑 {t("trash.title")} {props.trashCount > 0 && <span className="badge">{props.trashCount}</span>}
+        </button>
         <button className="side-btn" onClick={props.onOpenSettings}>
           ⚙ {t("settings.title")}
         </button>

@@ -39,6 +39,15 @@ export interface SearchHit {
   snippet: string;
 }
 
+export interface TrashEntry {
+  entry: string;
+  nodeId: string | null;
+  title: string;
+  originalPath: string | null;
+  trashedAt: number;
+  childCount: number;
+}
+
 export type AiRequestStatus = "pending" | "received" | "done" | "failed";
 
 export interface AiChange {
@@ -108,12 +117,18 @@ export const api = {
     request<NodeDoc>("POST", "/api/nodes", { title, parentNodeId, body, fields }),
   update: (id: string, patch: { body?: string; title?: string; baseRevision?: string; fields?: PageFieldPatch }) =>
     request<NodeDoc>("PUT", `/api/nodes/${enc(id)}`, patch),
+  duplicate: (id: string, input: { parentNodeId?: ParentTarget; title?: string; fields?: PageFields } = {}) =>
+    request<NodeDoc>("POST", `/api/nodes/${enc(id)}/duplicate`, input),
   move: (id: string, parentNodeId: ParentTarget) => request<NodeDoc>("POST", `/api/nodes/${enc(id)}/move`, { parentNodeId }),
   reorder: (parentNodeId: ParentTarget, ids: string[]) => request<{ nodes: NodeMeta[] }>("POST", "/api/reorder", { parentNodeId, ids }),
   trash: (id: string) => request<unknown>("DELETE", `/api/nodes/${enc(id)}`),
   backlinks: (id: string) => request<{ nodes: NodeMeta[] }>("GET", `/api/nodes/${enc(id)}/backlinks`).then((r) => r.nodes),
   search: (q: string) => request<{ results: SearchHit[] }>("GET", `/api/search?q=${enc(q)}`).then((r) => r.results),
   shadow: () => request<ShadowView>("GET", "/api/shadow"),
+  trashList: () => request<{ entries: TrashEntry[] }>("GET", "/api/trash").then((r) => r.entries),
+  restore: (entry: string) => request<NodeDoc>("POST", `/api/trash/${enc(entry)}/restore`),
+  deleteTrash: (entry: string) => request<unknown>("DELETE", `/api/trash/${enc(entry)}`),
+  emptyTrash: () => request<{ deleted: number }>("DELETE", "/api/trash"),
   capture: (text: string, title?: string) => request<NodeDoc>("POST", "/api/capture", { text, title }),
   aiState: () =>
     request<{ clients: { name: string; provider: string | null; firstSeen: number; lastSeen: number }[]; requests: AiRequest[] }>("GET", "/api/ai"),

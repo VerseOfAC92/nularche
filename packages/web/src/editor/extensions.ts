@@ -13,6 +13,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
 import { Callout, MdDetails, MdDetailsContent, MdDetailsSummary, MdTextStyle, MdYoutube } from "./markdown-extensions.ts";
 import { t } from "../i18n/index.ts";
+import { InlineDatabase } from "../database/InlineDatabase.tsx";
 
 export const lowlight = createLowlight(common);
 
@@ -35,6 +36,7 @@ export function buildExtensions(options: { placeholder?: string } = {}): Extensi
     MdDetailsSummary,
     MdDetailsContent,
     MdYoutube.configure({ nocookie: true }),
+    InlineDatabase,
     Placeholder.configure({
       includeChildren: true,
       placeholder: ({ node }) => (node.type.name === "detailsSummary" ? t("ed.summaryPlaceholder") : (options.placeholder ?? "")),

@@ -84,5 +84,8 @@
     "claude",
     "electron",
     "notion-alternative"
-  ]
+  ],
+  "dependencies": {
+    "marked": "17.0.6"
+  }
 }

@@ -8,6 +8,11 @@ import { Editor } from "./editor/Editor.tsx";
 import { NularcheMark } from "./ai/NularcheMark.tsx";
 import { t, type StringKey } from "./i18n/index.ts";
 import { fileUrl, resolveRelative } from "./editor/paths.ts";
+import { DatabaseView } from "./database/DatabaseView.tsx";
+import { exportNode, type ExportKind } from "./exporting.ts";
+import { RowProperties } from "./database/RowProperties.tsx";
+import { DatabaseHostContext } from "./database/InlineDatabase.tsx";
+import { freshDatabase, serializeDatabase } from "./database/model.ts";
 
 type Status = "saved" | "dirty" | "saving" | "conflict" | "error";
 const SAVE_DELAY_MS = 800;
@@ -226,6 +231,18 @@ export function NodeView(props: NodeViewProps) {
     }
   }
 
+  async function createDatabase(dbTitle: string) {
+    await flush();
+    try {
+      const n = await api.create(dbTitle, id, "", { database: freshDatabase() });
+      propsRef.current.onChanged();
+      return n;
+    } catch (e) {
+      setError((e as Error).message);
+      return null;
+    }
+  }
+
   async function uploadCover() {
     const input = document.createElement("input");
     input.type = "file";
@@ -244,6 +261,8 @@ export function NodeView(props: NodeViewProps) {
   if (!doc) return <div className="page" />;
 
   const isShadow = byId.get(id)?.archeId === null;
+  const selfMeta = byId.get(id);
+  const parentDb = doc.parentNodeId ? byId.get(doc.parentNodeId) : undefined;
   const cover = doc.cover;
   const coverStyle =
     cover && !GRADIENTS.includes(cover)
@@ -313,6 +332,69 @@ export function NodeView(props: NodeViewProps) {
                     ◈ {t("node.makeArche")}
                   </button>
                 )}
+                <button
+                  onClick={async () => {
+                    setMenu(null);
+                    await flush();
+                    const copy = await api.duplicate(id, { title: `${title || doc.title} (${t("node.copy")})` });
+                    props.onChanged();
+                    props.onNavigate(copy.id);
+                  }}
+                >
+                  ⧉ {t("node.duplicate")}
+                </button>
+                <button
+                  onClick={async () => {
+                    setMenu(null);
+                    await setFields({ template: doc.template ? null : true });
+                    props.onToast(doc.template ? t("tpl.unmarked") : t("tpl.marked"));
+                  }}
+                >
+                  📋 {doc.template ? t("tpl.unmark") : t("tpl.mark")}
+                </button>
+                {!doc.database && (
+                  <button
+                    onClick={async () => {
+                      setMenu(null);
+                      await setFields({ database: freshDatabase() });
+                      props.onToast(t("db.turnedInto"));
+                    }}
+                  >
+                    ▦ {t("db.turnInto")}
+                  </button>
+                )}
+                <hr />
+                {(
+                  [
+                    ["md", "⇩", t("export.md")],
+                    ["html", "⇩", t("export.html")],
+                  ] as [ExportKind, string, string][]
+                ).map(([kind, icon, label]) => (
+                  <button
+                    key={kind}
+                    onClick={async () => {
+                      setMenu(null);
+                      await flush();
+                      try {
+                        const out = await exportNode(kind, id);
+                        if (out) props.onToast(out === "downloaded" ? t("export.downloaded") : t("export.saved", { path: out }));
+                      } catch (e) {
+                        props.onToast((e as Error).message);
+                      }
+                    }}
+                  >
+                    {icon} {label}
+                  </button>
+                ))}
+                <button
+                  onClick={async () => {
+                    setMenu(null);
+                    await setFields({ publish: doc.publish ? null : true });
+                    props.onToast(doc.publish ? t("export.unpublished") : t("export.published"));
+                  }}
+                >
+                  🌐 {doc.publish ? t("export.unpublish") : t("export.publish")}
+                </button>
                 {desktop && (
                   <button
                     onClick={async () => {
@@ -354,6 +436,7 @@ export function NodeView(props: NodeViewProps) {
         </div>
       </div>
 
+      {doc.template && <div className="banner template-banner">📋 {parentDb?.database ? t("tpl.rowBanner") : t("tpl.banner")}</div>}
       {status === "conflict" && (
         <div className="banner conflict">
           {t("node.conflictBanner")}
@@ -377,7 +460,7 @@ export function NodeView(props: NodeViewProps) {
         </div>
       )}
 
-      <article className={`page ${cover ? "has-cover" : ""}`}>
+      <article className={`page ${cover ? "has-cover" : ""} ${doc.database ? "wide" : ""}`}>
         {doc.icon && (
           <div className="rel">
             <span className="page-icon" onClick={() => setMenu(menu === "icon" ? null : "icon")} title={t("node.changeIcon")}>
@@ -426,6 +509,28 @@ export function NodeView(props: NodeViewProps) {
             }
           }}
         />
+        {parentDb?.database && selfMeta && (
+          <RowProperties
+            row={{ ...selfMeta, props: doc.props }}
+            dbNode={parentDb}
+            nodes={nodes}
+            setRowProps={(p) => setFields({ props: p })}
+            onChanged={props.onChanged}
+            onNavigate={props.onNavigate}
+            onToast={props.onToast}
+          />
+        )}
+        {doc.database && selfMeta && (
+          <DatabaseView
+            dbNode={{ ...selfMeta, database: doc.database }}
+            nodes={nodes}
+            onChanged={props.onChanged}
+            onNavigate={props.onNavigate}
+            onToast={props.onToast}
+            saveSchema={(db) => setFields({ database: serializeDatabase(db) })}
+          />
+        )}
+        <DatabaseHostContext.Provider value={{ nodes, onChanged: props.onChanged, onNavigate: props.onNavigate, onToast: props.onToast }}>
         <Editor
           docKey={`${doc.id}:${version}`}
           markdown={doc.body}
@@ -435,9 +540,11 @@ export function NodeView(props: NodeViewProps) {
           onChange={(body) => schedule({ body })}
           onOpenPath={(p) => (void flush(), props.onOpenPath(p))}
           onCreateChild={createChild}
+          onCreateDatabase={createDatabase}
           onError={setError}
           onSelectionText={(sel) => props.onContext({ nodeId: id, nodeTitle: title || doc.title, selection: sel })}
         />
+        </DatabaseHostContext.Provider>
         {backlinks.length > 0 && (
           <section className="backlinks">
             <h4>{t("node.backlinks")} · {backlinks.length}</h4>

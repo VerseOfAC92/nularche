@@ -89,6 +89,8 @@ export interface DesktopBridge {
   onAiConnected(cb: (client: AiClientRecord) => void): () => void;
   printPdf(name: string): Promise<string | null>;
   exportArchive(nodeId: string | null, kind: "nlc" | "nla"): Promise<string | null>;
+  /** Markdown (.zip), tek dosya HTML ya da statik site (klasöre) dışa aktarır. */
+  exportAs(kind: "md" | "html" | "site", nodeId: string | null): Promise<{ ok: boolean; path?: string | null; error?: string }>;
   importArchive(): Promise<{ imported: number; rootIds: string[] } | null>;
   checkUpdate(): Promise<{ version: string; url: string } | null>;
   skipUpdate(version: string): Promise<void>;

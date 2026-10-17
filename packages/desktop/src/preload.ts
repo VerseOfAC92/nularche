@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld("nularche", {
   },
   printPdf: (name: string) => invoke("print-pdf", name),
   exportArchive: (nodeId: string | null, kind: "nlc" | "nla") => invoke("export-archive", nodeId, kind),
+  exportAs: (kind: "md" | "html" | "site", nodeId: string | null) => invoke("export", kind, nodeId),
   importArchive: () => invoke("import-archive"),
   checkUpdate: () => invoke("check-update"),
   skipUpdate: (version: string) => invoke("skip-update", version),

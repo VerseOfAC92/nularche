@@ -59,7 +59,7 @@ test("başlık değişince dosya ve alt klasör yeniden adlandırılır, id koru
   const parent = await store.create({ title: "Eski" });
   const child = await store.create({ title: "Çocuk", parentNodeId: parent.id });
   const renamed = await store.update(parent.id, { title: "Yeni" });
-  assert.equal(renamed.path, "Yeni.md");
+  assert.equal(renamed.path, "Yeni/Yeni.md", "alt Node'u olan Node klasör notudur");
   assert.equal((await store.read(child.id)).path, "Yeni/Cocuk.md");
 });
 
@@ -131,7 +131,7 @@ test("append mevcut gövdeye paragraf ekler", async () => {
 
 test("slugify Türkçe karakterleri sadeleştirir", () => {
   assert.equal(slugify("Çalışma / Ödev: 1"), "Calisma Odev 1");
-  assert.equal(slugify("???"), "Adsiz");
+  assert.equal(slugify("???"), "Untitled");
 });
 
 test("yeniden adlandırma ve taşıma bağlantıları günceller", async () => {
@@ -173,14 +173,14 @@ test("sayfa alanları yazılır, silinir ve sıralamayı belirler", async () => 
   );
 });
 
-test("ekler ekler/ klasörüne benzersiz adla yazılır ve not listesinde görünmez", async () => {
+test("ekler Attachments/ klasörüne benzersiz adla yazılır ve not listesinde görünmez", async () => {
   const one = await store.saveAttachment("Ekran Görüntüsü.PNG", new Uint8Array([1, 2]));
   const two = await store.saveAttachment("Ekran Görüntüsü.PNG", new Uint8Array([3]));
-  assert.equal(one, "ekler/Ekran-Goruntusu.png");
-  assert.equal(two, "ekler/Ekran-Goruntusu-2.png");
-  await writeFile(path.join(dir, "ekler", "not-gibi.md"), "x");
+  assert.equal(one, "Attachments/Ekran-Goruntusu.png");
+  assert.equal(two, "Attachments/Ekran-Goruntusu-2.png");
+  await writeFile(path.join(dir, "Attachments", "not-gibi.md"), "x");
   assert.deepEqual(await store.list(), []);
-  assert.equal((await store.create({ title: "ekler" })).path, "ekler 2.md");
+  assert.equal((await store.create({ title: "attachments" })).path, "attachments 2.md");
 });
 
 test("Arche, Shadow ve bağlantısız Node'lar", async () => {
@@ -200,7 +200,7 @@ test("Arche, Shadow ve bağlantısız Node'lar", async () => {
     [raw.id],
   );
   assert.deepEqual(new Set(view.unlinked.map((n) => n.id)), new Set([child.id, deep.id]));
-  await store.update(child.id, { body: "Bkz. [alt](Gorev/Alt%20gorev.md)" });
+  await store.update(child.id, { body: "Bkz. [alt](Alt%20gorev.md)" });
   await store.move(raw.id, arche.id);
   view = await store.shadow();
   assert.deepEqual(view.inbox, []);
@@ -211,4 +211,125 @@ test("Arche, Shadow ve bağlantısız Node'lar", async () => {
   const back = await store.move(raw.id, SHADOW);
   assert.equal(back.path, "Shadow/Ham fikir.md");
   assert.equal((await store.create({ title: "Shadow" })).path, "Shadow 2.md");
+});
+
+test("çöp: listelenir, alt Node'larıyla eski yerine geri gelir, üst yoksa Shadow'a gelir, kalıcı silinebilir", async () => {
+  const arche = await store.create({ title: "Proje" });
+  const page = await store.create({ title: "Plan", parentNodeId: arche.id, body: "içerik" });
+  await store.create({ title: "Alt", parentNodeId: page.id });
+  await store.trash(page.id);
+  assert.equal((await store.list()).some((n) => n.id === page.id), false);
+  let trash = await store.listTrash();
+  assert.equal(trash.length, 1);
+  assert.equal(trash[0].title, "Plan");
+  assert.equal(trash[0].originalPath, "Proje/Plan/Plan.md");
+  assert.equal(trash[0].childCount, 1);
+  const restored = await store.restoreTrash(trash[0].entry);
+  assert.equal(restored.id, page.id);
+  assert.equal(restored.path, "Proje/Plan/Plan.md");
+  assert.equal(restored.body.trim(), "içerik");
+  assert.equal((await store.list()).find((n) => n.title === "Alt")?.parentNodeId, page.id);
+  assert.deepEqual(await store.listTrash(), []);
+
+  // Üst Node da çöpteyse geri gelen Node Shadow'a düşer.
+  await store.trash(page.id);
+  await store.trash(arche.id);
+  trash = await store.listTrash();
+  const planEntry = trash.find((e) => e.title === "Plan")!;
+  const inShadow = await store.restoreTrash(planEntry.entry);
+  assert.equal(inShadow.path, "Shadow/Plan/Plan.md");
+  await store.deleteTrash(trash.find((e) => e.title === "Proje")!.entry);
+  assert.deepEqual(await store.listTrash(), []);
+  await assert.rejects(store.restoreTrash("../dışarı"), /Geçersiz/);
+});
+
+test("eski 'ekler' klasörü açılışta 'Attachments' olur; resim bağlantıları ve kapaklar güncellenir", async () => {
+  await mkdir(path.join(dir, "ekler"), { recursive: true });
+  await writeFile(path.join(dir, "ekler", "r.png"), "png");
+  await mkdir(path.join(dir, "Proje"), { recursive: true });
+  await writeFile(path.join(dir, "Proje.md"), "---\nid: p1\ntitle: Proje\ncover: ekler/r.png\n---\n\n![r](ekler/r.png)\n");
+  await writeFile(path.join(dir, "Proje", "Alt.md"), "Çerçevesiz not ![r](../ekler/r.png) [dış](https://x.y)\n");
+  await store.ensureRoot();
+  assert.deepEqual(await readdir(path.join(dir, "Attachments")), ["r.png"]);
+  await assert.rejects(readdir(path.join(dir, "ekler")));
+  const p = await store.read("p1");
+  assert.equal(p.path, "Proje/Proje.md", "eski düzen klasör notuna çevrilir");
+  assert.equal(p.cover, "../Attachments/r.png");
+  assert.equal(p.body.trim(), "![r](../Attachments/r.png)");
+  assert.equal(await readFile(path.join(dir, "Proje", "Alt.md"), "utf8"), "Çerçevesiz not ![r](../Attachments/r.png) [dış](https://x.y)\n", "frontmatter eklenmez");
+});
+
+test("klasör notu düzeni: alt Node eklenince not klasörüne girer, taşınır, bağlantılar ve kapak korunur", async () => {
+  const img = await store.saveAttachment("k.png", new Uint8Array([1]));
+  const hub = await store.create({ title: "Merkez", body: "[Plan](Plan.md)" });
+  const plan = await store.create({ title: "Plan", fields: { cover: img } });
+  assert.equal(plan.path, "Plan.md");
+  const step = await store.create({ title: "Adım", parentNodeId: plan.id, body: "[Merkez](../Merkez.md)" });
+  // Plan alt Node aldı: "Plan/Plan.md" oldu; ona verilen bağlantı ve kapağı güncellendi.
+  const p1 = await store.read(plan.id);
+  assert.equal(p1.path, "Plan/Plan.md");
+  assert.equal(p1.cover, `../${img}`);
+  assert.equal((await store.read(hub.id)).body.trim(), "[Plan](Plan/Plan.md)");
+  assert.equal((await store.read(step.id)).path, "Plan/Adim.md");
+  assert.equal((await store.read("Plan")).id, plan.id, "klasör yoluyla bulunur");
+  // Klasör notu başka bir Node'un altına taşınır: klasörüyle gider.
+  const arch = await store.create({ title: "Arşiv" });
+  await store.move(plan.id, arch.id);
+  assert.equal((await store.read(plan.id)).path, "Arsiv/Plan/Plan.md");
+  assert.equal((await store.read(plan.id)).cover, `../../${img}`);
+  assert.equal((await store.read(step.id)).path, "Arsiv/Plan/Adim.md");
+  assert.equal((await store.read(step.id)).body.trim(), "[Merkez](../../Merkez.md)");
+  assert.equal((await store.read(step.id)).parentNodeId, plan.id);
+  assert.equal((await store.read(plan.id)).parentNodeId, arch.id);
+  assert.equal((await store.read(hub.id)).body.trim(), "[Plan](Arsiv/Plan/Plan.md)");
+  // Yeniden adlandırma klasörü ve klasör notunu birlikte değiştirir.
+  await store.update(plan.id, { title: "Yol haritası" });
+  assert.equal((await store.read(plan.id)).path, "Arsiv/Yol haritasi/Yol haritasi.md");
+  assert.equal((await store.read(step.id)).path, "Arsiv/Yol haritasi/Adim.md");
+});
+
+test("eski düzen (not.md + not/) açılışta klasör notuna çevrilir; dışarıdan eklenmiş dosyaya frontmatter yazılmaz", async () => {
+  await mkdir(path.join(dir, "Kitap", "Bolum"), { recursive: true });
+  await writeFile(path.join(dir, "Kitap.md"), "---\nid: k1\ntitle: Kitap\n---\n\n[1](Kitap/Bolum.md)\n");
+  await writeFile(path.join(dir, "Kitap", "Bolum.md"), "---\nid: b1\ntitle: Bölüm\n---\n\n[Üst](../Kitap.md)\n");
+  await writeFile(path.join(dir, "Kitap", "Bolum", "Sayfa.md"), "Düz not [Bölüm](../Bolum.md)\n");
+  assert.equal((await store.read("b1")).parentNodeId, "k1", "eski düzen de okunur");
+  await store.ensureRoot();
+  const k = await store.read("k1");
+  const b = await store.read("b1");
+  assert.equal(k.path, "Kitap/Kitap.md");
+  assert.equal(b.path, "Kitap/Bolum/Bolum.md");
+  assert.equal(k.body.trim(), "[1](Bolum/Bolum.md)");
+  assert.equal(b.body.trim(), "[Üst](../Kitap.md)");
+  assert.equal(b.parentNodeId, "k1");
+  assert.equal(await readFile(path.join(dir, "Kitap", "Bolum", "Sayfa.md"), "utf8"), "Düz not [Bölüm](Bolum.md)\n");
+  assert.equal((await store.list()).find((n) => n.path === "Kitap/Bolum/Sayfa.md")?.parentNodeId, "b1");
+  assert.equal(await store.normalizeLayout(), 0, "ikinci çalıştırma bir şey değiştirmez");
+});
+
+test("çoğaltma: alt Node'lar, iç bağlantılar, ilişkiler ve veritabanı şeması kopyaya yönlenir; şablon işareti taşınmaz", async () => {
+  const tpl = await store.create({ title: "Proje şablonu", fields: { template: true, icon: "🚀" } });
+  const tasks = await store.create({ title: "Görevler", parentNodeId: tpl.id, fields: { database: { properties: [{ id: "bagli", name: "Bağlı", type: "relation", target: "" }] } } });
+  await store.update(tasks.id, { fields: { database: { properties: [{ id: "bagli", name: "Bağlı", type: "relation", target: tasks.id }] } } });
+  const a = await store.create({ title: "A", parentNodeId: tasks.id, body: "[B](B.md)" });
+  const b = await store.create({ title: "B", parentNodeId: tasks.id, fields: { props: { bagli: [a.id] } } });
+  await store.update(tpl.id, { body: "[Görevler](Gorevler/Gorevler.md)" });
+  const fresh = await store.read(tpl.id);
+  assert.equal(fresh.body.trim(), "[Görevler](Gorevler/Gorevler.md)");
+
+  const copy = await store.duplicate(tpl.id, { parentNodeId: null, title: "Web sitesi" });
+  assert.equal(copy.title, "Web sitesi");
+  assert.equal(copy.icon, "🚀");
+  assert.equal(copy.template, undefined);
+  assert.notEqual(copy.id, tpl.id);
+  const all = await store.list();
+  const copyTasks = all.find((n) => n.parentNodeId === copy.id)!;
+  const copyA = all.find((n) => n.parentNodeId === copyTasks.id && n.title === "A")!;
+  const copyB = all.find((n) => n.parentNodeId === copyTasks.id && n.title === "B")!;
+  assert.equal(copy.body.trim(), "[Görevler](Gorevler/Gorevler.md)");
+  assert.equal(copy.path, "Web sitesi/Web sitesi.md");
+  assert.deepEqual(copyB.props, { bagli: [copyA.id] }, "ilişki kopyadaki satıra yönlenir");
+  assert.equal((copyTasks.database as { properties: { target: string }[] }).properties[0].target, copyTasks.id);
+  assert.equal((await store.read(copyA.id)).body.trim(), "[B](B.md)");
+  assert.deepEqual((await store.read(b.id)).props, { bagli: [a.id] }, "kaynak değişmez");
 });

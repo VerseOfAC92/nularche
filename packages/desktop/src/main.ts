@@ -10,6 +10,7 @@ import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises"
 import { homedir } from "node:os";
 import path from "node:path";
 import { exportArchive, importArchive, type ArchiveKind } from "../../core/src/archive.ts";
+import { exportMarkdownZip, exportPageHtml, exportSite } from "../../core/src/export.ts";
 import type { McpEntry } from "../../core/src/ai-clients.ts";
 import { registerAiIpc, type AiSettings } from "./ai.ts";
 import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
@@ -382,6 +383,36 @@ async function saveArchive(nodeId: string | null, kind: ArchiveKind): Promise<st
   return res.filePath;
 }
 
+/** Sayfayı Markdown (.zip) ya da tek dosya HTML olarak kaydeder; site için klasör seçtirir ve dosyaları yazar. */
+async function exportTo(kind: "md" | "html" | "site", nodeId: string | null): Promise<string | null> {
+  if (!server) return null;
+  const lang = desktopLang();
+  if (kind === "site") {
+    const res = await dialog.showOpenDialog({ title: d("export.siteFolder"), properties: ["openDirectory", "createDirectory"], buttonLabel: d("export.siteButton") });
+    if (res.canceled || !res.filePaths[0]) return null;
+    const dir = res.filePaths[0];
+    const { files } = await exportSite(server.store, { rootId: nodeId ?? undefined, lang });
+    for (const [rel, data] of Object.entries(files)) {
+      const abs = path.join(dir, ...rel.split("/"));
+      if (!abs.startsWith(dir + path.sep)) continue;
+      await mkdir(path.dirname(abs), { recursive: true });
+      await writeFile(abs, data);
+    }
+    void shell.openPath(path.join(dir, "index.html"));
+    return dir;
+  }
+  if (!nodeId) return null;
+  const out = kind === "html" ? await exportPageHtml(server.store, nodeId, lang) : await exportMarkdownZip(server.store, nodeId);
+  const res = await dialog.showSaveDialog({
+    defaultPath: path.join(app.getPath("documents"), out.name),
+    filters: [kind === "html" ? { name: "HTML", extensions: ["html"] } : { name: "ZIP", extensions: ["zip"] }],
+  });
+  if (res.canceled || !res.filePath) return null;
+  await writeFile(res.filePath, "html" in out ? out.html : out.data);
+  shell.showItemInFolder(res.filePath);
+  return res.filePath;
+}
+
 function compareVersions(a: string, b: string): number {
   const pa = a.replace(/^v/, "").split(".").map(Number);
   const pb = b.replace(/^v/, "").split(".").map(Number);
@@ -449,6 +480,14 @@ function registerIpc(): void {
     saveArchive(typeof nodeId === "string" ? nodeId : null, kind === "nlc" ? "nlc" : "nla"),
   );
   ipcMain.handle("nularche:import-archive", () => pickAndImport());
+  ipcMain.handle("nularche:export", async (_e, kind: unknown, nodeId: unknown) => {
+    if (kind !== "md" && kind !== "html" && kind !== "site") return { ok: false, error: "invalid" };
+    try {
+      return { ok: true, path: await exportTo(kind, typeof nodeId === "string" ? nodeId : null) };
+    } catch (err) {
+      return { ok: false, error: String((err as Error).message ?? err) };
+    }
+  });
   ipcMain.handle("nularche:check-update", async () => {
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { accept: "application/vnd.github+json" } });

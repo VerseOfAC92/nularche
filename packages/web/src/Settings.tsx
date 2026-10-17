@@ -5,6 +5,8 @@ import { AiSetup } from "./ai/AiSetup.tsx";
 import { desktop } from "./desktop.ts";
 import { getTheme, setTheme, type ThemeChoice } from "./theme.ts";
 import { setLang, t, useLang } from "./i18n/index.ts";
+import { exportNode } from "./exporting.ts";
+import { api } from "./api.ts";
 
 export function Settings({
   onClose,
@@ -20,6 +22,10 @@ export function Settings({
   const [info, setInfo] = useState<{ version: string; originDir: string; warning: string | null } | null>(null);
   const [theme, setThemeState] = useState<ThemeChoice>(getTheme);
   const lang = useLang();
+  const [published, setPublished] = useState<number | null>(null);
+  useEffect(() => {
+    api.list().then((ns) => setPublished(ns.filter((n) => n.publish && !n.template).length), () => setPublished(0));
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!desktop) return;
@@ -125,6 +131,25 @@ export function Settings({
             </div>
           </>
         )}
+
+        <h3>{t("export.publishTitle")}</h3>
+        <p className="muted">{t("export.publishHint", { count: published ?? 0 })}</p>
+        <div className="row">
+          <button
+            className="secondary"
+            disabled={!published}
+            onClick={async () => {
+              try {
+                const out = await exportNode("site", null);
+                if (out) onToast(out === "downloaded" ? t("export.downloaded") : t("export.siteSaved", { path: out }));
+              } catch (e) {
+                onToast((e as Error).message);
+              }
+            }}
+          >
+            🌐 {desktop ? t("export.createSite") : t("export.downloadSite")}
+          </button>
+        </div>
 
         <h3>{t("settings.ai")}</h3>
         <p className="muted">{t("settings.aiIntro")}</p>

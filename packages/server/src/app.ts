@@ -8,6 +8,7 @@ import path from "node:path";
 import { NodeError, NodeStore } from "../../core/src/node-store.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
+import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
 import type { ProviderId } from "../../core/src/ai-clients.ts";
 
 const HOST = "127.0.0.1";
@@ -87,6 +88,15 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   function send(res: ServerResponse, status: number, body: unknown): void {
     res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
     res.end(JSON.stringify(body));
+  }
+
+  function sendFile(res: ServerResponse, name: string, type: string, data: Uint8Array | string): void {
+    res.writeHead(200, {
+      "content-type": type,
+      "cache-control": "no-store",
+      "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
+    });
+    res.end(data);
   }
 
   async function readBody(req: IncomingMessage, limit: number): Promise<Buffer> {
@@ -169,6 +179,18 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         const b = await readJson(req);
         return send(res, 201, await store.capture(str(b.text) ?? "", str(b.title)));
       }
+      case "GET trash":
+        return send(res, 200, { entries: await store.listTrash() });
+      case "POST trash/:id/restore":
+        return send(res, 200, await store.restoreTrash(id));
+      case "DELETE trash/:id":
+        await store.deleteTrash(id);
+        return send(res, 200, { deleted: id });
+      case "DELETE trash": {
+        const entries = await store.listTrash();
+        for (const e of entries) await store.deleteTrash(e.entry);
+        return send(res, 200, { deleted: entries.length });
+      }
       case "GET nodes":
         return send(res, 200, { nodes: await store.list() });
       case "POST nodes": {
@@ -194,6 +216,28 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       case "POST nodes/:id/move": {
         const b = await readJson(req);
         return send(res, 200, await store.move(id, str(b.parentNodeId) ?? null));
+      }
+      case "POST nodes/:id/duplicate": {
+        const b = await readJson(req);
+        const parent = b.parentNodeId === undefined ? undefined : (str(b.parentNodeId) ?? null);
+        return send(res, 201, await store.duplicate(id, { parentNodeId: parent, title: str(b.title), fields: obj(b.fields) }));
+      }
+      case "GET nodes/:id/export": {
+        const lang = url.searchParams.get("lang") === "en" ? "en" : "tr";
+        if (url.searchParams.get("format") === "html") {
+          const out = await exportPageHtml(store, id, lang);
+          return sendFile(res, out.name, "text/html; charset=utf-8", out.html);
+        }
+        if (url.searchParams.get("format") === "site") {
+          const out = await exportSite(store, { rootId: id, lang });
+          return sendFile(res, "site.zip", "application/zip", zipFiles(out.files));
+        }
+        const out = await exportMarkdownZip(store, id);
+        return sendFile(res, out.name, "application/zip", out.data);
+      }
+      case "GET site": {
+        const out = await exportSite(store, { lang: url.searchParams.get("lang") === "en" ? "en" : "tr" });
+        return sendFile(res, "site.zip", "application/zip", zipFiles(out.files));
       }
       case "GET nodes/:id/backlinks":
         return send(res, 200, { nodes: await store.backlinks(id) });

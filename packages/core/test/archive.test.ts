@@ -25,29 +25,29 @@ afterEach(async () => {
 test(".nlc tek Node'u alt Node'ları, ekleri ve bağlantılarıyla taşır", async () => {
   const proje = await src.create({ title: "Proje" });
   const img = await src.saveAttachment("şema.png", new Uint8Array([9, 9]));
-  const alt = await src.create({ title: "Alt", parentNodeId: proje.id, body: `![ş](../${img})\n\n[Üst](../Proje.md)` });
-  await src.update(proje.id, { body: "[Alt](Proje/Alt.md)", fields: { cover: img } });
+  const alt = await src.create({ title: "Alt", parentNodeId: proje.id, body: `![ş](../${img})\n\n[Üst](Proje.md)` });
+  await src.update(proje.id, { body: "[Alt](Alt.md)", fields: { cover: `../${img}` } });
   await src.create({ title: "Dışarıda" });
 
   const { data, manifest } = await exportArchive(src, { rootId: proje.id, kind: "nlc" });
   assert.equal(manifest.nodeCount, 2);
   assert.equal(manifest.attachmentCount, 1);
-  assert.deepEqual(manifest.roots, ["nodes/Proje.md"]);
+  assert.deepEqual(manifest.roots, ["nodes/Proje/Proje.md"]);
 
   await dst.create({ title: "Proje", parentNodeId: "shadow" }); // ad çakışması
   const res = await importArchive(dst, data);
   assert.equal(res.imported, 2);
   const nodes = await dst.list();
-  const imported = nodes.find((n) => n.path === "Shadow/Proje 2.md")!;
+  const imported = nodes.find((n) => n.path === "Shadow/Proje 2/Proje 2.md")!;
   assert.ok(imported, nodes.map((n) => n.path).join(","));
   assert.deepEqual(res.rootIds, [imported.id]);
   assert.equal(imported.id, proje.id);
   const child = await dst.read("Shadow/Proje 2/Alt.md");
   assert.equal(child.id, alt.id);
-  assert.match(child.body, /!\[ş\]\(\.\.\/\.\.\/ekler\/sema\.png\)/);
-  assert.match(child.body, /\[Üst\]\(\.\.\/Proje%202\.md\)/);
-  assert.match((await dst.read(imported.id)).body, /\[Alt\]\(Proje%202\/Alt\.md\)/);
-  assert.equal((await dst.read(imported.id)).cover, "../ekler/sema.png");
+  assert.match(child.body, /!\[ş\]\(\.\.\/\.\.\/Attachments\/sema\.png\)/);
+  assert.match(child.body, /\[Üst\]\(Proje%202\.md\)/);
+  assert.match((await dst.read(imported.id)).body, /\[Alt\]\(Alt\.md\)/);
+  assert.equal((await dst.read(imported.id)).cover, "../../Attachments/sema.png");
 
   // Aynı arşivi tekrar içe aktarmak id çakışmasında yeni id üretir.
   const again = await importArchive(dst, data);

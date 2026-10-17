@@ -56,5 +56,5 @@ export function slugify(title: string): string {
     .replace(/\s+/g, " ")
     .slice(0, 80)
     .trim();
-  return base || "Adsiz";
+  return base || "Untitled";
 }

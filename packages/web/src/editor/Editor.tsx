@@ -24,6 +24,7 @@ interface CommandContext {
   pickFile: (accept: string) => Promise<File | null>;
   insertFiles: (e: TiptapEditor, files: File[], pos?: number) => Promise<void>;
   createChild: (title: string) => Promise<NodeMeta | null>;
+  createDatabase: (title: string) => Promise<NodeMeta | null>;
 }
 
 const CALLOUT_LABELS: Record<CalloutKind, [StringKey, string]> = {
@@ -159,6 +160,17 @@ const commands = (): Command[] => [
     },
   },
   {
+    group: t("ed.g.advanced"),
+    label: t("ed.c.database"),
+    hint: t("ed.c.databaseHint"),
+    icon: "▦",
+    keywords: "database veritabani tablo pano board takvim calendar galeri gallery liste list timeline",
+    run: async (e, ctx) => {
+      const node = await ctx.createDatabase(t("db.untitledDb"));
+      if (node) e.chain().focus().insertDatabase(fileUrl(node.path)).run();
+    },
+  },
+  {
     group: t("ed.g.media"),
     label: t("ed.c.image"),
     hint: t("ed.c.imageHint"),
@@ -235,6 +247,7 @@ export interface EditorProps {
   onChange: (markdown: string) => void;
   onOpenPath: (vaultPath: string) => void;
   onCreateChild: (title: string) => Promise<NodeMeta | null>;
+  onCreateDatabase: (title: string) => Promise<NodeMeta | null>;
   onError: (message: string) => void;
   /** Seçili metin değiştiğinde (Nularche AI bağlamı için). */
   onSelectionText?: (text: string) => void;
@@ -273,6 +286,7 @@ export function Editor(props: EditorProps) {
       }
     },
     createChild: (title) => propsRef.current.onCreateChild(title),
+    createDatabase: (title) => propsRef.current.onCreateDatabase(title),
   };
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
@@ -415,7 +429,7 @@ export function Editor(props: EditorProps) {
             editor={editor}
             pluginKey="format"
             shouldShow={({ editor: e, state }) =>
-              !state.selection.empty && !e.isActive("image") && !e.isActive("codeBlock") && !e.isActive("youtube")
+              !state.selection.empty && !e.isActive("image") && !e.isActive("codeBlock") && !e.isActive("youtube") && !e.isActive("inlineDatabase")
             }
           >
             <FormatBar editor={editor} />

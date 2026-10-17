@@ -5,32 +5,49 @@ import { NodeView } from "./NodeView.tsx";
 import { SearchDialog } from "./SearchDialog.tsx";
 import { Settings } from "./Settings.tsx";
 import { ShadowView } from "./ShadowView.tsx";
+import { TrashView } from "./TrashView.tsx";
+import { TemplateGallery } from "./templates/TemplateGallery.tsx";
+import { BUILTIN_TEMPLATES } from "./templates/builtins.ts";
+import { todayIso } from "./database/model.ts";
 import { Sidebar } from "./Sidebar.tsx";
 import { NularcheAI, type AiContext } from "./ai/NularcheAI.tsx";
 import { Onboarding } from "./ai/Onboarding.tsx";
 import { PROVIDER_LABEL } from "./ai/prompts.ts";
-import { t } from "./i18n/index.ts";
+import { t, getLang } from "./i18n/index.ts";
 
-export type Route = { kind: "home" } | { kind: "shadow" } | { kind: "node"; id: string };
+export type Route = { kind: "home" } | { kind: "shadow" } | { kind: "trash" } | { kind: "node"; id: string };
 
 function parseHash(): Route {
   const h = decodeURIComponent(location.hash.slice(1));
   if (!h) return { kind: "home" };
   if (h === "shadow") return { kind: "shadow" };
+  if (h === "trash") return { kind: "trash" };
   return { kind: "node", id: h };
 }
 
 function routeHash(r: Route): string {
-  return r.kind === "home" ? "" : r.kind === "shadow" ? "shadow" : encodeURIComponent(r.id);
+  return r.kind === "home" ? "" : r.kind === "shadow" ? "shadow" : r.kind === "trash" ? "trash" : encodeURIComponent(r.id);
+}
+
+/** Bir Node'un tüm alt Node'larının id'leri (üst bağlantısından; dosya yoluna göre değil). */
+function descendantIds(nodes: NodeMeta[], id: string): Set<string> {
+  const out = new Set<string>();
+  const walk = (pid: string) => {
+    for (const n of nodes) if (n.parentNodeId === pid && !out.has(n.id)) (out.add(n.id), walk(n.id));
+  };
+  walk(id);
+  return out;
 }
 
 export function App() {
   const [nodes, setNodes] = useState<NodeMeta[]>([]);
+  const [trashCount, setTrashCount] = useState(0);
   const [route, setRoute] = useState<Route>(parseHash);
   const [originName, setOriginName] = useState("");
   const [changeTick, setChangeTick] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [update, setUpdate] = useState<{ version: string; url: string } | null>(null);
@@ -68,6 +85,7 @@ export function App() {
   const refresh = useCallback(async () => {
     try {
       setNodes(await api.list());
+      api.trashList().then((e) => setTrashCount(e.length), () => undefined);
     } catch (e) {
       setError(String(e));
     }
@@ -123,15 +141,35 @@ export function App() {
     [refresh, navigate],
   );
 
+  /** Günlük not: "Günlük" Arche'si altında bugünün tarihli sayfasını açar, yoksa günlük şablonuyla oluşturur. */
+  const openDaily = useCallback(async () => {
+    try {
+      const names = ["Günlük", "Journal"];
+      let arche = nodes.find((n) => n.archeId === n.id && names.includes(n.title));
+      if (!arche) arche = await api.create(t("daily.arche"), null, "", { icon: "📔" });
+      const today = todayIso();
+      let page = nodes.find((n) => n.parentNodeId === arche!.id && n.title === today);
+      if (!page) {
+        const tpl = BUILTIN_TEMPLATES.find((x) => x.key === "daily")!;
+        page = await api.create(today, arche.id, tpl.body?.[getLang()] ?? "");
+      }
+      await refresh();
+      navigate({ kind: "node", id: page.id });
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, [nodes, refresh, navigate]);
+
   const trash = useCallback(
     async (n: NodeMeta) => {
-      const subCount = nodes.filter((x) => x.path.startsWith(n.path.slice(0, -3) + "/")).length;
+      const below = descendantIds(nodes, n.id);
+      const subCount = below.size;
       const msg = subCount ? t("app.trashConfirmChildren", { title: n.title, count: subCount }) : t("app.trashConfirm", { title: n.title });
       if (!confirm(msg)) return;
       await api.trash(n.id);
       if (route.kind === "node") {
         const cur = nodes.find((x) => x.id === route.id);
-        if (cur && (cur.id === n.id || cur.path.startsWith(n.path.slice(0, -3) + "/"))) navigate({ kind: "home" });
+        if (cur && (cur.id === n.id || below.has(cur.id))) navigate({ kind: "home" });
       }
       refresh();
       showToast(t("app.trashed"));
@@ -157,11 +195,14 @@ export function App() {
       } else if (mod && e.key.toLowerCase() === "n" && !e.shiftKey) {
         e.preventDefault();
         void create(SHADOW);
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        void openDaily();
       }
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [create]);
+  }, [create, openDaily]);
 
   const shadowCount = nodes.filter((n) => n.archeId === null).length;
   const context = route.kind === "node" && aiContext.nodeId === route.id ? aiContext : {};
@@ -173,6 +214,7 @@ export function App() {
         route={route}
         originName={originName}
         shadowCount={shadowCount}
+        trashCount={trashCount}
         onNavigate={navigate}
         onCreate={create}
         onTrash={trash}
@@ -180,6 +222,8 @@ export function App() {
         onError={setError}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenTemplates={() => setTemplatesOpen(true)}
+        onDaily={openDaily}
       />
       <main className="main">
         {update && (
@@ -213,9 +257,21 @@ export function App() {
         {route.kind === "shadow" && (
           <ShadowView nodes={nodes} changeTick={changeTick} onOpen={(id) => navigate({ kind: "node", id })} onChanged={refresh} onToast={showToast} />
         )}
+        {route.kind === "trash" && (
+          <TrashView changeTick={changeTick} onChanged={refresh} onToast={showToast} />
+        )}
         {route.kind === "home" && <Welcome onCreate={create} onShadow={() => navigate({ kind: "shadow" })} />}
       </main>
 
+      {templatesOpen && (
+        <TemplateGallery
+          nodes={nodes}
+          currentId={route.kind === "node" ? route.id : null}
+          onClose={() => setTemplatesOpen(false)}
+          onCreated={async (id) => (await refresh(), navigate({ kind: "node", id }))}
+          onToast={showToast}
+        />
+      )}
       {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} onToast={showToast} onChanged={refresh} aiTick={aiTick} />}
       <NularcheAI
         open={aiOpen}

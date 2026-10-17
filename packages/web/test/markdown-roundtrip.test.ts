@@ -24,10 +24,11 @@ const cases: Record<string, [string, string]> = {
   kod: ["```ts\nconst x = 1;\n```", "codeBlock"],
   ayırıcı: ["üst\n\n---\n\nalt", "horizontalRule"],
   tablo: ["| Ad | Durum |\n| --- | --- |\n| A | Açık |", "tableCell"],
-  resim: ["![ekran](/files/ekler/ekran.png)", "image"],
+  resim: ["![ekran](/files/Attachments/ekran.png)", "image"],
   callout: ["> [!WARNING]\n> Dikkat edilmeli\n>\n> - madde", "callout"],
   açılır: ["<details>\n<summary>Ayrıntılar</summary>\n\nGizli **içerik**\n\n- madde\n\n</details>", "detailsContent"],
   youtube: ["@[youtube](https://www.youtube.com/watch?v=dQw4w9WgXcQ)", "youtube"],
+  veritabanı: ["@[database](/files/Proje/Gorevler/Gorevler.md#view=v_board)", "inlineDatabase"],
   renk: ['önce <span style="color: #00A8B5">renkli</span> sonra', "textStyle"],
 };
 
@@ -70,5 +71,15 @@ describe("editör bağlantı sınırı", () => {
     const ed = toEditorMarkdown(md, "Projeler/Alt.md");
     expect(ed).toBe("[Plan](/files/Plan%20A.md) ![r](/files/ekler/r.png) [d](https://x.y)");
     expect(fromEditorMarkdown(ed, "Projeler/Alt.md")).toBe(md);
+  });
+});
+
+describe("gömülü veritabanı bağlantısı", () => {
+  test("dosyadaki göreli yol editörde /files/ yoluna çevrilir ve görünüm parçası korunur", async () => {
+    const { toEditorMarkdown, fromEditorMarkdown } = await import("../src/editor/paths.ts");
+    const md = "@[database](Gorevler/Gorevler.md#view=v_board)";
+    const ed = toEditorMarkdown(md, "Proje/Proje.md");
+    expect(ed).toBe("@[database](/files/Proje/Gorevler/Gorevler.md#view=v_board)");
+    expect(fromEditorMarkdown(ed, "Proje/Proje.md")).toBe(md);
   });
 });

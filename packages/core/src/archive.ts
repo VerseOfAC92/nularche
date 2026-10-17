@@ -2,7 +2,7 @@
 //   .nla  Nularche Archive   – Origin'in tamamının ya da bir şablon setinin yedeği
 //   .nlc  Nularche Container – tek bir Node'un (alt Node'ları ve ekleriyle) taşınabilir paketi
 // İkisi de ZIP'tir: `manifest.json`, `nodes/` altında Node'lar (Markdown, klasör yapısı korunur)
-// ve `ekler/` altında başvurulan ekler. Bağlantılar arşiv düzenine göre görelidir; içe aktarırken
+// ve `Attachments/` altında başvurulan ekler. Bağlantılar arşiv düzenine göre görelidir; içe aktarırken
 // hedef konuma göre yeniden yazılır. `.narc` uzantısı bilerek kullanılmaz.
 
 import { randomUUID } from "node:crypto";
@@ -10,7 +10,8 @@ import path from "node:path";
 import { unzipSync, zipSync, type Zippable } from "fflate";
 import { extractLinks, rewriteLinks } from "./links.ts";
 import { parseNodeFile, serializeNodeFile, type Frontmatter } from "./node-file.ts";
-import { ATTACHMENTS_DIR, NodeError, NodeStore, SHADOW, SHADOW_DIR, type NodeMeta } from "./node-store.ts";
+import { childDirOf, isFolderNote } from "./layout.ts";
+import { ATTACHMENTS_DIR, LEGACY_ATTACHMENTS_DIR, NodeError, NodeStore, SHADOW, SHADOW_DIR, type NodeMeta } from "./node-store.ts";
 
 export const ARCHIVE_FORMAT = "nularche-archive";
 export const ARCHIVE_VERSION = 1;
@@ -33,7 +34,6 @@ export interface ArchiveManifest {
 const MAX_ENTRIES = 50_000;
 const MAX_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
 
-const childDirOf = (p: string) => p.slice(0, -3);
 
 /**
  * Node'ları arşivler. `rootId` verilirse yalnızca o Node ve alt Node'ları (.nlc), verilmezse
@@ -51,7 +51,8 @@ export async function exportArchive(
     if (!root) throw new NodeError("not_found", `Node bulunamadı: ${options.rootId}`);
     const dir = childDirOf(root.path);
     selected = all.filter((n) => n.id === root.id || n.path.startsWith(`${dir}/`));
-    base = path.posix.dirname(root.path) === "." ? "" : `${path.posix.dirname(root.path)}/`;
+    const container = isFolderNote(root.path) ? path.posix.dirname(path.posix.dirname(root.path)) : path.posix.dirname(root.path);
+    base = container === "." ? "" : `${container}/`;
   } else {
     selected = all;
   }
@@ -88,7 +89,9 @@ export async function exportArchive(
   }
   for (const a of attachments) files[a] = new Uint8Array(await store.readRaw(a));
 
-  const roots = selected.filter((n) => !selected.some((p) => n.path.startsWith(`${childDirOf(p.path)}/`))).map((n) => moved.get(n.path)!);
+  const roots = selected
+    .filter((n) => !selected.some((p) => p.id !== n.id && n.path.startsWith(`${childDirOf(p.path)}/`)))
+    .map((n) => moved.get(n.path)!);
   const manifest: ArchiveManifest = {
     format: ARCHIVE_FORMAT,
     version: ARCHIVE_VERSION,
@@ -179,11 +182,16 @@ export async function importArchive(store: NodeStore, data: Uint8Array, options:
       for (let i = 2; (await store.pathExists(`${dir}${name}.md`)) || (await store.pathExists(`${dir}${name}`)); i++) name = `${top} ${i}`;
       rootRename.set(key, `${dir}${name}`);
     }
-    moved.set(entry, `${rootRename.get(key)}${rel.slice(top.length)}`);
+    const renamed = rootRename.get(key)!;
+    let rest = rel.slice(top.length);
+    // Kökün klasör notu (`kök/kök.md`) yeni adla birlikte yeniden adlandırılır.
+    if (rest === `/${top}.md`) rest = `/${path.posix.basename(renamed)}.md`;
+    moved.set(entry, `${renamed}${rest}`);
   }
   let attachments = 0;
   for (const entry of Object.keys(entries)) {
-    if (!entry.startsWith(`${ATTACHMENTS_DIR}/`) || !safeEntry(entry)) continue;
+    // Eski sürümlerin arşivlerinde ekler `ekler/` altındadır.
+    if (!(entry.startsWith(`${ATTACHMENTS_DIR}/`) || entry.startsWith(`${LEGACY_ATTACHMENTS_DIR}/`)) || !safeEntry(entry)) continue;
     moved.set(entry, await store.saveAttachment(path.posix.basename(entry), entries[entry]));
     attachments++;
   }
@@ -207,5 +215,7 @@ export async function importArchive(store: NodeStore, data: Uint8Array, options:
     const relEntry = entry.slice("nodes/".length).replace(new RegExp(`^${SHADOW_DIR}/`), "");
     if (rootSet.has(entry) || !relEntry.includes("/")) rootIds.push(id);
   }
+  // Eski düzende paketlenmiş arşivler klasör notuna çevrilir.
+  await store.normalizeLayout();
   return { manifest, imported: nodeEntries.length, rootIds: [...new Set(rootIds)], attachments };
 }
