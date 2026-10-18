@@ -216,13 +216,47 @@ async function finishSmoke(): Promise<void> {
     result.storeRoundtrip = (await server.store.read(created.id)).body.trim() === "ok";
     const res = await fetch(`${server.url}/api/nodes`);
     result.api = res.ok && ((await res.json()) as { nodes: unknown[] }).nodes.length >= 1;
-    result.ok = !!(result.ui as { sidebar?: boolean }).sidebar && result.storeRoundtrip === true && result.api === true;
+    result.pageWidth = await measurePageWidth(created.id);
+    result.ok =
+      !!(result.ui as { sidebar?: boolean }).sidebar &&
+      result.storeRoundtrip === true &&
+      result.api === true &&
+      (result.pageWidth as { ok: boolean }).ok;
   } catch (err) {
     result.ok = false;
     result.error = String(err);
   }
   await writeFile(SMOKE, JSON.stringify(result, null, 2));
   app.exit(result.ok ? 0 : 1);
+}
+
+/**
+ * Not sayfasının yazı alanı pencereyle birlikte genişlemeli (sabit bir üst sınır olmadan). CI ekranları küçük olabildiği
+ * için %50 yakınlaştırmayla ölçülür: 760→1000 px pencere, 1520→2000 CSS px'lik içerik demektir.
+ */
+async function measurePageWidth(nodeId: string): Promise<Record<string, unknown>> {
+  if (!win) return { ok: false, error: "no window" };
+  const w = win;
+  const zoom = 0.5;
+  w.webContents.send("nularche:navigate", nodeId);
+  await w.webContents.executeJavaScript(
+    `new Promise((resolve, reject) => { const t0 = Date.now(); (function poll() { if (document.querySelector(".page .ProseMirror")) return resolve(true); if (Date.now() - t0 > 15000) return reject(new Error("note page did not open")); setTimeout(poll, 100); })(); })`,
+  );
+  w.webContents.setZoomFactor(zoom);
+  const measure = async (width: number) => {
+    w.setContentSize(width, 700);
+    // Gizli pencerede yeniden boyutlanma arayüze gecikmeli ulaşabilir: genişlik yansıyana kadar beklenir.
+    return (await w.webContents.executeJavaScript(
+      `new Promise((resolve) => { const t0 = Date.now(); (function poll() { if (Math.abs(innerWidth - ${width / zoom}) > 4 && Date.now() - t0 < 5000) return setTimeout(poll, 100); requestAnimationFrame(() => { const p = document.querySelector(".page"); resolve({ viewport: innerWidth, content: Math.round(p.parentElement.getBoundingClientRect().width), text: Math.round(p.querySelector(".ProseMirror").getBoundingClientRect().width) }); }); })(); })`,
+    )) as { viewport: number; content: number; text: number };
+  };
+  const narrow = await measure(760); // minWidth 720'nin üstünde
+  const wide = await measure(1000);
+  w.webContents.setZoomFactor(1);
+  const grew = wide.content - narrow.content;
+  // Pencere gerçekten büyümeli ve yazı alanı bu büyümenin çoğunu almalı; eski 780 px sınırı burada takılırdı.
+  const ok = grew >= 400 && wide.text - narrow.text >= grew * 0.7 && wide.text >= wide.content * 0.75;
+  return { ok, narrow, wide };
 }
 
 /** Arayüz yüklenmeden istenen gezinme; arayüz açılışta `renderer-ready` ile alır. */

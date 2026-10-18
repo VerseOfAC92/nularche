@@ -114,7 +114,7 @@ jobs:
           sudo apt-get install -y xvfb
           sudo apt-get install -y ./release/Nularche-Linux-amd64.deb
           which nularche
-          xvfb-run -a node scripts/smoke-packaged.ts /opt/Nularche/nularche
+          xvfb-run -a -s "-screen 0 1920x1080x24" node scripts/smoke-packaged.ts /opt/Nularche/nularche
       - uses: actions/upload-artifact@v4
         with:
           name: linux
