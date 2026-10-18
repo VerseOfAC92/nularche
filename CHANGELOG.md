@@ -17,6 +17,7 @@ First public release.
 - Eight ready-made templates, user templates, database row templates and page duplication.
 
 ### Editor, export and AI
+- Pages use the full window width: note lines grow and shrink as you resize the window.
 - Block editor with `/` commands, tables, toggles, callouts, code highlighting, images, files and YouTube.
 - Export to Markdown (.zip), self-contained HTML and PDF; static website from pages marked "Publish to web"; `.nla` / `.nlc` archives.
 - Nularche AI window (draggable): Automatic mode with a free Gemini key and model fallback, or Subscription mode with Claude, ChatGPT or Gemini through their official apps; one-click undo.

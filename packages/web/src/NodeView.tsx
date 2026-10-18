@@ -461,7 +461,7 @@ export function NodeView(props: NodeViewProps) {
         </div>
       )}
 
-      <article className={`page ${cover ? "has-cover" : ""} ${doc.database ? "wide" : ""}`}>
+      <article className={`page ${cover ? "has-cover" : ""}`}>
         {doc.icon && (
           <div className="rel">
             <span className="page-icon" onClick={() => setMenu(menu === "icon" ? null : "icon")} title={t("node.changeIcon")}>

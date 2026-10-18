@@ -127,7 +127,7 @@ kbd { font: 11px var(--nlc-mono); color: var(--nlc-text-secondary); border: 1px 
 .gradient-5 { background: linear-gradient(135deg, #0b0d10, #26425e); }
 .gradient-6 { background: linear-gradient(135deg, #2b1a1a, #a4473d); }
 
-.page { max-width: 780px; margin: 0 auto; padding: 40px 56px 30vh; position: relative; }
+.page { margin: 0; padding: 40px clamp(24px, 6%, 96px) 30vh; position: relative; }
 .page.has-cover { padding-top: 0; }
 .page-icon { font-size: 64px; line-height: 1; margin: 0 0 8px; display: inline-block; cursor: pointer; border-radius: 8px; padding: 4px; }
 .page.has-cover .page-icon { margin-top: -40px; position: relative; }
@@ -162,7 +162,7 @@ kbd { font: 11px var(--nlc-mono); color: var(--nlc-text-secondary); border: 1px 
 .backlinks button:hover { background: var(--nlc-hover); color: var(--nlc-text-primary); }
 
 /* Shadow görünümü */
-.shadow-view { max-width: 780px; margin: 0 auto; padding: 40px 56px 20vh; }
+.shadow-view { margin: 0; padding: 40px clamp(24px, 6%, 96px) 20vh; }
 .shadow-view h1 { font-size: 32px; margin: 0; }
 .capture { display: flex; gap: 8px; margin: 16px 0 28px; align-items: flex-start; }
 .capture textarea { flex: 1; min-height: 44px; resize: vertical; background: var(--nlc-bg-elevated); border: 1px solid var(--nlc-border-subtle); border-radius: 8px; padding: 10px 12px; outline: none; }
@@ -585,7 +585,6 @@ textarea.db-input { resize: vertical; }
 .row-prop-add { align-self: flex-start; padding: 4px 6px; font-size: 13px; border-radius: 6px; }
 .row-prop-add:hover { background: var(--nlc-hover); }
 @media (max-width: 700px) { .row-prop-name { width: 120px; } .db-search { width: 100px; } }
-.page.wide { max-width: min(1180px, calc(100% - 48px)); }
 .inline-db { margin: 8px 0; }
 .inline-db.selected { outline: 2px solid var(--nlc-accent-glow); border-radius: 8px; }
 
