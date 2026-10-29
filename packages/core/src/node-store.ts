@@ -13,8 +13,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { childDirOf, containerDirOf, isFolderNote, notePathFor, ownerPathsOf, unitNameOf } from "./layout.ts";
-import { extractLinks, rewriteLinks } from "./links.ts";
+import { extractLinks, relativeLink, resolveLink, rewriteLinks } from "./links.ts";
 import { parseNodeFile, revisionOf, serializeNodeFile, slugify, type Frontmatter } from "./node-file.ts";
+import { bodyFacts, fillTemplate, isLockedBody, plainText, renameTagInBody, tagKey } from "./note-text.ts";
+import { extractWikiLinks, wikiResolver } from "./wikilinks.ts";
+import { canvasFiles, rewriteCanvasFiles } from "./canvas.ts";
 
 export { parseNodeFile, revisionOf, serializeNodeFile, slugify } from "./node-file.ts";
 
@@ -50,10 +53,57 @@ export interface PageFields {
   props?: Record<string, unknown>;
   /** Veritabanı sayfasının şeması ve görünümleri. */
   database?: Record<string, unknown>;
+  /** Not listelerinde en üstte gösterilir. */
+  pinned?: boolean;
+  /** Gövde parola ile şifrelidir (bkz. note-text.ts). */
+  locked?: boolean;
+  /** Sayfanın yazı tipi: `serif`, `sans`, `mono` ya da bir yazı tipi ailesinin adı. */
+  font?: string;
+  /** Sayfanın yazı boyutu (px). */
+  fontSize?: number;
+  /** Koyu temada bu not açık zeminde gösterilir. */
+  lightBg?: boolean;
+  /** İşaretlenen yapılacaklar listenin sonuna taşınır. */
+  sortChecked?: boolean;
 }
 
-export const PAGE_FIELD_KEYS = ["layout", "icon", "cover", "order", "favorite", "template", "publish", "props", "database"] as const;
+export const PAGE_FIELD_KEYS = [
+  "layout",
+  "icon",
+  "cover",
+  "order",
+  "favorite",
+  "template",
+  "publish",
+  "props",
+  "database",
+  "pinned",
+  "locked",
+  "font",
+  "fontSize",
+  "lightBg",
+  "sortChecked",
+] as const;
 export type PageFieldKey = (typeof PAGE_FIELD_KEYS)[number];
+
+/** Kullanıcı özelliği olarak düzenlenemeyen frontmatter anahtarları (kimlik ve uygulama alanları). */
+const RESERVED_KEYS = new Set<string>(["id", "title", "created", "updated", ...PAGE_FIELD_KEYS]);
+
+/** Frontmatter'daki kullanıcı özellikleri (Obsidian "Properties"): uygulamanın kendi alanları dışındaki anahtarlar. */
+export function userProperties(fm: Frontmatter): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(fm).filter(([k]) => !RESERVED_KEYS.has(k)));
+}
+
+/** Tek değer ya da liste olarak yazılmış metin özelliğini listeye çevirir (`aliases: Plan` ya da `aliases: [Plan, P]`). */
+function stringList(v: unknown): string[] {
+  const items = Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : [];
+  return items.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean);
+}
+
+/** Dosya geçmişi: aynı nottan iki anlık görüntü arasında en az bu kadar süre geçer. */
+const HISTORY_INTERVAL_MS = 5 * 60_000;
+/** Not başına saklanan en fazla anlık görüntü. */
+const HISTORY_LIMIT = 60;
 export type PageFieldPatch = { [K in PageFieldKey]?: PageFields[K] | null };
 
 export interface NodeMeta extends PageFields {
@@ -70,10 +120,68 @@ export interface NodeMeta extends PageFields {
   createdAt: number;
   updatedAt: number;
   revision: string;
+  /** Gövdedeki #etiketler. */
+  tags: string[];
+  /** Gövdenin düz metin başlangıcı (kilitli notlarda boş). */
+  excerpt: string;
+  /** Gövdedeki ilk görselin Origin yolu. */
+  image: string | null;
+  /** Yapılacak sayısı ve işaretli olanlar. */
+  todos: number;
+  done: number;
+  /** Ek (resim, dosya, ses, çizim) sayısı. */
+  attachments: number;
+  words: number;
+  /** Frontmatter'daki `aliases` (Obsidian uyumlu takma adlar); wiki bağlantıları ve hızlı geçişte kullanılır. */
+  aliases: string[];
 }
 
 export interface NodeDoc extends NodeMeta {
   body: string;
+  /** Kullanıcının frontmatter özellikleri (uygulamanın kendi alanları hariç). */
+  properties: Record<string, unknown>;
+}
+
+/** Bağlantı grafiği: Node'lar, aralarındaki bağlantılar ve var olmayan hedeflere giden wiki bağlantıları. */
+export interface LinkGraph {
+  nodes: { id: string; title: string; path: string; tags: string[]; archeId: string | null }[];
+  links: { source: string; target: string }[];
+  unresolved: { source: string; name: string }[];
+}
+
+/** Bir notun giden bağlantıları: çözülenler ve çözülemeyen wiki hedefleri. */
+export interface OutgoingLinks {
+  linked: NodeMeta[];
+  unresolved: string[];
+}
+
+/** Notun başlığını ya da takma adını bağlantısız olarak anan başka bir not. */
+export interface MentionHit {
+  id: string;
+  title: string;
+  snippet: string;
+}
+
+/** Dosya geçmişindeki bir anlık görüntü. */
+export interface HistoryEntry {
+  /** Anlık görüntünün zamanı (ms); kimlik olarak da kullanılır. */
+  at: number;
+  size: number;
+}
+
+/** `Attachments/` klasöründeki bir dosya ve ona bağlantı veren Node'lar. */
+export interface AttachmentInfo {
+  path: string;
+  name: string;
+  size: number;
+  modifiedAt: number;
+  kind: "image" | "audio" | "video" | "drawing" | "pdf" | "file";
+  refs: { id: string; title: string }[];
+}
+
+export interface TagCount {
+  tag: string;
+  count: number;
 }
 
 export interface SearchHit {
@@ -131,7 +239,20 @@ function pageFields(fm: Frontmatter): PageFields {
   if (fm.publish === true) out.publish = true;
   if (fm.props && typeof fm.props === "object" && !Array.isArray(fm.props)) out.props = fm.props as Record<string, unknown>;
   if (fm.database && typeof fm.database === "object" && !Array.isArray(fm.database)) out.database = fm.database as Record<string, unknown>;
+  if (fm.pinned === true) out.pinned = true;
+  if (fm.locked === true) out.locked = true;
+  if (typeof fm.font === "string" && fm.font) out.font = fm.font;
+  if (typeof fm.fontSize === "number" && fm.fontSize >= 8 && fm.fontSize <= 48) out.fontSize = fm.fontSize;
+  if (fm.lightBg === true) out.lightBg = true;
+  if (fm.sortChecked === true) out.sortChecked = true;
   return out;
+}
+
+/** Gövde etiketleri ve frontmatter `tags` alanı (tekrarsız, ilk yazılış biçimiyle). */
+function mergeTags(body: string[], front: string[]): string[] {
+  const seen = new Map<string, string>();
+  for (const t of [...body, ...front]) if (t && !seen.has(tagKey(t))) seen.set(tagKey(t), t);
+  return [...seen.values()];
 }
 
 /** Frontmatter'ında id olmayan (dışarıdan eklenmiş) dosyalar için yoldan türetilen kararlı id. */
@@ -158,6 +279,31 @@ function rewriteCover(cover: string | undefined, oldPath: string, newPath: strin
 
 /** Taranmayan klasörler (gizli klasörler zaten atlanır). */
 const IGNORED_DIRS = new Set(["node_modules"]);
+
+/** Kod ve bağlantı içindeki metni maskeler (anılış ararken bağlantı metni sayılmasın). Uzunluk korunur. */
+function maskLinks(body: string): string {
+  return body
+    .replace(/^(```|~~~)[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/`[^`\n]+`|!?\[[^\]]*\]\([^)]*\)|!?\[\[[^\]]*\]\]|^---\n[\s\S]*?\n---/gm, (m) => m.replace(/[^\n]/g, " "));
+}
+
+/** Metinde adlardan birinin kelime sınırlarıyla geçtiği ilk konum (Türkçe büyük/küçük harf duyarsız); yoksa -1. */
+function findMention(text: string, names: string[]): number {
+  const lower = text.toLocaleLowerCase("tr");
+  let best = -1;
+  for (const name of names) {
+    const n = name.toLocaleLowerCase("tr");
+    for (let i = lower.indexOf(n); i >= 0; i = lower.indexOf(n, i + 1)) {
+      const before = lower[i - 1];
+      const after = lower[i + n.length];
+      if ((!before || !/[\p{L}\p{N}_]/u.test(before)) && (!after || !/[\p{L}\p{N}_]/u.test(after))) {
+        if (best < 0 || i < best) best = i;
+        break;
+      }
+    }
+  }
+  return best;
+}
 
 function lowerTr(s: string): string {
   return s.toLocaleLowerCase("tr");
@@ -248,6 +394,8 @@ export class NodeStore {
     const title = asString(fm.title) || path.basename(absPath, path.extname(absPath));
     const created = asString(fm.created);
     const updated = asString(fm.updated);
+    const facts = bodyFacts(parsed.body);
+    const image = facts.image ? resolveLink(rel, facts.image) : null;
     const entry: CacheEntry = {
       mtimeMs: st.mtimeMs,
       size: st.size,
@@ -261,7 +409,16 @@ export class NodeStore {
         updatedAt: (updated && Date.parse(updated)) || st.mtimeMs,
         revision: revisionOf(text),
         layoutMode: fm.layout === "canvas" ? "canvas" : "stream",
+        tags: mergeTags(facts.tags, stringList(fm.tags).map((t) => t.replace(/^#/, ""))),
+        excerpt: facts.excerpt,
+        image,
+        todos: facts.todos,
+        done: facts.done,
+        attachments: facts.attachments,
+        words: facts.words,
+        aliases: stringList(fm.aliases),
         ...pageFields(fm),
+        ...(facts.locked ? { locked: true } : {}),
       },
     };
     this.cache.set(absPath, entry);
@@ -331,8 +488,8 @@ export class NodeStore {
   }
 
   async read(ref: string): Promise<NodeDoc> {
-    const { meta, body } = await this.find(ref);
-    return { ...meta, body };
+    const { meta, body, frontmatter } = await this.find(ref);
+    return { ...meta, body, properties: userProperties(frontmatter) };
   }
 
   private async exists(rel: string): Promise<boolean> {
@@ -445,8 +602,10 @@ export class NodeStore {
       const newPath = moved.get(oldPath) ?? oldPath;
       const cover = rewriteCover(n.meta.cover, oldPath, newPath, moved);
       const links = extractLinks(oldPath, n.body);
-      if (cover === n.meta.cover && newPath === oldPath && !links.some((l) => moved.has(l.target))) continue;
-      const body = links.length ? rewriteLinks(n.body, oldPath, newPath, moved) : n.body;
+      const cards = n.meta.layoutMode === "canvas" ? canvasFiles(n.body) : [];
+      if (cover === n.meta.cover && newPath === oldPath && !links.some((l) => moved.has(l.target)) && !cards.some((f) => moved.has(f))) continue;
+      let body = links.length ? rewriteLinks(n.body, oldPath, newPath, moved) : n.body;
+      if (cards.length) body = rewriteCanvasFiles(body, moved);
       if (body === n.body && cover === n.meta.cover) continue;
       const abs = this.abs(newPath);
       const text = await readFile(abs, "utf8");
@@ -457,9 +616,15 @@ export class NodeStore {
     }
   }
 
-  async update(ref: string, input: { body?: string; title?: string; baseRevision?: string; fields?: PageFieldPatch }): Promise<NodeDoc> {
+  async update(
+    ref: string,
+    input: { body?: string; title?: string; baseRevision?: string; fields?: PageFieldPatch; properties?: Record<string, unknown> },
+  ): Promise<NodeDoc> {
     const current = await this.find(ref);
     this.checkRevision(current.meta, input.baseRevision);
+    for (const key of Object.keys(input.properties ?? {})) {
+      if (RESERVED_KEYS.has(key) || !/^[^\s:#][^:#\n]{0,63}$/u.test(key)) throw new NodeError("invalid", `Bu özellik adı kullanılamaz: ${key}`);
+    }
     const title = input.title?.trim() || current.meta.title;
     let rel = current.meta.path;
     if (title !== current.meta.title) rel = await this.relocate(rel, containerDirOf(rel), title);
@@ -476,6 +641,12 @@ export class NodeStore {
       if (value === null || value === undefined) delete fm[key];
       else fm[key] = value;
     }
+    for (const [key, value] of Object.entries(input.properties ?? {})) {
+      if (value === null || value === undefined) delete fm[key];
+      else fm[key] = value;
+    }
+    const before = await readFile(abs, "utf8");
+    if (input.body !== undefined && input.body !== parsed.body) await this.snapshot(current.meta.id, before);
     // Başlık değişince bağlantılar yeniden yazılmış olabilir; gövde verilmediyse diskteki güncel gövdeyi koru.
     await this.atomicWrite(abs, serializeNodeFile(fm, input.body ?? parsed.body));
     return this.read(current.meta.id);
@@ -551,8 +722,11 @@ export class NodeStore {
     }
     const remap = (v: unknown): unknown =>
       Array.isArray(v) ? v.map((x) => (typeof x === "string" && idMap.has(x) ? idMap.get(x) : x)) : typeof v === "string" && idMap.has(v) ? idMap.get(v) : v;
+    // Şablondan oluşturulurken {{title}}, {{date}}, {{time}} değişkenleri doldurulur.
+    const now = new Date();
     for (const { src, copy } of created) {
-      const body = rewriteLinks(src.body, src.meta.path, copy.path, pathMap);
+      let body = rewriteLinks(src.body, src.meta.path, copy.path, pathMap);
+      if (root.meta.template) body = fillTemplate(body, { title: copy.title, now });
       const fields: PageFieldPatch = {};
       if (src.meta.props) fields.props = Object.fromEntries(Object.entries(src.meta.props).map(([k, v]) => [k, remap(v)]));
       if (src.meta.cover) fields.cover = rewriteCover(src.meta.cover, src.meta.path, copy.path, pathMap) ?? null;
@@ -562,7 +736,12 @@ export class NodeStore {
         for (const p of db.properties ?? []) if (p.target && idMap.has(p.target)) p.target = idMap.get(p.target);
         fields.database = db;
       }
-      if (body || Object.keys(fields).length) await this.update(copy.id, { body, fields });
+      // Kullanıcı özellikleri de kopyalanır (şablondaki metin değerlerindeki değişkenler doldurularak).
+      const props = userProperties(src.frontmatter);
+      const properties = root.meta.template
+        ? Object.fromEntries(Object.entries(props).map(([k, v]) => [k, typeof v === "string" ? fillTemplate(v, { title: copy.title, now }) : v]))
+        : props;
+      if (body || Object.keys(fields).length || Object.keys(properties).length) await this.update(copy.id, { body, fields, properties });
     }
     return this.read(rootCopy.id);
   }
@@ -722,11 +901,182 @@ export class NodeStore {
     const all = await this.loadAll();
     const target = (await this.find(ref, all)).meta;
     const out: NodeMeta[] = [];
+    const resolve = this.resolver(all);
     for (const n of all.values()) {
       if (n.meta.id === target.id) continue;
-      if (extractLinks(n.meta.path, n.body).some((l) => l.target === target.path)) out.push(n.meta);
+      if (this.targetsOf(n, resolve).includes(target.path)) out.push(n.meta);
     }
     return out.sort((a, b) => a.title.localeCompare(b.title, "tr"));
+  }
+
+  private resolver(all: Map<string, Loaded>): (name: string) => string | null {
+    return wikiResolver([...all.values()].map((n) => ({ path: n.meta.path, title: n.meta.title, aliases: n.meta.aliases })));
+  }
+
+  /** Notun bağlantı verdiği vault yolları: göreli Markdown bağlantıları ve çözülen wiki bağlantıları. */
+  private targetsOf(n: Loaded, resolve: (name: string) => string | null): string[] {
+    if (n.meta.locked) return [];
+    if (n.meta.layoutMode === "canvas") return [...new Set(canvasFiles(n.body))];
+    const md = extractLinks(n.meta.path, n.body).map((l) => l.target);
+    const wiki = extractWikiLinks(n.body)
+      .map((l) => (l.target ? resolve(l.target) : n.meta.path))
+      .filter((p): p is string => !!p);
+    return [...new Set([...md, ...wiki])];
+  }
+
+  /** Bağlantı grafiği (Obsidian "Graph view"). Kilitli notların bağlantıları sayılmaz. */
+  async graph(): Promise<LinkGraph> {
+    const all = await this.loadAll();
+    const resolve = this.resolver(all);
+    const idByPath = new Map([...all.values()].map((n) => [n.meta.path, n.meta.id]));
+    const links: LinkGraph["links"] = [];
+    const unresolved: LinkGraph["unresolved"] = [];
+    for (const n of all.values()) {
+      for (const p of this.targetsOf(n, resolve)) {
+        const id = idByPath.get(p);
+        if (id && id !== n.meta.id) links.push({ source: n.meta.id, target: id });
+      }
+      if (n.meta.locked || n.meta.layoutMode === "canvas") continue;
+      for (const w of extractWikiLinks(n.body)) if (w.target && !resolve(w.target) && !/\.[a-z0-9]{2,4}$/i.test(w.target)) unresolved.push({ source: n.meta.id, name: w.target });
+    }
+    const nodes = [...all.values()].map(({ meta }) => ({ id: meta.id, title: meta.title, path: meta.path, tags: meta.tags, archeId: meta.archeId }));
+    return { nodes, links, unresolved };
+  }
+
+  /** Notun giden bağlantıları (Obsidian "Outgoing links"). */
+  async outgoing(ref: string): Promise<OutgoingLinks> {
+    const all = await this.loadAll();
+    const n = await this.find(ref, all);
+    const resolve = this.resolver(all);
+    const byPath = new Map([...all.values()].map((x) => [x.meta.path, x.meta]));
+    const linked = this.targetsOf(n, resolve)
+      .map((p) => byPath.get(p))
+      .filter((m): m is NodeMeta => !!m && m.id !== n.meta.id);
+    const unresolved = n.meta.locked ? [] : [...new Set(extractWikiLinks(n.body).filter((w) => w.target && !resolve(w.target)).map((w) => w.target))];
+    return { linked, unresolved };
+  }
+
+  /** Bu notun başlığını ya da takma adını anan ama bağlantı vermeyen notlar (Obsidian "Unlinked mentions"). */
+  async unlinkedMentions(ref: string): Promise<MentionHit[]> {
+    const all = await this.loadAll();
+    const target = await this.find(ref, all);
+    const resolve = this.resolver(all);
+    const names = [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 3);
+    if (!names.length) return [];
+    const out: MentionHit[] = [];
+    for (const n of all.values()) {
+      if (n.meta.id === target.meta.id || n.meta.locked || n.meta.layoutMode === "canvas") continue;
+      if (this.targetsOf(n, resolve).includes(target.meta.path)) continue;
+      const text = plainText(n.body);
+      const at = findMention(text, names);
+      if (at < 0) continue;
+      const start = Math.max(0, at - 50);
+      out.push({ id: n.meta.id, title: n.meta.title, snippet: (start ? "…" : "") + text.slice(start, at + 110).replace(/\s+/g, " ").trim() });
+    }
+    return out.sort((a, b) => a.title.localeCompare(b.title, "tr"));
+  }
+
+  /** `sourceRef` notunda bu notun ilk bağlantısız anılışını göreli bağlantıya çevirir. */
+  async linkMention(sourceRef: string, targetRef: string): Promise<NodeDoc> {
+    const all = await this.loadAll();
+    const source = await this.find(sourceRef, all);
+    const target = await this.find(targetRef, all);
+    const names = [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 3);
+    const masked = maskLinks(source.body);
+    const at = findMention(masked, names);
+    if (at < 0) throw new NodeError("not_found", "Bağlantısız anılış bulunamadı.");
+    const name = names.find((x) => masked.slice(at, at + x.length).toLocaleLowerCase("tr") === x.toLocaleLowerCase("tr"))!;
+    const shown = source.body.slice(at, at + name.length);
+    const href = relativeLink(source.meta.path, target.meta.path);
+    return this.update(source.meta.id, { body: `${source.body.slice(0, at)}[${shown}](${href})${source.body.slice(at + name.length)}` });
+  }
+
+  /**
+   * `sourceRef` notunu `targetRef` notunun sonuna ekler, kaynağa giden bağlantıları hedefe yönlendirir ve kaynağı
+   * çöpe taşır (Obsidian "Note composer: merge"). Alt sayfası olan ya da kilitli notlar birleştirilmez.
+   */
+  async merge(sourceRef: string, targetRef: string): Promise<NodeDoc> {
+    const all = await this.loadAll();
+    const source = await this.find(sourceRef, all);
+    const target = await this.find(targetRef, all);
+    if (source.meta.id === target.meta.id) throw new NodeError("invalid", "Bir not kendisiyle birleştirilemez.");
+    if (source.meta.locked || target.meta.locked) throw new NodeError("invalid", "Kilitli notlar birleştirilemez.");
+    if ([...all.values()].some((n) => n.meta.parentNodeId === source.meta.id)) throw new NodeError("invalid", "Alt sayfası olan bir not birleştirilemez.");
+    // Kaynaktaki göreli bağlantılar hedefin konumuna göre yeniden yazılır.
+    const moved = rewriteLinks(source.body, source.meta.path, target.meta.path, new Map());
+    const sep = target.body.trim() === "" ? "" : target.body.endsWith("\n") ? "\n" : "\n\n";
+    await this.update(target.meta.id, { body: `${target.body}${sep}${moved}` });
+    const redirect = new Map([[source.meta.path, target.meta.path]]);
+    const latest = await this.loadAll();
+    const resolve = this.resolver(latest);
+    for (const n of latest.values()) {
+      if (n.meta.id === source.meta.id || n.meta.locked) continue;
+      let body = rewriteLinks(n.body, n.meta.path, n.meta.path, redirect);
+      // [[Kaynak#başlık|ad]] → [[Hedef#başlık|ad]] (sondan başa: indeksler kaymasın)
+      for (const w of extractWikiLinks(body).reverse()) {
+        if (!w.target || resolve(w.target) !== source.meta.path) continue;
+        const next = `${w.embed ? "!" : ""}[[${target.meta.title}${w.heading ? `#${w.heading}` : ""}${w.alias ? `|${w.alias}` : ""}]]`;
+        body = body.slice(0, w.index) + next + body.slice(w.index + w.raw.length);
+      }
+      if (body !== n.body) await this.update(n.meta.id, { body });
+    }
+    await this.trash(source.meta.id);
+    return this.read(target.meta.id);
+  }
+
+  // ---------------------------------------------------------------- Dosya geçmişi (Obsidian "File recovery")
+
+  private historyDir(id: string): string {
+    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", `Geçersiz id: ${id}`);
+    return path.join(this.root, ".nularche", "history", id);
+  }
+
+  /** Değişmeden önceki dosyayı saklar; aynı not için en fazla beş dakikada bir. Gizli klasör Node taramasına girmez. */
+  private async snapshot(id: string, text: string): Promise<void> {
+    const dir = this.historyDir(id);
+    const entries = await this.history(id).catch(() => []);
+    if (entries[0] && Date.now() - entries[0].at < HISTORY_INTERVAL_MS) return;
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, `${Date.now()}.md`), text);
+    for (const old of entries.slice(HISTORY_LIMIT - 1)) await rm(path.join(dir, `${old.at}.md`), { force: true });
+  }
+
+  /** Notun anlık görüntüleri (en yeni önce). */
+  async history(ref: string): Promise<HistoryEntry[]> {
+    const id = /^[\w-]{1,64}$/.test(ref) ? ref : (await this.find(ref)).meta.id;
+    let files: string[];
+    try {
+      files = await readdir(this.historyDir(id));
+    } catch {
+      return [];
+    }
+    const out: HistoryEntry[] = [];
+    for (const f of files) {
+      const at = Number(/^(\d+)\.md$/.exec(f)?.[1]);
+      if (!at) continue;
+      out.push({ at, size: (await stat(path.join(this.historyDir(id), f))).size });
+    }
+    return out.sort((a, b) => b.at - a.at);
+  }
+
+  /** Anlık görüntünün gövdesi. */
+  async historyBody(ref: string, at: number): Promise<string> {
+    const { meta } = await this.find(ref);
+    if (!Number.isSafeInteger(at)) throw new NodeError("invalid", "Geçersiz zaman.");
+    try {
+      return parseNodeFile(await readFile(path.join(this.historyDir(meta.id), `${at}.md`), "utf8")).body;
+    } catch {
+      throw new NodeError("not_found", "Anlık görüntü bulunamadı.");
+    }
+  }
+
+  /** Notun gövdesini anlık görüntüdeki haline döndürür (şimdiki hali de geçmişe eklenir). */
+  async restoreHistory(ref: string, at: number, baseRevision?: string): Promise<NodeDoc> {
+    const body = await this.historyBody(ref, at);
+    const { meta } = await this.find(ref);
+    this.checkRevision(meta, baseRevision);
+    await this.snapshot(meta.id, await readFile(this.abs(meta.path), "utf8")).catch(() => undefined);
+    return this.update(meta.id, { body });
   }
 
   /** Gelen kutusu ve bağlantısız Node'lar. */
@@ -784,8 +1134,14 @@ export class NodeStore {
     if (terms.length === 0) return [];
     const hits: SearchHit[] = [];
     for (const { meta, body } of (await this.loadAll()).values()) {
+      const tagHit = terms.every((t) => t.startsWith("#") && meta.tags.some((g) => tagKey(g) === t.slice(1) || tagKey(g).startsWith(`${t.slice(1)}/`)));
+      if (meta.locked && !terms.every((t) => lowerTr(meta.title).includes(t))) continue;
+      if (tagHit) {
+        hits.push({ id: meta.id, title: meta.title, path: meta.path, score: 20, snippet: meta.excerpt.slice(0, 160) });
+        continue;
+      }
       const title = lowerTr(meta.title);
-      const text = lowerTr(body);
+      const text = meta.locked ? "" : lowerTr(body);
       let score = 0;
       let ok = true;
       for (const term of terms) {
@@ -800,13 +1156,124 @@ export class NodeStore {
       if (!ok) continue;
       const first = Math.max(0, text.indexOf(terms[0]));
       const start = Math.max(0, first - 60);
-      const snippet = body
+      const snippet = (meta.locked ? "" : body)
         .slice(start, start + 160)
         .replace(/\s+/g, " ")
         .trim();
       hits.push({ id: meta.id, title: meta.title, path: meta.path, score, snippet: (start > 0 ? "…" : "") + snippet });
     }
     return hits.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+
+  /** Tüm etiketler ve kaç Node'da geçtikleri (alfabetik). */
+  async tags(): Promise<TagCount[]> {
+    const counts = new Map<string, TagCount>();
+    for (const { meta } of (await this.loadAll()).values()) {
+      for (const tag of meta.tags) {
+        const key = tagKey(tag);
+        const entry = counts.get(key) ?? { tag, count: 0 };
+        entry.count++;
+        counts.set(key, entry);
+      }
+    }
+    return [...counts.values()].sort((a, b) => a.tag.localeCompare(b.tag, "tr"));
+  }
+
+  /** `#from` etiketini (ve alt etiketlerini) tüm Node'larda `#to` olarak yeniden adlandırır; değişen Node sayısını döndürür. */
+  async renameTag(from: string, to: string): Promise<number> {
+    const clean = (s: string) => s.trim().replace(/^#/, "");
+    const a = clean(from);
+    const b = clean(to);
+    if (!a || !b || !/^[\p{L}\p{N}_][\p{L}\p{N}_/-]*$/u.test(b)) throw new NodeError("invalid", `Geçersiz etiket: ${to}`);
+    let changed = 0;
+    for (const n of (await this.loadAll()).values()) {
+      if (!n.meta.tags.some((t) => tagKey(t) === tagKey(a) || tagKey(t).startsWith(`${tagKey(a)}/`))) continue;
+      const body = renameTagInBody(n.body, a, b);
+      const front = stringList(n.frontmatter.tags);
+      const renamed = front.map((t) => {
+        const bare = t.replace(/^#/, "");
+        return tagKey(bare) === tagKey(a) ? b : tagKey(bare).startsWith(`${tagKey(a)}/`) ? `${b}${bare.slice(a.length)}` : t;
+      });
+      const frontChanged = renamed.some((t, i) => t !== front[i]);
+      if (body === n.body && !frontChanged) continue;
+      await this.update(n.meta.id, { body, ...(frontChanged ? { properties: { tags: renamed } } : {}) });
+      changed++;
+    }
+    return changed;
+  }
+
+  /** `Attachments/` klasöründeki dosyalar (en yeni önce) ve her birine bağlantı veren Node'lar. */
+  async listAttachments(): Promise<AttachmentInfo[]> {
+    const files: string[] = [];
+    const walk = async (rel: string) => {
+      let entries;
+      try {
+        entries = await readdir(this.abs(rel), { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        if (e.name.startsWith(".")) continue;
+        if (e.isDirectory()) await walk(`${rel}/${e.name}`);
+        else if (e.isFile()) files.push(`${rel}/${e.name}`);
+      }
+    };
+    await walk(ATTACHMENTS_DIR);
+    const refs = new Map<string, { id: string; title: string }[]>();
+    const drawings = new Set<string>();
+    for (const n of (await this.loadAll()).values()) {
+      if (n.meta.locked) continue;
+      for (const l of extractLinks(n.meta.path, n.body)) {
+        const list = refs.get(l.target) ?? [];
+        if (!list.some((r) => r.id === n.meta.id)) list.push({ id: n.meta.id, title: n.meta.title });
+        refs.set(l.target, list);
+      }
+      for (const m of n.body.matchAll(/^@\[drawing\]\(([^)\s]+)\)/gm)) {
+        const target = resolveLink(n.meta.path, m[1]);
+        if (target) drawings.add(target);
+      }
+      if (n.meta.cover) {
+        const target = resolveLink(n.meta.path, n.meta.cover);
+        if (target) {
+          const list = refs.get(target) ?? [];
+          if (!list.some((r) => r.id === n.meta.id)) list.push({ id: n.meta.id, title: n.meta.title });
+          refs.set(target, list);
+        }
+      }
+    }
+    const out: AttachmentInfo[] = [];
+    for (const rel of files) {
+      const st = await stat(this.abs(rel)).catch(() => null);
+      if (!st) continue;
+      const ext = path.posix.extname(rel).toLowerCase();
+      const kind: AttachmentInfo["kind"] = drawings.has(rel)
+        ? "drawing"
+        : /^\.(png|jpe?g|gif|webp|avif|svg|heic|bmp)$/.test(ext)
+          ? "image"
+          : /^\.(webm|m4a|mp3|wav|ogg|oga|aac|flac)$/.test(ext)
+            ? "audio"
+            : /^\.(mp4|mov|m4v)$/.test(ext)
+              ? "video"
+              : ext === ".pdf"
+                ? "pdf"
+                : "file";
+      out.push({ path: rel, name: path.posix.basename(rel), size: st.size, modifiedAt: st.mtimeMs, kind, refs: refs.get(rel) ?? [] });
+    }
+    return out.sort((a, b) => b.modifiedAt - a.modifiedAt);
+  }
+
+  /** Bir eki yeniden adlandırır (uzantı korunur); bağlantı veren Node'lar ve kapaklar güncellenir. Yeni yolu döndürür. */
+  async renameAttachment(rel: string, newName: string): Promise<string> {
+    if (!rel.startsWith(`${ATTACHMENTS_DIR}/`) || !(await this.exists(rel))) throw new NodeError("not_found", `Ek bulunamadı: ${rel}`);
+    const ext = path.posix.extname(rel);
+    const base = slugify(newName.replace(new RegExp(`${ext.replace(".", "\\.")}$`, "i"), "")).slice(0, 80);
+    if (!base) throw new NodeError("invalid", "Ad boş olamaz");
+    const dir = path.posix.dirname(rel);
+    let target = `${dir}/${base}${ext}`;
+    if (target === rel) return rel;
+    for (let i = 2; await this.exists(target); i++) target = `${dir}/${base} ${i}${ext}`;
+    await this.renameAndRewrite([[rel, target]], new Map([[rel, target]]));
+    return target;
   }
 
   /** Ham dosya okuma (arşiv dışa aktarımı için). */

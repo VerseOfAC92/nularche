@@ -13,6 +13,7 @@ const STRINGS = {
   "menu.quit": { tr: "Çık", en: "Quit" },
   "menu.edit": { tr: "Düzen", en: "Edit" },
   "menu.view": { tr: "Görünüm", en: "View" },
+  "menu.go": { tr: "Git", en: "Go" },
   "menu.window": { tr: "Pencere", en: "Window" },
   "menu.help": { tr: "Yardım", en: "Help" },
   "menu.github": { tr: "GitHub sayfası", en: "GitHub Page" },
@@ -92,6 +93,13 @@ const STRINGS = {
   },
   "ai.noKey": { tr: "Gemini anahtarı yok.", en: "No Gemini key." },
   "ai.badRequest": { tr: "Geçersiz istek.", en: "Invalid request." },
+  "ai.audioTooLarge": { tr: "Ses dosyası çok büyük (en çok 18 MB). Daha kısa bir kayıt deneyin.", en: "The audio file is too large (18 MB max). Try a shorter recording." },
+  "menu.format": { tr: "Biçim", en: "Format" },
+  "menu.keepOnTop": { tr: "En üstte tut", en: "Keep on Top" },
+  "import.filesTitle": { tr: "İçe aktarılacak notları seçin", en: "Choose notes to import" },
+  "import.folderTitle": { tr: "İçe aktarılacak klasörü seçin", en: "Choose a folder to import" },
+  "import.filter": { tr: "Notlar (Markdown, metin, HTML, RTF)", en: "Notes (Markdown, text, HTML, RTF)" },
+  "import.tooMany": { tr: "Klasör çok büyük (en çok 3000 dosya / 300 MB).", en: "The folder is too large (3000 files / 300 MB max)." },
 } as const satisfies Record<string, Record<Lang, string>>;
 
 export type DesktopStringKey = keyof typeof STRINGS;

@@ -40,7 +40,7 @@ const activity = new AiActivity(store.root);
 let clientName = "";
 
 const server = new McpServer(
-  { name: "nularche", version: "0.2.0" },
+  { name: "nularche", version: "1.5.0" },
   {
     instructions:
       "Kullanıcının Nularche not uygulamasındaki yerel Markdown notları. Terimler: Origin = not kasası; Arche = kökteki ana Node " +
@@ -50,6 +50,7 @@ const server = new McpServer(
       "Kalıcı silme yoktur; trash_node çöp klasörüne taşır (kullanıcı uygulamadaki Çöp bölümünden geri getirebilir). " +
       "Veritabanları (tablo/pano/takvim): satırları alt Node'lardır; query_database, add_database_row, set_row_properties, update_database_schema ile çalışın. " +
       "Şablondan sayfa oluşturmak ya da sayfayı alt sayfalarıyla kopyalamak için duplicate_node kullanın. " +
+      "Notlardaki #etiketler için list_tags ve search_nodes(tag) kullanın. Notlar Obsidian uyumludur: [[wiki]] bağlantıları ve frontmatter özellikleri (update_node properties) okunur; bağlantılar için get_links. Kilitli (parolalı) notlar okunamaz ve değiştirilemez. " +
       "Kullanıcı Nularche AI penceresinden istek gönderdiğinde önce get_nularche_request ile isteği al, işi yap, " +
       "sonra complete_nularche_request ile kullanıcıya kısa bir cevap/özet yaz (isteğin reply_language dilinde); bu cevap Nularche'de görünür.",
   },
@@ -127,7 +128,9 @@ server.registerTool(
   ({ node }) =>
     run(async () => {
       const n = await store.read(node);
-      return { ...summary(n), created_at: iso(n.createdAt), layout_mode: n.layoutMode, revision: n.revision, body: n.body };
+      if (n.locked) return { ...summary(n), locked: true, body: "", message: "Bu not kullanıcı tarafından parola ile kilitlenmiş; içeriği okunamaz ve değiştirilemez." };
+      const props = Object.keys(n.properties).length ? { properties: n.properties } : {};
+      return { ...summary(n), created_at: iso(n.createdAt), layout_mode: n.layoutMode, revision: n.revision, tags: n.tags, ...props, body: n.body };
     }),
 );
 
@@ -135,11 +138,35 @@ server.registerTool(
   "search_nodes",
   {
     title: "Node'larda ara",
-    description: "Başlık ve içerikte tam metin arama (tüm kelimeler eşleşmeli, Türkçe büyük/küçük harfe duyarsız). Kısa parçacıklar döndürür.",
-    inputSchema: { query: z.string().min(1), limit: z.number().int().min(1).max(50).default(10) },
+    description:
+      "Başlık ve içerikte tam metin arama (tüm kelimeler eşleşmeli, Türkçe büyük/küçük harfe duyarsız). Kısa parçacıklar döndürür. " +
+      "tag verilirse yalnızca o #etiketi (ve alt etiketlerini) taşıyan Node'lar döner; sorgu boş bırakılabilir.",
+    inputSchema: {
+      query: z.string().default(""),
+      tag: z.string().optional().describe("Etiket adı, # olmadan (ör. 'toplantı' ya da 'proje/nularche')"),
+      limit: z.number().int().min(1).max(50).default(10),
+    },
     annotations: { readOnlyHint: true },
   },
-  ({ query, limit }) => run(async () => ({ results: await store.search(query, limit) })),
+  ({ query, tag, limit }) =>
+    run(async () => {
+      if (!tag) return { results: query.trim() ? await store.search(query, limit) : [] };
+      const key = tag.replace(/^#/, "").toLocaleLowerCase("tr");
+      const tagged = (await store.list()).filter((m) => m.tags.some((t) => t.toLocaleLowerCase("tr") === key || t.toLocaleLowerCase("tr").startsWith(`${key}/`)));
+      const ids = query.trim() ? new Set((await store.search(query, 500)).map((h) => h.id)) : null;
+      return { results: tagged.filter((m) => !ids || ids.has(m.id)).slice(0, limit).map((m) => ({ ...summary(m), tags: m.tags, snippet: m.excerpt.slice(0, 160) })) };
+    }),
+);
+
+server.registerTool(
+  "list_tags",
+  {
+    title: "Etiketleri listele",
+    description: "Notlarda kullanılan tüm #etiketleri ve her birinin kaç Node'da geçtiğini döndürür. Bir etiketteki Node'lar için search_nodes'a tag verin.",
+    inputSchema: {},
+    annotations: { readOnlyHint: true },
+  },
+  () => run(async () => ({ tags: await store.tags() })),
 );
 
 server.registerTool(
@@ -172,13 +199,17 @@ server.registerTool(
       node: nodeRef,
       body: z.string().optional().describe("Yeni tam Markdown içerik"),
       title: z.string().optional(),
+      properties: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe("Frontmatter özellikleri (Obsidian uyumlu, ör. aliases, tags, status); null değer özelliği kaldırır. Verilmeyenler değişmez."),
       base_revision: z.string().optional(),
     },
     annotations: { destructiveHint: true, idempotentHint: true },
   },
-  ({ node, body, title, base_revision }) =>
+  ({ node, body, title, properties, base_revision }) =>
     run(async () => {
-      const n = await editWithSnapshot(node, () => store.update(node, { body, title, baseRevision: base_revision }));
+      const n = await editWithSnapshot(node, () => store.update(node, { body, title, properties, baseRevision: base_revision }));
       return { ...summary(n), revision: n.revision };
     }),
 );
@@ -459,6 +490,23 @@ server.registerTool(
     annotations: { readOnlyHint: true },
   },
   ({ node }) => run(async () => ({ backlinks: (await store.backlinks(node)).map(summary) })),
+);
+
+server.registerTool(
+  "get_links",
+  {
+    title: "Bağlantılar",
+    description:
+      "Bir Node'un giden bağlantılarını (Markdown ve [[wiki]] bağlantıları), var olmayan wiki hedeflerini ve başlığını ya da " +
+      "takma adını bağlantı vermeden anan Node'ları döndürür. Geri bağlantılar için get_backlinks.",
+    inputSchema: { node: nodeRef },
+    annotations: { readOnlyHint: true },
+  },
+  ({ node }) =>
+    run(async () => {
+      const out = await store.outgoing(node);
+      return { outgoing: out.linked.map(summary), unresolved: out.unresolved, unlinked_mentions: await store.unlinkedMentions(node) };
+    }),
 );
 
 server.registerTool(

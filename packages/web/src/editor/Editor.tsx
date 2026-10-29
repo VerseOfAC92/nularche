@@ -2,6 +2,7 @@
 // Dosyadaki Markdown ↔ editör dönüşümü yalnızca burada, yükleme ve kaydetme sınırında yapılır.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { askText } from "../ask.tsx";
 import { EditorContent, useEditor, type Editor as TiptapEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
@@ -11,6 +12,20 @@ import { keys } from "../shortcuts.tsx";
 import { buildExtensions } from "./extensions.ts";
 import { CALLOUT_KINDS, type CalloutKind } from "./markdown-extensions.ts";
 import { fileUrl, fromEditorMarkdown, toEditorMarkdown, vaultPathFromUrl } from "./paths.ts";
+import { desktop } from "../desktop.ts";
+import { getLang } from "../i18n/index.ts";
+import { modPressed } from "../shortcuts.tsx";
+import { registerEditorUi, setActiveEditor } from "../commands.ts";
+import { countWords } from "../../../core/src/note-text.ts";
+import { FindBar } from "./FindBar.tsx";
+import { LinkDialog } from "./LinkDialog.tsx";
+import { MediaHostContext, type MediaHost } from "./media-nodes.tsx";
+import { VaultHostContext, type VaultHost } from "./obsidian-nodes.tsx";
+import { makeResolver } from "../vault/resolve.ts";
+import { foldKey, headings, setFind, findKey, setFolded, type MathMode } from "./notes-extensions.ts";
+import { copyAsMarkdown, pasteAsMarkdown } from "./text-tools.ts";
+import { RecordDialog } from "../media/RecordDialog.tsx";
+import { DrawingDialog } from "../media/DrawingDialog.tsx";
 
 interface Command {
   label: string;
@@ -26,6 +41,8 @@ interface CommandContext {
   insertFiles: (e: TiptapEditor, files: File[], pos?: number) => Promise<void>;
   createChild: (title: string) => Promise<NodeMeta | null>;
   createDatabase: (title: string) => Promise<NodeMeta | null>;
+  record: () => void;
+  draw: () => void;
 }
 
 const CALLOUT_LABELS: Record<CalloutKind, [StringKey, string]> = {
@@ -100,6 +117,14 @@ const commands = (): Command[] => [
     icon: "▸",
     keywords: "toggle acilir details gizle",
     run: (e) => void e.chain().focus().setDetails().run(),
+  },
+  {
+    group: t("ed.g.basic"),
+    label: t("cmd.dashedList"),
+    hint: "– liste",
+    icon: "–",
+    keywords: "tire dashed liste list",
+    run: (e) => void e.chain().focus().toggleDashedList().run(),
   },
   {
     group: t("ed.g.basic"),
@@ -195,12 +220,28 @@ const commands = (): Command[] => [
   },
   {
     group: t("ed.g.media"),
+    label: t("cmd.recordAudio"),
+    hint: t("rec.title"),
+    icon: "🎙",
+    keywords: "ses kayit audio record mikrofon voice",
+    run: (_e, ctx) => ctx.record(),
+  },
+  {
+    group: t("ed.g.media"),
+    label: t("cmd.drawing"),
+    hint: t("draw.title"),
+    icon: "✎",
+    keywords: "cizim drawing sketch ciz kalem",
+    run: (_e, ctx) => ctx.draw(),
+  },
+  {
+    group: t("ed.g.media"),
     label: "YouTube",
     hint: t("ed.c.youtubeHint"),
     icon: "▶",
     keywords: "youtube video embed gom",
-    run: (e) => {
-      const src = prompt(t("ed.youtubePrompt"));
+    run: async (e) => {
+      const src = await askText(t("ed.youtubePrompt"));
       if (src) e.chain().focus().setYoutubeVideo({ src }).run();
     },
   },
@@ -252,7 +293,33 @@ export interface EditorProps {
   onError: (message: string) => void;
   /** Seçili metin değiştiğinde (Nularche AI bağlamı için). */
   onSelectionText?: (text: string) => void;
+  /** İşaretlenen yapılacaklar listenin sonuna taşınsın (sayfa ayarı). */
+  sortChecked?: boolean;
+  mathMode?: MathMode;
+  spellcheck?: boolean;
+  /** Sözcük/karakter sayıları (sayfa ve seçim). */
+  onStats?: (stats: EditorStats) => void;
+  onTagClick?: (tag: string) => void;
+  onToast?: (message: string) => void;
+  /** Var olmayan bir [[wiki]] hedefine tıklanınca bu başlıkla not oluşturur ve açar. */
+  onCreateNote?: (title: string) => void;
 }
+
+export interface EditorStats {
+  words: number;
+  chars: number;
+  selWords: number;
+  selChars: number;
+}
+
+function statsOf(e: TiptapEditor): EditorStats {
+  const text = e.state.doc.textBetween(0, e.state.doc.content.size, "\n", " ");
+  const { from, to, empty } = e.state.selection;
+  const sel = empty ? "" : e.state.doc.textBetween(from, to, "\n", " ");
+  return { words: countWords(text), chars: text.replace(/\n/g, "").length, selWords: countWords(sel), selChars: sel.replace(/\n/g, "").length };
+}
+
+const foldStoreKey = (id: string) => `nlc-fold:${id}`;
 
 export function Editor(props: EditorProps) {
   const { docKey, markdown, nodePath, onChange } = props;
@@ -262,6 +329,10 @@ export function Editor(props: EditorProps) {
   propsRef.current = props;
   const loading = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [find, setFindOpen] = useState<{ replace: boolean; tick: number } | null>(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [drawing, setDrawing] = useState<{ src: string | null; resolve: (p: string | null) => void } | null>(null);
 
   const ctx: CommandContext = {
     pickFile: (accept) =>
@@ -288,6 +359,12 @@ export function Editor(props: EditorProps) {
     },
     createChild: (title) => propsRef.current.onCreateChild(title),
     createDatabase: (title) => propsRef.current.onCreateDatabase(title),
+    record: () => setRecording(true),
+    draw: () => {
+      void new Promise<string | null>((resolve) => setDrawing({ src: null, resolve })).then((path) => {
+        if (path) editorRef.current?.chain().focus().insertDrawing(fileUrl(path)).run();
+      });
+    },
   };
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
@@ -348,7 +425,10 @@ export function Editor(props: EditorProps) {
   const editor = useEditor({
     extensions: buildExtensions({ placeholder: t("ed.placeholder") }),
     content: "",
+    onFocus: ({ editor: e }) => setActiveEditor(e as TiptapEditor),
+    onCreate: ({ editor: e }) => setActiveEditor(e as TiptapEditor),
     editorProps: {
+      attributes: { spellcheck: String(props.spellcheck ?? true) },
       handleKeyDown: (_view, event) => {
         const { trigger: t, items: list, active: idx } = stateRef.current;
         if (!t || list.length === 0) return false;
@@ -362,16 +442,25 @@ export function Editor(props: EditorProps) {
         return false;
       },
       handleClick: (_view, _pos, event) => {
+        const tag = (event.target as HTMLElement).closest<HTMLElement>(".nl-tag");
+        if (tag && modPressed(event) && propsRef.current.onTagClick) {
+          propsRef.current.onTagClick(tag.dataset.tag ?? "");
+          return true;
+        }
         const a = (event.target as HTMLElement).closest("a");
         if (!a) return false;
         const href = a.getAttribute("href") ?? "";
         const target = vaultPathFromUrl(href);
+        // Sayfa bağlantıları tek tıkla açılır; dış bağlantılar ve ekler ⌘/Ctrl-tıkla (düz tık imleci yerleştirir).
         if (target?.toLowerCase().endsWith(".md")) {
           propsRef.current.onOpenPath(target);
           return true;
         }
-        if (href) window.open(href, "_blank", "noopener");
-        return true;
+        if (href && modPressed(event)) {
+          window.open(href, "_blank", "noopener");
+          return true;
+        }
+        return false;
       },
       handlePaste: (_view, event) => {
         const files = [...(event.clipboardData?.files ?? [])];
@@ -393,9 +482,11 @@ export function Editor(props: EditorProps) {
         onChangeRef.current(fromEditorMarkdown(md, propsRef.current.nodePath));
       }
       updateTrigger(e);
+      propsRef.current.onStats?.(statsOf(e as TiptapEditor));
     },
     onSelectionUpdate: ({ editor: e }) => {
       updateTrigger(e);
+      propsRef.current.onStats?.(statsOf(e as TiptapEditor));
       const { from, to, empty } = e.state.selection;
       propsRef.current.onSelectionText?.(empty ? "" : e.state.doc.textBetween(from, to, "\n").slice(0, 20_000));
     },
@@ -412,13 +503,143 @@ export function Editor(props: EditorProps) {
     editor.commands.setContent(toEditorMarkdown(markdown, nodePath), { emitUpdate: false, contentType: "markdown" } as never);
     loading.current = false;
     setTrigger(null);
+    // Daraltılmış bölümler (başlık metinleriyle) bu cihazda hatırlanır.
+    try {
+      const saved = JSON.parse(localStorage.getItem(foldStoreKey(propsRef.current.currentId)) ?? "[]") as string[];
+      if (saved.length) setFolded(editor, headings(editor.state.doc).filter((h) => saved.includes(h.text)).map((h) => h.pos));
+    } catch {
+      // depolama kapalı
+    }
+    const q = findKey.getState(editor.state)?.query;
+    if (q) setFind(editor, {}, false);
+    propsRef.current.onStats?.(statsOf(editor));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, docKey]);
+
+  // Sayfa ve uygulama ayarlarını eklentilere aktar.
+  useEffect(() => {
+    if (!editor) return;
+    const st = editor.storage as unknown as { taskTools: { sortChecked: boolean }; mathResults: { mode: MathMode; comma: boolean } };
+    st.taskTools.sortChecked = !!props.sortChecked;
+    st.mathResults.mode = props.mathMode ?? "suggest";
+    st.mathResults.comma = getLang() === "tr";
+    editor.view.dispatch(editor.state.tr.setMeta("nlSettings", true));
+  }, [editor, props.sortChecked, props.mathMode]);
+
+  useEffect(() => {
+    editor?.setOptions({ editorProps: { ...editor.options.editorProps, attributes: { spellcheck: String(props.spellcheck ?? true) } } });
+  }, [editor, props.spellcheck]);
+
+  // Daraltılan bölümleri kaydet.
+  useEffect(() => {
+    if (!editor) return;
+    let last = "";
+    const save = () => {
+      const folded = foldKey.getState(editor.state)?.folded ?? [];
+      const texts = headings(editor.state.doc)
+        .filter((h) => folded.includes(h.pos))
+        .map((h) => h.text);
+      const json = JSON.stringify(texts);
+      if (json === last) return;
+      last = json;
+      try {
+        if (texts.length) localStorage.setItem(foldStoreKey(propsRef.current.currentId), json);
+        else localStorage.removeItem(foldStoreKey(propsRef.current.currentId));
+      } catch {
+        // depolama kapalı
+      }
+    };
+    editor.on("transaction", save);
+    return () => void editor.off("transaction", save);
+  }, [editor]);
+
+  // Menü ve kısayol komutlarından arayüz gerektirenler.
+  useEffect(() => {
+    if (!editor) return;
+    setActiveEditor(editor);
+    const offs = [
+      registerEditorUi("find.open", () => setFindOpen((f) => ({ replace: f?.replace ?? false, tick: (f?.tick ?? 0) + 1 }))),
+      registerEditorUi("find.replace", () => setFindOpen((f) => ({ replace: true, tick: (f?.tick ?? 0) + 1 }))),
+      registerEditorUi("find.next", (e) => {
+        const s = findKey.getState(e.state);
+        if (s?.matches.length) setFind(e, { index: (s.index + 1) % s.matches.length });
+        else setFindOpen({ replace: false, tick: 1 });
+      }),
+      registerEditorUi("find.prev", (e) => {
+        const s = findKey.getState(e.state);
+        if (s?.matches.length) setFind(e, { index: (s.index - 1 + s.matches.length) % s.matches.length });
+      }),
+      registerEditorUi("link.edit", () => setLinkOpen(true)),
+      registerEditorUi("insert.audio", () => setRecording(true)),
+      registerEditorUi("insert.drawing", () => ctxRef.current.draw()),
+      registerEditorUi("insert.image", async (e) => {
+        const f = await ctxRef.current.pickFile("image/*");
+        if (f) await ctxRef.current.insertFiles(e, [f]);
+      }),
+      registerEditorUi("insert.file", async (e) => {
+        const f = await ctxRef.current.pickFile("*/*");
+        if (f) await ctxRef.current.insertFiles(e, [f]);
+      }),
+      registerEditorUi("edit.copyMarkdown", (e) => void copyAsMarkdown(e, propsRef.current.nodePath).then(() => propsRef.current.onToast?.(t("node.copiedMd")))),
+      registerEditorUi("edit.pasteMarkdown", (e) => void pasteAsMarkdown(e, propsRef.current.nodePath)),
+    ];
+    return () => {
+      offs.forEach((off) => off());
+      setActiveEditor(null);
+    };
+  }, [editor]);
+
+  const resolver = useMemo(() => makeResolver(props.nodes), [props.nodes]);
+  const vaultHost: VaultHost = {
+    resolve: resolver,
+    open: (id) => {
+      const n = propsRef.current.nodes.find((x) => x.id === id);
+      if (n) propsRef.current.onOpenPath(n.path);
+    },
+    create: (title) => propsRef.current.onCreateNote?.(title),
+  };
+
+  const mediaHost: MediaHost = {
+    transcribe: async (src, mode) => {
+      const path = vaultPathFromUrl(src);
+      if (!desktop || !path) {
+        propsRef.current.onToast?.(t("media.desktopOnly"));
+        return null;
+      }
+      const res = await desktop.transcribe(path, mode, getLang());
+      if (!res.ok) {
+        propsRef.current.onError(res.needsAuto ? t("media.needAuto") : (res.error ?? "error"));
+        return null;
+      }
+      return res.text ?? null;
+    },
+    editDrawing: (src) =>
+      new Promise<string | null>((resolve) => setDrawing({ src, resolve })).then((path) => (path ? fileUrl(path) : null)),
+  };
 
   let lastGroup = "";
   return (
     <div className="editor">
       <input ref={fileInput} type="file" hidden />
+      {editor && find && <FindBar key={find.tick} editor={editor} replace={find.replace} onClose={() => setFindOpen(null)} onToast={props.onToast} />}
+      {editor && linkOpen && <LinkDialog editor={editor} onClose={() => setLinkOpen(false)} />}
+      {editor && recording && (
+        <RecordDialog
+          onDone={(path) => {
+            setRecording(false);
+            if (path) editor.chain().focus().insertAudio(fileUrl(path)).run();
+          }}
+        />
+      )}
+      {drawing && (
+        <DrawingDialog
+          src={drawing.src}
+          onDone={(path) => {
+            drawing.resolve(path);
+            setDrawing(null);
+          }}
+        />
+      )}
       {editor && (
         <>
           <DragHandle editor={editor}>
@@ -433,7 +654,20 @@ export function Editor(props: EditorProps) {
               !state.selection.empty && !e.isActive("image") && !e.isActive("codeBlock") && !e.isActive("youtube") && !e.isActive("inlineDatabase")
             }
           >
-            <FormatBar editor={editor} />
+            <FormatBar editor={editor} onLink={() => setLinkOpen(true)} />
+          </BubbleMenu>
+          <BubbleMenu
+            editor={editor}
+            pluginKey="link"
+            shouldShow={({ editor: e, state }) => state.selection.empty && e.isActive("link") && !String(e.getAttributes("link").href ?? "").startsWith("/files/")}
+            options={{ placement: "bottom" }}
+          >
+            <div className="bubble link-bubble">
+              <span className="link-url">{String(editor.getAttributes("link").href ?? "")}</span>
+              <button onClick={() => window.open(String(editor.getAttributes("link").href ?? ""), "_blank", "noopener")}>↗ {t("link.open")}</button>
+              <button onClick={() => setLinkOpen(true)}>{t("link.edit")}</button>
+              <button onClick={() => editor.chain().focus().extendMarkRange("link").unsetLink().run()}>{t("link.remove")}</button>
+            </div>
           </BubbleMenu>
           <BubbleMenu
             editor={editor}
@@ -448,12 +682,16 @@ export function Editor(props: EditorProps) {
               <button onClick={() => editor.chain().focus().deleteColumn().run()}>− {t("ed.col")}</button>
               <button onClick={() => editor.chain().focus().toggleHeaderRow().run()}>{t("ed.headerRow")}</button>
               <span className="sep" />
-              <button onClick={() => editor.chain().focus().deleteTable().run()}>Tabloyu sil</button>
+              <button onClick={() => editor.chain().focus().deleteTable().run()}>{t("ed.deleteTable")}</button>
             </div>
           </BubbleMenu>
         </>
       )}
-      <EditorContent editor={editor} />
+      <MediaHostContext.Provider value={mediaHost}>
+        <VaultHostContext.Provider value={vaultHost}>
+          <EditorContent editor={editor} />
+        </VaultHostContext.Provider>
+      </MediaHostContext.Provider>
       {trigger && items.length > 0 && (
         <div className="pop suggest" style={{ top: trigger.top, left: trigger.left }} role="listbox">
           {items.map((c, i) => {
@@ -485,14 +723,29 @@ export function Editor(props: EditorProps) {
   );
 }
 
-function FormatBar({ editor }: { editor: TiptapEditor }) {
-  const [colors, setColors] = useState(false);
+const STYLES: [StringKey, string, (e: TiptapEditor) => void, (e: TiptapEditor) => boolean][] = [
+  ["cmd.styleTitle", "H1", (e) => e.chain().focus().setHeading({ level: 1 }).run(), (e) => e.isActive("heading", { level: 1 })],
+  ["cmd.styleHeading", "H2", (e) => e.chain().focus().setHeading({ level: 2 }).run(), (e) => e.isActive("heading", { level: 2 })],
+  ["cmd.styleSubheading", "H3", (e) => e.chain().focus().setHeading({ level: 3 }).run(), (e) => e.isActive("heading", { level: 3 })],
+  ["cmd.styleBody", "¶", (e) => e.chain().focus().setParagraph().run(), (e) => e.isActive("paragraph")],
+  ["cmd.styleMono", "M", (e) => e.chain().focus().toggleCodeBlock().run(), (e) => e.isActive("codeBlock")],
+];
+
+const ALIGNS: ["left" | "center" | "right" | "justify", StringKey, string][] = [
+  ["left", "cmd.alignLeft", "⇤"],
+  ["center", "cmd.alignCenter", "↔"],
+  ["right", "cmd.alignRight", "⇥"],
+  ["justify", "cmd.alignJustify", "☰"],
+];
+
+function FormatBar({ editor, onLink }: { editor: TiptapEditor; onLink: () => void }) {
+  const [panel, setPanel] = useState<"colors" | "styles" | "align" | null>(null);
   const mark = (name: string, label: string, title: string, run: () => void) => (
     <button className={editor.isActive(name) ? "on" : ""} title={title} onMouseDown={(e) => e.preventDefault()} onClick={run}>
       {label}
     </button>
   );
-  if (colors) {
+  if (panel === "colors") {
     return (
       <div className="bubble">
         {TEXT_COLORS.map(([name, value]) => (
@@ -504,31 +757,71 @@ function FormatBar({ editor }: { editor: TiptapEditor }) {
             onClick={() => {
               if (value) editor.chain().focus().setColor(value).run();
               else editor.chain().focus().unsetColor().run();
-              setColors(false);
+              setPanel(null);
             }}
           />
         ))}
-        <button onClick={() => setColors(false)}>✕</button>
+        <button onClick={() => setPanel(null)}>✕</button>
+      </div>
+    );
+  }
+  if (panel === "styles") {
+    return (
+      <div className="bubble">
+        {STYLES.map(([label, icon, run, active]) => (
+          <button key={label} className={active(editor) ? "on" : ""} onMouseDown={(e) => e.preventDefault()} onClick={() => (run(editor), setPanel(null))}>
+            <b>{icon}</b> {t(label)}
+          </button>
+        ))}
+        <button onClick={() => setPanel(null)}>✕</button>
+      </div>
+    );
+  }
+  if (panel === "align") {
+    const current = (editor.getAttributes("paragraph").textAlign ?? editor.getAttributes("heading").textAlign ?? "left") as string;
+    return (
+      <div className="bubble">
+        {ALIGNS.map(([value, label, icon]) => (
+          <button key={value} className={current === value ? "on" : ""} title={t(label)} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign(value).run()}>
+            {icon}
+          </button>
+        ))}
+        <span className="sep" />
+        <button title={t("cmd.indentLess")} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().outdentBlock().run()}>
+          ⇠
+        </button>
+        <button title={t("cmd.indentMore")} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().indentBlock().run()}>
+          ⇢
+        </button>
+        <button title={t("cmd.dirRtl")} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().setTextDirection(editor.getAttributes("paragraph").dir === "rtl" ? "ltr" : "rtl").run()}>
+          ⇄
+        </button>
+        <button onClick={() => setPanel(null)}>✕</button>
       </div>
     );
   }
   return (
     <div className="bubble">
+      <button title={t("fmt.style")} onMouseDown={(e) => e.preventDefault()} onClick={() => setPanel("styles")}>
+        Aa ▾
+      </button>
+      <span className="sep" />
       {mark("bold", "B", t("ed.bold", { key: keys("Mod+B") }), () => editor.chain().focus().toggleBold().run())}
       {mark("italic", t("ed.italicMark"), t("ed.italic", { key: keys("Mod+I") }), () => editor.chain().focus().toggleItalic().run())}
       {mark("underline", "U", t("ed.underline", { key: keys("Mod+U") }), () => editor.chain().focus().toggleUnderline().run())}
       {mark("strike", "S", t("ed.strike"), () => editor.chain().focus().toggleStrike().run())}
       {mark("code", "</>", t("ed.inlineCode"), () => editor.chain().focus().toggleCode().run())}
       {mark("highlight", "▮", t("ed.highlight"), () => editor.chain().focus().toggleHighlight().run())}
-      <button title={t("ed.textColor")} onClick={() => setColors(true)}>
+      {mark("superscript", "x²", `${t("cmd.superscript")} (${keys("Mod+Shift+.")})`, () => editor.chain().focus().toggleSuperscript().run())}
+      {mark("subscript", "x₂", `${t("cmd.subscript")} (${keys("Mod+Shift+,")})`, () => editor.chain().focus().toggleSubscript().run())}
+      <button title={t("ed.textColor")} onClick={() => setPanel("colors")}>
         A
       </button>
+      <button title={t("fmt.align")} onMouseDown={(e) => e.preventDefault()} onClick={() => setPanel("align")}>
+        ≡
+      </button>
       <span className="sep" />
-      {mark("link", t("ed.g.link"), t("ed.linkToggle"), () => {
-        if (editor.isActive("link")) return void editor.chain().focus().unsetLink().run();
-        const href = prompt(t("ed.linkPrompt"));
-        if (href) editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
-      })}
+      {mark("link", t("ed.g.link"), `${t("cmd.link")} (${keys("Mod+L")})`, onLink)}
     </div>
   );
 }

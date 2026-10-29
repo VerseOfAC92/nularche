@@ -2,6 +2,7 @@
 // (React dışında da) geçerli dili kullanır. Dil değişince uygulama yeniden çizilir.
 
 import { useSyncExternalStore } from "react";
+import { format } from "./format.ts";
 import { STRINGS, type StringKey } from "./strings.ts";
 
 export type Lang = "tr" | "en";
@@ -49,9 +50,8 @@ export function useLang(): Lang {
 /** Metni geçerli dilde döndürür; `{ad}` biçimindeki yer tutucular `vars` ile doldurulur. */
 export function t(key: StringKey, vars?: Record<string, string | number>): string {
   const entry = STRINGS[key];
-  let s: string = entry[current] ?? entry.tr;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
-  return s;
+  const s: string = entry[current] ?? entry.tr;
+  return format(s, vars);
 }
 
 /** Tarih/saat biçimlendirme için yerel ayar. */

@@ -37,7 +37,23 @@ contextBridge.exposeInMainWorld("nularche", {
   },
   printPdf: (name: string) => invoke("print-pdf", name),
   exportArchive: (nodeId: string | null, kind: "nlc" | "nla") => invoke("export-archive", nodeId, kind),
-  exportAs: (kind: "md" | "html" | "site", nodeId: string | null) => invoke("export", kind, nodeId),
+  exportAs: (kind: string, nodeId: string | null) => invoke("export", kind, nodeId),
+  readClipboard: () => invoke("read-clipboard"),
+  print: () => invoke("print"),
+  openWindow: (nodeId: string) => invoke("open-window", nodeId),
+  revealPath: (rel: string) => invoke("reveal-path", rel),
+  originPath: () => invoke("origin-path"),
+  setAlwaysOnTop: (on: boolean) => invoke("always-on-top", on),
+  setFullScreen: (on: boolean) => invoke("full-screen", on),
+  setSpellcheck: (on: boolean) => invoke("spellcheck", on),
+  setMenu: (spec: unknown, state: unknown) => invoke("set-menu", spec, state),
+  onCommand: (cb: (id: string) => void) => {
+    const listener = (_e: IpcRendererEvent, id: unknown) => typeof id === "string" && cb(id);
+    ipcRenderer.on("nularche:command", listener);
+    return () => ipcRenderer.removeListener("nularche:command", listener);
+  },
+  importNotes: (kind: "files" | "folder") => invoke("import-notes", kind),
+  transcribe: (path: string, mode: string, language: string) => invoke("transcribe", path, mode, language),
   importArchive: () => invoke("import-archive"),
   checkUpdate: () => invoke("check-update"),
   skipUpdate: (version: string) => invoke("skip-update", version),

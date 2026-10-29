@@ -3,7 +3,7 @@
 import { desktop } from "./desktop.ts";
 import { getLang } from "./i18n/index.ts";
 
-export type ExportKind = "md" | "html" | "site";
+export type ExportKind = "md" | "html" | "site" | "rtf" | "docx" | "txt";
 
 /** Sonuç: kaydedilen yol (masaüstü), "downloaded" (tarayıcı) ya da vazgeçildiyse null. Hata fırlatabilir. */
 export async function exportNode(kind: ExportKind, nodeId: string | null): Promise<string | null> {

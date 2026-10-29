@@ -256,6 +256,93 @@ try {
   await page.locator(".trash-none").waitFor({ timeout: 5_000 });
   const restored = await page.evaluate(async () => (await (await fetch("/api/nodes")).json()).nodes.filter((n: { title: string }) => n.title === "Task board" || n.title === "E2E satırı").map((n: { path: string }) => n.path));
   assert.equal(restored.length, 2, `geri gelenler: ${restored}`);
+
+  // 1.5: uygulama menüsü Biçim ve Görüntü menülerini içerir.
+  const menus = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items.map((i) => i.label) ?? []);
+  assert.ok(menus.includes("Format") && menus.includes("View"), `menüler: ${menus}`);
+
+  // 1.5: manzara arka planı açıkken satırlar 1.0'daki gibi pencere genişliğine uyar.
+  const note = await page.evaluate(async () => {
+    const res = await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Genişlik", parentNodeId: null, body: "Uzun bir paragraf. ".repeat(60) }) });
+    await fetch("/api/prefs", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ writingBg: { kind: "scene", id: "lavender" }, writingBgEverywhere: true }) });
+    return (await res.json()).id as string;
+  });
+  await page.evaluate((id) => (location.hash = id), note);
+  await page.reload();
+  await page.locator(".main.has-bg .ProseMirror").waitFor({ timeout: 10_000 });
+  const pageWidth = async (w: number) => {
+    await app.evaluate(({ BrowserWindow }, w) => BrowserWindow.getAllWindows()[0].setSize(w, 860), w);
+    await page.waitForTimeout(400);
+    return page.evaluate(() => document.querySelector(".page")!.getBoundingClientRect().width);
+  };
+  const wide = await pageWidth(1500);
+  const narrow = await pageWidth(1000);
+  assert.ok(wide - narrow > 400, `sayfa pencereyle genişlemedi: ${wide} → ${narrow}`);
+  await shot("15-manzara");
+
+  // 1.5: odak modu ⇧⌘F ile açılır, sayfa yine pencereye uyar; Esc ile kapanır.
+  await page.locator(".ProseMirror").click();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+Shift+F" : "Control+Shift+F");
+  await page.locator(".app.focus-mode").waitFor({ timeout: 5_000 });
+  await page.waitForTimeout(800);
+  const focusWidth = await page.evaluate(() => [document.querySelector(".page")!.getBoundingClientRect().width, innerWidth]);
+  assert.ok(focusWidth[0] > focusWidth[1] - 120, `odak modunda satır genişliği pencereye uymadı: ${focusWidth}`);
+  await shot("16-odak");
+  await page.keyboard.press("Escape");
+  await page.locator(".app.focus-mode").waitFor({ state: "detached", timeout: 5_000 });
+
+  // Kapak eklenir, sonra tamamen kaldırılır: hem ekrandan hem dosyadan gider.
+  await page.locator(".page-meta-actions button", { hasText: /cover|Kapak/i }).click({ force: true });
+  await page.locator(".cover").waitFor({ timeout: 5_000 });
+  await page.locator(".cover").hover();
+  await page.locator(".cover-actions button", { hasText: /^(Remove|Kaldır)$/ }).click();
+  await page.locator(".cover").waitFor({ state: "detached", timeout: 5_000 });
+  await page.waitForTimeout(500);
+  const coverAfter = await page.evaluate(async (id) => (await (await fetch(`/api/nodes/${id}`)).json()).cover ?? null, note);
+  assert.equal(coverAfter, null, "kapak dosyadan kaldırılmadı");
+
+  // Obsidian uyumu: wiki bağlantısı, matematik ve kutu çizilir; dosya açılıp kaydedilince bozulmaz.
+  await page.evaluate(() => fetch("/api/prefs", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ writingBgEverywhere: false }) }));
+  const obsidianBody = "Bkz. [[Genişlik]] ve [[Yok]]. $e^{i\\pi}+1=0$\n\n> [!info] Başlık\n> içerik\n\nDipnot[^1]\n\n[^1]: açıklama\n";
+  const obs = await page.evaluate(async (body) => (await (await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Obsidian notu", parentNodeId: null, body }) })).json()).id as string, obsidianBody);
+  await page.evaluate((id) => (location.hash = id), obs);
+  await page.locator(".ProseMirror .wiki-link").first().waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator(".ProseMirror .wiki-link.unresolved").count(), 1);
+  assert.ok(await page.locator(".ProseMirror .katex").count(), "matematik çizilmedi");
+  await page.locator(".ProseMirror").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type(" ek");
+  await page.waitForTimeout(1500);
+  const obsSaved = await page.evaluate(async (id) => (await (await fetch(`/api/nodes/${id}`)).json()).body as string, obs);
+  for (const part of ["[[Genişlik]]", "[[Yok]]", "$e^{i\\pi}+1=0$", "> [!info] Başlık", "[^1]: açıklama"]) assert.ok(obsSaved.includes(part), `kaydedilen notta bozuldu: ${part}\n${obsSaved}`);
+
+  // Komut paleti açılıp kapanır (yeni Chromium'da scrollIntoView Promise döndürür; arayüz çökmemeli), sonra grafik açılır.
+  const mod = process.platform === "darwin" ? "Meta" : "Control";
+  await page.keyboard.press(`${mod}+Shift+P`);
+  await page.locator(".picker input").waitFor();
+  await page.keyboard.press("Escape");
+  await page.locator(".picker").waitFor({ state: "detached" });
+  assert.ok(await page.locator(".sidebar").count(), "palet kapanınca arayüz çöktü");
+  await page.keyboard.press(`${mod}+Shift+P`);
+  const uiLang = await page.evaluate(() => document.documentElement.lang);
+  await page.locator(".picker input").fill(uiLang === "tr" ? "grafik görünümü" : "graph view");
+  await page.locator(".picker .results button", { hasText: uiLang === "tr" ? "Grafik görünümü" : "Graph view" }).first().waitFor();
+  await page.keyboard.press("Enter");
+  await page.locator(".graph-canvas").waitFor({ timeout: 5_000 });
+  await shot("17-grafik");
+  // Hızlı geçiş: takma adla bulur.
+  await page.keyboard.press(`${mod}+O`);
+  await page.locator(".picker input").fill("obsidian");
+  await page.locator(".picker .results button", { hasText: "Obsidian notu" }).first().waitFor();
+  await page.keyboard.press("Enter");
+  await page.locator(".title-input").waitFor();
+  assert.equal(await page.locator(".title-input").inputValue(), "Obsidian notu");
+  // Sekmeler: yeni sekme açılır, sekme çubuğu görünür, sekme kapanınca çubuk gizlenir ve önceki sayfa kalır.
+  await page.keyboard.press(`${mod}+Alt+T`);
+  await page.locator(".tab-bar .tab").nth(1).waitFor({ timeout: 5_000 });
+  await page.keyboard.press(`${mod}+Alt+W`);
+  await page.locator(".tab-bar").waitFor({ state: "detached", timeout: 5_000 });
+  assert.equal(await page.locator(".title-input").inputValue(), "Obsidian notu");
   console.log(`Tamam. Ekran görüntüleri: ${shots ?? "(yok)"}`);
 } catch (err) {
   await shot("hata").catch(() => undefined);

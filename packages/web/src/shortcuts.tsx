@@ -2,6 +2,7 @@
 // Kısayolların kendisi her yerde "Mod" (macOS'ta ⌘, diğerlerinde Ctrl) ile tanımlanır.
 
 import { t, type StringKey } from "./i18n/index.ts";
+import { ALL_COMMANDS, comboFor } from "./commands.ts";
 
 export const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
 
@@ -40,6 +41,18 @@ const GROUPS: { title: StringKey; items: Shortcut[] }[] = [
       { combo: "Mod+,", label: "settings.title" },
       { combo: "Mod+/", label: "keys.title" },
       { combo: "Mod+Enter", label: "keys.capture" },
+      { combo: "Mod+Shift+F", label: "cmd.focusMode" },
+      { combo: "Mod+P", label: "cmd.print" },
+    ],
+  },
+  {
+    title: "cmd.find",
+    items: [
+      { combo: "Mod+F", label: "cmd.find" },
+      { combo: "Mod+Alt+F", label: "cmd.findReplace" },
+      { combo: "Mod+G", label: "cmd.findNext" },
+      { combo: "Mod+Shift+G", label: "cmd.findPrev" },
+      { combo: "Mod+Alt+Shift+V", label: "cmd.pastePlain" },
     ],
   },
   {
@@ -55,6 +68,25 @@ const GROUPS: { title: StringKey; items: Shortcut[] }[] = [
       { combo: "Mod+Shift+H", label: "ed.highlight" },
       { combo: "Mod+Z", label: "keys.undo" },
       { combo: isMac ? "Mod+Shift+Z" : "Mod+Y", label: "keys.redo" },
+      { combo: "Mod+Shift+.", label: "cmd.superscript" },
+      { combo: "Mod+Shift+,", label: "cmd.subscript" },
+      { combo: "Mod+L", label: "cmd.link" },
+      { combo: "Mod+T", label: "cmd.fontPanel" },
+      { combo: "Mod+Alt+=", label: "cmd.bigger" },
+      { combo: "Mod+Alt+-", label: "cmd.smaller" },
+      { combo: "#", label: "tags.title" },
+      { combo: "Tab", label: "settings.math" },
+    ],
+  },
+  {
+    title: "cmd.text",
+    items: [
+      { combo: "Mod+Shift+L", label: "cmd.alignLeft" },
+      { combo: "Mod+Shift+E", label: "cmd.alignCenter" },
+      { combo: "Mod+Shift+R", label: "cmd.alignRight" },
+      { combo: "Mod+Shift+J", label: "cmd.alignJustify" },
+      { combo: "Mod+]", label: "cmd.indentMore" },
+      { combo: "Mod+[", label: "cmd.indentLess" },
     ],
   },
   {
@@ -65,6 +97,8 @@ const GROUPS: { title: StringKey; items: Shortcut[] }[] = [
       { combo: "Mod+Alt+3", label: "ed.c.h3" },
       { combo: "Mod+Shift+8", label: "ed.c.bullet" },
       { combo: "Mod+Shift+7", label: "ed.c.ordered" },
+      { combo: "Mod+Shift+6", label: "cmd.dashedList" },
+      { combo: "Mod+Alt+0", label: "cmd.styleBody" },
       { combo: "Mod+Shift+9", label: "ed.c.todo" },
       { combo: "Mod+Shift+B", label: "ed.c.quote" },
       { combo: "Mod+Alt+C", label: "ed.c.code" },
@@ -72,12 +106,20 @@ const GROUPS: { title: StringKey; items: Shortcut[] }[] = [
   },
 ];
 
-const literal = (combo: string) => combo === "/" || combo === "[[";
+const literal = (combo: string) => combo === "/" || combo === "[[" || combo === "#" || combo === "Tab";
+
+/** Obsidian'dan gelen komutlar: kullanıcının değiştirdiği kısayollar dahil, komut tanımlarından okunur. */
+const VAULT_IDS = ["app.palette", "app.switcher", "nav.back", "nav.forward", "view.sidePanel", "note.addProperty", "note.reading", "fmt.clear", "line.up", "line.down"];
 
 export function ShortcutList() {
+  const vault: Shortcut[] = VAULT_IDS.flatMap((id) => {
+    const cmd = ALL_COMMANDS.find((c) => c.id === id);
+    const combo = cmd && comboFor(cmd);
+    return cmd && combo ? [{ combo, label: cmd.label }] : [];
+  });
   return (
     <div className="shortcut-groups">
-      {GROUPS.map((g) => (
+      {[...GROUPS, { title: "ob.title" as StringKey, items: vault }].map((g) => (
         <div key={g.title} className="shortcut-group">
           <h4>{t(g.title)}</h4>
           {g.items.map((s) => (

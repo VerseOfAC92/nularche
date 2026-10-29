@@ -46,6 +46,9 @@ mac:
   category: public.app-category.productivity
   icon: build/icon.png
   darkModeSupport: true
+  # Ses kaydı bloğu mikrofonu yalnızca kullanıcı "Kaydı başlat"a bastığında kullanır.
+  extendInfo:
+    NSMicrophoneUsageDescription: Nularche uses the microphone only when you record an audio note. / Nularche mikrofonu yalnızca sesli not kaydederken kullanır.
   # Apple Developer kimliği olmadan ad-hoc imza (Apple Silicon'da çalışması için gerekli).
   identity: "-"
   hardenedRuntime: false

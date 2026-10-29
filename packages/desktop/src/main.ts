@@ -11,6 +11,8 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { exportArchive, importArchive, type ArchiveKind } from "../../core/src/archive.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite } from "../../core/src/export.ts";
+import { exportPageDocument } from "../../core/src/export-doc.ts";
+import { importFiles, IMPORTABLE_EXTS, type ImportFile } from "../../core/src/import.ts";
 import type { McpEntry } from "../../core/src/ai-clients.ts";
 import { registerAiIpc, type AiSettings } from "./ai.ts";
 import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
@@ -340,6 +342,56 @@ async function importArchiveFile(file: string): Promise<{ imported: number; root
   return { imported: res.imported, rootIds: res.rootIds };
 }
 
+/** Ayrı not pencereleri (Pencere → Notu ayrı pencerede aç). */
+const noteWindows = new Set<BrowserWindow>();
+
+function createNoteWindow(nodeId: string): void {
+  if (!server) return;
+  const w = new BrowserWindow({
+    width: 760,
+    height: 820,
+    minWidth: 420,
+    minHeight: 320,
+    title: "Nularche",
+    backgroundColor: nativeTheme.shouldUseDarkColors ? DARK_BG : LIGHT_BG,
+    show: false,
+    webPreferences: {
+      preload: resourcePath("preload.cjs"),
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      additionalArguments: [`--nlc-lang=${desktopLang()}`, `--nlc-theme=${settings.theme ?? "system"}`],
+    },
+  });
+  noteWindows.add(w);
+  w.once("ready-to-show", () => w.show());
+  guardNavigation(w);
+  w.on("closed", () => noteWindows.delete(w));
+  void w.loadURL(`${server.url}/?window=single#${encodeURIComponent(nodeId)}`);
+}
+
+/** Dış bağlantılar varsayılan tarayıcıda açılır; pencere yalnızca yerel sunucuyu gösterir. */
+function guardNavigation(w: BrowserWindow): void {
+  w.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^(https?|mailto):/.test(url)) void shell.openExternal(url);
+    else if (server && url.startsWith(`${server.url}/files/`)) {
+      // Ekler (PDF, ses, belge) sistemdeki varsayılan uygulamayla açılır.
+      try {
+        void shell.openPath(server.store.abs(decodeURIComponent(url.slice(server.url.length + 7).split("#")[0])));
+      } catch {
+        // Origin dışı ya da gizli yol: açma
+      }
+    }
+    return { action: "deny" };
+  });
+  w.webContents.on("will-navigate", (event, url) => {
+    if (server && !url.startsWith(server.url)) {
+      event.preventDefault();
+      if (/^(https?|mailto):/.test(url)) void shell.openExternal(url);
+    }
+  });
+}
+
 function createWindow(): void {
   win = new BrowserWindow({
     width: 1280,
@@ -359,17 +411,7 @@ function createWindow(): void {
     },
   });
   win.once("ready-to-show", () => win?.show());
-  // Dış bağlantılar varsayılan tarayıcıda açılır; uygulama penceresi yalnızca yerel sunucuyu gösterir.
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^(https?|mailto):/.test(url)) void shell.openExternal(url);
-    return { action: "deny" };
-  });
-  win.webContents.on("will-navigate", (event, url) => {
-    if (server && !url.startsWith(server.url)) {
-      event.preventDefault();
-      if (/^(https?|mailto):/.test(url)) void shell.openExternal(url);
-    }
-  });
+  guardNavigation(win);
   win.on("closed", () => {
     win = null;
     rendererReady = false;
@@ -381,13 +423,62 @@ function createWindow(): void {
   if (server) void win.loadURL(server.url);
 }
 
+/** Arayüzün gönderdiği menü yapısı (komut kimlikleri ve çevrilmiş etiketler). */
+interface MenuSpecItem {
+  id?: string;
+  label?: string;
+  accelerator?: string;
+  type?: "separator";
+  submenu?: MenuSpecItem[];
+}
+interface MenuSpecGroup {
+  id: string;
+  label: string;
+  items: MenuSpecItem[];
+}
+let menuSpec: MenuSpecGroup[] = [];
+let menuState: Record<string, boolean> = {};
+
+/** Menüden seçilen komutu odaktaki pencerenin arayüzüne iletir. */
+function sendCommand(id: string): void {
+  const target = BrowserWindow.getFocusedWindow() ?? win;
+  target?.webContents.send("nularche:command", id);
+}
+
+function specItems(items: MenuSpecItem[]): MenuItemConstructorOptions[] {
+  return items.map((i): MenuItemConstructorOptions => {
+    if (i.type === "separator") return { type: "separator" };
+    if (i.submenu) return { label: i.label, submenu: specItems(i.submenu) };
+    const checkable = i.id !== undefined && i.id in menuState;
+    return {
+      label: i.label,
+      // Kısayolu arayüz işler (editör içinde ve dışında aynı davranış); menü yalnızca gösterir.
+      accelerator: i.accelerator,
+      registerAccelerator: false,
+      ...(checkable ? { type: "checkbox" as const, checked: !!menuState[i.id!] } : {}),
+      click: () => i.id && sendCommand(i.id),
+    };
+  });
+}
+
 function buildMenu(): void {
   const isMac = process.platform === "darwin";
+  const group = (id: string) => specItems(menuSpec.find((g) => g.id === id)?.items ?? []);
+  const label = (id: string, fallback: string) => menuSpec.find((g) => g.id === id)?.label ?? fallback;
+  const sep: MenuItemConstructorOptions = { type: "separator" };
+  const file = group("file");
+  const edit = group("edit");
+  const format = group("format");
+  const view = group("view");
+  const go = group("go");
+  const focused = BrowserWindow.getFocusedWindow() ?? win;
   const template: MenuItemConstructorOptions[] = [
     ...(isMac ? [{ role: "appMenu" as const }] : []),
     {
       label: d("menu.file"),
       submenu: [
+        ...file,
+        ...(file.length ? [sep] : []),
         { label: d("menu.openOrigin"), click: () => void changeOrigin() },
         { label: d("menu.revealOrigin"), click: () => settings.originDir && void shell.openPath(settings.originDir) },
         { type: "separator" },
@@ -397,9 +488,56 @@ function buildMenu(): void {
         isMac ? { role: "close", label: d("menu.closeWindow") } : { role: "quit", label: d("menu.quit") },
       ],
     },
-    { role: "editMenu", label: d("menu.edit") },
-    { role: "viewMenu", label: d("menu.view") },
-    { role: "windowMenu", label: d("menu.window") },
+    {
+      label: d("menu.edit"),
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        sep,
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "delete" },
+        { role: "selectAll" },
+        ...(edit.length ? [sep, ...edit] : []),
+      ],
+    },
+    ...(format.length ? [{ label: label("format", d("menu.format")), submenu: format }] : []),
+    {
+      label: d("menu.view"),
+      submenu: [
+        ...view,
+        ...(view.length ? [sep] : []),
+        { role: "reload" },
+        { role: "toggleDevTools" },
+        sep,
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        sep,
+        { role: "togglefullscreen" },
+      ],
+    },
+    ...(go.length ? [{ label: label("go", d("menu.go")), submenu: go }] : []),
+    {
+      role: "windowMenu",
+      label: d("menu.window"),
+      submenu: [
+        { role: "minimize" },
+        { role: "zoom" },
+        sep,
+        {
+          label: d("menu.keepOnTop"),
+          type: "checkbox",
+          checked: !!focused?.isAlwaysOnTop(),
+          click: (item) => {
+            const w = BrowserWindow.getFocusedWindow() ?? win;
+            w?.setAlwaysOnTop(item.checked, "floating");
+          },
+        },
+        ...(isMac ? [sep, { role: "front" as const }] : [{ role: "close" as const }]),
+      ],
+    },
     {
       role: "help",
       label: d("menu.help"),
@@ -410,6 +548,61 @@ function buildMenu(): void {
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+/** Klasördeki (alt klasörler dahil) dosyaları içe aktarma için okur. */
+async function readFolder(dir: string): Promise<ImportFile[]> {
+  const out: ImportFile[] = [];
+  let total = 0;
+  const walk = async (abs: string, rel: string) => {
+    for (const e of await readdir(abs, { withFileTypes: true })) {
+      if (e.name.startsWith(".")) continue;
+      const childAbs = path.join(abs, e.name);
+      const childRel = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) await walk(childAbs, childRel);
+      else if (e.isFile()) {
+        const data = new Uint8Array(await readFile(childAbs));
+        total += data.length;
+        out.push({ path: childRel, data });
+        if (out.length > 3000 || total > 300 * 1024 * 1024) throw new Error(d("import.tooMany"));
+      }
+    }
+  };
+  await walk(dir, path.basename(dir));
+  return out;
+}
+
+async function importNotesDialog(kind: "files" | "folder") {
+  if (!server) return null;
+  const res = await dialog.showOpenDialog({
+    title: d(kind === "folder" ? "import.folderTitle" : "import.filesTitle"),
+    properties: kind === "folder" ? ["openDirectory"] : ["openFile", "multiSelections"],
+    filters: kind === "folder" ? undefined : [{ name: d("import.filter"), extensions: IMPORTABLE_EXTS.map((e) => e.slice(1)) }],
+  });
+  if (res.canceled || !res.filePaths.length) return null;
+  let files: ImportFile[];
+  if (kind === "folder") files = await readFolder(res.filePaths[0]);
+  else {
+    files = [];
+    for (const f of res.filePaths) {
+      files.push({ path: path.basename(f), data: new Uint8Array(await readFile(f)) });
+      // Markdown dosyasının yanındaki göreli resimler de seçimin parçası sayılsın.
+      if (/\.(md|markdown|html?)$/i.test(f)) {
+        const text = await readFile(f, "utf8");
+        for (const m of text.matchAll(/(?:\]\(|src=")(?!https?:|data:|mailto:)([^)"\s]+)/g)) {
+          const rel = decodeURIComponent(m[1].replace(/^<|>$/g, ""));
+          const abs = path.resolve(path.dirname(f), rel);
+          if (!abs.startsWith(path.dirname(f))) continue;
+          try {
+            files.push({ path: path.posix.join(path.posix.dirname(path.basename(f)), rel.split(path.sep).join("/")), data: new Uint8Array(await readFile(abs)) });
+          } catch {
+            // ek bulunamadı
+          }
+        }
+      }
+    }
+  }
+  return importFiles(server.store, files);
 }
 
 async function changeOrigin(): Promise<string | null> {
@@ -445,9 +638,21 @@ async function saveArchive(nodeId: string | null, kind: ArchiveKind): Promise<st
 }
 
 /** Sayfayı Markdown (.zip) ya da tek dosya HTML olarak kaydeder; site için klasör seçtirir ve dosyaları yazar. */
-async function exportTo(kind: "md" | "html" | "site", nodeId: string | null): Promise<string | null> {
+async function exportTo(kind: "md" | "html" | "site" | "rtf" | "docx" | "txt", nodeId: string | null): Promise<string | null> {
   if (!server) return null;
   const lang = desktopLang();
+  if (kind === "rtf" || kind === "docx" || kind === "txt") {
+    if (!nodeId) return null;
+    const doc = await exportPageDocument(server.store, nodeId, kind);
+    const res = await dialog.showSaveDialog({
+      defaultPath: path.join(app.getPath("documents"), doc.name),
+      filters: [{ name: kind.toUpperCase(), extensions: [kind] }],
+    });
+    if (res.canceled || !res.filePath) return null;
+    await writeFile(res.filePath, doc.data);
+    shell.showItemInFolder(res.filePath);
+    return res.filePath;
+  }
   if (kind === "site") {
     const res = await dialog.showOpenDialog({ title: d("export.siteFolder"), properties: ["openDirectory", "createDirectory"], buttonLabel: d("export.siteButton") });
     if (res.canceled || !res.filePaths[0]) return null;
@@ -543,13 +748,50 @@ function registerIpc(): void {
   );
   ipcMain.handle("nularche:import-archive", () => pickAndImport());
   ipcMain.handle("nularche:export", async (_e, kind: unknown, nodeId: unknown) => {
-    if (kind !== "md" && kind !== "html" && kind !== "site") return { ok: false, error: "invalid" };
+    if (kind !== "md" && kind !== "html" && kind !== "site" && kind !== "rtf" && kind !== "docx" && kind !== "txt") return { ok: false, error: "invalid" };
     try {
       return { ok: true, path: await exportTo(kind, typeof nodeId === "string" ? nodeId : null) };
     } catch (err) {
       return { ok: false, error: String((err as Error).message ?? err) };
     }
   });
+  ipcMain.handle("nularche:read-clipboard", () => clipboard.readText());
+  ipcMain.handle("nularche:print", (e) => {
+    e.sender.print({ printBackground: false });
+  });
+  ipcMain.handle("nularche:open-window", (_e, nodeId: unknown) => {
+    if (typeof nodeId === "string" && nodeId) createNoteWindow(nodeId);
+  });
+  ipcMain.handle("nularche:always-on-top", (e, on: unknown) => {
+    const w = BrowserWindow.fromWebContents(e.sender);
+    w?.setAlwaysOnTop(!!on, "floating");
+    buildMenu();
+    return !!w?.isAlwaysOnTop();
+  });
+  ipcMain.handle("nularche:full-screen", (e, on: unknown) => {
+    const w = BrowserWindow.fromWebContents(e.sender);
+    if (w && w.isFullScreen() !== !!on) w.setFullScreen(!!on);
+  });
+  ipcMain.handle("nularche:spellcheck", (e, on: unknown) => {
+    e.sender.session.setSpellCheckerEnabled(!!on);
+  });
+  ipcMain.handle("nularche:set-menu", (e, spec: unknown, state: unknown) => {
+    // Yalnızca ana pencere menüyü kurar (ayrı not pencereleri aynı menüyü paylaşır).
+    if (win && e.sender !== win.webContents) return;
+    if (Array.isArray(spec)) menuSpec = spec as MenuSpecGroup[];
+    if (state && typeof state === "object") menuState = state as Record<string, boolean>;
+    buildMenu();
+  });
+  ipcMain.handle("nularche:import-notes", (_e, kind: unknown) => importNotesDialog(kind === "folder" ? "folder" : "files"));
+  // Notu Finder'da/dosya yöneticisinde gösterir; yol Origin içinde olmalı.
+  ipcMain.handle("nularche:reveal-path", (_e, rel: unknown) => {
+    if (!settings.originDir || typeof rel !== "string" || !rel) return false;
+    const abs = path.resolve(settings.originDir, rel);
+    if (path.relative(settings.originDir, abs).startsWith("..")) return false;
+    shell.showItemInFolder(abs);
+    return true;
+  });
+  ipcMain.handle("nularche:origin-path", () => settings.originDir ?? null);
   ipcMain.handle("nularche:check-update", async () => {
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { accept: "application/vnd.github+json" } });

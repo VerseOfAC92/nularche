@@ -9,6 +9,7 @@ import { mergeAttributes, Node, type MarkdownLexerConfiguration, type MarkdownTo
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Youtube from "@tiptap/extension-youtube";
+import { CALLOUT_KINDS, calloutTone, type CalloutKind } from "../../../core/src/note-text.ts";
 
 type AnyNode = { attrs?: Record<string, unknown>; content?: unknown };
 
@@ -19,8 +20,7 @@ function childrenOf(node: AnyNode): AnyNode[] {
   return c?.content ?? [];
 }
 
-export const CALLOUT_KINDS = ["note", "tip", "important", "warning", "caution"] as const;
-export type CalloutKind = (typeof CALLOUT_KINDS)[number];
+export { CALLOUT_KINDS, type CalloutKind };
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -40,18 +40,23 @@ export const Callout = Node.create({
     return {
       kind: {
         default: "note",
-        parseHTML: (el) => el.getAttribute("data-kind") || "note",
-        renderHTML: (attrs) => ({ "data-kind": attrs.kind }),
+        parseHTML: (el) => el.getAttribute("data-type") || el.getAttribute("data-kind") || "note",
+        renderHTML: (attrs) => ({ "data-type": attrs.kind, "data-kind": calloutTone(String(attrs.kind)) }),
       },
+      /** `> [!info] Başlık` satırındaki başlık (yoksa null). */
+      title: { default: null, parseHTML: (el) => el.getAttribute("data-title"), renderHTML: (a) => (a.title ? { "data-title": a.title } : {}) },
+      /** Obsidian katlama işareti: "+" açık, "-" kapalı, "" katlanmaz. */
+      fold: { default: "", parseHTML: (el) => el.getAttribute("data-fold") ?? "", renderHTML: (a) => (a.fold ? { "data-fold": a.fold } : {}) },
     };
   },
 
   parseHTML() {
-    return [{ tag: "div[data-callout]" }];
+    return [{ tag: "div[data-callout]", contentElement: ".callout-body" }, { tag: "div[data-callout]" }];
   },
 
-  renderHTML({ HTMLAttributes }) {
-    return ["div", mergeAttributes(HTMLAttributes, { "data-callout": "" }), 0];
+  renderHTML({ node, HTMLAttributes }) {
+    const title = node.attrs.title ? [["div", { class: "callout-title", contenteditable: "false" }, String(node.attrs.title)]] : [];
+    return ["div", mergeAttributes(HTMLAttributes, { "data-callout": "" }), ...title, ["div", { class: "callout-body" }, 0]] as never;
   },
 
   addCommands() {
@@ -68,25 +73,29 @@ export const Callout = Node.create({
     level: "block",
     start: (src: string) => src.indexOf("> [!"),
     tokenize(src: string, _tokens: MarkdownToken[], lexer: MarkdownLexerConfiguration) {
-      const m = /^> ?\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][^\n]*(?:\n|$)((?:>[^\n]*(?:\n|$))*)/i.exec(src);
+      const m = /^> ?\[!([\w-]+)\]([+-]?)[ \t]*([^\n]*)(?:\n|$)((?:>[^\n]*(?:\n|$))*)/.exec(src);
       if (!m) return undefined;
-      const inner = m[2]
+      const inner = m[4]
         .split("\n")
         .map((line) => line.replace(/^> ?/, ""))
         .join("\n");
-      return { type: "callout", raw: m[0], kind: m[1].toLowerCase(), tokens: lexer.blockTokens(inner) };
+      return { type: "callout", raw: m[0], kind: m[1].toLowerCase(), fold: m[2], title: m[3].trim() || null, tokens: lexer.blockTokens(inner) };
     },
   },
 
   parseMarkdown: (token: MarkdownToken, h: any) => {
     const content = token.tokens?.length ? h.parseChildren(token.tokens) : [];
-    return h.createNode("callout", { kind: (token as { kind?: string }).kind ?? "note" }, content.length ? content : [h.createNode("paragraph")]);
+    const tk = token as { kind?: string; fold?: string; title?: string | null };
+    return h.createNode("callout", { kind: tk.kind ?? "note", fold: tk.fold ?? "", title: tk.title ?? null }, content.length ? content : [h.createNode("paragraph")]);
   },
 
   renderMarkdown: (node: AnyNode, h: any) => {
-    const kind = String(node.attrs?.kind ?? "note").toUpperCase();
+    // GitHub'ın beş türü büyük harfle (GitHub uyumu), Obsidian türleri dosyadaki gibi küçük harfle yazılır.
+    const raw = String(node.attrs?.kind ?? "note");
+    const kind = (CALLOUT_KINDS as readonly string[]).includes(raw) ? raw.toUpperCase() : raw;
+    const title = node.attrs?.title ? ` ${String(node.attrs.title)}` : "";
     const body: string = h.renderChildren(childrenOf(node), "\n\n");
-    return `> [!${kind}]\n${body
+    return `> [!${kind}]${String(node.attrs?.fold ?? "")}${title}\n${body
       .split("\n")
       .map((line) => (line ? `> ${line}` : ">"))
       .join("\n")}`;

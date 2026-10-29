@@ -278,6 +278,8 @@ export class AiActivity {
    */
   async editWithSnapshot(store: NodeStore, ref: string, edit: (before: NodeDoc) => Promise<NodeDoc>, requestId?: string): Promise<NodeDoc> {
     const before = await store.read(ref);
+    // Kilitli notun şifreli içeriği yapay zekâ tarafından değiştirilemez (kilit kullanıcının parolasıyla açılır).
+    if (before.locked) throw new NodeError("invalid", "Bu not kilitli; yapay zekâ kilitli notları okuyamaz ve değiştiremez.");
     const snapshot = await this.snapshot(before.id, (await store.readRaw(before.path)).toString("utf8"));
     const after = await edit(before);
     if (after.revision !== before.revision) {

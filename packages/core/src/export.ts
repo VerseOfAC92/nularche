@@ -4,6 +4,7 @@
 import path from "node:path";
 import { zipSync, type Zippable } from "fflate";
 import { Marked, type Tokens } from "marked";
+import { calloutTone, exportableMarkdown } from "./note-text.ts";
 import {
   cellValue,
   computeContext,
@@ -88,13 +89,19 @@ function rowProperties(row: NodeMeta, rc: RenderContext): string {
 /** Bir Node'un Markdown gövdesini HTML'e çevirir (Nularche'ye özgü bloklar dahil). */
 export function renderBody(node: NodeMeta, body: string, rc: RenderContext, t: RenderTarget, fromFile: string): string {
   const embeds: string[] = [];
-  let md = body
+  let md = exportableMarkdown(body)
     // Gömülü veritabanı ve YouTube satırları önce yer tutuculara çevrilir.
     .replace(/^@\[database\]\(([^)\s]+)\)[ \t]*$/gm, (_m, url: string) => {
       const target = resolveLink(node.path, url);
       const view = /#view=([^&\s]+)/.exec(url)?.[1];
       const dbNode = target ? rc.byPath.get(target) : undefined;
       embeds.push(dbNode?.database ? `<h3 class="db-title">${esc(dbNode.icon ?? "▦")} ${esc(dbNode.title)}</h3>${databaseTable(dbNode, view ? decodeURIComponent(view) : undefined, rc, t, fromFile)}` : "");
+      return `\n<div data-embed="${embeds.length - 1}"></div>\n`;
+    })
+    .replace(/^@\[(audio|drawing)\]\(([^)\s]+)\)[ \t]*$/gm, (_m, kind: string, url: string) => {
+      const target = resolveLink(node.path, url);
+      const src = target?.startsWith(`${ATTACHMENTS_DIR}/`) ? assetUrl(t, target, fromFile) : "";
+      embeds.push(!src ? "" : kind === "audio" ? `<p><audio controls preload="metadata" src="${esc(src)}"></audio></p>` : `<p><img class="drawing" src="${esc(src)}" alt=""></p>`);
       return `\n<div data-embed="${embeds.length - 1}"></div>\n`;
     })
     .replace(/^@\[youtube\]\(([^)\s]+)\)[ \t]*$/gm, (_m, url: string) => {
@@ -107,7 +114,7 @@ export function renderBody(node: NodeMeta, body: string, rc: RenderContext, t: R
       return `\n<div data-embed="${embeds.length - 1}"></div>\n`;
     });
   // GitHub uyarıları (> [!NOTE]) callout kutusu olur.
-  md = md.replace(/^> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*$/gim, (_m, k: string) => `> <span class="callout-mark" data-kind="${k.toLowerCase()}"></span>`);
+  md = md.replace(/^> \[!([\w-]+)\][+-]?[ \t]*(.*)$/gm, (_m, k: string, title: string) => `> <span class="callout-mark" data-kind="${calloutTone(k.toLowerCase())}"></span>${title.trim() ? ` **${title.trim()}**` : ""}`);
   const marked = new Marked({ gfm: true });
   marked.use({
     walkTokens(token) {
@@ -203,17 +210,23 @@ const MIME: Record<string, string> = {
   ".webp": "image/webp",
   ".svg": "image/svg+xml",
   ".pdf": "application/pdf",
+  ".webm": "audio/webm",
+  ".m4a": "audio/mp4",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
 };
 
 /** Tek bir sayfayı, resimleri gömülü (data: URI), stil dahil tek bir HTML dosyası olarak üretir. */
 export async function exportPageHtml(store: NodeStore, ref: string, lang: "tr" | "en" = "tr"): Promise<{ name: string; html: string }> {
   const rc = await contextFor(store, lang);
   const node = await store.read(ref);
+  if (node.locked) throw new NodeError("invalid", lang === "tr" ? "Kilitli not dışa aktarılamaz; önce kilidi kaldırın." : "A locked note can't be exported; remove the lock first.");
   const assets = new Map<string, string>();
   for (const l of extractLinks(node.path, node.body)) {
     if (!l.target.startsWith(`${ATTACHMENTS_DIR}/`) || !(await store.pathExists(l.target))) continue;
     const mime = MIME[posix.extname(l.target).toLowerCase()];
-    if (mime && mime.startsWith("image/")) assets.set(l.target, `data:${mime};base64,${(await store.readRaw(l.target)).toString("base64")}`);
+    if (mime && (mime.startsWith("image/") || (mime.startsWith("audio/") && (await store.readRaw(l.target)).length < 20 * 1024 * 1024))) assets.set(l.target, `data:${mime};base64,${(await store.readRaw(l.target)).toString("base64")}`);
   }
   const coverTarget = node.cover && !GRADIENTS[node.cover] && !/^https?:/.test(node.cover) ? posix.normalize(posix.join(posix.dirname(node.path), node.cover)) : null;
   if (coverTarget?.startsWith(`${ATTACHMENTS_DIR}/`) && (await store.pathExists(coverTarget))) {
@@ -261,11 +274,11 @@ export async function exportSite(
     roots = [r];
   } else {
     const published = rc.all.filter((n) => n.publish && !n.template);
-    roots = published.filter((n) => !published.some((p) => p.id !== n.id && descendants(rc.all, p.id).some((d) => d.id === n.id)));
+    roots = published.filter((n) => !n.locked).filter((n) => !published.some((p) => p.id !== n.id && descendants(rc.all, p.id).some((d) => d.id === n.id)));
   }
   if (roots.length === 0) throw new NodeError("invalid", lang === "tr" ? "Yayınlanacak sayfa yok: bir sayfanın ⋯ menüsünden “Web'de yayınla”yı açın." : "Nothing to publish: turn on “Publish to web” in a page's ⋯ menu.");
   const selected = new Map<string, NodeMeta>();
-  for (const r of roots) for (const n of [r, ...descendants(rc.all, r.id)]) if (!n.template) selected.set(n.id, n);
+  for (const r of roots) for (const n of [r, ...descendants(rc.all, r.id)]) if (!n.template && !n.locked) selected.set(n.id, n);
   const pagePaths = new Map([...selected.values()].map((n) => [n.path, htmlPathOf(n.path)]));
   const assets = new Set<string>();
   const target: RenderTarget = {

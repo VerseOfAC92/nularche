@@ -160,7 +160,8 @@ async function runTool(store: NodeStore, activity: AiActivity, requestId: string
     }
     case "read_node": {
       const n = await store.read(String(args.node));
-      return { ...summary(n), revision: n.revision, body: n.body };
+      if (n.locked) return { ...summary(n), locked: true, body: "", note: "Bu not kilitli; içeriği okunamaz." };
+      return { ...summary(n), revision: n.revision, tags: n.tags, body: n.body };
     }
     case "search_nodes":
       return { results: await store.search(String(args.query ?? ""), 10) };
@@ -312,4 +313,44 @@ export async function runGeminiAgent(o: AgentOptions): Promise<AgentResult> {
     const message = err instanceof AgentError || err instanceof NodeError ? err.message : `Beklenmeyen hata: ${(err as Error).message ?? err}`;
     return { request: await o.activity.completeRequest(req.id, message, true), model: null };
   }
+}
+
+/**
+ * Ses kaydını Gemini ile yazıya döker ya da özetler. Modeller sırayla denenir (yoğun/kota dolu modelden sonrakine geçilir).
+ * Ses yalnızca kullanıcının kendi Gemini anahtarıyla Google'a gönderilir; Nularche başka bir yere göndermez.
+ */
+export async function transcribeAudio(o: {
+  apiKey: string;
+  models: string[];
+  data: Uint8Array;
+  mime: string;
+  mode: "transcript" | "summary";
+  language: "tr" | "en";
+  fetchImpl?: Fetch;
+}): Promise<{ text: string; model: string }> {
+  const fetchImpl = o.fetchImpl ?? fetch;
+  const prompt =
+    o.mode === "transcript"
+      ? `Transcribe this audio recording verbatim in its original language. Use short paragraphs. If there are several speakers, prefix lines with "Speaker 1:", "Speaker 2:" etc. Reply with the transcript only, as plain Markdown.`
+      : `Summarise this audio recording in ${REPLY_LANGUAGE_NAME[o.language]} as 3–7 Markdown bullet points, then list any action items as "- [ ]" checkboxes. Reply with the Markdown only.`;
+  let last: AgentError | null = null;
+  for (const model of o.models) {
+    try {
+      const data = await call(fetchImpl, o.apiKey, `models/${encodeURIComponent(model)}:generateContent`, {
+        contents: [{ role: "user", parts: [{ inline_data: { mime_type: o.mime, data: Buffer.from(o.data).toString("base64") } }, { text: prompt }] }],
+        generationConfig: { temperature: 0.2 },
+      });
+      const text = (data?.candidates?.[0]?.content?.parts ?? [])
+        .filter((p: any) => typeof p.text === "string" && !p.thought)
+        .map((p: any) => p.text)
+        .join("")
+        .trim();
+      if (text) return { text, model };
+      last = new AgentError("busy", "Boş cevap döndü.");
+    } catch (err) {
+      if (!(err instanceof AgentError) || err.kind === "auth") throw err;
+      last = err;
+    }
+  }
+  throw last ?? new AgentError("model", "Kullanılabilir Gemini modeli yok.");
 }

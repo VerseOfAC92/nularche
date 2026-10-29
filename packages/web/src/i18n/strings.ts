@@ -1,6 +1,11 @@
 // Arayüz metinleri (Türkçe / English). Yeni metin eklerken her iki dili de yazın.
 
+import { STRINGS_15 } from "./strings15.ts";
+import { STRINGS_16 } from "./strings16.ts";
+
 export const STRINGS = {
+  ...STRINGS_15,
+  ...STRINGS_16,
   "action.expand": { tr: "Genişlet", en: "Expand" },
   "action.expand.do": { tr: "Notları açık, düzenli ve daha ayrıntılı bir metne dönüştür; uygun başlıklar ve listeler kullan, bilgi uydurma.", en: "Turn the notes into clear, organized and more detailed text; use suitable headings and lists, and do not invent facts." },
   "action.fix": { tr: "Düzelt", en: "Fix" },
@@ -146,6 +151,7 @@ export const STRINGS = {
   "ed.g.media": { tr: "Medya", en: "Media" },
   "ed.g.nodes": { tr: "Node'lar", en: "Nodes" },
   "ed.headerRow": { tr: "Başlık satırı", en: "Header row" },
+  "ed.deleteTable": { tr: "Tabloyu sil", en: "Delete table" },
   "ed.highlight": { tr: "Vurgula", en: "Highlight" },
   "ed.inlineCode": { tr: "Satır içi kod", en: "Inline code" },
   "ed.italicMark": { tr: "İ", en: "I" },
@@ -205,6 +211,7 @@ export const STRINGS = {
   "nai.undoneShort": { tr: "Geri alındı", en: "Undone" },
   "nai.working": { tr: "{ai} çalışıyor…", en: "{ai} is working…" },
   "node.addCover": { tr: "Kapak ekle", en: "Add cover" },
+  "node.removeCover": { tr: "Kapağı kaldır", en: "Remove cover" },
   "node.addIcon": { tr: "İkon ekle", en: "Add icon" },
   "node.backlinks": { tr: "Geri bağlantılar", en: "Backlinks" },
   "node.changeColor": { tr: "Renk değiştir", en: "Change colour" },
@@ -307,14 +314,14 @@ export const STRINGS = {
   "trash.hint": { tr: "Silinen notlar alt sayfalarıyla birlikte burada durur. Geri getirdiğiniz not eski yerine döner; eski yeri artık yoksa Shadow'a gelir.", en: "Deleted notes stay here together with their subpages. A restored note goes back to where it was; if that place no longer exists, it goes to Shadow." },
   "trash.none": { tr: "Çöp boş.", en: "Trash is empty." },
   "trash.empty": { tr: "Çöpü boşalt", en: "Empty trash" },
-  "trash.emptyConfirm": { tr: "Çöpteki {count} öğe kalıcı olarak silinsin mi? Bu işlem geri alınamaz.", en: "Permanently delete {count} items in the trash? This can't be undone." },
+  "trash.emptyConfirm": { tr: "Çöpteki {count} öğe kalıcı olarak silinsin mi? Bu işlem geri alınamaz.", en: "Permanently delete {count} {count:item|items} in the trash? This can't be undone." },
   "trash.deleteConfirm": { tr: "“{title}” kalıcı olarak silinsin mi? Bu işlem geri alınamaz.", en: "Permanently delete “{title}”? This can't be undone." },
   "trash.restore": { tr: "Geri getir", en: "Restore" },
   "trash.deleteForever": { tr: "Kalıcı olarak sil", en: "Delete forever" },
   "trash.restored": { tr: "“{title}” eski yerine geri getirildi.", en: "“{title}” was restored to its original place." },
   "trash.restoredShadow": { tr: "“{title}” geri getirildi; eski yeri olmadığı için Shadow'a eklendi.", en: "“{title}” was restored to Shadow because its original place no longer exists." },
   "trash.deletedAgo": { tr: "{when} silindi", en: "deleted {when}" },
-  "trash.children": { tr: "{count} alt sayfa", en: "{count} subpages" },
+  "trash.children": { tr: "{count} alt sayfa", en: "{count} {count:subpage|subpages}" },
   "trash.from": { tr: "yer: {path}", en: "from: {path}" },
   "trash.fromUnknown": { tr: "eski yeri bilinmiyor (Shadow'a gelir)", en: "original place unknown (goes to Shadow)" },
   "db.addDate": { tr: "Tarih özelliği ekle", en: "Add a date property" },
@@ -328,7 +335,7 @@ export const STRINGS = {
   "db.clear": { tr: "Temizle", en: "Clear" },
   "db.color": { tr: "Renk", en: "Color" },
   "db.computed": { tr: "Bu değer hesaplanır", en: "This value is computed" },
-  "db.count": { tr: "{count} kayıt", en: "{count} records" },
+  "db.count": { tr: "{count} kayıt", en: "{count} {count:record|records}" },
   "db.createOption": { tr: "Oluştur", en: "Create" },
   "db.csvDone": { tr: "CSV dosyası indirildi.", en: "CSV file downloaded." },
   "db.date": { tr: "Tarih", en: "Date" },
@@ -477,7 +484,7 @@ export const STRINGS = {
   "export.published": { tr: "Bu sayfa ve alt sayfaları yayınlanacaklar listesine eklendi. Ayarlar → Yayınlama'dan siteyi oluşturun.", en: "This page and its subpages will be published. Create the site from Settings → Publishing." },
   "export.unpublished": { tr: "Bu sayfa artık yayınlanmayacak.", en: "This page will no longer be published." },
   "export.publishTitle": { tr: "Yayınlama", en: "Publishing" },
-  "export.publishHint": { tr: "“Web'de yayınla” işaretli {count} sayfa (alt sayfalarıyla) statik bir web sitesine dönüştürülür: her sayfa bir HTML dosyası, gezinme menüsü ve resimler. Yalnızca işaretlediğiniz sayfalar dahil edilir; oluşan klasörü GitHub Pages, Netlify ya da herhangi bir sunucuya koyabilirsiniz. Nularche hiçbir yere yükleme yapmaz.", en: "{count} pages marked “Publish to web” (with their subpages) become a static website: one HTML file per page, a navigation menu and images. Only the pages you mark are included; put the folder on GitHub Pages, Netlify or any server. Nularche never uploads anything." },
+  "export.publishHint": { tr: "“Web'de yayınla” işaretli {count} sayfa (alt sayfalarıyla) statik bir web sitesine dönüştürülür: her sayfa bir HTML dosyası, gezinme menüsü ve resimler. Yalnızca işaretlediğiniz sayfalar dahil edilir; oluşan klasörü GitHub Pages, Netlify ya da herhangi bir sunucuya koyabilirsiniz. Nularche hiçbir yere yükleme yapmaz.", en: "{count} {count:page|pages} marked “Publish to web” (with their subpages) become a static website: one HTML file per page, a navigation menu and images. Only the pages you mark are included; put the folder on GitHub Pages, Netlify or any server. Nularche never uploads anything." },
   "export.createSite": { tr: "Siteyi oluştur…", en: "Create site…" },
   "export.downloadSite": { tr: "Siteyi indir (.zip)", en: "Download site (.zip)" },
   "export.siteSaved": { tr: "Site oluşturuldu: {path}", en: "Site created: {path}" },

@@ -46,9 +46,11 @@ try {
     "create_node",
     "duplicate_node",
     "get_backlinks",
+    "get_links",
     "get_nularche_request",
     "list_nodes",
     "list_shadow",
+    "list_tags",
     "move_node",
     "query_database",
     "read_node",
@@ -62,6 +64,31 @@ try {
   const arche = await call("create_node", { title: "MCP duman Arche", parent_node_id: "root" });
   const created = await call("create_node", { title: "MCP duman testi", body: "Bu nott yazım hatası içeriyor.", parent_node_id: arche.data.id });
   assert.equal(created.data.arche_id, arche.data.id);
+  // v1.5: #etiketler ve kilitli notlar
+  const tagged = await call("create_node", { title: "Etiketli", body: "Bugün #toplantı ve #proje/nularche", parent_node_id: "root" });
+  assert.equal(tagged.isError, false);
+  const tagList = await call("list_tags", {});
+  assert.deepEqual(tagList.data.tags.map((t: { tag: string }) => t.tag), ["proje/nularche", "toplantı"]);
+  const byTag = await call("search_nodes", { tag: "proje" });
+  assert.equal(byTag.data.results[0].id, tagged.data.id);
+  const locked = await call("create_node", { title: "Gizli", body: "<!-- nularche:locked v1 -->\nx\n\n```nularche-locked\n{}\n```\n" });
+  const lockedRead = await call("read_node", { node: locked.data.id });
+  assert.equal(lockedRead.data.locked, true);
+  assert.equal(lockedRead.data.body, "");
+  const lockedEdit = await call("update_node", { node: locked.data.id, body: "üzerine yaz" });
+  assert.equal(lockedEdit.isError, true);
+  // Obsidian uyumu: özellikler, takma adlar ve [[wiki]] bağlantıları
+  const wikiTarget = await call("create_node", { title: "Yol haritası", body: "hedefler", parent_node_id: "root" });
+  const props = await call("update_node", { node: wikiTarget.data.id, properties: { aliases: ["YH"], durum: "taslak" } });
+  assert.equal(props.isError, false);
+  assert.deepEqual((await call("read_node", { node: wikiTarget.data.id })).data.properties, { aliases: ["YH"], durum: "taslak" });
+  const wikiSource = await call("create_node", { title: "Wiki kaynak", body: "Bkz. [[YH]] ve [[Olmayan]]. Yol haritası da önemli.", parent_node_id: "root" });
+  const links = await call("get_links", { node: wikiSource.data.id });
+  assert.deepEqual(links.data.outgoing.map((n: { id: string }) => n.id), [wikiTarget.data.id]);
+  assert.deepEqual(links.data.unresolved, ["Olmayan"]);
+  const back = await call("get_backlinks", { node: wikiTarget.data.id });
+  assert.deepEqual(back.data.backlinks.map((n: { id: string }) => n.id), [wikiSource.data.id]);
+
   const listed = await call("list_nodes", {});
   assert.ok(listed.data.nodes.some((n: { id: string }) => n.id === created.data.id));
   const found = await call("search_nodes", { query: "yazım hatası" });

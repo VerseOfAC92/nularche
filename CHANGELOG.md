@@ -1,5 +1,83 @@
 # Changelog
 
+## 1.5.0
+
+Everyday note-taking features from Apple Notes, distraction-free writing from a focused writer app and the linked-notes
+workflow of Obsidian. Notes stay plain Markdown; existing 1.0 notes and notes written in Obsidian open unchanged.
+
+### Focused writing
+- Focus mode (⇧⌘F): full screen, hidden sidebar and toolbars, bars that appear on mouse movement, optional typewriter
+  scrolling and current-paragraph highlight.
+- Writing backgrounds: ten landscapes drawn for Nularche, ten colour palettes, a custom colour or your own picture; in
+  focus mode or on every page. Lines keep following the window width as before; a fixed line width is optional.
+- Word, character and reading-time counter (also for the selection); font and size per page (⌘T, ⌥⌘= / ⌥⌘−).
+- Link dialog (⌘L) with address checking; ⌘/Ctrl-click opens external links.
+
+### Organising
+- `#tags` (with `/` sub-tags): sidebar list, tag pages, renaming across all notes, `#tag` search.
+- Smart folders (tags, dates, checklists, attachments, Arche, pinned, locked); convert an Arche to a smart folder.
+- Pinned notes; All notes, Recent notes, tag, smart folder and Arche lists as list or gallery, sorted by date edited,
+  date created or title, grouped by date, with an optional note count.
+- Attachments browser with type filters, renaming (links updated) and "show in note".
+
+### Writing and formatting
+- Paragraph styles, alignment, indent, right-to-left paragraphs, superscript/subscript, dashed lists, case
+  transformations, copy/paste style, paste and match style, collapsible sections.
+- Find and replace with Turkish-aware matching.
+- Checklists: check/uncheck all, move checked to bottom (once or automatically per note), delete checked.
+- Math results for lines ending in `=`, with variables; suggest (Tab) or insert automatically.
+- Audio recordings with optional Gemini transcription or summary (Automatic mode); drawings; read aloud.
+
+### Security, import and export
+- Password-locked notes (AES-256-GCM, PBKDF2-SHA-256 in the app; the file holds only ciphertext); hidden from search,
+  export and AI; "Close all locked notes".
+- Import Markdown, text, HTML and RTF files or folders into Shadow, copying referenced images; Copy/Paste as Markdown.
+- Export as Word (.docx), RTF and plain text; Print; open a note in its own window; Keep on top; light background for a
+  single note.
+
+### App
+- New Format and View menus built from the same command list as the shortcuts; the shortcuts list shows every new
+  shortcut.
+- UI preferences (backgrounds, list views, smart folders, recent notes) are stored with the Origin in
+  `.nularche/ui.json`.
+- MCP: new `list_tags` tool, `search_nodes` accepts `tag`; locked notes cannot be read or changed by AI tools.
+- macOS: microphone usage description for audio notes.
+
+### Linked notes (from Obsidian)
+- `[[Wiki links]]`, `[[Note#Heading|alias]]` and `![[embeds]]` (notes, sections and images); links resolve by title,
+  file name, path or alias, and a link to a missing note creates it. Backlinks, graph and MCP count them.
+- Properties: typed front matter fields (text, list, number, checkbox, date) at the top of a note; `aliases` and front
+  matter `tags` work as in Obsidian.
+- Command palette (⇧⌘P), quick switcher (⌘O) with create, back/forward (⌥⌘← / ⌥⌘→), random note, unique note,
+  previous/next daily note, reading view (⌥⌘E), slides, copy file path, show in Finder/file manager.
+- Graph view and local graph; side panel (⇧⌘O) with outline, backlinks, outgoing links, unlinked mentions (one-click
+  linking) and file history with preview and restore.
+- Canvas pages in the JSON Canvas format (text, note, link and group cards, arrows, colours); cards count as links and
+  follow renamed notes.
+- LaTeX (KaTeX), Mermaid diagrams, footnotes, `%%comments%%` (left out of exports and publishing), every Obsidian
+  callout type with title and fold marker, move line/list item (⌥↑ / ⌥↓), clear formatting (⌘\\).
+- Note composer: merge notes (Markdown and wiki links are redirected), extract the selection or a heading section.
+- Settings: custom hotkeys for every command, CSS snippets (`.nularche/snippets/`), accent colour, readable line length,
+  default view, properties visible/hidden, new note location, startup page, auto-pair, excluded files.
+- Tabs (⌥⌘T, ⌥⌘W, Ctrl+Tab; ⌘↩ in the quick switcher) and saved workspaces; choose what opens at startup (last page,
+  today's note or home).
+- Page preview: ⌘/Ctrl-hover a link (plain hover in reading view, the side panel and backlinks).
+- Templates fill in `{{title}}`, `{{date}}`, `{{time}}` and formats like `{{date:DD.MM.YYYY}}`, copy their properties,
+  and can be inserted into the current note.
+- Auto-pair brackets and quotes (optional).
+- MCP: new `get_links` tool; `update_node` accepts `properties`; `read_node` returns properties.
+
+### Fixes
+- Removing a cover (also from the new “Remove cover” page menu item), icon, font or light background now clears it
+  on screen right away instead of showing the old value until the note is reopened.
+- English interface: correct singular/plural counts (“1 note”), translated table and link dialog texts.
+- Table header rows stay readable on writing backgrounds.
+- Notes written in Obsidian are no longer damaged when edited: `[[links]]`, footnotes, LaTeX backslashes and
+  Obsidian callouts used to be escaped on save, and one-word footnote definitions were dropped.
+- Renaming tags and attachments, and inserting a YouTube video, work in the desktop app (they relied on a browser
+  prompt that Electron doesn't provide).
+- Closing a picker no longer blanks the window on newer Chromium versions.
+
 ## 1.0.0
 
 First public release.

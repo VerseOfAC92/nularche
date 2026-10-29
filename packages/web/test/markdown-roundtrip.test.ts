@@ -30,6 +30,22 @@ const cases: Record<string, [string, string]> = {
   youtube: ["@[youtube](https://www.youtube.com/watch?v=dQw4w9WgXcQ)", "youtube"],
   veritabanı: ["@[database](/files/Proje/Gorevler/Gorevler.md#view=v_board)", "inlineDatabase"],
   renk: ['önce <span style="color: #00A8B5">renkli</span> sonra', "textStyle"],
+  hizalama: ['<div align="center">\n\nOrtalı **metin**\n\n</div>\n\nnormal', "paragraph"],
+  "sağdan sola başlık": ['<div align="right" dir="rtl">\n\n## مرحبا\n\n</div>', "heading"],
+  girinti: ['<div data-indent="2">\n\nGirintili\n\n</div>', "paragraph"],
+  "üs ve indis": ["x<sup>2</sup> ve H<sub>2</sub>O", "superscript"],
+  "tire liste": ["+ bir\n+ iki\n\n- madde", "bulletList"],
+  ses: ["@[audio](/files/Attachments/kayit.webm)", "audioBlock"],
+  çizim: ["@[drawing](/files/Attachments/cizim.png)", "drawingBlock"],
+  etiket: ["Bugün #toplantı vardı", "text"],
+  "wiki bağlantısı": ["Bkz [[Plan#Hedef|takma]] ve ![[resim.png]] ile ![[Plan]]", "wikiLink"],
+  dipnot: ["Metin[^1] devam\n\n[^1]: Dipnot metni", "footnoteRef"],
+  "tek kelimelik dipnot tanımı": ["Dipnot[^1]\n\n[^1]: açıklama\n\n[^not]: **kalın** tanım", "footnoteDef"],
+  "satır içi matematik": ["Euler $e^{i\\pi}+1=0$ ama $5 ile $6 para", "mathInline"],
+  "blok matematik": ["$$\n\\int_0^1 x\\,dx\n$$", "mathBlock"],
+  "obsidian kutusu": ["> [!info]- Katlanır başlık\n> içerik", "callout"],
+  yorum: ["a %%gizli not%% b", "text"],
+  mermaid: ["```mermaid\ngraph TD; A-->B\n```", "codeBlock"],
 };
 
 function types(json: unknown, out = new Set<string>()): Set<string> {
@@ -81,5 +97,18 @@ describe("gömülü veritabanı bağlantısı", () => {
     const ed = toEditorMarkdown(md, "Proje/Proje.md");
     expect(ed).toBe("@[database](/files/Proje/Gorevler/Gorevler.md#view=v_board)");
     expect(fromEditorMarkdown(ed, "Proje/Proje.md")).toBe(md);
+  });
+});
+
+describe("v1.5 biçimleri", () => {
+  test("hizalama özniteliği editöre taşınır", () => {
+    roundtrip('<div align="center">\n\nOrta\n\n</div>');
+    expect(JSON.stringify(editor!.getJSON())).toContain('"textAlign":"center"');
+  });
+  test("tire liste ve madde listesi ayrı kalır", () => {
+    const out = roundtrip("+ bir\n+ iki\n\n- madde");
+    expect(out).toContain("+ bir");
+    expect(out).toContain("- madde");
+    expect(JSON.stringify(editor!.getJSON())).toContain('"dashed":true');
   });
 });

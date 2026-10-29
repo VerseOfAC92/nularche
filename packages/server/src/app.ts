@@ -10,6 +10,9 @@ import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
 import type { ProviderId } from "../../core/src/ai-clients.ts";
+import { exportPageDocument } from "../../core/src/export-doc.ts";
+import { importFiles } from "../../core/src/import.ts";
+import { readPrefs, readSnippets, writePrefs } from "../../core/src/prefs.ts";
 
 const HOST = "127.0.0.1";
 
@@ -110,8 +113,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     return Buffer.concat(chunks);
   }
 
-  async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
-    const buf = await readBody(req, 10 * 1024 * 1024);
+  async function readJson(req: IncomingMessage, limit = 10 * 1024 * 1024): Promise<Record<string, unknown>> {
+    const buf = await readBody(req, limit);
     if (buf.length === 0) return {};
     try {
       const value = JSON.parse(buf.toString("utf8"));
@@ -208,7 +211,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         return send(
           res,
           200,
-          await store.update(id, { body: str(b.body), title: str(b.title), baseRevision: str(b.baseRevision), fields: obj(b.fields) }),
+          await store.update(id, { body: str(b.body), title: str(b.title), baseRevision: str(b.baseRevision), fields: obj(b.fields), properties: obj(b.properties) }),
         );
       }
       case "DELETE nodes/:id":
@@ -224,6 +227,11 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       }
       case "GET nodes/:id/export": {
         const lang = url.searchParams.get("lang") === "en" ? "en" : "tr";
+        const format = url.searchParams.get("format");
+        if (format === "rtf" || format === "docx" || format === "txt") {
+          const out = await exportPageDocument(store, id, format);
+          return sendFile(res, out.name, out.mime, out.data);
+        }
         if (url.searchParams.get("format") === "html") {
           const out = await exportPageHtml(store, id, lang);
           return sendFile(res, out.name, "text/html; charset=utf-8", out.html);
@@ -241,10 +249,60 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       }
       case "GET nodes/:id/backlinks":
         return send(res, 200, { nodes: await store.backlinks(id) });
+      case "GET nodes/:id/outgoing":
+        return send(res, 200, await store.outgoing(id));
+      case "GET nodes/:id/mentions":
+        return send(res, 200, { mentions: await store.unlinkedMentions(id) });
+      case "POST nodes/:id/link-mention": {
+        const b = await readJson(req);
+        return send(res, 200, await store.linkMention(str(b.source) ?? "", id));
+      }
+      case "POST nodes/:id/merge": {
+        const b = await readJson(req);
+        return send(res, 200, await store.merge(id, str(b.into) ?? ""));
+      }
+      case "GET nodes/:id/history": {
+        const at = Number(url.searchParams.get("at"));
+        if (at) return send(res, 200, { at, body: await store.historyBody(id, at) });
+        return send(res, 200, { entries: await store.history(id) });
+      }
+      case "POST nodes/:id/restore": {
+        const b = await readJson(req);
+        return send(res, 200, await store.restoreHistory(id, Number(b.at), str(b.baseRevision)));
+      }
+      case "GET graph":
+        return send(res, 200, await store.graph());
+      case "GET snippets":
+        return send(res, 200, { snippets: await readSnippets(store.root) });
       case "POST reorder": {
         const b = await readJson(req);
         const ids = Array.isArray(b.ids) ? b.ids.filter((x): x is string => typeof x === "string") : [];
         return send(res, 200, { nodes: await store.reorder(str(b.parentNodeId) ?? null, ids) });
+      }
+      case "GET tags":
+        return send(res, 200, { tags: await store.tags() });
+      case "POST tags/:id/rename": {
+        const b = await readJson(req);
+        return send(res, 200, { changed: await store.renameTag(id, str(b.to) ?? "") });
+      }
+      case "GET attachments":
+        return send(res, 200, { attachments: await store.listAttachments() });
+      case "POST attachments/:id/rename": {
+        const b = await readJson(req);
+        return send(res, 200, { path: await store.renameAttachment(str(b.path) ?? "", str(b.name) ?? "") });
+      }
+      case "GET prefs":
+        return send(res, 200, await readPrefs(store.root));
+      case "PUT prefs":
+        return send(res, 200, await writePrefs(store.root, await readJson(req)));
+      case "POST import": {
+        const b = await readJson(req, 300 * 1024 * 1024);
+        const files = (Array.isArray(b.files) ? b.files : [])
+          .map((f) => obj(f))
+          .filter((f): f is Record<string, unknown> => !!f && typeof f.path === "string" && typeof f.data === "string")
+          .map((f) => ({ path: String(f.path), data: new Uint8Array(Buffer.from(String(f.data), "base64")) }));
+        const parent = b.parentNodeId === undefined ? undefined : (str(b.parentNodeId) ?? null);
+        return send(res, 201, await importFiles(store, files, parent));
       }
       case "POST attachments": {
         const name = url.searchParams.get("name") || "dosya";

@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { app, BrowserWindow, clipboard, ipcMain, safeStorage, shell } from "electron";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { checkGeminiKey, runGeminiAgent } from "../../core/src/ai-agent.ts";
+import { checkGeminiKey, runGeminiAgent, transcribeAudio } from "../../core/src/ai-agent.ts";
 import { NodeStore } from "../../core/src/node-store.ts";
 import { AiActivity, type AiClientRecord } from "../../core/src/ai-activity.ts";
 import {
@@ -321,6 +321,39 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
       return { ok: false, error: (err as Error).message };
     }
     return enqueue(requestId);
+  });
+
+  // Ses kaydını yazıya dökme / özetleme (Otomatik mod anahtarıyla, yalnızca kullanıcı isteyince).
+  const AUDIO_MIME: Record<string, string> = { ".webm": "audio/webm", ".m4a": "audio/mp4", ".mp4": "audio/mp4", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".aac": "audio/aac", ".flac": "audio/flac" };
+  ipcMain.handle("nularche:transcribe", async (_e, rel: unknown, mode: unknown, language: unknown) => {
+    const root = ctx.originRoot();
+    if (!root || typeof rel !== "string") return { ok: false, error: d("ai.badRequest") };
+    const key = await readKey();
+    if (!key || !ctx.settings().autoMode) return { ok: false, needsAuto: true };
+    let file: string;
+    try {
+      file = new NodeStore(root).abs(rel);
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+    const mime = AUDIO_MIME[path.extname(file).toLowerCase()];
+    if (!mime) return { ok: false, error: d("ai.badRequest") };
+    try {
+      const data = new Uint8Array(await readFile(file));
+      if (data.length > 18 * 1024 * 1024) return { ok: false, error: d("ai.audioTooLarge") };
+      const { text, model } = await transcribeAudio({
+        apiKey: key,
+        models: await modelOrder(key),
+        data,
+        mime,
+        mode: mode === "summary" ? "summary" : "transcript",
+        language: language === "en" ? "en" : "tr",
+      });
+      if (model !== ctx.settings().geminiModel) await ctx.save({ geminiModel: model });
+      return { ok: true, text };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.handle("nularche:ai-download", (_e, url: unknown) => {

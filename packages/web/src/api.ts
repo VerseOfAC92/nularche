@@ -12,6 +12,12 @@ export interface PageFields {
   publish?: boolean;
   props?: Record<string, unknown>;
   database?: Record<string, unknown>;
+  pinned?: boolean;
+  locked?: boolean;
+  font?: string;
+  fontSize?: number;
+  lightBg?: boolean;
+  sortChecked?: boolean;
 }
 
 export type PageFieldPatch = { [K in keyof PageFields]?: PageFields[K] | null };
@@ -26,10 +32,33 @@ export interface NodeMeta extends PageFields {
   createdAt: number;
   updatedAt: number;
   revision: string;
+  tags: string[];
+  excerpt: string;
+  image: string | null;
+  todos: number;
+  done: number;
+  attachments: number;
+  words: number;
+  /** Frontmatter `aliases` (Obsidian uyumlu takma adlar). */
+  aliases: string[];
 }
 
 export interface NodeDoc extends NodeMeta {
   body: string;
+  /** Kullanıcının frontmatter özellikleri. */
+  properties: Record<string, unknown>;
+}
+
+export interface LinkGraph {
+  nodes: { id: string; title: string; path: string; tags: string[]; archeId: string | null }[];
+  links: { source: string; target: string }[];
+  unresolved: { source: string; name: string }[];
+}
+
+export interface MentionHit {
+  id: string;
+  title: string;
+  snippet: string;
 }
 
 export interface SearchHit {
@@ -77,6 +106,26 @@ export interface AiRequest {
   undoneAt?: number;
 }
 
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
+export interface AttachmentInfo {
+  path: string;
+  name: string;
+  size: number;
+  modifiedAt: number;
+  kind: "image" | "audio" | "video" | "drawing" | "pdf" | "file";
+  refs: { id: string; title: string }[];
+}
+
+export interface ImportResult {
+  created: { id: string; title: string }[];
+  skipped: string[];
+  attachments: number;
+}
+
 export interface ShadowView {
   inbox: NodeMeta[];
   unlinked: NodeMeta[];
@@ -115,7 +164,7 @@ export const api = {
   read: (id: string) => request<NodeDoc>("GET", `/api/nodes/${enc(id)}`),
   create: (title: string, parentNodeId: ParentTarget, body?: string, fields?: PageFields) =>
     request<NodeDoc>("POST", "/api/nodes", { title, parentNodeId, body, fields }),
-  update: (id: string, patch: { body?: string; title?: string; baseRevision?: string; fields?: PageFieldPatch }) =>
+  update: (id: string, patch: { body?: string; title?: string; baseRevision?: string; fields?: PageFieldPatch; properties?: Record<string, unknown> }) =>
     request<NodeDoc>("PUT", `/api/nodes/${enc(id)}`, patch),
   duplicate: (id: string, input: { parentNodeId?: ParentTarget; title?: string; fields?: PageFields } = {}) =>
     request<NodeDoc>("POST", `/api/nodes/${enc(id)}/duplicate`, input),
@@ -136,5 +185,22 @@ export const api = {
     request<AiRequest>("POST", "/api/ai/requests", input),
   aiClear: () => request<{ archived: number; kept: number }>("POST", "/api/ai/clear"),
   aiUndo: (id: string) => request<{ restored: string[]; skipped: string[] }>("POST", `/api/ai/requests/${enc(id)}/undo`),
+  tags: () => request<{ tags: TagCount[] }>("GET", "/api/tags").then((r) => r.tags),
+  renameTag: (from: string, to: string) => request<{ changed: number }>("POST", `/api/tags/${enc(from)}/rename`, { to }),
+  attachments: () => request<{ attachments: AttachmentInfo[] }>("GET", "/api/attachments").then((r) => r.attachments),
+  renameAttachment: (path: string, name: string) => request<{ path: string }>("POST", "/api/attachments/_/rename", { path, name }),
+  prefs: () => request<Record<string, unknown>>("GET", "/api/prefs"),
+  setPrefs: (patch: Record<string, unknown>) => request<Record<string, unknown>>("PUT", "/api/prefs", patch),
+  importFiles: (files: { path: string; data: string }[], parentNodeId?: ParentTarget) =>
+    request<ImportResult>("POST", "/api/import", { files, parentNodeId }),
+  outgoing: (id: string) => request<{ linked: NodeMeta[]; unresolved: string[] }>("GET", `/api/nodes/${enc(id)}/outgoing`),
+  mentions: (id: string) => request<{ mentions: MentionHit[] }>("GET", `/api/nodes/${enc(id)}/mentions`).then((r) => r.mentions),
+  linkMention: (targetId: string, sourceId: string) => request<NodeDoc>("POST", `/api/nodes/${enc(targetId)}/link-mention`, { source: sourceId }),
+  merge: (sourceId: string, intoId: string) => request<NodeDoc>("POST", `/api/nodes/${enc(sourceId)}/merge`, { into: intoId }),
+  history: (id: string) => request<{ entries: { at: number; size: number }[] }>("GET", `/api/nodes/${enc(id)}/history`).then((r) => r.entries),
+  historyBody: (id: string, at: number) => request<{ body: string }>("GET", `/api/nodes/${enc(id)}/history?at=${at}`).then((r) => r.body),
+  restoreHistory: (id: string, at: number, baseRevision?: string) => request<NodeDoc>("POST", `/api/nodes/${enc(id)}/restore`, { at, baseRevision }),
+  graph: () => request<LinkGraph>("GET", "/api/graph"),
+  snippets: () => request<{ snippets: { name: string; css: string }[] }>("GET", "/api/snippets").then((r) => r.snippets),
   upload: (file: File) => request<{ path: string }>("POST", `/api/attachments?name=${enc(file.name)}`, undefined, file),
 };

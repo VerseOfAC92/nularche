@@ -2,7 +2,9 @@
 // Node'lar sürüklenerek başka bir Node'un altına, kardeşlerin arasına, köke (Arche) ya da Shadow'a bırakılabilir.
 
 import { useMemo, useState, type DragEvent } from "react";
-import { api, SHADOW, type NodeMeta, type ParentTarget } from "./api.ts";
+import { api, SHADOW, type NodeMeta, type ParentTarget, type TagCount } from "./api.ts";
+import type { SmartFolder } from "./notes/smart.ts";
+import { usePref } from "./prefs.ts";
 import type { Route } from "./App.tsx";
 import { t } from "./i18n/index.ts";
 import { keys } from "./shortcuts.tsx";
@@ -26,6 +28,13 @@ export interface SidebarProps {
   onOpenSettings: () => void;
   onOpenTemplates: () => void;
   onDaily: () => void;
+  tags: TagCount[];
+  smartFolders: SmartFolder[];
+  recentCount: number;
+  /** Akıllı klasör düzenle (yeni için undefined). */
+  onEditSmart: (folder?: SmartFolder) => void;
+  onRenameTag: (tag: string) => void;
+  onConvertToSmart: (arche: NodeMeta) => void;
 }
 
 export function Sidebar(props: SidebarProps) {
@@ -33,6 +42,8 @@ export function Sidebar(props: SidebarProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [drop, setDrop] = useState<{ id: string; zone: DropZone } | null>(null);
   const [dropTarget, setDropTarget] = useState<"shadow" | "root" | null>(null);
+  const [collapsed, setCollapsed] = usePref<Record<string, boolean>>("sidebarCollapsed", {});
+  const toggleSection = (k: string) => setCollapsed({ ...collapsed, [k]: !collapsed[k] });
 
   const children = useMemo(() => {
     const map = new Map<string | null, NodeMeta[]>();
@@ -159,6 +170,15 @@ export function Sidebar(props: SidebarProps) {
           {inTree && (
             <span className="row-actions">
               <button
+                title={t("list.openList")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onNavigate({ kind: "list", id: n.id });
+                }}
+              >
+                ☰
+              </button>
+              <button
                 title={t("sidebar.addChild")}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -216,6 +236,75 @@ export function Sidebar(props: SidebarProps) {
       <button className="side-btn" onClick={props.onOpenTemplates}>
         📋 {t("tpl.title")}
       </button>
+      <button className={`side-btn ${route.kind === "notes" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "notes" })}>
+        🗒 {t("list.allNotes")}
+      </button>
+      <button className={`side-btn ${route.kind === "recent" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "recent" })}>
+        🕘 {t("list.recent")} {props.recentCount > 0 && <span className="badge">{Math.min(props.recentCount, 30)}</span>}
+      </button>
+      <button className={`side-btn ${route.kind === "attachments" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "attachments" })}>
+        📎 {t("att.title")}
+      </button>
+
+      <div className="side-section">
+        <div className="side-section-head">
+          <span className="clickable" onClick={() => toggleSection("smart")}>
+            {collapsed.smart ? "▸" : "▾"} {t("smart.title")}
+          </span>
+          <button title={t("smart.new")} onClick={() => props.onEditSmart()}>
+            +
+          </button>
+        </div>
+        {!collapsed.smart &&
+          props.smartFolders.map((f) => (
+            <div
+              key={f.id}
+              className={`tree-row ${route.kind === "smart" && route.id === f.id ? "selected" : ""}`}
+              style={{ paddingLeft: 6 }}
+              onClick={() => props.onNavigate({ kind: "smart", id: f.id })}
+            >
+              <span className="twisty" />
+              <span className="tree-icon">{f.icon ?? "⚙︎"}</span>
+              <span className="tree-title">{f.name}</span>
+              <span className="row-actions">
+                <button
+                  title={t("smart.edit")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.onEditSmart(f);
+                  }}
+                >
+                  ✎
+                </button>
+              </span>
+            </div>
+          ))}
+      </div>
+
+      {props.tags.length > 0 && (
+        <div className="side-section">
+          <div className="side-section-head">
+            <span className="clickable" onClick={() => toggleSection("tags")}>
+              {collapsed.tags ? "▸" : "▾"} {t("tags.title")}
+            </span>
+          </div>
+          {!collapsed.tags && (
+            <div className="side-tags">
+              {props.tags.map((tg) => (
+                <button
+                  key={tg.tag}
+                  className={`tag-chip ${route.kind === "tag" && route.tag.toLocaleLowerCase("tr") === tg.tag.toLocaleLowerCase("tr") ? "on" : ""}`}
+                  onClick={() => props.onNavigate({ kind: "tag", tag: tg.tag })}
+                  onDoubleClick={() => props.onRenameTag(tg.tag)}
+                  title={`${tg.count} · ${t("tags.rename")}: ↵↵`}
+                >
+                  #{tg.tag}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {favorites.length > 0 && (
         <div className="side-section">

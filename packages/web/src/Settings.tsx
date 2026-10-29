@@ -8,6 +8,10 @@ import { setLang, t, useLang } from "./i18n/index.ts";
 import { exportNode } from "./exporting.ts";
 import { keys } from "./shortcuts.tsx";
 import { api } from "./api.ts";
+import { usePref } from "./prefs.ts";
+import { BackgroundPicker } from "./focus/BackgroundPicker.tsx";
+import { HotkeyEditor, VaultSettings } from "./vault/VaultSettings.tsx";
+import type { MathMode } from "./editor/notes-extensions.ts";
 
 export function Settings({
   onClose,
@@ -15,7 +19,9 @@ export function Settings({
   onChanged,
   aiTick,
   onShortcuts,
+  onImport,
 }: {
+  onImport: (folder: boolean) => void;
   onShortcuts: () => void;
   onClose: () => void;
   onToast: (msg: string) => void;
@@ -26,6 +32,9 @@ export function Settings({
   const [theme, setThemeState] = useState<ThemeChoice>(getTheme);
   const lang = useLang();
   const [published, setPublished] = useState<number | null>(null);
+  const [mathMode, setMathMode] = usePref<MathMode>("mathMode", "suggest");
+  const [spellcheck, setSpellcheck] = usePref<boolean>("spellcheck", true);
+  const [wordCount, setWordCount] = usePref<boolean>("wordCount", true);
   useEffect(() => {
     api.list().then((ns) => setPublished(ns.filter((n) => n.publish && !n.template).length), () => setPublished(0));
   }, []);
@@ -81,6 +90,44 @@ export function Settings({
               {label}
             </button>
           ))}
+        </div>
+
+        <h3>{t("settings.writing")}</h3>
+        <p className="muted small">{t("settings.mathHint")}</p>
+        <div className="segmented">
+          {(
+            [
+              ["off", t("settings.mathOff")],
+              ["suggest", t("settings.mathSuggest")],
+              ["insert", t("settings.mathInsert")],
+            ] as const
+          ).map(([value, label]) => (
+            <button key={value} className={mathMode === value ? "on" : ""} onClick={() => setMathMode(value)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <label className="check">
+          <input type="checkbox" checked={spellcheck} onChange={(e) => setSpellcheck(e.target.checked)} /> {t("settings.spellcheck")}
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={wordCount} onChange={(e) => setWordCount(e.target.checked)} /> {t("settings.wordCount")}
+        </label>
+
+        <VaultSettings />
+
+        <h3>{t("focus.background")}</h3>
+        <BackgroundPicker />
+
+        <h3>{t("settings.import")}</h3>
+        <p className="muted small">{t("settings.importHint")}</p>
+        <div className="row">
+          <button className="secondary" onClick={() => (onClose(), onImport(false))}>
+            {t("settings.importFiles")}
+          </button>
+          <button className="secondary" onClick={() => (onClose(), onImport(true))}>
+            {t("settings.importFolder")}
+          </button>
         </div>
 
         <h3>Origin</h3>
@@ -142,6 +189,7 @@ export function Settings({
             ⌨ {t("keys.show")}
           </button>
         </div>
+        <HotkeyEditor />
 
         <h3>{t("export.publishTitle")}</h3>
         <p className="muted">{t("export.publishHint", { count: published ?? 0 })}</p>

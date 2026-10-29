@@ -66,6 +66,8 @@ export interface DesktopBridge {
   changeOrigin(): Promise<string | null>;
   revealOrigin(): Promise<void>;
   copy(text: string): Promise<void>;
+  revealPath(rel: string): Promise<boolean>;
+  originPath(): Promise<string | null>;
   openExternal(url: string): Promise<void>;
   aiStatus(): Promise<AiStatus>;
   aiSet(patch: { provider?: ProviderId | null; launcher?: LauncherId; onboarded?: boolean }): Promise<void>;
@@ -90,7 +92,26 @@ export interface DesktopBridge {
   printPdf(name: string): Promise<string | null>;
   exportArchive(nodeId: string | null, kind: "nlc" | "nla"): Promise<string | null>;
   /** Markdown (.zip), tek dosya HTML ya da statik site (klasöre) dışa aktarır. */
-  exportAs(kind: "md" | "html" | "site", nodeId: string | null): Promise<{ ok: boolean; path?: string | null; error?: string }>;
+  exportAs(kind: "md" | "html" | "site" | "rtf" | "docx" | "txt", nodeId: string | null): Promise<{ ok: boolean; path?: string | null; error?: string }>;
+  /** Panodaki düz metin. */
+  readClipboard(): Promise<string>;
+  /** Sistem yazdırma penceresi. */
+  print(): Promise<void>;
+  /** Notu ayrı bir pencerede açar. */
+  openWindow(nodeId: string): Promise<void>;
+  /** Pencereyi diğerlerinin üstünde tutar; yeni durumu döndürür. */
+  setAlwaysOnTop(on: boolean): Promise<boolean>;
+  setFullScreen(on: boolean): Promise<void>;
+  /** Yazım denetimini açar/kapatır. */
+  setSpellcheck(on: boolean): Promise<void>;
+  /** Uygulama menüsünü (Dosya/Düzen/Biçim/Görüntü) arayüzün komut listesiyle kurar. */
+  setMenu(spec: unknown, state: Record<string, boolean>): Promise<void>;
+  /** Menüden seçilen komut. */
+  onCommand(cb: (id: string) => void): () => void;
+  /** Dosya ya da klasör seçtirip Markdown/HTML/RTF/metin notlarını Shadow'a aktarır. */
+  importNotes(kind: "files" | "folder"): Promise<{ created: { id: string; title: string }[]; skipped: string[]; attachments: number } | null>;
+  /** Ses ekini (Attachments yolu) Gemini (Otomatik mod) ile yazıya döker ya da özetler. */
+  transcribe(path: string, mode: "transcript" | "summary", language: "tr" | "en"): Promise<{ ok: boolean; text?: string; error?: string; needsAuto?: boolean }>;
   importArchive(): Promise<{ imported: number; rootIds: string[] } | null>;
   checkUpdate(): Promise<{ version: string; url: string } | null>;
   skipUpdate(version: string): Promise<void>;
