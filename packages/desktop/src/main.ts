@@ -15,6 +15,7 @@ import { exportPageDocument } from "../../core/src/export-doc.ts";
 import { importFiles, IMPORTABLE_EXTS, type ImportFile } from "../../core/src/import.ts";
 import type { McpEntry } from "../../core/src/ai-clients.ts";
 import { registerAiIpc, type AiSettings } from "./ai.ts";
+import { registerCalendarIpc } from "./calendar.ts";
 import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
 import { loadOrigin, type Origin } from "../../core/src/origin.ts";
 import { startServer, type RunningServer } from "../../server/src/app.ts";
@@ -270,6 +271,7 @@ async function openOrigin(originDir: string): Promise<void> {
   server = await startServer({ originDir, webDist: webDist(), port: 0, onAiActivity: () => aiHooks?.onActivity() });
   origin = await loadOrigin(server.store.root);
   await aiHooks?.resetBaseline();
+  calendarHooks?.onOriginChanged();
   settings.originDir = originDir;
   await saveSettings(settings);
   if (win) await win.loadURL(server.url);
@@ -687,6 +689,7 @@ function compareVersions(a: string, b: string): number {
 }
 
 let aiHooks: ReturnType<typeof registerAiIpc> | null = null;
+let calendarHooks: ReturnType<typeof registerCalendarIpc> | null = null;
 
 function registerIpc(): void {
   aiHooks = registerAiIpc({
@@ -701,6 +704,7 @@ function registerIpc(): void {
     warning: unstableLocation,
     configDir: () => dirs.config,
   });
+  calendarHooks = registerCalendarIpc({ window: () => win, originRoot: () => server?.store.root ?? null, configDir: () => dirs.config });
   ipcMain.handle("nularche:renderer-ready", () => {
     rendererReady = true;
     if (SMOKE) void finishSmoke();

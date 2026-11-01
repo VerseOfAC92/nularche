@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AiSetup } from "./ai/AiSetup.tsx";
+import { CalendarAccounts } from "./calendar/CalendarSync.tsx";
 import { desktop } from "./desktop.ts";
 import { getTheme, setTheme, type ThemeChoice } from "./theme.ts";
 import { setLang, t, useLang } from "./i18n/index.ts";
@@ -32,11 +33,15 @@ export function Settings({
   const [theme, setThemeState] = useState<ThemeChoice>(getTheme);
   const lang = useLang();
   const [published, setPublished] = useState<number | null>(null);
+  const [titles, setTitles] = useState<Map<string, string>>(new Map());
   const [mathMode, setMathMode] = usePref<MathMode>("mathMode", "suggest");
   const [spellcheck, setSpellcheck] = usePref<boolean>("spellcheck", true);
   const [wordCount, setWordCount] = usePref<boolean>("wordCount", true);
   useEffect(() => {
-    api.list().then((ns) => setPublished(ns.filter((n) => n.publish && !n.template).length), () => setPublished(0));
+    api.list().then(
+      (ns) => (setPublished(ns.filter((n) => n.publish && !n.template).length), setTitles(new Map(ns.map((n) => [n.id, n.title])))),
+      () => setPublished(0),
+    );
   }, []);
 
   const refresh = useCallback(async () => {
@@ -209,6 +214,9 @@ export function Settings({
             🌐 {desktop ? t("export.createSite") : t("export.downloadSite")}
           </button>
         </div>
+
+        <h3>{t("cal.title")}</h3>
+        <CalendarAccounts onToast={onToast} titleOf={(id) => titles.get(id)} />
 
         <h3>{t("settings.ai")}</h3>
         <p className="muted">{t("settings.aiIntro")}</p>

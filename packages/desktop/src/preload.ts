@@ -35,6 +35,20 @@ contextBridge.exposeInMainWorld("nularche", {
     ipcRenderer.on("nularche:ai-connected", listener);
     return () => ipcRenderer.removeListener("nularche:ai-connected", listener);
   },
+  calendarStatus: () => invoke("calendar-status"),
+  calendarConnectGoogle: (clientId: string, clientSecret: string) => invoke("calendar-connect-google", clientId, clientSecret),
+  calendarConnectApple: (appleId: string, password: string) => invoke("calendar-connect-apple", appleId, password),
+  calendarDisconnect: (provider: string) => invoke("calendar-disconnect", provider),
+  calendarCalendars: (provider: string) => invoke("calendar-calendars", provider),
+  calendarLink: (input: unknown) => invoke("calendar-link", input),
+  calendarUnlink: (linkId: string) => invoke("calendar-unlink", linkId),
+  calendarSync: () => invoke("calendar-sync"),
+  calendarHelp: (which: string) => invoke("calendar-help", which),
+  onCalendarSynced: (cb: () => void) => {
+    const listener = () => cb();
+    ipcRenderer.on("nularche:calendar-synced", listener);
+    return () => ipcRenderer.removeListener("nularche:calendar-synced", listener);
+  },
   printPdf: (name: string) => invoke("print-pdf", name),
   exportArchive: (nodeId: string | null, kind: "nlc" | "nla") => invoke("export-archive", nodeId, kind),
   exportAs: (kind: string, nodeId: string | null) => invoke("export", kind, nodeId),

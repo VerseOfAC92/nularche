@@ -16,3 +16,5 @@ export * from "./import.ts";
 export * from "./export-doc.ts";
 export * from "./wikilinks.ts";
 export * from "./canvas.ts";
+export * from "./calendar.ts";
+export * from "./calendar-providers.ts";

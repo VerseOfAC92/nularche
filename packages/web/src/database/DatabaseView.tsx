@@ -26,6 +26,7 @@ import {
   type ViewType,
 } from "./model.ts";
 import { Popover } from "./Popover.tsx";
+import { DatabaseCalendarSync } from "../calendar/CalendarSync.tsx";
 import { TYPE_ICON } from "./PropertyMenu.tsx";
 import { BoardView, CalendarView, GalleryView, ListView, TableView, TimelineView, type ViewProps } from "./Views.tsx";
 
@@ -254,7 +255,7 @@ export function DatabaseView(props: DatabaseViewProps) {
     }
   });
   const [query, setQuery] = useState("");
-  const [pop, setPop] = useState<{ kind: "filter" | "sort" | "options" | "add" | "new"; anchor: HTMLElement } | null>(null);
+  const [pop, setPop] = useState<{ kind: "filter" | "sort" | "options" | "add" | "new" | "calendar"; anchor: HTMLElement } | null>(null);
   // Hızlı geri bildirim: kaydedilen şema, Node listesi yenilenene kadar yerelde kullanılır.
   const [pendingDb, setPendingDb] = useState<Database | null>(null);
   useEffect(() => setPendingDb(null), [dbNode.database]);
@@ -391,6 +392,11 @@ export function DatabaseView(props: DatabaseViewProps) {
           <button className="db-tool" onClick={(e) => setPop({ kind: "options", anchor: e.currentTarget })} title={t("db.viewOptions")}>
             ⋯
           </button>
+          {desktop && (
+            <button className="db-tool" onClick={(e) => setPop({ kind: "calendar", anchor: e.currentTarget })} title={t("cal.dbTitle")}>
+              🗓 {t("cal.button")}
+            </button>
+          )}
           <button className="db-tool" onClick={exportCsv} title={t("db.exportCsv")}>
             ⇩ CSV
           </button>
@@ -413,7 +419,8 @@ export function DatabaseView(props: DatabaseViewProps) {
       {view.type === "timeline" && <TimelineView {...viewProps} />}
 
       {pop && (
-        <Popover anchor={pop.anchor} onClose={() => setPop(null)} width={pop.kind === "filter" ? 460 : pop.kind === "sort" ? 340 : 280}>
+        <Popover anchor={pop.anchor} onClose={() => setPop(null)} width={pop.kind === "filter" ? 460 : pop.kind === "sort" || pop.kind === "calendar" ? 340 : 280}>
+          {pop.kind === "calendar" && <DatabaseCalendarSync dbId={dbNode.id} db={db} view={view} onToast={props.onToast} />}
           {pop.kind === "filter" && <FilterEditor db={db} view={view} saveView={saveView} />}
           {pop.kind === "sort" && <SortEditor db={db} view={view} saveView={saveView} />}
           {pop.kind === "options" && (

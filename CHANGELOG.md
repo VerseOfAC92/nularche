@@ -67,6 +67,19 @@ workflow of Obsidian. Notes stay plain Markdown; existing 1.0 notes and notes wr
 - Auto-pair brackets and quotes (optional).
 - MCP: new `get_links` tool; `update_node` accepts `properties`; `read_node` returns properties.
 
+### Calendar sync (Google and Apple)
+- Sync a database's dated rows both ways with Google Calendar, Apple Calendar (iCloud) or both: rows with a date
+  become events and events become rows; titles and dates follow changes in either direction, and when both sides
+  changed the latest edit wins. An event's description becomes the new row's note.
+- Connect accounts in Settings → Calendar sync: Google through an OAuth client you create in Google Cloud (sign-in in
+  the browser, PKCE), Apple through iCloud CalDAV with an app-specific password. Account details are encrypted with the
+  system credential store on this computer; the sync map is kept in `.nularche/calendar.json` in the Origin.
+- Choose the calendar and date property from the new **Calendar** button in a database's toolbar. Nularche syncs every
+  5 minutes and on **Sync now**.
+- Deleting a row deletes its event; an event deleted in the calendar moves its row to the trash. Recurring events and
+  locked notes are not synced. If the sync map is lost, events created by Nularche are matched again instead of
+  duplicated.
+
 ### Fixes
 - Removing a cover (also from the new “Remove cover” page menu item), icon, font or light background now clears it
   on screen right away instead of showing the old value until the note is reopened.

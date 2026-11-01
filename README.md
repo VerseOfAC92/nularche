@@ -99,6 +99,10 @@ use Obsidian syntax keep it when you edit them in Nularche.
   <img src="docs/screenshots/obsidian-dark.png" width="860" alt="A note with properties, wiki links, a formula, a callout, a Mermaid diagram and the links panel" />
 </p>
 
+**Calendar sync (Google and Apple)**
+- Sync a database's dated rows both ways with **Google Calendar**, **Apple Calendar (iCloud)** or both. See
+  [Calendar sync](#calendar-sync-google-and-apple).
+
 **Linked notes, the Obsidian way**
 - **Wiki links and embeds:** `[[Note]]`, `[[Note#Heading|shown text]]` and `![[Note]]` (shows the note or one of its
   sections inside the page). Links resolve by title, file name or alias; clicking a link to a note that doesn't exist
@@ -276,6 +280,37 @@ They run `npm ci` and the test suite, build the installer for your machine into 
 - Formulas use a small, safe expression language (no code execution), for example
   `if(prop("Done"), "✓", "")` or `dateBetween(prop("Due"), today(), "days")`.
 
+### Calendar sync (Google and Apple)
+
+Keep a database and a calendar in step: rows with a date become events, events become rows, and titles and dates
+follow changes in either direction. One database can sync with a Google calendar, an Apple (iCloud) calendar or both.
+
+1. **Settings → Calendar sync** → connect an account:
+   - **Google Calendar:** in [Google Cloud](https://console.cloud.google.com/apis/credentials) enable the *Google
+     Calendar API* and create an OAuth client of type **Desktop app**. Paste its client ID and secret into Nularche and
+     sign in with Google in the browser. Nularche only asks for access to events and the list of your calendars.
+   - **Apple Calendar (iCloud):** create an
+     [app-specific password](https://support.apple.com/102654) (Apple Account → Sign-In and Security → App-Specific
+     Passwords) and enter it with your Apple ID.
+2. Open a database, click **🗓 Calendar** in its toolbar, choose the calendar (and the date property if there are
+   several) and click **Start syncing**.
+
+Nularche then syncs every 5 minutes and when you click **Sync now** in Settings.
+
+- A date without a time becomes an all-day event; a time without an end becomes a one-hour event. Date ranges stay
+  ranges.
+- If both sides changed since the last sync, the latest edit wins.
+- Deleting a row deletes its event. An event deleted in the calendar moves its row to the **trash**, where you can
+  restore it. Removing a row's date also takes it off the calendar.
+- An event's description is copied into the row's note when the row is created; later edits to notes and descriptions
+  are not synced.
+- Recurring events and password-locked notes are not synced. Events between one year ago and two years ahead are
+  imported.
+- **Stop syncing** keeps both the rows and the events.
+- Account details are encrypted with the system credential store (Keychain, DPAPI or libsecret) and stay on this
+  computer; disconnect them in **Settings → Calendar sync**. The sync map lives with your notes in
+  `.nularche/calendar.json`, so moving the Origin to another computer doesn't duplicate events.
+
 ### Templates
 
 <p align="center"><img src="docs/screenshots/templates-light.png" width="860" alt="Template gallery" /></p>
@@ -393,7 +428,8 @@ Every command's shortcut can be changed in **Settings → Keyboard shortcuts**.
 
 Uninstalling also keeps your settings, including a saved Gemini API key, so a reinstall picks up where you left off.
 Nothing personal is ever stored inside the app itself: every new installation starts with an empty AI setup. To remove
-a saved key, use **Settings → AI → Automatic mode → Remove key**. To reset Nularche completely, quit it and delete the
+a saved key, use **Settings → AI → Automatic mode → Remove key**. Calendar accounts are removed with **Settings → Calendar sync →
+Disconnect**. To reset Nularche completely, quit it and delete the
 **Settings** and **App data** folders listed above, for example on macOS:
 
 ```bash
@@ -487,6 +523,11 @@ yazılmış notlar Nularche'de düzenlenirken bozulmaz.
 - **Matematik sonuçları:** satırı `=` ile bitirin (`120*3 =`, `kira + aidat =`); sonuç önerilir, Tab ile eklenir.
 - **Ses kaydı** (isteğe bağlı Gemini ile yazıya dökme/özet), **çizim**, **sesli okuma**.
 - **Notu parola ile kilitleme** (AES-256, bilgisayarınızda şifrelenir; parola unutulursa içerik kurtarılamaz).
+- **Takvim eşitleme:** bir veritabanının tarihli satırlarını **Google Takvim**, **Apple Takvim (iCloud)** ya da ikisiyle
+  birden iki yönlü eşitleyin; tarihli satırlar etkinlik, etkinlikler satır olur, başlık ve tarih iki yönde güncellenir.
+  **Ayarlar → Takvim eşitleme** bölümünden hesabı bağlayın (Google için Google Cloud'da oluşturduğunuz "Masaüstü
+  uygulaması" OAuth istemcisi, Apple için uygulamaya özel parola), sonra veritabanı araç çubuğundaki **🗓 Takvim**
+  düğmesinden takvimi seçin. Silinen etkinliğin satırı çöpe taşınır; yinelenen etkinlikler ve kilitli notlar eşitlenmez.
 - **İçe aktarma** (Markdown, metin, HTML, RTF; Apple Notlar dışa aktarımları dahil), **Markdown olarak
   kopyala/yapıştır**, **Word (.docx)**, **RTF** ve **düz metin** olarak dışa aktarma, **yazdırma**, **notu ayrı
   pencerede açma**, **en üstte tutma**, **notu açık arka planla gösterme**.

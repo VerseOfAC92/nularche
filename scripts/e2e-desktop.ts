@@ -15,6 +15,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { createServer } from "node:http";
 import { _electron as electron } from "playwright-core";
 import { projectRoot } from "../packages/core/src/config.ts";
+import { addProperty, defaultDatabase, serializeDatabase } from "../packages/core/src/database.ts";
 
 const arg = (n: string) => (process.argv.includes(n) ? process.argv[process.argv.indexOf(n) + 1] : undefined);
 const root = projectRoot();
@@ -76,11 +77,44 @@ const gemini = createServer(async (req, res) => {
 await new Promise<void>((r) => gemini.listen(0, "127.0.0.1", () => r()));
 const geminiUrl = `http://127.0.0.1:${(gemini.address() as { port: number }).port}`;
 
+// Sahte iCloud CalDAV sunucusu: keşif, takvim listesi, etkinlik sorgusu, PUT/GET.
+const calFiles = new Map<string, { ics: string; etag: string }>([
+  [
+    "/1/calendars/home/uzak.ics",
+    { etag: '"u"', ics: "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:uzak\r\nSUMMARY:Takvimden gelen\r\nDTSTART;VALUE=DATE:20991120\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n" },
+  ],
+]);
+const calAuth = `Basic ${Buffer.from("me@icloud.com:abcd-efgh-ijkl-mnop").toString("base64")}`;
+const caldav = createServer(async (req, res) => {
+  let body = "";
+  for await (const c of req) body += c;
+  if (req.headers.authorization !== calAuth) return res.writeHead(401).end();
+  const ok = (href: string, props: string) => `<d:response><d:href>${href}</d:href><d:propstat><d:prop>${props}</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>`;
+  const ms = (inner: string) => res.writeHead(207, { "content-type": "application/xml" }).end(`<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">${inner}</d:multistatus>`);
+  const url = req.url ?? "/";
+  if (req.method === "PROPFIND" && url === "/") return ms(ok("/", "<d:current-user-principal><d:href>/1/principal/</d:href></d:current-user-principal>"));
+  if (req.method === "PROPFIND" && url === "/1/principal/") return ms(ok(url, "<c:calendar-home-set><d:href>/1/calendars/</d:href></c:calendar-home-set>"));
+  if (req.method === "PROPFIND") return ms(ok("/1/calendars/home/", "<d:displayname>Ev</d:displayname><d:resourcetype><d:collection/><c:calendar/></d:resourcetype>"));
+  if (req.method === "REPORT") {
+    return ms([...calFiles].map(([h, f]) => ok(h, `<d:getetag>${f.etag}</d:getetag><c:calendar-data>${f.ics.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</c:calendar-data>`)).join(""));
+  }
+  const file = calFiles.get(url);
+  if (req.method === "GET") return file ? res.writeHead(200, { etag: file.etag }).end(file.ics) : res.writeHead(404).end();
+  if (req.method === "PUT") {
+    const etag = `"${calFiles.size + 1}"`;
+    calFiles.set(url, { ics: body, etag });
+    return res.writeHead(201, { etag }).end();
+  }
+  res.writeHead(405).end();
+});
+await new Promise<void>((r) => caldav.listen(0, "127.0.0.1", () => r()));
+const caldavUrl = `http://127.0.0.1:${(caldav.address() as { port: number }).port}/`;
+
 const app = await electron.launch({
   executablePath: path.join(root, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"),
   // Sistem dilinden bağımsız olsun: ilk açılış Türkçe, sonra Ayarlar'dan İngilizceye geçilir.
   args: [root, "--lang=tr"],
-  env: { ...process.env, HOME: home, NULARCHE_USER_DATA: userData, NULARCHE_E2E: "1", NULARCHE_GEMINI_API: geminiUrl },
+  env: { ...process.env, HOME: home, NULARCHE_USER_DATA: userData, NULARCHE_E2E: "1", NULARCHE_GEMINI_API: geminiUrl, NULARCHE_CALDAV: caldavUrl },
 });
 const page = await app.firstWindow();
 app.process().stderr?.on("data", (d) => process.env.E2E_VERBOSE && process.stderr.write(d));
@@ -316,6 +350,39 @@ try {
   const obsSaved = await page.evaluate(async (id) => (await (await fetch(`/api/nodes/${id}`)).json()).body as string, obs);
   for (const part of ["[[Genişlik]]", "[[Yok]]", "$e^{i\\pi}+1=0$", "> [!info] Başlık", "[^1]: açıklama"]) assert.ok(obsSaved.includes(part), `kaydedilen notta bozuldu: ${part}\n${obsSaved}`);
 
+  // Takvim eşitleme: Ayarlar'dan Apple (iCloud) hesabı bağlanır, veritabanı araç çubuğundan takvime bağlanır,
+  // satır etkinlik olur ve takvimdeki etkinlik satır olur.
+  const { db: calDb, property: dateProp } = addProperty(defaultDatabase({ tags: "Etiketler", status: "Durum", todo: "Yapılacak", doing: "Sürüyor", done: "Bitti", table: "Tablo", board: "Pano" }), { name: "Tarih", type: "date" });
+  const post = (b: unknown) => page.evaluate(async (b) => (await (await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) })).json()).id as string, b);
+  const dbId = await post({ title: "Ajanda", parentNodeId: null, fields: { database: serializeDatabase(calDb) } });
+  await post({ title: "Nularche'den etkinlik", parentNodeId: dbId, fields: { props: { [dateProp.id]: "2099-11-03T10:00" } } });
+  await page.evaluate((id) => (location.hash = id), dbId);
+  await page.getByTitle(/Takvimle eşitle|Sync with calendar/).click();
+  await page.getByText(/Önce Ayarlar|First connect an account/).waitFor({ timeout: 5_000 });
+  await page.keyboard.press("Escape");
+  await page.locator(".sidebar-foot .side-btn").last().click();
+  await page.getByRole("button", { name: /Apple Takvim \(iCloud\) bağla|Connect Apple Calendar \(iCloud\)/ }).click();
+  await page.getByPlaceholder(/Apple Kimliği|Apple ID/).fill("me@icloud.com");
+  await page.getByPlaceholder(/Uygulamaya özel parola|App-specific password/).fill(" abcd-efgh-ijkl-mnop ");
+  await page.locator('[data-testid="cal-apple"] button.primary').click();
+  await page.locator('[data-testid="cal-apple"] .pill', { hasText: "me@icloud.com" }).waitFor({ timeout: 10_000 });
+  await shot("18-takvim-ayarlar");
+  await page.keyboard.press("Escape");
+  await page.getByTitle(/Takvimle eşitle|Sync with calendar/).click();
+  await page.waitForFunction(() => (document.querySelector(".cal-panel select") as HTMLSelectElement | null)?.value.endsWith("/1/calendars/home/"), null, { timeout: 10_000 });
+  await page.locator(".cal-panel button.primary").click();
+  await page.locator(".cal-panel .cal-link", { hasText: "Ev" }).waitFor({ timeout: 15_000 });
+  await shot("19-takvim-veritabani");
+  const pushed = [...calFiles.values()].find((f) => f.ics.includes("SUMMARY:Nularche'den etkinlik"));
+  assert.ok(pushed, "satır takvime gönderilmedi");
+  assert.match(pushed.ics, /DTSTART:20991103T\d{6}Z/);
+  const pulled = await page.evaluate(async (id) => ((await (await fetch("/api/nodes")).json()).nodes as { title: string; parentNodeId: string; props?: Record<string, unknown> }[]).filter((n) => n.parentNodeId === id), dbId);
+  assert.deepEqual(pulled.find((n) => n.title === "Takvimden gelen")?.props, { [dateProp.id]: "2099-11-20" }, "etkinlik satır olmadı");
+  await page.keyboard.press("Escape");
+  await page.locator(".db", { hasText: "Takvimden gelen" }).waitFor({ timeout: 5_000 });
+  const calState = JSON.parse(await readFile(path.join(origin, ".nularche", "calendar.json"), "utf8"));
+  assert.equal(Object.keys(calState.links[0].items).length, 2);
+
   // Komut paleti açılıp kapanır (yeni Chromium'da scrollIntoView Promise döndürür; arayüz çökmemeli), sonra grafik açılır.
   const mod = process.platform === "darwin" ? "Meta" : "Control";
   await page.keyboard.press(`${mod}+Shift+P`);
@@ -368,4 +435,5 @@ try {
 } finally {
   await app.close();
   gemini.close();
+  caldav.close();
 }

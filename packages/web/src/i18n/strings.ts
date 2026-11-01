@@ -2,10 +2,12 @@
 
 import { STRINGS_15 } from "./strings15.ts";
 import { STRINGS_16 } from "./strings16.ts";
+import { STRINGS_17 } from "./strings17.ts";
 
 export const STRINGS = {
   ...STRINGS_15,
   ...STRINGS_16,
+  ...STRINGS_17,
   "action.expand": { tr: "Genişlet", en: "Expand" },
   "action.expand.do": { tr: "Notları açık, düzenli ve daha ayrıntılı bir metne dönüştür; uygun başlıklar ve listeler kullan, bilgi uydurma.", en: "Turn the notes into clear, organized and more detailed text; use suitable headings and lists, and do not invent facts." },
   "action.fix": { tr: "Düzelt", en: "Fix" },

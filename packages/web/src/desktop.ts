@@ -53,6 +53,32 @@ export interface AiStatus {
   warning: string | null;
 }
 
+export type CalendarProviderId = "google" | "apple";
+export type CalendarErrorCode = "auth" | "conflict" | "not_found" | "network" | "invalid" | "unknown";
+export type CalendarFailure = { ok: false; code: CalendarErrorCode; error: string };
+
+export interface CalendarLinkStatus {
+  id: string;
+  dbId: string;
+  provider: CalendarProviderId;
+  calendarId: string;
+  calendarName: string;
+  dateProp: string;
+  lastSync?: number;
+  lastError?: { code: CalendarErrorCode; message: string } | null;
+  lastResult?: { createdLocal: number; createdRemote: number; updatedLocal: number; updatedRemote: number; trashedLocal: number; deletedRemote: number; skipped: number };
+  /** Eşlenmiş satır sayısı. */
+  count: number;
+}
+
+export interface CalendarStatus {
+  encryption: boolean;
+  /** Bağlı hesapların görünen adı (e-posta / Apple Kimliği). */
+  accounts: Partial<Record<CalendarProviderId, string>>;
+  syncing: boolean;
+  links: CalendarLinkStatus[];
+}
+
 export interface DesktopBridge {
   /** Arayüz hazır; ana süreçte bekleyen gezinme varsa döndürür. */
   /** Masaüstü ayarlarında kayıtlı arayüz dili (yoksa null). */
@@ -89,6 +115,26 @@ export interface DesktopBridge {
   aiDownload(url: string): Promise<void>;
   /** Bir AI aracı Nularche'ye ilk kez bağlandığında. */
   onAiConnected(cb: (client: AiClientRecord) => void): () => void;
+  calendarStatus(): Promise<CalendarStatus>;
+  /** Tarayıcıda Google girişini açar; kullanıcı izin verince hesabı kaydeder. */
+  calendarConnectGoogle(clientId: string, clientSecret: string): Promise<{ ok: true; account: string } | CalendarFailure>;
+  calendarConnectApple(appleId: string, password: string): Promise<{ ok: true; account: string } | CalendarFailure>;
+  calendarDisconnect(provider: CalendarProviderId): Promise<void>;
+  calendarCalendars(provider: CalendarProviderId): Promise<{ ok: true; calendars: { id: string; name: string; color?: string }[] } | CalendarFailure>;
+  /** Veritabanını takvime bağlar ve ilk eşitlemeyi yapar. */
+  calendarLink(input: {
+    dbId: string;
+    provider: CalendarProviderId;
+    calendarId: string;
+    calendarName: string;
+    dateProp: string;
+  }): Promise<{ ok: true; linkId: string; errors: string[] } | CalendarFailure>;
+  calendarUnlink(linkId: string): Promise<void>;
+  calendarSync(): Promise<{ ok: boolean; errors: string[] }>;
+  /** Google Cloud kimlik bilgileri ya da Apple uygulamaya özel parola sayfasını açar. */
+  calendarHelp(which: CalendarProviderId): Promise<void>;
+  /** Bir eşitleme bittiğinde. */
+  onCalendarSynced(cb: () => void): () => void;
   printPdf(name: string): Promise<string | null>;
   exportArchive(nodeId: string | null, kind: "nlc" | "nla"): Promise<string | null>;
   /** Markdown (.zip), tek dosya HTML ya da statik site (klasöre) dışa aktarır. */

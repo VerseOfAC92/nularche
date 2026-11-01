@@ -970,3 +970,13 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .tab:hover .tab-close, .tab.on .tab-close { opacity: 1; }
 .tab-close:hover { background: var(--nlc-hover); }
 .tab-new { padding: 0 10px; color: var(--nlc-text-secondary); }
+
+/* Takvim eşitleme */
+.cal-settings { display: flex; flex-direction: column; gap: 8px; }
+.cal-settings .auto-box .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.cal-settings .ai-row { flex-wrap: wrap; }
+.cal-links { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.cal-panel .cal-link { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 13px; }
+.cal-panel .cal-form { display: flex; flex-direction: column; gap: 8px; }
+.cal-panel .cal-form label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+.cal-panel .cal-form select { max-width: 200px; }
