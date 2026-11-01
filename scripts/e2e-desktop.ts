@@ -382,6 +382,11 @@ try {
   await page.locator(".db", { hasText: "Takvimden gelen" }).waitFor({ timeout: 5_000 });
   const calState = JSON.parse(await readFile(path.join(origin, ".nularche", "calendar.json"), "utf8"));
   assert.equal(Object.keys(calState.links[0].items).length, 2);
+  assert.equal(await page.evaluate(async () => (await (window as any).nularche.calendarStatus()).syncing), false, "eşitleme bittikten sonra durum temizlenmedi");
+  await page.locator(".sidebar-foot .side-btn").last().click();
+  await page.getByRole("button", { name: /Şimdi eşitle|Sync now/ }).click();
+  await page.getByText(/Takvimler eşitlendi|Calendars synced/).waitFor({ timeout: 10_000 });
+  await page.keyboard.press("Escape");
 
   // Komut paleti açılıp kapanır (yeni Chromium'da scrollIntoView Promise döndürür; arayüz çökmemeli), sonra grafik açılır.
   const mod = process.platform === "darwin" ? "Meta" : "Control";

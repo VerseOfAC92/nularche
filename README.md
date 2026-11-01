@@ -100,8 +100,14 @@ use Obsidian syntax keep it when you edit them in Nularche.
 </p>
 
 **Calendar sync (Google and Apple)**
-- Sync a database's dated rows both ways with **Google Calendar**, **Apple Calendar (iCloud)** or both. See
+- Sync a database's dated rows both ways with **Google Calendar**, **Apple Calendar (iCloud)** or both: rows with a
+  date become events, events become rows, and titles and dates follow changes in either direction. See
   [Calendar sync](#calendar-sync-google-and-apple).
+
+<p align="center">
+  <img src="docs/screenshots/calendar-sync-dark.png" width="49%" alt="A database in calendar view, synced with a Google calendar and an iCloud calendar" />
+  <img src="docs/screenshots/calendar-settings-light.png" width="49%" alt="Settings: connected Google and Apple accounts and the synced databases" />
+</p>
 
 **Linked notes, the Obsidian way**
 - **Wiki links and embeds:** `[[Note]]`, `[[Note#Heading|shown text]]` and `![[Note]]` (shows the note or one of its
@@ -282,6 +288,8 @@ They run `npm ci` and the test suite, build the installer for your machine into 
 
 ### Calendar sync (Google and Apple)
 
+<p align="center"><img src="docs/screenshots/calendar-sync-dark.png" width="860" alt="The Calendar panel of a database: synced with Google Calendar (Work) and Apple Calendar (Home)" /></p>
+
 Keep a database and a calendar in step: rows with a date become events, events become rows, and titles and dates
 follow changes in either direction. One database can sync with a Google calendar, an Apple (iCloud) calendar or both.
 
@@ -296,6 +304,8 @@ follow changes in either direction. One database can sync with a Google calendar
    several) and click **Start syncing**.
 
 Nularche then syncs every 5 minutes and when you click **Sync now** in Settings.
+
+<p align="center"><img src="docs/screenshots/calendar-settings-light.png" width="860" alt="Settings → Calendar sync with both accounts connected" /></p>
 
 - A date without a time becomes an all-day event; a time without an end becomes a one-hour event. Date ranges stay
   ranges.
@@ -528,6 +538,7 @@ yazılmış notlar Nularche'de düzenlenirken bozulmaz.
   **Ayarlar → Takvim eşitleme** bölümünden hesabı bağlayın (Google için Google Cloud'da oluşturduğunuz "Masaüstü
   uygulaması" OAuth istemcisi, Apple için uygulamaya özel parola), sonra veritabanı araç çubuğundaki **🗓 Takvim**
   düğmesinden takvimi seçin. Silinen etkinliğin satırı çöpe taşınır; yinelenen etkinlikler ve kilitli notlar eşitlenmez.
+  Ayrıntılar ve kurulum adımları: [Calendar sync](#calendar-sync-google-and-apple).
 - **İçe aktarma** (Markdown, metin, HTML, RTF; Apple Notlar dışa aktarımları dahil), **Markdown olarak
   kopyala/yapıştır**, **Word (.docx)**, **RTF** ve **düz metin** olarak dışa aktarma, **yazdırma**, **notu ayrı
   pencerede açma**, **en üstte tutma**, **notu açık arka planla gösterme**.

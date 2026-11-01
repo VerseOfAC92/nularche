@@ -148,9 +148,11 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
 
   function queueSync(only?: (l: CalendarLink) => boolean) {
     const run = (running ?? Promise.resolve()).catch(() => undefined).then(() => syncAll(only));
-    running = run.finally(() => {
-      if (running === run) running = null;
+    // Kuyruktaki son eşitleme bitince "eşitleniyor" durumu kalkar.
+    const tracked: Promise<unknown> = run.finally(() => {
+      if (running === tracked) running = null;
     });
+    running = tracked;
     return run;
   }
 
