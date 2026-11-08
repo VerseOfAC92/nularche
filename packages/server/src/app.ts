@@ -13,6 +13,9 @@ import type { ProviderId } from "../../core/src/ai-clients.ts";
 import { exportPageDocument } from "../../core/src/export-doc.ts";
 import { importFiles } from "../../core/src/import.ts";
 import { readPrefs, readSnippets, writePrefs } from "../../core/src/prefs.ts";
+import { compileManuscript } from "../../core/src/manuscript.ts";
+import { CommentStore } from "../../core/src/comments.ts";
+import { CAPTURE_KINDS, captureText, promoteCapture, readCaptureConfig, writeCaptureConfig, type CaptureKind } from "../../core/src/capture.ts";
 
 const HOST = "127.0.0.1";
 
@@ -40,6 +43,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   let PORT = options.port;
   const store = new NodeStore(options.originDir);
   const activity = new AiActivity(store.root);
+  const comments = new CommentStore(store);
   await store.ensureRoot();
 
   // --- Canlı bildirim: Origin'de (AI araçları dahil) bir dosya değişince istemcilere haber ver.
@@ -47,6 +51,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   let pending: NodeJS.Timeout | undefined;
   let pendingAi: NodeJS.Timeout | undefined;
   const aiPrefix = AI_DIR.split("/").join(path.sep);
+  const commentsPrefix = [".nularche", "comments"].join(path.sep);
+  let pendingComments: NodeJS.Timeout | undefined;
   const watcher = watch(store.root, { recursive: true }, (_event, filename) => {
     const name = filename?.toString() ?? "";
     // Nularche AI etkinliği (istekler, bağlanan istemciler) ayrı bir olay olarak bildirilir.
@@ -56,6 +62,14 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         for (const res of clients) res.write(`event: ai\ndata: {}\n\n`);
         options.onAiActivity?.();
       }, 100);
+      return;
+    }
+    // Yorumlar gizli klasördedir; açık görünümler ayrı bir olayla yenilenir.
+    if (name.startsWith(commentsPrefix)) {
+      clearTimeout(pendingComments);
+      pendingComments = setTimeout(() => {
+        for (const res of clients) res.write(`event: comments\ndata: {}\n\n`);
+      }, 120);
       return;
     }
     if (name.split(path.sep).some((seg) => seg.startsWith("."))) return; // .trash, geçici dosyalar
@@ -180,8 +194,54 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         return send(res, 200, await store.shadow());
       case "POST capture": {
         const b = await readJson(req);
-        return send(res, 201, await store.capture(str(b.text) ?? "", str(b.title)));
+        const out = await captureText(store, str(b.text) ?? "", str(b.title));
+        return send(res, 201, "routed" in out ? { routed: out.routed } : out.node);
       }
+      case "GET capture-config":
+        return send(res, 200, await readCaptureConfig(store.root));
+      case "PUT capture-config":
+        return send(res, 200, await writeCaptureConfig(store.root, await readJson(req)));
+      case "POST nodes/:id/promote": {
+        const b = await readJson(req);
+        const kind = (CAPTURE_KINDS as readonly string[]).includes(String(b.kind)) ? (b.kind as CaptureKind) : undefined;
+        return send(res, 200, await promoteCapture(store, id, { kind, target: str(b.target) }));
+      }
+      case "GET nodes/:id/manuscript":
+        return send(res, 200, await compileManuscript(store, id));
+      case "GET nodes/:id/comments":
+        return send(res, 200, { comments: await comments.list(id) });
+      case "POST nodes/:id/comments": {
+        const b = await readJson(req);
+        const cid = str(b.commentId) ?? "";
+        switch (b.action) {
+          case "update":
+            return send(res, 200, await comments.update(id, cid, { body: b.body, resolved: b.resolved }));
+          case "reply":
+            return send(res, 200, await comments.reply(id, cid, { body: b.body, author: b.author }));
+          case "delete":
+            await comments.remove(id, cid);
+            return send(res, 200, { deleted: cid });
+          default:
+            return send(res, 201, await comments.add(id, { anchor: b.anchor, body: b.body, author: b.author }));
+        }
+      }
+      case "GET comments":
+        return send(res, 200, { counts: await comments.counts() });
+      case "POST nodes/:id/checkpoint": {
+        const b = await readJson(req);
+        return send(res, 201, await store.checkpoint(id, str(b.label) ?? ""));
+      }
+      case "POST nodes/:id/history-delete": {
+        const b = await readJson(req);
+        await store.deleteHistory(id, Number(b.at));
+        return send(res, 200, { deleted: Number(b.at) });
+      }
+      case "GET nodes/:id/wiki":
+        return send(res, 200, { entries: await store.wikiEntries(id) });
+      case "GET nodes/:id/wiki-mentions":
+        return send(res, 200, { mentions: await store.wikiMentions(id) });
+      case "GET wiki-terms":
+        return send(res, 200, { terms: await store.wikiTerms() });
       case "GET trash":
         return send(res, 200, { entries: await store.listTrash() });
       case "POST trash/:id/restore":

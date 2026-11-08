@@ -1,4 +1,4 @@
-// Tuval (Obsidian "Canvas"): metin, not, bağlantı ve grup kartları; kartlar arası oklar. Boşluğa çift tıkla: metin kartı;
+// Tuval ("Canvas"): metin, not, bağlantı ve grup kartları; kartlar arası oklar. Boşluğa çift tıkla: metin kartı;
 // kartı sürükle: taşı; sağ alt köşe: boyutlandır; kartın kenarındaki noktadan sürükle: başka karta bağla; Delete: sil.
 // Arka planı sürükle: kaydır; tekerlek: yakınlaş. Değişiklikler notun gövdesindeki JSON Canvas bloğuna yazılır.
 
@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { NodeMeta } from "../api.ts";
 import { askText } from "../ask.tsx";
 import { desktop } from "../desktop.ts";
-import { safeHtml } from "../editor/obsidian-nodes.tsx";
+import { safeHtml } from "../editor/linked-nodes.tsx";
 import { fileUrl } from "../editor/paths.ts";
 import { t } from "../i18n/index.ts";
 import { anchor, autoSides, colorValue, newId, parseCanvas, serializeCanvas, type CanvasData, type CanvasNode } from "./canvas-model.ts";

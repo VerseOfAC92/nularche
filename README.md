@@ -10,7 +10,7 @@ Your notes stay on your computer. Your AI is the one you already pay for.</p>
 <p align="center">
   <a href="https://github.com/VerseOfAC92/nularche/releases/latest"><b>Download</b></a> ·
   <a href="#install-from-the-terminal">Terminal install</a> ·
-  <a href="#whats-new-in-150">What's new in 1.5</a> ·
+  <a href="#whats-new-in-200">What's new in 2.0</a> ·
   <a href="#features">Features</a> ·
   <a href="#ai-claude-chatgpt-gemini">AI</a> ·
   <a href="#keyboard-shortcuts">Shortcuts</a> ·
@@ -24,11 +24,111 @@ Your notes stay on your computer. Your AI is the one you already pay for.</p>
 
 ---
 
-Nularche takes architectural and UX cues from Notion, Microsoft OneNote and Obsidian, but keeps everything as ordinary
+Nularche takes architectural and UX cues from Notion and Microsoft OneNote, but keeps everything as ordinary
 Markdown files in a folder you own. There is no account, no cloud and no subscription. AI editing works through the
 official Claude, ChatGPT or Gemini app you already use, or for free with a Gemini API key.
 
 The name comes from **Null** (a clean starting point) and **Arche** (first principle, root).
+
+## What's new in 2.0.0
+
+Nularche 2.0 adds a **writing studio** for long-form work: novels, theses, scripts and reports. Its parts have their own
+Nularche names, explained in the [Glossary](#glossary) and on the *Vocabulary* step of the first-run wizard. Everything still lives
+in plain Markdown files in your Origin; the new page types keep their structure in a small JSON block inside the note,
+the same way canvas pages do, so they open in any editor and track nicely in Git.
+
+<p align="center">
+  <img src="docs/screenshots/atrium-dark.png" width="860" alt="Atrium: daily goal, streak, writing projects and quick capture" />
+</p>
+
+**Writing projects**
+
+<p align="center">
+  <img src="docs/screenshots/codex-light.png" width="49%" alt="A Codex with two parts and word counts" />
+  <img src="docs/screenshots/mosaic-dark.png" width="49%" alt="A Mosaic of scene cards in two acts" />
+</p>
+
+- **Codex** (manuscript): put notes in order in sections and work on them as one book. You get a running word count against a
+  goal, a **Read** view of the whole text, and export of the compiled manuscript to **Word**, **PDF**, **RTF**, plain
+  text or HTML. You choose whether section names and note titles appear and which separator goes between notes (`* * *`
+  by default). The notes themselves never move. Drag them to reorder, add existing notes, or write a new chapter in
+  place.
+- **Axis** (outline): hierarchical planning rows (I. → A. → 1. → a.). Use Enter for a new row, Tab / ⇧Tab to indent, ⌥↑ / ⌥↓ to
+  move a row and ⌘↩ for row notes. Rows can be folded, colour-labelled, ticked off, linked to a note or turned into one.
+  A Codex can **follow an Axis**: rows that haven't been written yet appear as *planned* pages, with the deeper
+  rows shown as their beats. **Write it** creates the chapter and links it back to the row.
+- **Mosaic** (corkboard): index cards in groups for scenes and ideas. Drag cards between groups, give them colour
+  labels, search them, choose S / M / L size or titles only, and select several to colour or delete together. A card
+  can be linked to a note or turned into one.
+- **Lore** (story bible): sub-pages of a Lore page are entries, and entries with sub-pages are categories. Each entry shows
+  its **quick facts** (the note's properties), aliases and excerpt. A category can define the fields that new entries
+  get. **Mention detection** puts a dotted underline under an entry's name or aliases wherever they appear in your
+  notes. ⌘/Ctrl-click opens the entry and ⌘-hover previews it. Each entry lists **Mentioned in** with counts, and
+  detection can be turned off per entry.
+
+<p align="center">
+  <img src="docs/screenshots/lore-light.png" width="49%" alt="A Lore entry with quick facts, aliases and where it is mentioned" />
+  <img src="docs/screenshots/marginalia-dark.png" width="49%" alt="Marginalia on a passage, shown in the side panel" />
+</p>
+
+**Reviewing and revising**
+- **Marginalia** (comments) on any passage (⌥⌘M / Ctrl+Alt+M) open a thread in the side panel where you can reply, resolve, reopen,
+  edit or delete. Marginalia live in `.nularche/comments/`, so **the Markdown file never changes**. If the commented
+  text is later rewritten, the Marginalia is marked as detached instead of being lost.
+- **Epochs** (⌥⌘S / Ctrl+Alt+S) are named versions (checkpoints) that are kept until you delete them, up to 30 per note. Any
+  snapshot or Epoch can be **compared with the current text** line by line before you restore it.
+- **Diptych** (split view, `⌥⌘\` / `Ctrl+Alt+\`) opens a second note beside the current one. You can swap panes, move focus
+  between them or close the side pane.
+
+**Writing experience**
+- **Atrium**, the home page: a greeting, *continue where you left off*, words written today against a **daily
+  goal**, your writing **streak**, a seven-day chart, writing projects with their progress, recently edited and pinned
+  notes, and a quick capture box.
+- **Word goals** per note or Codex (⋯ → *Word Goal*), with a progress bar under the page.
+- **Clepsydra**, the writing timer (⌥⌘P / Ctrl+Alt+P), with focus and break periods, a chime and a draggable widget that also stays in
+  focus mode.
+- **Aura**, typewriter sounds and ambience: key clacks (light portable or heavy desk machine), the carriage return and a
+  **margin bell**, plus rain on the window, a mantel clock, a summer night or a fireplace. Every sound is generated on
+  your computer and nothing is downloaded.
+- **Six bundled writing fonts** under open licences, all working offline: Atkinson Hyperlegible, Literata, Lora,
+  Crimson Pro, Courier Prime and Special Elite. Pick one per page (⌘T) or as the default for all pages.
+- **High-contrast theme** for both light and dark.
+
+**Automation**
+- **Sigils** (text shortcuts): type an abbreviation (for example `;sig`) followed by a space or punctuation and it expands. The
+  expansion can use `{{date}}`, `{{time}}`, `{{title}}` and `{{date:DD.MM.YYYY}}`.
+- **Rites** (custom commands) insert text, open a note, capture to Shadow or run a sequence of commands. They appear with ★ in
+  the command palette and can get their own hotkeys. Shortcuts and commands can be saved to a file and loaded again.
+- **Conduit** (smart capture): captures that start with `::mosaic @novel Harbour scene`, `::axis …`,
+  `::lore @world Ada` or `::task …` go straight to the Mosaic, Axis, Lore or note mapped to the `@handle`. Without a mapping they go to
+  a page whose title matches the handle, otherwise to the default destination. Anything that doesn't route waits in
+  Shadow, where **Send to…** files it later. Rules live in `.nularche/capture.json`.
+- **Ark**, automatic backup (desktop): the whole Origin is written as a `.nla` archive to a folder you choose, hourly, daily
+  or weekly, and the oldest backups are removed. Pick an iCloud Drive, Google Drive or OneDrive folder to have the
+  backups synced; Nularche never signs in to anything.
+
+<p align="center">
+  <img src="docs/screenshots/settings-dark.png" width="49%" alt="Settings grouped into searchable categories" />
+  <img src="docs/screenshots/vocabulary-light.png" width="49%" alt="The Nularche language: every name and its meaning" />
+</p>
+
+**Finding everything without the menu bar**
+- **Sidebar:** 🏛 **Atrium**, ✦ **New Writing Project** (Codex, Axis, Mosaic or Lore, each with a one-line
+  explanation) and ⓘ **The Nularche language**.
+- **Note toolbar:** ✎ Marginalia (with a count), ⚑ Epoch, ◫ Diptych, ⧗ Clepsydra and ♪ Aura. Hovering any button
+  shows what its name means.
+- **Selection bubble:** ✎ **Marginalia** comments on the selected text.
+- **`/` menu:** a *Writing studio* group creates a Codex, Axis, Mosaic or Lore under the current page, and runs Epoch,
+  Diptych and Clepsydra.
+- **Focus mode:** Clepsydra and Aura buttons in the top bar.
+- **Settings** are grouped into categories with search (see [Settings](#settings)).
+
+**AI**
+- The MCP server gains `get_manuscript`, `add_to_writing_project`, `list_wiki_entries`, `get_wiki_mentions`,
+  `list_comments`, `add_comment` and `create_checkpoint`. `capture_to_shadow` follows the smart-capture rules.
+
+Notes written with 1.x open unchanged. The new page types are ordinary Markdown files that older versions show as a
+code block.
 
 ## What's new in 1.5.0
 
@@ -37,8 +137,8 @@ The name comes from **Null** (a clean starting point) and **Arche** (first princ
 </p>
 
 Nularche 1.5 brings the everyday note-taking features of Apple Notes, the distraction-free writing of a focused writer
-app and the linked-notes workflow of Obsidian into Nularche, while your notes stay plain Markdown files. Notes that
-use Obsidian syntax keep it when you edit them in Nularche.
+app and a linked-notes workflow into Nularche, while your notes stay plain Markdown files. Wiki links, front matter,
+callouts and footnotes written in other Markdown apps keep their syntax when you edit them in Nularche.
 
 **Focused writing**
 - **Focus mode** (⇧⌘F / Ctrl+Shift+F): full screen, no sidebar or toolbars. The top and bottom bars appear when you
@@ -96,7 +196,7 @@ use Obsidian syntax keep it when you edit them in Nularche.
   notes.
 
 <p align="center">
-  <img src="docs/screenshots/obsidian-dark.png" width="860" alt="A note with properties, wiki links, a formula, a callout, a Mermaid diagram and the links panel" />
+  <img src="docs/screenshots/linked-notes-dark.png" width="860" alt="A note with properties, wiki links, a formula, a callout, a Mermaid diagram and the links panel" />
 </p>
 
 **Calendar sync (Google and Apple)**
@@ -109,12 +209,12 @@ use Obsidian syntax keep it when you edit them in Nularche.
   <img src="docs/screenshots/calendar-settings-light.png" width="49%" alt="Settings: connected Google and Apple accounts and the synced databases" />
 </p>
 
-**Linked notes, the Obsidian way**
+**Linked notes**
 - **Wiki links and embeds:** `[[Note]]`, `[[Note#Heading|shown text]]` and `![[Note]]` (shows the note or one of its
   sections inside the page). Links resolve by title, file name or alias; clicking a link to a note that doesn't exist
   yet creates it. Nularche's own links stay ordinary relative Markdown links.
 - **Properties:** typed fields at the top of a note (text, list, number, checkbox, date), stored as YAML front matter
-  exactly where Obsidian keeps them. `aliases` and `tags` work as in Obsidian. Add one with ⌘; (Ctrl+;).
+  in the standard place other Markdown apps read them. `aliases` and `tags` are understood. Add one with ⌘; (Ctrl+;).
 - **Command palette** (⇧⌘P / Ctrl+Shift+P) runs any command; the **quick switcher** (⌘O / Ctrl+O) opens a note by
   name or alias and creates it if it doesn't exist (⇧↩). **Back and forward** with ⌥⌘← / ⌥⌘→.
 - **Graph view** of the whole Origin (filter, orphans, unresolved links, tags) and a **local graph** of the open note.
@@ -135,14 +235,14 @@ use Obsidian syntax keep it when you edit them in Nularche.
 </p>
 
 - **Markdown extras:** LaTeX formulas (`$…$`, `$$…$$`, drawn with KaTeX), **Mermaid** diagrams, footnotes (`[^1]`),
-  `%%comments%%` (never published or exported), all Obsidian callout types with titles and fold markers, and moving
+  `%%comments%%` (never published or exported), all common callout types with titles and fold markers, and moving
   a line or list item with ⌥↑ / ⌥↓.
 - **Note composer:** merge a note into another (links are redirected), or extract the selection or a heading's section
   into a new note that is linked in its place. **Templates** fill in `{{title}}`, `{{date}}`, `{{time}}` and formats
   such as `{{date:DD.MM.YYYY}}`, and can be inserted into the current note. **Random note**, **unique note** (time-stamped title), previous/next
   daily note, **reading view** (⌥⌘E), **slides** from a note split by `---`, copy the file path and show it in the
   Finder/file manager.
-- **Settings from Obsidian:** your own **hotkeys** for every command (with conflict warnings), **CSS snippets** from
+- **Vault settings:** your own **hotkeys** for every command (with conflict warnings), **CSS snippets** from
   `.nularche/snippets/`, an **accent colour**, **readable line length**, default view (editing or reading),
   properties shown or hidden, where new notes go, what opens at startup, **auto-pairing** of brackets and quotes, and
   **excluded files**.
@@ -193,9 +293,9 @@ extra step:
 On first launch Nularche asks where your notes should live (your **Origin** folder) and offers to connect an AI.
 Both can be changed later in **Settings**.
 
-**Updating from 1.0:** install 1.5 over the old version the same way (drag it to Applications on macOS, run the
+**Updating from 1.x:** install 2.0 over the old version the same way (drag it to Applications on macOS, run the
 installer on Windows, `sudo apt install ./Nularche-Linux-amd64.deb` on Linux) or run the terminal installer again.
-Your Origin folder, notes and settings stay as they are; 1.0 notes open unchanged.
+Your Origin folder, notes and settings stay as they are; 1.x notes open unchanged.
 
 ## Install from the terminal
 
@@ -256,7 +356,7 @@ They run `npm ci` and the test suite, build the installer for your machine into 
 
 - Every page is a Markdown (`.md`) file inside your **Origin** folder. A page with sub-pages lives in its own folder
   (`Project/Project.md`), and images and files go into `Attachments/`.
-- Open and edit your notes in any editor (Obsidian, VS Code, TextEdit…) and back them up with Time Machine, iCloud,
+- Open and edit your notes in any editor (VS Code, TextEdit, other Markdown apps…) and back them up with Time Machine, iCloud,
   OneDrive or Git.
 - **Trash:** deleted pages, with their sub-pages, wait in the Trash and can be restored to their original place.
 
@@ -293,7 +393,7 @@ They run `npm ci` and the test suite, build the installer for your machine into 
 Keep a database and a calendar in step: rows with a date become events, events become rows, and titles and dates
 follow changes in either direction. One database can sync with a Google calendar, an Apple (iCloud) calendar or both.
 
-1. **Settings → Calendar sync** → connect an account:
+1. **Settings → Calendar** → connect an account:
    - **Google Calendar:** in [Google Cloud](https://console.cloud.google.com/apis/credentials) enable the *Google
      Calendar API* and create an OAuth client of type **Desktop app**. Paste its client ID and secret into Nularche and
      sign in with Google in the browser. Nularche only asks for access to events and the list of your calendars.
@@ -305,7 +405,7 @@ follow changes in either direction. One database can sync with a Google calendar
 
 Nularche then syncs every 5 minutes and when you click **Sync now** in Settings.
 
-<p align="center"><img src="docs/screenshots/calendar-settings-light.png" width="860" alt="Settings → Calendar sync with both accounts connected" /></p>
+<p align="center"><img src="docs/screenshots/calendar-settings-light.png" width="860" alt="Settings → Calendar with both accounts connected" /></p>
 
 - A date without a time becomes an all-day event; a time without an end becomes a one-hour event. Date ranges stay
   ranges.
@@ -318,7 +418,7 @@ Nularche then syncs every 5 minutes and when you click **Sync now** in Settings.
   imported.
 - **Stop syncing** keeps both the rows and the events.
 - Account details are encrypted with the system credential store (Keychain, DPAPI or libsecret) and stay on this
-  computer; disconnect them in **Settings → Calendar sync**. The sync map lives with your notes in
+  computer; disconnect them in **Settings → Calendar**. The sync map lives with your notes in
   `.nularche/calendar.json`, so moving the Origin to another computer doesn't duplicate events.
 
 ### Templates
@@ -341,7 +441,7 @@ Nularche then syncs every 5 minutes and when you click **Sync now** in Settings.
   search for `#tag` to find tagged notes.
 - Alignment, indent, right-to-left text, superscript/subscript, dashed lists, collapsible sections, find and replace,
   math results, audio recordings and drawings (see [What's new in 1.5.0](#whats-new-in-150)).
-- Obsidian-compatible: `[[wiki links]]`, embeds, properties, LaTeX, Mermaid, footnotes, `%%comments%%`, callouts,
+- Linked notes: `[[wiki links]]`, embeds, properties, LaTeX, Mermaid, footnotes, `%%comments%%`, callouts,
   graph view, canvas, command palette and quick switcher.
 
 ### Export and publishing
@@ -356,13 +456,18 @@ Nularche then syncs every 5 minutes and when you click **Sync now** in Settings.
 
 ### Settings
 
-- **Appearance:** System (the default, which follows your OS), Light or Dark.
-- **Language:** English or Turkish. The interface, menus and AI replies switch instantly.
-- **Writing:** math results (off, suggest or insert), spell checking, word counter, writing background and focus
-  mode options, and import.
-- **Origin:** show, open or switch your notes folder.
-- **Keyboard shortcuts:** the full list for your operating system.
-- **Publishing**, **Archives**, **AI** and **About**.
+Settings open as a window with categories on the left, a search box that filters them, and the chosen category's
+settings grouped in cards on the right. The window remembers the last category you opened.
+
+- **Appearance:** theme (System, Light or Dark), high contrast, language (English or Turkish; the interface, menus and
+  AI replies switch instantly), accent colour and CSS snippets.
+- **Writing:** spell checking, word counter, daily word goal, default writing font, Lore name marking, editor options
+  and math results (off, suggest or insert).
+- **Aura and Focus:** typewriter sounds and ambience, the Clepsydra timer and the focus-mode background.
+- **Automation:** Sigils, Rites and Conduit rules.
+- **Notes and Origin:** your notes folder, startup and new-note options, excluded files, Ark backups, archives and
+  import.
+- **Shortcuts**, **Publishing**, **Calendar**, **AI** and **About** (version, licence and the Nularche vocabulary).
 
 ## AI (Claude, ChatGPT, Gemini)
 
@@ -378,10 +483,11 @@ or select text to work on just that part. Every AI edit can be undone with one c
 | **Subscription** | Use your own **Claude** (Claude Desktop / Claude Code), **ChatGPT** (desktop app / Codex) or **Gemini** (Antigravity) account. Nularche registers its MCP server with that app in one click and detects when it connects. | Your existing plan; no API fees |
 
 Nularche never sees or stores your AI account credentials. In subscription mode the AI app talks to your notes
-through the local `nularche` MCP server, which offers 21 tools: read/search/create/update pages (with properties), Shadow, tags (`list_tags`), links
+through the local `nularche` MCP server, which offers 28 tools: read/search/create/update pages (with properties), Shadow, tags (`list_tags`), links
 (`get_backlinks`, `get_links`), databases
 (`create_database`, `query_database`, `add_database_row`, `set_row_properties`, `update_database_schema`),
-`duplicate_node`, and the Nularche AI request tools.
+`duplicate_node`, writing projects (`get_manuscript`, `add_to_writing_project`, `list_wiki_entries`, `get_wiki_mentions`),
+comments (`list_comments`, `add_comment`), `create_checkpoint`, and the Nularche AI request tools.
 
 ## Keyboard shortcuts
 
@@ -422,6 +528,10 @@ Press **⌘ /** (macOS) or **Ctrl + /** (Windows, Linux) in the app to see this 
 | Clear formatting | ⌘ \ | Ctrl + \ |
 | New tab · Close tab · Next tab | ⌥ ⌘ T · ⌥ ⌘ W · ⌃ Tab | Ctrl + Alt + T · Ctrl + Alt + W · Ctrl + Tab |
 | Page preview | ⌘ + hover a link | Ctrl + hover a link |
+| Add comment · Create checkpoint | ⌥ ⌘ M · ⌥ ⌘ S | Ctrl + Alt + M · Ctrl + Alt + S |
+| Open a note beside (split view) | ⌥ ⌘ \ | Ctrl + Alt + \ |
+| Writing timer | ⌥ ⌘ P | Ctrl + Alt + P |
+| Outline: new row · indent · outdent · row notes | ↩ · Tab · ⇧ Tab · ⌘ ↩ | Enter · Tab · Shift + Tab · Ctrl + Enter |
 
 Every command's shortcut can be changed in **Settings → Keyboard shortcuts**.
 
@@ -433,12 +543,16 @@ Every command's shortcut can be changed in **Settings → Keyboard shortcuts**.
 | Settings | `~/Library/Preferences/io.nularche.app` | `%APPDATA%\Nularche\config` | `~/.config/nularche` |
 | App data | `~/Library/Application Support/Nularche` | `%LOCALAPPDATA%\Nularche\data` | `~/.local/share/nularche` |
 
+Inside the Origin, the hidden `.nularche/` folder holds the app's own data, which travels and is backed up with your
+notes: `ui.json` (preferences, word log), `history/` (snapshots and named checkpoints), `comments/` (comment threads),
+`capture.json` (smart-capture rules) and `snippets/` (CSS snippets). Automatic backups go to the folder you choose.
+
 **Uninstall:** delete `Nularche.app` (macOS), use **Settings → Apps** (Windows) or run `sudo apt remove nularche`
 (Linux). Uninstalling never deletes your notes.
 
 Uninstalling also keeps your settings, including a saved Gemini API key, so a reinstall picks up where you left off.
 Nothing personal is ever stored inside the app itself: every new installation starts with an empty AI setup. To remove
-a saved key, use **Settings → AI → Automatic mode → Remove key**. Calendar accounts are removed with **Settings → Calendar sync →
+a saved key, use **Settings → AI → Automatic mode → Remove key**. Calendar accounts are removed with **Settings → Calendar →
 Disconnect**. To reset Nularche completely, quit it and delete the
 **Settings** and **App data** folders listed above, for example on macOS:
 
@@ -455,6 +569,20 @@ rm -rf ~/Library/Preferences/io.nularche.app ~/Library/Application\ Support/Nula
 | **Node** | A page. |
 | **Shard** | A block inside a page (text, table, image…). |
 | **Shadow** | The inbox for quick, not-yet-filed notes. |
+| **Atrium** | The home page: where you left off, daily goal and streak, projects, quick capture. |
+| **Codex** | A manuscript: Nodes in ordered sections, read, counted and exported as one work. |
+| **Axis** | An outline: the backbone of a work in I., A., 1. levels; a Codex can follow it. |
+| **Mosaic** | A corkboard of scene and idea cards. |
+| **Lore** | A story bible of characters, places and ideas; entry names are marked in your notes. |
+| **Marginalia** | Comments left beside a passage without changing the text. |
+| **Epoch** | A named version (checkpoint) you can compare with and restore. |
+| **Diptych** | Two Nodes side by side (split view). |
+| **Clepsydra** | The writing timer with focus and break periods. |
+| **Aura** | Typewriter sounds and ambience. |
+| **Sigil** | A text shortcut that expands as you type. |
+| **Rite** | A custom command. |
+| **Conduit** | Smart capture that routes `::mosaic`, `::axis`, `::lore` and `::task` notes to their target. |
+| **Ark** | Automatic backups of the Origin to a folder you choose. |
 
 ## Development
 
@@ -514,10 +642,65 @@ bilgi yönetimi uygulamasıdır. Veritabanları (tablo, pano, takvim, galeri, li
 not, Çöp, statik site yayınlama ve Claude / ChatGPT / Gemini entegrasyonu içerir. Arayüz Ayarlar'dan Türkçeye
 alınabilir.
 
+### 2.0.0'daki yenilikler
+
+Nularche 2.0, roman, tez, senaryo ve rapor gibi uzun metinler için bir **yazma stüdyosu** ekliyor. Her şey yine Origin
+klasörünüzde düz Markdown dosyası olarak kalır. Yeni sayfa türleri yapılarını, tuval sayfaları gibi notun içindeki küçük
+bir JSON bloğunda tutar. Yeni bölümlerin Nularche adları ve anlamları ilk açılış sihirbazının **Nularche dili**
+adımında ve uygulamadaki **Nularche dili** penceresinde (⇧⌘P → “Nularche dili”) anlatılır.
+
+- **Codex** (manuskript): notları bölümler halinde sıralayıp tek bir eser gibi çalışın. Kelime hedefine karşı toplam sayaç,
+  bütün metni gösteren **Oku** görünümü ve derlenmiş metni **Word**, **PDF**, **RTF**, düz metin ya da HTML olarak dışa
+  aktarma vardır. Bölüm adlarının ve not başlıklarının yazılıp yazılmayacağını ve notlar arasındaki ayracı siz
+  seçersiniz. Notlar yerinden kıpırdamaz; sürükleyerek sıralar, var olan notu ekler ya da yerinde yeni bölüm
+  yazarsınız.
+- **Axis** (taslak): I. → A. → 1. → a. düzeyli planlama satırları. Enter yeni satır açar, Tab / ⇧Tab girintiyi
+  değiştirir, ⌥↑ / ⌥↓ satırı taşır, ⌘↩ satır notunu açar. Satırlar daraltılabilir, renk alabilir, tamamlandı
+  işaretlenebilir, bir nota bağlanabilir ya da nota dönüştürülebilir. Codex bir Axis'i **izleyebilir**: henüz
+  yazılmamış satırlar vuruşlarıyla birlikte **planlanan** olarak görünür ve **Yaz** ile tek tıkla bölüme dönüşür.
+- **Mosaic** (mantar pano): sahneler ve fikirler için gruplar halinde dizin kartları. Kartları sürükleyebilir,
+  renk etiketi verebilir, içlerinde arayabilirsiniz. S / M / L boyut ya da yalnızca başlık seçenekleri ve çoklu seçim
+  vardır. Bir kart nota bağlanabilir ya da nota dönüştürülebilir.
+- **Lore** (hikâye kitaplığı): Lore sayfasının alt sayfaları girdilerdir, alt sayfası olan girdiler kategoridir. Her girdi
+  **hızlı bilgilerini** (notun özellikleri), takma adlarını ve özetini gösterir. Bir kategori, yeni girdilere
+  eklenecek alanları belirleyebilir. **Anma tespiti** girdinin adının ve takma adlarının geçtiği her yerin altını
+  noktalı çizgiyle çizer: ⌘/Ctrl-tıklama girdiyi açar, ⌘ ile üzerine gelmek önizler. Her girdide **Geçtiği yerler**
+  sayılarıyla listelenir.
+- **Marginalia** (⌥⌘M / Ctrl+Alt+M): pasajlara bağlı yorum dizileri; yanıt, çözüldü, yeniden açma ve düzenleme.
+  Marginalia
+  `.nularche/comments/` içinde durur, **Markdown dosyası değişmez**.
+- **Epoch'lar** (⌥⌘S / Ctrl+Alt+S): siz silene kadar saklanan adlandırılmış sürümler (not başına 30). Geri
+  yüklemeden önce her sürümü **şimdiki metinle** satır satır karşılaştırabilirsiniz.
+- **Diptych** (bölünmüş görünüm, `⌥⌘\` / `Ctrl+Alt+\`): iki notu yan yana açın; bölmeleri yer değiştirebilir, bölmeler arasında
+  geçebilir ya da yan bölmeyi kapatabilirsiniz.
+- **Atrium** (ana sayfa): selamlama, kaldığınız yerden devam, **günlük hedefe** karşı bugün yazılan kelime, **yazma serisi**,
+  son yedi gün grafiği, yazma projeleri, son düzenlenenler, sabitlenenler ve hızlı yakalama.
+- **Kelime hedefi** (not ya da manuskript başına), **Clepsydra** yazma zamanlayıcısı (⌥⌘P; odak ve mola süreleri, çan).
+- **Aura** (daktilo ve ortam sesleri): tuş vuruşu (hafif ya da ağır makine), satır başı ve **kenar zili**; pencerede yağmur,
+  duvar saati, yaz gecesi ve şömine. Sesler bilgisayarınızda üretilir, hiçbir şey indirilmez.
+- **Uygulamayla gelen 6 yazı tipi** (açık lisanslı, çevrimdışı): Atkinson Hyperlegible, Literata, Lora, Crimson Pro,
+  Courier Prime, Special Elite. **Yüksek kontrast** teması.
+- **Sigil'ler** (metin kısaltmaları): `;imza` yazıp boşluk bırakınca açılır; açılımda `{{date}}` gibi değişkenler kullanılabilir.
+- **Rite'lar** (özel komutlar): metin ekleyen, not açan, Shadow'a yakalayan ya da komut dizisi çalıştıran komutlar; komut
+  paletinde ★ ile görünür ve kısayol atanabilir. Kısaltmalar ve komutlar dosyaya kaydedilip yeniden yüklenebilir.
+- **Conduit** (akıllı yakalama): `::mosaic @roman Liman sahnesi`, `::axis …`, `::lore @dünya Ada`, `::task …` ile başlayan
+  yakalamalar doğrudan hedefe gider. Hedefe gidemeyenler Shadow'da bekler ve sonra **Gönder…** ile taşınır.
+- **Ark** (otomatik yedekleme, masaüstü): Origin'in tamamı seçtiğiniz klasöre saatte, günde ya da haftada bir `.nla` olarak
+  yazılır, eski yedekler silinir. iCloud Drive, Google Drive ya da OneDrive klasörü seçebilirsiniz; Nularche hiçbir
+  hesaba bağlanmaz.
+- **Her şey arayüzden bulunur:** kenar çubuğunda **🏛 Atrium**, **✦ Yeni yazma projesi** (Codex, Axis, Mosaic, Lore;
+  her biri kısa açıklamasıyla) ve **ⓘ Nularche dili**; her notun üst çubuğunda ✎ Marginalia, ⚑ Epoch, ◫ Diptych,
+  ⧗ Clepsydra ve ♪ Aura; metin seçince açılan balonda **✎ Marginalia**; `/` menüsünde **Yazma stüdyosu** grubu; odak
+  modunda Clepsydra ve Aura. Düğmelerin üzerine gelince adın anlamı görünür.
+- **Yeni Ayarlar penceresi:** solda aranabilir kategoriler (Görünüm, Yazma, Aura ve Odak, Otomasyon, Notlar ve Origin,
+  Kısayollar, Yayınlama, Takvim, Yapay zekâ, Hakkında), sağda kartlar halinde ayarlar.
+- **MCP sunucusu:** 7 yeni araç (`get_manuscript`, `add_to_writing_project`, `list_wiki_entries`, `get_wiki_mentions`,
+  `list_comments`, `add_comment`, `create_checkpoint`).
+
 ### 1.5.0'daki yenilikler
 
-Apple Notlar'ın gündelik not özellikleri, odaklı yazma uygulamalarının dikkat dağıtmayan yazma deneyimi ve Obsidian'ın
-bağlantılı not yaklaşımı artık Nularche'de; notlarınız yine düz Markdown dosyası olarak kalır. Obsidian sözdizimiyle
+Apple Notlar'ın gündelik not özellikleri, odaklı yazma uygulamalarının dikkat dağıtmayan yazma deneyimi ve bağlantılı not
+yaklaşımı artık Nularche'de; notlarınız yine düz Markdown dosyası olarak kalır. Başka Markdown uygulamalarının sözdizimiyle
 yazılmış notlar Nularche'de düzenlenirken bozulmaz.
 
 - **Odak modu** (⇧⌘F / Ctrl+Shift+F): tam ekran, kenar çubuğu ve araçlar gizli; fare hareket edince bilgi çubukları
@@ -535,7 +718,7 @@ yazılmış notlar Nularche'de düzenlenirken bozulmaz.
 - **Notu parola ile kilitleme** (AES-256, bilgisayarınızda şifrelenir; parola unutulursa içerik kurtarılamaz).
 - **Takvim eşitleme:** bir veritabanının tarihli satırlarını **Google Takvim**, **Apple Takvim (iCloud)** ya da ikisiyle
   birden iki yönlü eşitleyin; tarihli satırlar etkinlik, etkinlikler satır olur, başlık ve tarih iki yönde güncellenir.
-  **Ayarlar → Takvim eşitleme** bölümünden hesabı bağlayın (Google için Google Cloud'da oluşturduğunuz "Masaüstü
+  **Ayarlar → Takvim** bölümünden hesabı bağlayın (Google için Google Cloud'da oluşturduğunuz "Masaüstü
   uygulaması" OAuth istemcisi, Apple için uygulamaya özel parola), sonra veritabanı araç çubuğundaki **🗓 Takvim**
   düğmesinden takvimi seçin. Silinen etkinliğin satırı çöpe taşınır; yinelenen etkinlikler ve kilitli notlar eşitlenmez.
   Ayrıntılar ve kurulum adımları: [Calendar sync](#calendar-sync-google-and-apple).
@@ -544,11 +727,11 @@ yazılmış notlar Nularche'de düzenlenirken bozulmaz.
   pencerede açma**, **en üstte tutma**, **notu açık arka planla gösterme**.
 - Yeni **Biçim** ve **Görüntü** menüleri; MCP sunucusunda `list_tags` ve etikete göre arama.
 
-**Obsidian'dan gelenler**
+**Bağlantılı notlar**
 - **Wiki bağlantıları ve gömme:** `[[Not]]`, `[[Not#Başlık|görünen ad]]`, `![[Not]]`; başlık, dosya adı ya da takma
   adla çözülür, var olmayan nota tıklayınca not oluşturulur.
 - **Özellikler (Properties):** notun başında metin, liste, sayı, onay kutusu ve tarih alanları (YAML frontmatter;
-  `aliases` ve `tags` Obsidian'daki gibi). ⌘; ile özellik ekleyin.
+  `aliases` ve `tags` anlaşılır). ⌘; ile özellik ekleyin.
 - **Komut paleti** (⇧⌘P), **hızlı geçiş** (⌘O; yoksa notu oluşturur), **geri/ileri** (⌥⌘← / ⌥⌘→).
 - **Grafik görünümü** ve **yerel grafik**; **kenar paneli** (⇧⌘O): ana hat, geri bağlantılar, giden bağlantılar,
   **bağlantısız anılışlar** (tek tıkla bağlantıya çevirme) ve **dosya geçmişi** (önizleme ve geri yükleme).
@@ -558,7 +741,7 @@ yazılmış notlar Nularche'de düzenlenirken bozulmaz.
   adlandırılmış çalışma alanı olarak kaydedip açın; açılışta son sayfa, bugünün notu ya da ana sayfa gelir.
 - **Sayfa önizlemesi:** ⌘ basılıyken bir bağlantının üzerine gelince notun içeriği görünür.
 - **Markdown ekleri:** LaTeX formüller (`$…$`, `$$…$$`), **Mermaid** diyagramları, dipnotlar, `%%yorumlar%%`
-  (yayımlanmaz), tüm Obsidian kutu türleri, satır taşıma (⌥↑ / ⌥↓).
+  (yayımlanmaz), yaygın tüm kutu türleri, satır taşıma (⌥↑ / ⌥↓).
 - **Şablon değişkenleri:** `{{title}}`, `{{date}}`, `{{time}}`, `{{date:DD.MM.YYYY}}` gibi; şablonu açık nota ekleme.
 - **Not düzenleyici:** notları birleştirme, seçimi ya da başlık bölümünü yeni nota çıkarma; **rastgele not**,
   **benzersiz not**, önceki/sonraki günlük not, **okuma görünümü** (⌥⌘E), notu **sunum** olarak gösterme, dosya yolunu
@@ -569,7 +752,7 @@ yazılmış notlar Nularche'de düzenlenirken bozulmaz.
 - MCP sunucusunda `get_links` aracı; `update_node` özellik de yazabilir.
 
 - **İndirme:** yukarıdaki [Download](#download) tablosundan sisteminize uygun dosyayı seçin.
-- **1.0'dan güncelleme:** 1.5'i eskisinin üzerine aynı şekilde kurun (macOS'ta Uygulamalar klasörüne sürükleyin,
+- **1.x'ten güncelleme:** 2.0'ı eskisinin üzerine aynı şekilde kurun (macOS'ta Uygulamalar klasörüne sürükleyin,
   Windows'ta kurulumu çalıştırın, Linux'ta `sudo apt install ./Nularche-Linux-amd64.deb`) ya da terminal kurulumunu
   yeniden çalıştırın. Origin klasörünüz, notlarınız ve ayarlarınız olduğu gibi kalır.
 - **Terminalden kurulum (macOS / Linux):**

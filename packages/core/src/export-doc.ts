@@ -1,6 +1,7 @@
 // Kelime işlemci biçimleri: bir Node'u RTF (TextEdit, Pages, Word) ya da DOCX (Word, Pages, LibreOffice) olarak üretir.
 // Markdown önce `marked` ile ayrıştırılıp basit bir blok/metin parçası modeline çevrilir; iki yazıcı da bu modeli kullanır.
 
+import { exportBodyOf } from "./manuscript.ts";
 import path from "node:path";
 import { zipSync } from "fflate";
 import { Lexer, type Token, type Tokens } from "marked";
@@ -479,8 +480,10 @@ export type DocFormat = "rtf" | "docx" | "txt";
 
 /** Sayfayı RTF, DOCX ya da düz metin olarak üretir. Kilitli sayfalar dışa aktarılamaz. */
 export async function exportPageDocument(store: NodeStore, ref: string, format: DocFormat): Promise<{ name: string; data: Uint8Array; mime: string }> {
-  const node = await store.read(ref);
-  if (node.locked || isLockedBody(node.body)) throw new NodeError("invalid", "Kilitli not dışa aktarılamaz; önce kilidi kaldırın.");
+  const doc = await store.read(ref);
+  if (doc.locked || isLockedBody(doc.body)) throw new NodeError("invalid", "Kilitli not dışa aktarılamaz; önce kilidi kaldırın.");
+  // Manuskriptler derlenmiş metinleriyle (bölümler sırasıyla) dışa aktarılır.
+  const node = { ...doc, body: await exportBodyOf(store, doc) };
   const base = node.title.replace(/[\\/:*?"<>|]/g, "-");
   if (format === "txt") return { name: `${base}.txt`, data: new TextEncoder().encode(`${node.title}\n\n${plainText(node.body)}\n`), mime: "text/plain; charset=utf-8" };
   const blocks = await toBlocks(store, node.path, node.body);

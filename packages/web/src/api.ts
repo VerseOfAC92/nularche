@@ -1,6 +1,6 @@
 // Yerel sunucunun JSON API istemcisi. Tipler core/src/node-store.ts ile aynı sözleşmeyi izler.
 
-export type LayoutMode = "stream" | "canvas";
+export type LayoutMode = "stream" | "canvas" | "manuscript" | "outline" | "cards" | "wiki";
 
 export interface PageFields {
   layout?: LayoutMode;
@@ -18,6 +18,9 @@ export interface PageFields {
   fontSize?: number;
   lightBg?: boolean;
   sortChecked?: boolean;
+  wordGoal?: number;
+  wikiFields?: string[];
+  noMentions?: boolean;
 }
 
 export type PageFieldPatch = { [K in keyof PageFields]?: PageFields[K] | null };
@@ -39,7 +42,7 @@ export interface NodeMeta extends PageFields {
   done: number;
   attachments: number;
   words: number;
-  /** Frontmatter `aliases` (Obsidian uyumlu takma adlar). */
+  /** Frontmatter `aliases` (takma adlar). */
   aliases: string[];
 }
 
@@ -126,6 +129,81 @@ export interface ImportResult {
   attachments: number;
 }
 
+export interface HistoryEntry {
+  at: number;
+  size: number;
+  label?: string;
+}
+
+export interface CommentAnchor {
+  text: string;
+  prefix?: string;
+  suffix?: string;
+}
+
+export interface NoteComment {
+  id: string;
+  anchor: CommentAnchor;
+  body: string;
+  author?: string;
+  createdAt: number;
+  updatedAt: number;
+  resolved?: boolean;
+  replies: { id: string; body: string; author?: string; createdAt: number }[];
+}
+
+export interface WikiEntry {
+  id: string;
+  title: string;
+  path: string;
+  parentNodeId: string | null;
+  depth: number;
+  category: boolean;
+  aliases: string[];
+  icon?: string;
+  excerpt: string;
+  properties: Record<string, unknown>;
+  wikiFields?: string[];
+  noMentions?: boolean;
+  updatedAt: number;
+}
+
+export interface WikiMention {
+  id: string;
+  title: string;
+  count: number;
+  snippet: string;
+}
+
+export interface WikiTerm {
+  id: string;
+  title: string;
+  path: string;
+  names: string[];
+}
+
+export interface CompiledManuscript {
+  id: string;
+  title: string;
+  markdown: string;
+  words: number;
+  wordGoal?: number;
+  sections: { id: string; title: string; words: number; parts: { id?: string; title: string; path: string; words: number; missing?: "not_found" | "locked" }[] }[];
+}
+
+export type CaptureKind = "card" | "outline" | "wiki" | "task";
+export interface CaptureConfig {
+  autoRoute: boolean;
+  rules: { handle: string; kind: CaptureKind; target: string }[];
+  defaults: Partial<Record<CaptureKind, string>>;
+}
+export interface CaptureResult {
+  kind: CaptureKind;
+  targetId: string;
+  targetTitle: string;
+  createdId?: string;
+}
+
 export interface ShadowView {
   inbox: NodeMeta[];
   unlinked: NodeMeta[];
@@ -178,7 +256,22 @@ export const api = {
   restore: (entry: string) => request<NodeDoc>("POST", `/api/trash/${enc(entry)}/restore`),
   deleteTrash: (entry: string) => request<unknown>("DELETE", `/api/trash/${enc(entry)}`),
   emptyTrash: () => request<{ deleted: number }>("DELETE", "/api/trash"),
-  capture: (text: string, title?: string) => request<NodeDoc>("POST", "/api/capture", { text, title }),
+  capture: (text: string, title?: string) => request<NodeDoc | { routed: CaptureResult }>("POST", "/api/capture", { text, title }),
+  captureConfig: () => request<CaptureConfig>("GET", "/api/capture-config"),
+  setCaptureConfig: (config: CaptureConfig) => request<CaptureConfig>("PUT", "/api/capture-config", config),
+  promote: (id: string, input: { kind?: CaptureKind; target?: string }) => request<CaptureResult>("POST", `/api/nodes/${enc(id)}/promote`, input),
+  manuscript: (id: string) => request<CompiledManuscript>("GET", `/api/nodes/${enc(id)}/manuscript`),
+  comments: (id: string) => request<{ comments: NoteComment[] }>("GET", `/api/nodes/${enc(id)}/comments`).then((r) => r.comments),
+  addComment: (id: string, anchor: CommentAnchor, body: string) => request<NoteComment>("POST", `/api/nodes/${enc(id)}/comments`, { anchor, body }),
+  updateComment: (id: string, commentId: string, patch: { body?: string; resolved?: boolean }) => request<NoteComment>("POST", `/api/nodes/${enc(id)}/comments`, { action: "update", commentId, ...patch }),
+  replyComment: (id: string, commentId: string, body: string) => request<NoteComment>("POST", `/api/nodes/${enc(id)}/comments`, { action: "reply", commentId, body }),
+  deleteComment: (id: string, commentId: string) => request<unknown>("POST", `/api/nodes/${enc(id)}/comments`, { action: "delete", commentId }),
+  commentCounts: () => request<{ counts: Record<string, number> }>("GET", "/api/comments").then((r) => r.counts),
+  checkpoint: (id: string, label: string) => request<HistoryEntry>("POST", `/api/nodes/${enc(id)}/checkpoint`, { label }),
+  deleteHistory: (id: string, at: number) => request<unknown>("POST", `/api/nodes/${enc(id)}/history-delete`, { at }),
+  wiki: (id: string) => request<{ entries: WikiEntry[] }>("GET", `/api/nodes/${enc(id)}/wiki`).then((r) => r.entries),
+  wikiMentions: (id: string) => request<{ mentions: WikiMention[] }>("GET", `/api/nodes/${enc(id)}/wiki-mentions`).then((r) => r.mentions),
+  wikiTerms: () => request<{ terms: WikiTerm[] }>("GET", "/api/wiki-terms").then((r) => r.terms),
   aiState: () =>
     request<{ clients: { name: string; provider: string | null; firstSeen: number; lastSeen: number }[]; requests: AiRequest[] }>("GET", "/api/ai"),
   aiRequest: (input: { provider: string | null; label: string; instruction: string; nodeId?: string; nodeTitle?: string; selection?: string; language?: string }) =>
@@ -197,7 +290,7 @@ export const api = {
   mentions: (id: string) => request<{ mentions: MentionHit[] }>("GET", `/api/nodes/${enc(id)}/mentions`).then((r) => r.mentions),
   linkMention: (targetId: string, sourceId: string) => request<NodeDoc>("POST", `/api/nodes/${enc(targetId)}/link-mention`, { source: sourceId }),
   merge: (sourceId: string, intoId: string) => request<NodeDoc>("POST", `/api/nodes/${enc(sourceId)}/merge`, { into: intoId }),
-  history: (id: string) => request<{ entries: { at: number; size: number }[] }>("GET", `/api/nodes/${enc(id)}/history`).then((r) => r.entries),
+  history: (id: string) => request<{ entries: HistoryEntry[] }>("GET", `/api/nodes/${enc(id)}/history`).then((r) => r.entries),
   historyBody: (id: string, at: number) => request<{ body: string }>("GET", `/api/nodes/${enc(id)}/history?at=${at}`).then((r) => r.body),
   restoreHistory: (id: string, at: number, baseRevision?: string) => request<NodeDoc>("POST", `/api/nodes/${enc(id)}/restore`, { at, baseRevision }),
   graph: () => request<LinkGraph>("GET", "/api/graph"),

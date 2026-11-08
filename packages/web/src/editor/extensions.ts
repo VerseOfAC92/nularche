@@ -15,7 +15,7 @@ import { Callout, MdDetails, MdDetailsContent, MdDetailsSummary, MdTextStyle, Md
 import { t } from "../i18n/index.ts";
 import { InlineDatabase } from "../database/InlineDatabase.tsx";
 import { AudioBlock, DrawingBlock } from "./media-nodes.tsx";
-import { FootnoteDef, FootnoteRef, MathBlock, MathInline, ObsidianTools, WikiLink } from "./obsidian-nodes.tsx";
+import { FootnoteDef, FootnoteRef, MathBlock, MathInline, VaultTools, WikiLink } from "./linked-nodes.tsx";
 import {
   BlockStyle,
   DashedBulletList,
@@ -29,6 +29,7 @@ import {
   TagHighlight,
   TaskTools,
 } from "./notes-extensions.ts";
+import { StudioMarks } from "../studio/editor-plugins.ts";
 
 export const lowlight = createLowlight(common);
 
@@ -68,12 +69,13 @@ export function buildExtensions(options: { placeholder?: string } = {}): Extensi
     FootnoteDef,
     MathInline,
     MathBlock,
-    ObsidianTools,
+    VaultTools,
     TagHighlight,
     HeadingFold,
     FindReplace,
     TaskTools,
     MathResults,
+    StudioMarks,
     Focus.configure({ className: "has-focus", mode: "shallowest" }),
     Placeholder.configure({
       includeChildren: true,

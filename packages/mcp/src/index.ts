@@ -29,6 +29,13 @@ import {
   slugId,
   TITLE_PROP,
   updateProperty,
+  applyCapture,
+  captureText,
+  CommentStore,
+  compileManuscript,
+  parseWriting,
+  serializeWriting,
+  newWritingId,
   type Database,
   type NodeDoc,
   type NodeMeta,
@@ -37,10 +44,11 @@ import {
 const store = new NodeStore(resolveOriginDir());
 await store.ensureRoot();
 const activity = new AiActivity(store.root);
+const comments = new CommentStore(store);
 let clientName = "";
 
 const server = new McpServer(
-  { name: "nularche", version: "1.5.0" },
+  { name: "nularche", version: "2.0.0" },
   {
     instructions:
       "Kullanıcının Nularche not uygulamasındaki yerel Markdown notları. Terimler: Origin = not kasası; Arche = kökteki ana Node " +
@@ -50,7 +58,9 @@ const server = new McpServer(
       "Kalıcı silme yoktur; trash_node çöp klasörüne taşır (kullanıcı uygulamadaki Çöp bölümünden geri getirebilir). " +
       "Veritabanları (tablo/pano/takvim): satırları alt Node'lardır; query_database, add_database_row, set_row_properties, update_database_schema ile çalışın. " +
       "Şablondan sayfa oluşturmak ya da sayfayı alt sayfalarıyla kopyalamak için duplicate_node kullanın. " +
-      "Notlardaki #etiketler için list_tags ve search_nodes(tag) kullanın. Notlar Obsidian uyumludur: [[wiki]] bağlantıları ve frontmatter özellikleri (update_node properties) okunur; bağlantılar için get_links. Kilitli (parolalı) notlar okunamaz ve değiştirilemez. " +
+      "Yazma projeleri (layout_mode; kullanıcı arayüzündeki Nularche adlarıyla): manuscript = Codex (bölümleri sıralı notlar; get_manuscript), outline = Axis (taslak), cards = Mosaic (kart panosu), wiki = Lore (alt sayfaları girdiler; list_wiki_entries, get_wiki_mentions); bunlara öğe eklemek için add_to_writing_project. " +
+      "Pasajlara yorum (Marginalia) için list_comments/add_comment, adlandırılmış sürüm (Epoch) için create_checkpoint. Kullanıcıya cevap verirken bu Nularche adlarını kullanın. " +
+      "Notlardaki #etiketler için list_tags ve search_nodes(tag) kullanın. Notlar düz Markdown'dır: [[wiki]] bağlantıları ve frontmatter özellikleri (update_node properties) okunur; bağlantılar için get_links. Kilitli (parolalı) notlar okunamaz ve değiştirilemez. " +
       "Kullanıcı Nularche AI penceresinden istek gönderdiğinde önce get_nularche_request ile isteği al, işi yap, " +
       "sonra complete_nularche_request ile kullanıcıya kısa bir cevap/özet yaz (isteğin reply_language dilinde); bu cevap Nularche'de görünür.",
   },
@@ -202,7 +212,7 @@ server.registerTool(
       properties: z
         .record(z.string(), z.unknown())
         .optional()
-        .describe("Frontmatter özellikleri (Obsidian uyumlu, ör. aliases, tags, status); null değer özelliği kaldırır. Verilmeyenler değişmez."),
+        .describe("Frontmatter özellikleri (YAML, ör. aliases, tags, status); null değer özelliği kaldırır. Verilmeyenler değişmez."),
       base_revision: z.string().optional(),
     },
     annotations: { destructiveHint: true, idempotentHint: true },
@@ -455,13 +465,16 @@ server.registerTool(
   "capture_to_shadow",
   {
     title: "Shadow'a yakala",
-    description: "Ham bir notu hızlıca Shadow gelen kutusuna yazar. Başlık verilmezse ilk satırdan üretilir.",
+    description:
+      "Ham bir notu hızlıca Shadow gelen kutusuna yazar. Başlık verilmezse ilk satırdan üretilir. Metin '::card', '::outline', '::wiki' ya da " +
+      "'::task' ile (isteğe bağlı '@kısaltma' ile) başlarsa kullanıcının yakalama kurallarına göre ilgili kart destesine, taslağa, wiki'ye ya da nota yönlendirilir.",
     inputSchema: { text: z.string().min(1), title: z.string().optional() },
   },
   ({ text, title }) =>
     run(async () => {
-      const n = await store.capture(text, title);
-      return { ...summary(n), revision: n.revision };
+      const out = await captureText(store, text, title);
+      if ("routed" in out) return { routed: { kind: out.routed.kind, target_id: out.routed.targetId, target_title: out.routed.targetTitle, created_id: out.routed.createdId ?? null } };
+      return { ...summary(out.node), revision: out.node.revision };
     }),
 );
 
@@ -565,6 +578,165 @@ server.registerTool(
       const req = await activity.completeRequest(request_id, reply, failed);
       return { id: req.id, status: req.status, changes: req.changes.length };
     }),
+);
+
+server.registerTool(
+  "get_manuscript",
+  {
+    title: "Manuskripti derle",
+    description:
+      "Bir manuskript sayfasının bölümlerini (notları) sırasıyla ve kelime sayılarıyla döndürür. include_text ile derlenmiş tam metin (Markdown) de döner; " +
+      "uzun metinler için önce include_text olmadan yapıya bakın.",
+    inputSchema: { node: nodeRef, include_text: z.boolean().default(false) },
+    annotations: { readOnlyHint: true },
+  },
+  ({ node, include_text }) =>
+    run(async () => {
+      const c = await compileManuscript(store, node);
+      return {
+        id: c.id,
+        title: c.title,
+        words: c.words,
+        word_goal: c.wordGoal ?? null,
+        sections: c.sections.map((s) => ({ title: s.title, words: s.words, parts: s.parts.map((p) => ({ id: p.id ?? null, title: p.title, path: p.path, words: p.words, ...(p.missing ? { missing: p.missing } : {}) })) })),
+        ...(include_text ? { text: c.markdown } : {}),
+      };
+    }),
+);
+
+server.registerTool(
+  "add_to_writing_project",
+  {
+    title: "Yazma projesine ekle",
+    description:
+      "kind=card: kart destesine kart; outline: taslağa satır (depth 0-5); wiki: wiki'ye (ya da bir kategorisine) yeni girdi; task: nota yapılacak; " +
+      "manuscript: var olan bir notu (file: Node id'si ya da yolu) manuskriptin son bölümüne ekler.",
+    inputSchema: {
+      target: nodeRef.describe("Kart destesi, taslak, wiki, manuskript ya da (task için) not"),
+      kind: z.enum(["card", "outline", "wiki", "task", "manuscript"]),
+      title: z.string().default(""),
+      text: z.string().default("").describe("Kart metni, satır notu, girdi içeriği"),
+      depth: z.number().int().min(0).max(5).default(0),
+      file: z.string().optional().describe("manuscript için eklenecek Node"),
+    },
+  },
+  ({ target, kind, title, text, depth, file }) =>
+    run(async () => {
+      if (kind === "manuscript") {
+        if (!file) throw new NodeError("invalid", "file gerekli.");
+        const part = await store.read(file);
+        const doc = await editWithSnapshot(target, async (before) => {
+          if (before.layoutMode !== "manuscript") throw new NodeError("invalid", "Hedef bir manuskript değil.");
+          const { data, broken } = parseWriting("manuscript", before.body);
+          if (broken) throw new NodeError("invalid", "Manuskript verisi bozuk.");
+          data.sections[data.sections.length - 1].items.push({ id: newWritingId(), file: part.path });
+          return store.update(before.id, { body: serializeWriting("manuscript", before.body, data), baseRevision: before.revision });
+        });
+        return { ...summary(doc), revision: doc.revision };
+      }
+      if (!title.trim()) throw new NodeError("invalid", "title gerekli.");
+      let createdId: string | undefined;
+      const doc = await editWithSnapshot(target, async (before) => {
+        const res = await applyCapture(store, { kind, title: title.trim(), rest: text.trim() }, before.id);
+        createdId = res.createdId;
+        if (kind === "outline" && depth > 0) {
+          const fresh = await store.read(before.id);
+          const { data } = parseWriting("outline", fresh.body);
+          data.rows[data.rows.length - 1].depth = depth;
+          return store.update(fresh.id, { body: serializeWriting("outline", fresh.body, data), baseRevision: fresh.revision });
+        }
+        return store.read(before.id);
+      });
+      return { ...summary(doc), revision: doc.revision, created_id: createdId ?? null };
+    }),
+);
+
+server.registerTool(
+  "list_wiki_entries",
+  {
+    title: "Wiki girdileri",
+    description: "Bir wiki sayfasının girdilerini (kategoriler, takma adlar, hızlı bilgi özellikleri) ağaç sırasıyla listeler.",
+    inputSchema: { node: nodeRef, include_properties: z.boolean().default(true) },
+    annotations: { readOnlyHint: true },
+  },
+  ({ node, include_properties }) =>
+    run(async () => ({
+      entries: (await store.wikiEntries(node)).map((e) => ({
+        id: e.id,
+        title: e.title,
+        depth: e.depth,
+        category: e.category,
+        ...(e.aliases.length ? { aliases: e.aliases } : {}),
+        ...(include_properties && Object.keys(e.properties).length ? { properties: e.properties } : {}),
+      })),
+    })),
+);
+
+server.registerTool(
+  "get_wiki_mentions",
+  {
+    title: "Wiki girdisinin geçtiği yerler",
+    description: "Bir wiki girdisinin adının ya da takma adlarının geçtiği notları, geçiş sayısı ve kısa bir parçayla döndürür (bağlantı olmasa da).",
+    inputSchema: { node: nodeRef, limit: z.number().int().min(1).max(200).default(30) },
+    annotations: { readOnlyHint: true },
+  },
+  ({ node, limit }) => run(async () => ({ mentions: (await store.wikiMentions(node)).slice(0, limit) })),
+);
+
+server.registerTool(
+  "list_comments",
+  {
+    title: "Yorumları listele",
+    description: "Bir notun pasajlarına bağlı yorumları (alıntılanan metin, yorum, yanıtlar, çözüldü bilgisi) döndürür.",
+    inputSchema: { node: nodeRef, include_resolved: z.boolean().default(false) },
+    annotations: { readOnlyHint: true },
+  },
+  ({ node, include_resolved }) =>
+    run(async () => ({
+      comments: (await comments.list(node))
+        .filter((c) => include_resolved || !c.resolved)
+        .map((c) => ({ id: c.id, quote: c.anchor.text, body: c.body, author: c.author ?? null, resolved: !!c.resolved, created_at: iso(c.createdAt), replies: c.replies.map((r) => ({ body: r.body, author: r.author ?? null, created_at: iso(r.createdAt) })) })),
+    })),
+);
+
+server.registerTool(
+  "add_comment",
+  {
+    title: "Yorum ekle",
+    description:
+      "Notun bir pasajına yorum ekler (not metni değişmez). quote, notta birebir geçen kısa bir metin olmalı. reply_to verilirse o yoruma yanıt yazar; resolve ile yorumu çözüldü işaretler.",
+    inputSchema: {
+      node: nodeRef,
+      body: z.string().min(1),
+      quote: z.string().optional(),
+      reply_to: z.string().optional(),
+      resolve: z.boolean().optional(),
+    },
+  },
+  ({ node, body, quote, reply_to, resolve }) =>
+    run(async () => {
+      const author = clientName || "AI";
+      if (reply_to) {
+        const c = await comments.reply(node, reply_to, { body, author });
+        if (resolve !== undefined) await comments.update(node, reply_to, { resolved: resolve });
+        return { id: c.id, replies: c.replies.length };
+      }
+      const doc = await store.read(node);
+      if (!quote || !doc.body.includes(quote)) throw new NodeError("invalid", "quote notta birebir geçmeli.");
+      const at = doc.body.indexOf(quote);
+      const c = await comments.add(node, { anchor: { text: quote, prefix: doc.body.slice(Math.max(0, at - 30), at), suffix: doc.body.slice(at + quote.length, at + quote.length + 30) }, body, author });
+      return { id: c.id };
+    }),
+);
+
+server.registerTool(
+  "create_checkpoint",
+  {
+    title: "Kontrol noktası oluştur",
+    description: "Notun şimdiki halini adlandırılmış bir sürüm olarak saklar; kullanıcı Geçmiş panelinden karşılaştırıp geri yükleyebilir. Büyük değişikliklerden önce kullanın.",
+    inputSchema: { node: nodeRef, label: z.string().min(1).max(80) },
+  },
+  ({ node, label }) => run(async () => store.checkpoint(node, label)),
 );
 
 await server.connect(new StdioServerTransport());

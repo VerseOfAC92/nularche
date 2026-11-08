@@ -56,6 +56,8 @@ const STRINGS = {
   },
   "archive.import": { tr: "İçe aktar", en: "Import" },
   "archive.pickTitle": { tr: "Arşiv seçin", en: "Choose an archive" },
+  "backup.pickTitle": { tr: "Yedek klasörünü seçin", en: "Choose the backup folder" },
+  "backup.pickButton": { tr: "Bu klasöre yedekle", en: "Back Up Here" },
   "archive.filter": { tr: "Nularche arşivi", en: "Nularche archive" },
   "rosetta.message": { tr: "Bu Mac için doğru sürüm kurulu değil", en: "The right version for this Mac isn't installed" },
   "rosetta.detail": {

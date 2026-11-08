@@ -1,9 +1,9 @@
-// Sunum (Obsidian "Slides"): not `---` ayırıcılarından slaytlara bölünür ve tam ekran gösterilir.
+// Sunum ("Slides"): not `---` ayırıcılarından slaytlara bölünür ve tam ekran gösterilir.
 // ←/→, boşluk ve PageUp/PageDown ile gezinilir; Esc kapatır.
 
 import { useEffect, useMemo, useState } from "react";
 import { desktop } from "../desktop.ts";
-import { safeHtml } from "../editor/obsidian-nodes.tsx";
+import { safeHtml } from "../editor/linked-nodes.tsx";
 import { toEditorMarkdown } from "../editor/paths.ts";
 import { t } from "../i18n/index.ts";
 

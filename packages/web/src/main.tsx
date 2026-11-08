@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import { useLang } from "./i18n/index.ts";
 import { applyTheme } from "./theme.ts";
+import "./studio/fonts.ts";
 import "./styles.css";
 
 applyTheme();

@@ -38,19 +38,26 @@ try {
   const tools = (await client.listTools()).tools.map((t) => t.name).sort();
   console.log("araçlar:", tools.join(", "));
   assert.deepEqual(tools, [
+    "add_comment",
     "add_database_row",
+    "add_to_writing_project",
     "append_to_node",
     "capture_to_shadow",
     "complete_nularche_request",
+    "create_checkpoint",
     "create_database",
     "create_node",
     "duplicate_node",
     "get_backlinks",
     "get_links",
+    "get_manuscript",
     "get_nularche_request",
+    "get_wiki_mentions",
+    "list_comments",
     "list_nodes",
     "list_shadow",
     "list_tags",
+    "list_wiki_entries",
     "move_node",
     "query_database",
     "read_node",
@@ -77,7 +84,23 @@ try {
   assert.equal(lockedRead.data.body, "");
   const lockedEdit = await call("update_node", { node: locked.data.id, body: "üzerine yaz" });
   assert.equal(lockedEdit.isError, true);
-  // Obsidian uyumu: özellikler, takma adlar ve [[wiki]] bağlantıları
+  // v2.0: yazma projeleri, wiki, yorumlar, kontrol noktaları ve akıllı yakalama
+  const block = (kind: string, data: unknown) => "```json " + kind + "\n" + JSON.stringify(data) + "\n```\n";
+  const chapter = await call("create_node", { title: "Bölüm Bir", body: "Ada limana indi.", parent_node_id: "root" });
+  const deck = await call("create_node", { title: "Deste", body: block("cards", { version: 1, groups: [{ id: "g", title: "", cards: [] }] }), parent_node_id: "root" });
+  assert.equal((await call("add_to_writing_project", { target: deck.data.id, kind: "card", title: "x" })).isError, true, "düzeni cards olmayan sayfa kart kabul etmez");
+  const task = await call("add_to_writing_project", { target: chapter.data.id, kind: "task", title: "Gözden geçir" });
+  assert.equal(task.isError, false);
+  assert.match((await call("read_node", { node: chapter.data.id })).data.body, /- \[ \] Gözden geçir/);
+  const comment = await call("add_comment", { node: chapter.data.id, quote: "limana indi", body: "Daha canlı anlat." });
+  assert.equal(comment.isError, false);
+  const comments = await call("list_comments", { node: chapter.data.id });
+  assert.equal(comments.data.comments[0].quote, "limana indi");
+  const cp = await call("create_checkpoint", { node: chapter.data.id, label: "İlk taslak" });
+  assert.equal(cp.data.label, "İlk taslak");
+  const routed = await call("capture_to_shadow", { text: "::task @bolum-bir Kaynakları ekle" });
+  assert.equal(routed.data.routed.target_id, chapter.data.id);
+  // Bağlantılı notlar: özellikler, takma adlar ve [[wiki]] bağlantıları
   const wikiTarget = await call("create_node", { title: "Yol haritası", body: "hedefler", parent_node_id: "root" });
   const props = await call("update_node", { node: wikiTarget.data.id, properties: { aliases: ["YH"], durum: "taslak" } });
   assert.equal(props.isError, false);

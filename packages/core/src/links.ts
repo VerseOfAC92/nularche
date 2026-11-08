@@ -1,6 +1,6 @@
 // Markdown gövdesindeki göreli bağlantılar (sayfa bağlantıları ve ekler).
 // Bağlantılar notun kendi konumuna göre göreli, URL-kodlu POSIX yollarıdır, ör. `../Projeler/Plan.md`.
-// Böylece vault başka bir Markdown aracında (Obsidian, VS Code, GitHub) da çalışır.
+// Böylece vault başka bir Markdown aracında (VS Code, GitHub ve diğer Markdown düzenleyicileri) da çalışır.
 
 import path from "node:path";
 

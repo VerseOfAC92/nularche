@@ -50,6 +50,11 @@ contextBridge.exposeInMainWorld("nularche", {
     return () => ipcRenderer.removeListener("nularche:calendar-synced", listener);
   },
   printPdf: (name: string) => invoke("print-pdf", name),
+  backupStatus: () => invoke("backup-status"),
+  backupChooseDir: () => invoke("backup-choose-dir"),
+  backupSet: (patch: unknown) => invoke("backup-set", patch),
+  backupNow: () => invoke("backup-now"),
+  backupReveal: () => invoke("backup-reveal"),
   exportArchive: (nodeId: string | null, kind: "nlc" | "nla") => invoke("export-archive", nodeId, kind),
   exportAs: (kind: string, nodeId: string | null) => invoke("export", kind, nodeId),
   readClipboard: () => invoke("read-clipboard"),

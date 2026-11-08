@@ -1,9 +1,54 @@
 # Changelog
 
+## 2.0.0
+
+A writing studio for long-form work. Notes stay plain Markdown; the new page types keep their structure in a JSON block
+inside the note (like canvas pages), and 1.x notes open unchanged. Every part has a Nularche name (Atrium, Codex, Axis,
+Mosaic, Lore, Marginalia, Epoch, Diptych, Clepsydra, Aura, Sigil, Rite, Conduit, Ark), explained on a new *Vocabulary*
+step of the first-run wizard, on the empty-Origin welcome screen and in the *Nularche Vocabulary* window.
+
+### Writing projects
+- Codex (manuscript) pages: notes ordered in sections, total word count and goal, compiled reading view, export of the compiled
+  text (DOCX, PDF, RTF, TXT, HTML) with options for section names, note titles and separators.
+- Axis (outline) pages: hierarchical rows with classic numbering, keyboard editing, folding, colour labels, done marks, row
+  notes, linked notes; a Codex can follow an Axis and show unwritten rows as planned pages with their beats.
+- Mosaic (corkboard) pages: grouped index cards with drag and drop, colour labels, search, sizes, multi-select, link or turn into a
+  note.
+- Lore (story bible) pages: entries and categories from sub-pages, quick facts from properties, field templates per category, mention
+  detection in all notes (dotted underline, ⌘-click to open) and "Mentioned in" counts.
+- File references in these pages count as links and follow moved or renamed notes.
+
+### Reviewing
+- Marginalia: comments anchored to passages, stored in `.nularche/comments/` without touching the Markdown file; replies, resolve,
+  edit, delete, detached-comment detection; comments tab in the side panel.
+- Epochs: named checkpoints (kept until deleted, 30 per note) and line-by-line comparison of any version with the current text.
+- Diptych: split view with swap, focus and close.
+
+### Writing experience
+- Atrium: home page with daily goal, streak, seven-day chart, writing projects, recent and pinned notes and quick
+  capture.
+- Word goals per page, Clepsydra writing timer, Aura typewriter sounds with margin bell and four ambiences (all synthesised locally).
+- Six bundled open-licence fonts and a default writing font; high-contrast theme.
+
+### Finding things
+- Sidebar entries for Atrium, New Writing Project and the Nularche vocabulary; a studio toolbar on every note
+  (Marginalia, Epoch, Diptych, Clepsydra, Aura); Marginalia in the selection bubble; a Writing studio group in the `/`
+  menu; Clepsydra and Aura in focus mode. Tooltips explain each Nularche name.
+- Settings reorganised into searchable categories (Appearance, Writing, Aura and Focus, Automation, Notes and Origin,
+  Shortcuts, Publishing, Calendar, AI, About) with grouped cards.
+
+### Automation and safety
+- Sigils (text shortcuts) with template variables; Rites (custom commands) in the command palette with hotkeys; import/export as JSON.
+- Conduit (smart capture) with `::mosaic`, `::axis`, `::lore`, `::task` (aliases `::card`, `::outline`, `::wiki`) and `@handle` rules (`.nularche/capture.json`), and
+  "Send to…" for Shadow notes.
+- Ark: automatic `.nla` backups to a chosen folder (desktop), with interval and retention.
+- MCP: `get_manuscript`, `add_to_writing_project`, `list_wiki_entries`, `get_wiki_mentions`, `list_comments`,
+  `add_comment`, `create_checkpoint`; `capture_to_shadow` follows smart-capture rules.
+
 ## 1.5.0
 
 Everyday note-taking features from Apple Notes, distraction-free writing from a focused writer app and the linked-notes
-workflow of Obsidian. Notes stay plain Markdown; existing 1.0 notes and notes written in Obsidian open unchanged.
+workflow of linked notes. Notes stay plain Markdown; existing 1.0 notes and notes from other Markdown apps open unchanged.
 
 ### Focused writing
 - Focus mode (⇧⌘F): full screen, hidden sidebar and toolbars, bars that appear on mouse movement, optional typewriter
@@ -43,18 +88,18 @@ workflow of Obsidian. Notes stay plain Markdown; existing 1.0 notes and notes wr
 - MCP: new `list_tags` tool, `search_nodes` accepts `tag`; locked notes cannot be read or changed by AI tools.
 - macOS: microphone usage description for audio notes.
 
-### Linked notes (from Obsidian)
+### Linked notes
 - `[[Wiki links]]`, `[[Note#Heading|alias]]` and `![[embeds]]` (notes, sections and images); links resolve by title,
   file name, path or alias, and a link to a missing note creates it. Backlinks, graph and MCP count them.
 - Properties: typed front matter fields (text, list, number, checkbox, date) at the top of a note; `aliases` and front
-  matter `tags` work as in Obsidian.
+  matter `tags` are understood.
 - Command palette (⇧⌘P), quick switcher (⌘O) with create, back/forward (⌥⌘← / ⌥⌘→), random note, unique note,
   previous/next daily note, reading view (⌥⌘E), slides, copy file path, show in Finder/file manager.
 - Graph view and local graph; side panel (⇧⌘O) with outline, backlinks, outgoing links, unlinked mentions (one-click
   linking) and file history with preview and restore.
 - Canvas pages in the JSON Canvas format (text, note, link and group cards, arrows, colours); cards count as links and
   follow renamed notes.
-- LaTeX (KaTeX), Mermaid diagrams, footnotes, `%%comments%%` (left out of exports and publishing), every Obsidian
+- LaTeX (KaTeX), Mermaid diagrams, footnotes, `%%comments%%` (left out of exports and publishing), every common
   callout type with title and fold marker, move line/list item (⌥↑ / ⌥↓), clear formatting (⌘\\).
 - Note composer: merge notes (Markdown and wiki links are redirected), extract the selection or a heading section.
 - Settings: custom hotkeys for every command, CSS snippets (`.nularche/snippets/`), accent colour, readable line length,
@@ -85,8 +130,8 @@ workflow of Obsidian. Notes stay plain Markdown; existing 1.0 notes and notes wr
   on screen right away instead of showing the old value until the note is reopened.
 - English interface: correct singular/plural counts (“1 note”), translated table and link dialog texts.
 - Table header rows stay readable on writing backgrounds.
-- Notes written in Obsidian are no longer damaged when edited: `[[links]]`, footnotes, LaTeX backslashes and
-  Obsidian callouts used to be escaped on save, and one-word footnote definitions were dropped.
+- Notes written in other Markdown apps are no longer damaged when edited: `[[links]]`, footnotes, LaTeX backslashes and
+  callouts used to be escaped on save, and one-word footnote definitions were dropped.
 - Renaming tags and attachments, and inserting a YouTube video, work in the desktop app (they relied on a browser
   prompt that Electron doesn't provide).
 - Closing a picker no longer blanks the window on newer Chromium versions.

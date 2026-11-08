@@ -16,6 +16,7 @@ import { importFiles, IMPORTABLE_EXTS, type ImportFile } from "../../core/src/im
 import type { McpEntry } from "../../core/src/ai-clients.ts";
 import { registerAiIpc, type AiSettings } from "./ai.ts";
 import { registerCalendarIpc } from "./calendar.ts";
+import { registerBackupIpc, type OriginBackup } from "./backup.ts";
 import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
 import { loadOrigin, type Origin } from "../../core/src/origin.ts";
 import { startServer, type RunningServer } from "../../server/src/app.ts";
@@ -62,6 +63,8 @@ interface Settings extends AiSettings {
   language?: Lang;
   /** Görünüm; seçilmemişse ("system") işletim sisteminin koyu/açık teması izlenir. */
   theme?: ThemeChoice;
+  /** Otomatik yedekleme ayarları, Origin klasörü başına. */
+  backups?: Record<string, OriginBackup>;
 }
 
 const settingsPath = () => path.join(dirs.config, "settings.json");
@@ -158,7 +161,7 @@ async function chooseOriginOnFirstRun(): Promise<string | null> {
   return (await confirmOriginFolder(dir)) ? dir : chooseOriginOnFirstRun();
 }
 
-const PROJECT_MARKERS = [".git", "package.json", "node_modules", "Cargo.toml", "pyproject.toml", "go.mod", ".obsidian"];
+const PROJECT_MARKERS = [".git", "package.json", "node_modules", "Cargo.toml", "pyproject.toml", "go.mod"];
 const ORIGIN_CONTENT = /\.(md|markdown|png|jpe?g|gif|webp|svg|pdf)$/i;
 
 /**
@@ -206,6 +209,8 @@ let ready = false;
  * ilk açılış pencerelerini atlar, geçici bir Origin kullanır, arayüz çizilince doğrulama sonucunu yazar ve kapanır.
  */
 const SMOKE = process.env.NULARCHE_SMOKE || null;
+/** Duman testinde arayüzün hata ve uyarıları (zaman aşımında sonuç dosyasına yazılır; paket sorunları görünür olsun). */
+const smokeLog: string[] = [];
 
 async function finishSmoke(): Promise<void> {
   if (!SMOKE || !win || !server) return;
@@ -413,6 +418,16 @@ function createWindow(): void {
     },
   });
   win.once("ready-to-show", () => win?.show());
+  if (SMOKE) {
+    win.webContents.on("console-message", (e) => {
+      const ev = e as unknown as { level?: string | number; message?: string };
+      if (ev.level === "error" || ev.level === "warning" || ev.level === 2 || ev.level === 3) smokeLog.push(String(ev.message ?? "").slice(0, 500));
+    });
+    win.webContents.on("render-process-gone", (_e, d) => smokeLog.push(`render-process-gone: ${d.reason}`));
+    win.webContents.on("did-fail-load", (_e, code, desc, url) => smokeLog.push(`did-fail-load ${code} ${desc} ${url}`));
+    win.webContents.on("preload-error", (_e, p, err) => smokeLog.push(`preload-error ${p}: ${String(err)}`));
+    win.webContents.on("did-finish-load", () => smokeLog.push("window: loaded"));
+  }
   guardNavigation(win);
   win.on("closed", () => {
     win = null;
@@ -705,6 +720,17 @@ function registerIpc(): void {
     configDir: () => dirs.config,
   });
   calendarHooks = registerCalendarIpc({ window: () => win, originRoot: () => server?.store.root ?? null, configDir: () => dirs.config });
+  registerBackupIpc({
+    store: () => server?.store ?? null,
+    originDir: () => settings.originDir,
+    originName: () => origin?.name ?? "Origin",
+    load: () => settings.backups ?? {},
+    save: async (backups) => {
+      settings = { ...settings, backups };
+      await saveSettings(settings);
+    },
+    label: (key) => d(`backup.${key}`),
+  });
   ipcMain.handle("nularche:renderer-ready", () => {
     rendererReady = true;
     if (SMOKE) void finishSmoke();
@@ -867,15 +893,18 @@ if (!app.requestSingleInstanceLock()) {
     buildMenu();
     if (SMOKE) {
       const limit = Number(process.env.NULARCHE_SMOKE_TIMEOUT_MS || 90_000);
-      setTimeout(() => (void writeFile(SMOKE, JSON.stringify({ ok: false, error: "timeout", rendererReady })).finally(() => app.exit(2))), limit);
+      setTimeout(() => (void writeFile(SMOKE, JSON.stringify({ ok: false, error: "timeout", rendererReady, log: smokeLog.slice(-40) })).finally(() => app.exit(2))), limit);
       settings.originDir = path.join(dirs.data, "smoke-origin");
       settings.onboarded = true;
     }
     const originDir = settings.originDir && existsSync(settings.originDir) && !SMOKE ? settings.originDir : SMOKE ? settings.originDir! : await chooseOriginOnFirstRun();
     if (!originDir) return app.quit();
     try {
+      if (SMOKE) smokeLog.push("origin: opening");
       await openOrigin(originDir);
+      if (SMOKE) smokeLog.push(`origin: open ${server?.url ?? ""}`);
     } catch (err) {
+      if (SMOKE) smokeLog.push(`origin: failed ${String(err)}`);
       dialog.showErrorBox(d("start.failed"), String(err));
       return app.quit();
     }

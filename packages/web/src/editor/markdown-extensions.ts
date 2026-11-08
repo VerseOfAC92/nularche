@@ -45,7 +45,7 @@ export const Callout = Node.create({
       },
       /** `> [!info] Başlık` satırındaki başlık (yoksa null). */
       title: { default: null, parseHTML: (el) => el.getAttribute("data-title"), renderHTML: (a) => (a.title ? { "data-title": a.title } : {}) },
-      /** Obsidian katlama işareti: "+" açık, "-" kapalı, "" katlanmaz. */
+      /** Kutu katlama işareti: "+" açık, "-" kapalı, "" katlanmaz. */
       fold: { default: "", parseHTML: (el) => el.getAttribute("data-fold") ?? "", renderHTML: (a) => (a.fold ? { "data-fold": a.fold } : {}) },
     };
   },
@@ -90,7 +90,7 @@ export const Callout = Node.create({
   },
 
   renderMarkdown: (node: AnyNode, h: any) => {
-    // GitHub'ın beş türü büyük harfle (GitHub uyumu), Obsidian türleri dosyadaki gibi küçük harfle yazılır.
+    // GitHub'ın beş türü büyük harfle (GitHub uyumu), ek türler dosyadaki gibi küçük harfle yazılır.
     const raw = String(node.attrs?.kind ?? "note");
     const kind = (CALLOUT_KINDS as readonly string[]).includes(raw) ? raw.toUpperCase() : raw;
     const title = node.attrs?.title ? ` ${String(node.attrs.title)}` : "";

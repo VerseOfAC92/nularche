@@ -1,4 +1,4 @@
-// Sekmeler ve çalışma alanları (Obsidian "Tabs" ve "Workspaces"). Her sekme bir görünümün adresidir (#not-id, #graph…);
+// Sekmeler ve çalışma alanları ("Tabs" ve "Workspaces"). Her sekme bir görünümün adresidir (#not-id, #graph…);
 // gezinme etkin sekmenin adresini değiştirir. Sekmeler ve kaydedilen çalışma alanları Origin tercihlerinde tutulur.
 // Ctrl+Tab / Ctrl+Shift+Tab sekmeler arasında dolaşır.
 

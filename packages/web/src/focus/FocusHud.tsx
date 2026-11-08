@@ -6,10 +6,13 @@ import { t } from "../i18n/index.ts";
 import { usePref } from "../prefs.ts";
 import { keys } from "../shortcuts.tsx";
 import { BackgroundPicker } from "./BackgroundPicker.tsx";
+import { runCommand } from "../commands.ts";
+import { AuraMenu, termTip } from "../studio/StudioTools.tsx";
 
 export function FocusHud({ onExit }: { onExit: () => void }) {
   const [visible, setVisible] = useState(true);
   const [picker, setPicker] = useState(false);
+  const [aura, setAura] = useState<DOMRect | null>(null);
   const [hints] = usePref<boolean>("focusHints", true);
   const timer = useRef<number | undefined>(undefined);
 
@@ -35,12 +38,21 @@ export function FocusHud({ onExit }: { onExit: () => void }) {
     };
   }, [onExit]);
 
-  const show = visible || picker;
+  const show = visible || picker || !!aura;
   return (
     <>
       <div className={`focus-hud top ${show ? "show" : ""}`}>
         <span className="focus-tagline">{t("focus.tagline")}</span>
         <span className="grow" />
+        <button className="focus-btn" onClick={() => runCommand("timer.toggle")} title={termTip("Clepsydra", "gloss.clepsydra")}>
+          ⧗ Clepsydra
+        </button>
+        <span className="rel">
+          <button data-menu-trigger className="focus-btn" onClick={(e) => setAura(aura ? null : e.currentTarget.getBoundingClientRect())} title={termTip("Aura", "gloss.aura")}>
+            ♪ Aura
+          </button>
+          {aura && <AuraMenu anchor={aura} onClose={() => setAura(null)} />}
+        </span>
         <button className="focus-btn" onClick={() => setPicker((v) => !v)} title={t("focus.background")}>
           🏞 {t("focus.background")}
         </button>

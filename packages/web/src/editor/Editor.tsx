@@ -15,12 +15,12 @@ import { fileUrl, fromEditorMarkdown, toEditorMarkdown, vaultPathFromUrl } from 
 import { desktop } from "../desktop.ts";
 import { getLang } from "../i18n/index.ts";
 import { modPressed } from "../shortcuts.tsx";
-import { registerEditorUi, setActiveEditor } from "../commands.ts";
+import { registerEditorUi, runCommand, setActiveEditor } from "../commands.ts";
 import { countWords } from "../../../core/src/note-text.ts";
 import { FindBar } from "./FindBar.tsx";
 import { LinkDialog } from "./LinkDialog.tsx";
 import { MediaHostContext, type MediaHost } from "./media-nodes.tsx";
-import { VaultHostContext, type VaultHost } from "./obsidian-nodes.tsx";
+import { VaultHostContext, type VaultHost } from "./linked-nodes.tsx";
 import { makeResolver } from "../vault/resolve.ts";
 import { foldKey, headings, setFind, findKey, setFolded, type MathMode } from "./notes-extensions.ts";
 import { copyAsMarkdown, pasteAsMarkdown } from "./text-tools.ts";
@@ -41,9 +41,20 @@ interface CommandContext {
   insertFiles: (e: TiptapEditor, files: File[], pos?: number) => Promise<void>;
   createChild: (title: string) => Promise<NodeMeta | null>;
   createDatabase: (title: string) => Promise<NodeMeta | null>;
+  /** Bu sayfanın altında yeni bir yazma projesi (Codex, Axis, Mosaic, Lore) oluşturur. */
+  createProject: (kind: ProjectKind) => Promise<NodeMeta | null>;
   record: () => void;
   draw: () => void;
 }
+
+export type ProjectKind = "manuscript" | "outline" | "cards" | "wiki";
+/** "/" menüsündeki yazma projeleri: tür, simge, Nularche adı, anlamı ve arama sözcükleri. */
+const STUDIO_ITEMS: [ProjectKind, string, string, StringKey, string][] = [
+  ["manuscript", "📕", "Codex", "gloss.codex", "codex manuskript manuscript kitap book roman"],
+  ["outline", "🗂", "Axis", "gloss.axis", "axis taslak outline plan"],
+  ["cards", "🗃", "Mosaic", "gloss.mosaic", "mosaic kart card pano corkboard sahne"],
+  ["wiki", "📚", "Lore", "gloss.lore", "lore wiki karakter mekan story bible"],
+];
 
 const CALLOUT_LABELS: Record<CalloutKind, [StringKey, string]> = {
   note: ["ed.callout.note", "ℹ️"],
@@ -196,6 +207,41 @@ const commands = (): Command[] => [
       if (node) e.chain().focus().insertDatabase(fileUrl(node.path)).run();
     },
   },
+  ...STUDIO_ITEMS.map(([kind, icon, name, meaning, keywords]) => ({
+    group: t("ws.studio"),
+    label: name,
+    hint: t(meaning),
+    icon,
+    keywords,
+    run: async (e: TiptapEditor, ctx: CommandContext) => {
+      const node = await ctx.createProject(kind);
+      if (node) e.chain().focus().insertContent(linkContent(node)).run();
+    },
+  })),
+  {
+    group: t("ws.studio"),
+    label: "Epoch",
+    hint: t("gloss.epoch"),
+    icon: "⚑",
+    keywords: "epoch checkpoint kontrol noktasi surum version gecmis",
+    run: () => void runCommand("note.checkpoint"),
+  },
+  {
+    group: t("ws.studio"),
+    label: "Diptych",
+    hint: t("gloss.diptych"),
+    icon: "◫",
+    keywords: "diptych split yan yana bolunmus",
+    run: () => void runCommand("split.open"),
+  },
+  {
+    group: t("ws.studio"),
+    label: "Clepsydra",
+    hint: t("gloss.clepsydra"),
+    icon: "⧗",
+    keywords: "clepsydra timer zamanlayici pomodoro sure",
+    run: () => void runCommand("timer.toggle"),
+  },
   {
     group: t("ed.g.media"),
     label: t("ed.c.image"),
@@ -290,6 +336,7 @@ export interface EditorProps {
   onOpenPath: (vaultPath: string) => void;
   onCreateChild: (title: string) => Promise<NodeMeta | null>;
   onCreateDatabase: (title: string) => Promise<NodeMeta | null>;
+  onCreateProject?: (kind: ProjectKind) => Promise<NodeMeta | null>;
   onError: (message: string) => void;
   /** Seçili metin değiştiğinde (Nularche AI bağlamı için). */
   onSelectionText?: (text: string) => void;
@@ -359,6 +406,7 @@ export function Editor(props: EditorProps) {
     },
     createChild: (title) => propsRef.current.onCreateChild(title),
     createDatabase: (title) => propsRef.current.onCreateDatabase(title),
+    createProject: (kind) => propsRef.current.onCreateProject?.(kind) ?? Promise.resolve(null),
     record: () => setRecording(true),
     draw: () => {
       void new Promise<string | null>((resolve) => setDrawing({ src: null, resolve })).then((path) => {
@@ -428,7 +476,7 @@ export function Editor(props: EditorProps) {
     onFocus: ({ editor: e }) => setActiveEditor(e as TiptapEditor),
     onCreate: ({ editor: e }) => setActiveEditor(e as TiptapEditor),
     editorProps: {
-      attributes: { spellcheck: String(props.spellcheck ?? true) },
+      attributes: { spellcheck: String(props.spellcheck ?? true), ...(props.currentId ? { "data-note-id": props.currentId } : {}) },
       handleKeyDown: (_view, event) => {
         const { trigger: t, items: list, active: idx } = stateRef.current;
         if (!t || list.length === 0) return false;
@@ -527,7 +575,7 @@ export function Editor(props: EditorProps) {
   }, [editor, props.sortChecked, props.mathMode]);
 
   useEffect(() => {
-    editor?.setOptions({ editorProps: { ...editor.options.editorProps, attributes: { spellcheck: String(props.spellcheck ?? true) } } });
+    editor?.setOptions({ editorProps: { ...editor.options.editorProps, attributes: { spellcheck: String(props.spellcheck ?? true), ...(props.currentId ? { "data-note-id": props.currentId } : {}) } } });
   }, [editor, props.spellcheck]);
 
   // Daraltılan bölümleri kaydet.
@@ -822,6 +870,10 @@ function FormatBar({ editor, onLink }: { editor: TiptapEditor; onLink: () => voi
       </button>
       <span className="sep" />
       {mark("link", t("ed.g.link"), `${t("cmd.link")} (${keys("Mod+L")})`, onLink)}
+      <span className="sep" />
+      <button title={`Marginalia (${keys("Mod+Alt+M")}) — ${t("gloss.marginalia")}`} onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("comment.add")}>
+        ✎ Marginalia
+      </button>
     </div>
   );
 }

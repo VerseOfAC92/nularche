@@ -1,4 +1,4 @@
-// Hariç tutulan dosyalar (Obsidian "Excluded files"): hızlı geçiş, arama sonuçları ve grafikte gösterilmez.
+// Hariç tutulan dosyalar ("Excluded files"): hızlı geçiş, arama sonuçları ve grafikte gösterilmez.
 // Kural ya bir yol önekidir (`Arşiv/`) ya da eğik çizgilerle yazılmış düzenli ifade (`/taslak-.*/`).
 
 export function isExcluded(path: string, rules: string[]): boolean {

@@ -43,7 +43,7 @@ const cases: Record<string, [string, string]> = {
   "tek kelimelik dipnot tanımı": ["Dipnot[^1]\n\n[^1]: açıklama\n\n[^not]: **kalın** tanım", "footnoteDef"],
   "satır içi matematik": ["Euler $e^{i\\pi}+1=0$ ama $5 ile $6 para", "mathInline"],
   "blok matematik": ["$$\n\\int_0^1 x\\,dx\n$$", "mathBlock"],
-  "obsidian kutusu": ["> [!info]- Katlanır başlık\n> içerik", "callout"],
+  "katlanır kutu": ["> [!info]- Katlanır başlık\n> içerik", "callout"],
   yorum: ["a %%gizli not%% b", "text"],
   mermaid: ["```mermaid\ngraph TD; A-->B\n```", "codeBlock"],
 };

@@ -1,6 +1,7 @@
 // Dışa aktarma ve yayınlama: Node'ları Markdown arşivi (.zip), tek dosya HTML ya da statik web sitesi olarak üretir.
 // Hiçbir yere yükleme yapmaz; üretilen dosyaları kullanıcı kaydeder (ör. GitHub Pages'e kendisi koyar).
 
+import { exportBodyOf } from "./manuscript.ts";
 import path from "node:path";
 import { zipSync, type Zippable } from "fflate";
 import { Marked, type Tokens } from "marked";
@@ -220,8 +221,9 @@ const MIME: Record<string, string> = {
 /** Tek bir sayfayı, resimleri gömülü (data: URI), stil dahil tek bir HTML dosyası olarak üretir. */
 export async function exportPageHtml(store: NodeStore, ref: string, lang: "tr" | "en" = "tr"): Promise<{ name: string; html: string }> {
   const rc = await contextFor(store, lang);
-  const node = await store.read(ref);
-  if (node.locked) throw new NodeError("invalid", lang === "tr" ? "Kilitli not dışa aktarılamaz; önce kilidi kaldırın." : "A locked note can't be exported; remove the lock first.");
+  const doc = await store.read(ref);
+  if (doc.locked) throw new NodeError("invalid", lang === "tr" ? "Kilitli not dışa aktarılamaz; önce kilidi kaldırın." : "A locked note can't be exported; remove the lock first.");
+  const node = { ...doc, body: await exportBodyOf(store, doc) };
   const assets = new Map<string, string>();
   for (const l of extractLinks(node.path, node.body)) {
     if (!l.target.startsWith(`${ATTACHMENTS_DIR}/`) || !(await store.pathExists(l.target))) continue;

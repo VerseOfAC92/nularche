@@ -1,4 +1,4 @@
-// Obsidian biçimi wiki bağlantıları: `[[Not]]`, `[[Not#Başlık]]`, `[[Not|görünen ad]]` ve gömme `![[Not]]`.
+// Wiki bağlantıları: `[[Not]]`, `[[Not#Başlık]]`, `[[Not|görünen ad]]` ve gömme `![[Not]]`.
 // Nularche kendi bağlantılarını göreli Markdown bağlantısı olarak yazar; wiki bağlantıları başka araçlardan gelen
 // (ya da elle yazılan) notlarda okunur ve başlık, dosya adı ya da takma ada (alias) göre çözülür.
 
