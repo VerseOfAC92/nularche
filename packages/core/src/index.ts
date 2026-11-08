@@ -18,3 +18,8 @@ export * from "./wikilinks.ts";
 export * from "./canvas.ts";
 export * from "./calendar.ts";
 export * from "./calendar-providers.ts";
+export * from "./writing.ts";
+export * from "./manuscript.ts";
+export * from "./comments.ts";
+export * from "./capture.ts";
+export * from "./backup.ts";

@@ -199,7 +199,7 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
 
-  // Obsidian'dan gelen özellikler: özellikler, wiki bağlantıları, matematik, kutu, kenar paneli, grafik, tuval.
+  // Bağlantılı not özellikleri: özellikler, wiki bağlantıları, matematik, kutu, kenar paneli, grafik, tuval.
   const ids = await page.evaluate(async () => {
     const make = async (title: string, body: string, parentNodeId: string | null, fields?: Record<string, unknown>) =>
       (await (await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, parentNodeId, body, fields }) })).json()) as { id: string; path: string };
@@ -252,7 +252,7 @@ try {
   await page.locator(".mermaid-render svg").waitFor({ timeout: 10_000 });
   await page.waitForTimeout(800);
   await page.mouse.move(10, 10);
-  await shot("obsidian-dark");
+  await shot("linked-notes-dark");
   await page.evaluate(() => (location.hash = "graph"));
   await page.waitForTimeout(3500);
   await shot("graph-dark");
@@ -313,13 +313,14 @@ try {
   // Ayarlar'dan "Sync now": iki takvim de aynı satırları taşır (açık tema).
   await page.emulateMedia({ colorScheme: "light" });
   await page.locator(".side-btn", { hasText: "Settings" }).click();
+  await page.getByRole("tab", { name: "Calendar" }).click();
   await page.getByRole("heading", { name: "Calendar sync" }).waitFor();
   await page.getByRole("button", { name: /Sync now/ }).click();
   await page.locator(".toast", { hasText: "Calendars synced" }).waitFor({ timeout: 10_000 });
   await page.locator(".toast").waitFor({ state: "detached", timeout: 15_000 });
   await page.locator(".cal-settings").evaluate((el) => {
     el.previousElementSibling?.scrollIntoView({ block: "start" });
-    el.closest(".dialog")?.scrollBy(0, -24);
+    el.closest(".settings-body")?.scrollBy(0, -24);
   });
   await page.waitForTimeout(400);
   await shot("calendar-settings-light");
@@ -330,6 +331,91 @@ try {
   await page.mouse.move(10, 10);
   await page.waitForTimeout(400);
   await shot("calendar-sync-dark");
+  await page.keyboard.press("Escape");
+  // 2.0: yazma stüdyosu — Atrium, Codex, Mosaic, Lore, Marginalia, Ayarlar ve Nularche dili.
+  const studio = await page.evaluate(async () => {
+    const post = async (b: unknown) => (await (await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) })).json()) as { id: string; path: string };
+    const block = (kind: string, data: unknown) => "```json " + kind + "\n" + JSON.stringify(data) + "\n```\n";
+    const novel = await post({ title: "The Lighthouse Keeper", parentNodeId: null, fields: { icon: "🌊" } });
+    const ch = [
+      ["Arrival", "Ada stepped off the ferry into a fog so thick the harbour seemed to end at her boots. Somewhere above her the lighthouse turned, patient as a clock."],
+      ["The Storm", "By midnight the wind had found every gap in the old tower. Ada climbed the stairs with a lantern and counted the ships that were not coming home."],
+      ["Morning", "The sea was flat and silver. On the rocks below, Captain Bora was waving."],
+      ["The Letter", "Inside the keeper's desk Ada found a letter addressed to her, dated forty years before she was born."],
+    ];
+    const notes = [];
+    for (const [title, body] of ch) notes.push(await post({ title, parentNodeId: novel.id, body }));
+    const fresh = await Promise.all(notes.map(async (n) => (await (await fetch(`/api/nodes/${n.id}`)).json()) as { path: string }));
+    const codex = await post({
+      title: "The Lighthouse Keeper — Draft",
+      parentNodeId: novel.id,
+      body: block("manuscript", { version: 1, sections: [{ id: "a", title: "Part One: The Island", items: fresh.slice(0, 2).map((f, i) => ({ id: `i${i}`, file: f.path })) }, { id: "b", title: "Part Two: The Letter", items: fresh.slice(2).map((f, i) => ({ id: `j${i}`, file: f.path })) }], options: { fileTitles: true, sectionTitles: true, separator: "* * *" } }),
+      fields: { layout: "manuscript", icon: "📕", wordGoal: 80000 },
+    });
+    await post({
+      title: "Scenes",
+      parentNodeId: novel.id,
+      body: block("cards", { version: 1, groups: [
+        { id: "g1", title: "Act I", color: "blue", cards: [{ id: "c1", title: "Fog at the harbour", text: "Ada arrives; nobody meets the ferry.", color: "blue" }, { id: "c2", title: "The tower", text: "First night alone with the light.", color: "teal" }, { id: "c3", title: "Bora", text: "The captain who never left.", color: "purple" }] },
+        { id: "g2", title: "Act II", color: "orange", cards: [{ id: "c4", title: "Storm", text: "Ships lost; the lamp fails at 3 a.m.", color: "red" }, { id: "c5", title: "The letter", text: "Forty years too early.", color: "yellow" }] },
+      ] }),
+      fields: { layout: "cards", icon: "🗃" },
+    });
+    const lore = await post({ title: "Island Lore", parentNodeId: novel.id, fields: { layout: "wiki", icon: "📚" } });
+    const people = await post({ title: "People", parentNodeId: lore.id, fields: { icon: "🗂", wikiFields: ["Age", "Role"] } });
+    const ada = await post({ title: "Ada", parentNodeId: people.id, body: "A cartographer who inherits the lighthouse." });
+    await fetch(`/api/nodes/${ada.id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ properties: { Age: "29", Role: "Keeper", aliases: ["the keeper"] } }) });
+    const bora = await post({ title: "Bora", parentNodeId: people.id, body: "Retired captain, harbour master in all but name." });
+    await fetch(`/api/nodes/${bora.id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ properties: { Age: "71", Role: "Captain" } }) });
+    const places = await post({ title: "Places", parentNodeId: lore.id, fields: { icon: "🗂" } });
+    await post({ title: "Harbour", parentNodeId: places.id, body: "Stone quay, one ferry a week." });
+    await fetch(`/api/nodes/${notes[0].id}/comments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ anchor: { text: "patient as a clock" }, body: "Lovely image. Echo it again in the last chapter?" }) });
+    await fetch("/api/prefs", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ writingBg: { kind: "none" }, dailyGoal: 1000, writingLog: Object.fromEntries([1200, 640, 0, 980, 1500, 720, 860].map((w, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); const p = (x: number) => String(x).padStart(2, "0"); return [`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, w]; })) }) });
+    return { codex: codex.id, lore: lore.id, ada: ada.id, arrival: notes[0].id, scenes: novel.id };
+  });
+  await page.evaluate(() => location.reload());
+  await page.locator(".sidebar").waitFor();
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.evaluate(() => (location.hash = ""));
+  await page.locator(".dashboard").waitFor();
+  await page.mouse.move(10, 10);
+  await page.waitForTimeout(800);
+  await shot("atrium-dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.evaluate((id) => (location.hash = id), studio.codex);
+  await page.locator(".ms-section").first().waitFor();
+  await page.waitForTimeout(600);
+  await shot("codex-light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.locator(".tree-row", { hasText: "Scenes" }).click();
+  await page.locator(".index-card").first().waitFor();
+  await page.mouse.move(10, 10);
+  await page.waitForTimeout(500);
+  await shot("mosaic-dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.evaluate((id) => (location.hash = id), studio.lore);
+  await page.locator(".wiki-entry", { hasText: "Ada" }).click();
+  await page.locator(".wiki-card").waitFor();
+  await page.waitForTimeout(600);
+  await shot("lore-light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.evaluate((id) => (location.hash = id), studio.arrival);
+  await page.locator(".nl-annot").first().waitFor({ timeout: 10_000 });
+  await page.locator(".studio-toolbar .icon-btn").first().click();
+  await page.locator(".comments-panel .comment").first().waitFor();
+  await page.mouse.move(10, 10);
+  await page.waitForTimeout(500);
+  await shot("marginalia-dark");
+  await page.locator(".side-btn", { hasText: "Settings" }).click();
+  await page.getByRole("tab", { name: "Writing" }).click();
+  await page.waitForTimeout(400);
+  await shot("settings-dark");
+  await page.keyboard.press("Escape");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.locator(".side-btn", { hasText: "Nularche language" }).click();
+  await page.locator(".glossary").waitFor();
+  await page.waitForTimeout(300);
+  await shot("vocabulary-light");
   await page.keyboard.press("Escape");
   console.log(`Ekran görüntüleri: ${out}`);
 } finally {

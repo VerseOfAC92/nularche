@@ -1,4 +1,4 @@
-NULARCHE 1.5.0
+NULARCHE 2.0.0
 Local-first, AI-native notes, databases and templates in plain Markdown.
 https://github.com/VerseOfAC92/nularche   (full documentation with screenshots: README.md)
 
@@ -71,6 +71,21 @@ Windows (PowerShell):
   Insert a math result           Tab              Tab
 
 ------------------------------------------------------------------------------
+NEW IN 2.0.0
+------------------------------------------------------------------------------
+  Writing studio with its own vocabulary: Codex (manuscript: notes in order,
+  compiled reading view, word goal, export to Word/PDF/RTF/text/HTML), Axis
+  (outline a Codex can follow), Mosaic (corkboard of cards), Lore (story bible
+  with quick facts and mention detection), Marginalia (comments, Opt+Cmd+M),
+  Epoch (named versions with comparison, Opt+Cmd+S), Diptych (split view,
+  Opt+Cmd+\), Atrium (home page with daily goal and streak), Clepsydra (timer,
+  Opt+Cmd+P), Aura (typewriter sounds and ambience), six open-licence fonts,
+  high contrast, Sigils (text shortcuts), Rites (custom commands), Conduit
+  (::mosaic / ::axis / ::lore / ::task @handle) and Ark (automatic backups to a
+  folder of your choice). Seven new MCP tools. The first-run wizard explains
+  every name.
+
+------------------------------------------------------------------------------
 NEW IN 1.5.0
 ------------------------------------------------------------------------------
   Focus mode with 10 landscapes and 10 colour palettes, word counter, page fonts,
@@ -81,7 +96,7 @@ NEW IN 1.5.0
   locked notes, import (Markdown, text, HTML, RTF), Word/RTF/text export, print,
   separate note windows and Keep on Top.
 
-  From Obsidian: [[wiki links]] and embeds, properties, command palette (Shift+Cmd/Ctrl+P),
+  Linked notes: [[wiki links]] and embeds, properties, command palette (Shift+Cmd/Ctrl+P),
   quick switcher (Cmd/Ctrl+O), graph view, side panel with outline, backlinks, unlinked
   mentions and file history, canvas pages (JSON Canvas), LaTeX, Mermaid, footnotes,
   %%comments%%, note composer (merge/extract), reading view, slides, tabs and

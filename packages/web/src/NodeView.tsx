@@ -31,6 +31,16 @@ import { Slides } from "./vault/Slides.tsx";
 import { NotePicker } from "./vault/Palettes.tsx";
 import { pushRecent, usePref } from "./prefs.ts";
 import type { MathMode } from "./editor/notes-extensions.ts";
+import { ManuscriptView } from "./studio/ManuscriptView.tsx";
+import { OutlineView } from "./studio/OutlineView.tsx";
+import { CardsView } from "./studio/CardsView.tsx";
+import { WikiView } from "./studio/WikiView.tsx";
+import { commentsChanged, useNoteComments } from "./studio/Comments.tsx";
+import { anchorFromSelection } from "./studio/editor-plugins.ts";
+import { forgetDoc, trackWords } from "./studio/goals.ts";
+import { Progress } from "./studio/ui.tsx";
+import { StudioToolbar } from "./studio/StudioTools.tsx";
+import { writingBody } from "../../core/src/writing.ts";
 
 type Status = "saved" | "dirty" | "saving" | "conflict" | "error";
 const SAVE_DELAY_MS = 800;
@@ -64,6 +74,13 @@ export interface NodeViewProps {
   onCreateTitle?: (title: string) => void;
   /** Odak modunda: üst çubuk ve kapak gizlenir. */
   focus?: boolean;
+  /** Bölünmüş görünümün ikinci bölmesi: menü komutları, son açılanlar ve AI bağlamı ana bölmeye aittir. */
+  secondary?: boolean;
+  /** Bölünmüş görünümde bu bölmeyi kapat / diğer bölmeyle yer değiştir. */
+  onCloseSplit?: () => void;
+  onSwapSplit?: () => void;
+  /** Kenar panelini bir sekmeyle açar (Marginalia, geçmiş). */
+  onOpenPanel?: (tab: "comments" | "history") => void;
 }
 
 /** Sesli okuma (sistem sesleri). */
@@ -96,6 +113,7 @@ export function NodeView(props: NodeViewProps) {
   const [showStats] = usePref<boolean>("wordCount", true);
   const [defaultView] = usePref<"edit" | "read">("defaultView", "edit");
   const [propsInDoc] = usePref<"visible" | "hidden">("propertiesInDoc", "visible");
+  const [writingFont] = usePref<string>("writingFont", "");
   /** Okuma görünümü (⌘E): editör salt okunur. */
   const [reading, setReading] = useState(defaultView === "read");
   const [propTick, setPropTick] = useState(0);
@@ -206,7 +224,7 @@ export function NodeView(props: NodeViewProps) {
     return () => clearInterval(timer);
   }, [reading]);
 
-  /** Seçimi ya da belge aralığını yeni bir nota taşır; yerine yeni nota bağlantı koyar (Obsidian "Note composer"). */
+  /** Seçimi ya da belge aralığını yeni bir nota taşır; yerine yeni nota bağlantı koyar ("Note composer"). */
   async function extractRange(from: number, to: number, newTitle: string, contentFrom = from) {
     const e = getActiveEditor();
     const d = docRef.current;
@@ -245,7 +263,9 @@ export function NodeView(props: NodeViewProps) {
     };
   }, [id, load, flush]);
 
-  useEffect(() => pushRecent(id), [id]);
+  useEffect(() => {
+    if (!props.secondary) pushRecent(id);
+  }, [id, props.secondary]);
 
   // "Tüm kilitli notları kapat": açık içeriği bellekten at.
   useEffect(
@@ -272,8 +292,14 @@ export function NodeView(props: NodeViewProps) {
 
   // Nularche AI'a açık Node'u bildir.
   useEffect(() => {
-    if (doc) propsRef.current.onContext({ nodeId: doc.id, nodeTitle: title || doc.title });
+    if (doc && !propsRef.current.secondary) propsRef.current.onContext({ nodeId: doc.id, nodeTitle: title || doc.title });
   }, [doc?.id, title]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Yorumlar (editörde vurgulanır); kilitli notlarda yüklenmez.
+  const noteComments = useNoteComments(doc && !doc.locked ? id : null);
+  // Yazma günlüğü: not her yüklendiğinde sayım tabanı yenilenir.
+  const docKey = doc ? `${doc.id}:${version}` : "";
+  useEffect(() => () => forgetDoc(docKey), [docKey]);
 
   // Uzun başlıklar kesilmesin: başlık alanı içeriğe göre satır kaydırır ve yüksekliği büyür.
   useLayoutEffect(() => {
@@ -362,10 +388,43 @@ export function NodeView(props: NodeViewProps) {
     void setFields({ fontSize: next === DEFAULT_FONT_SIZE ? null : next });
   };
 
-  // Menü ve kısayol komutları (bu sayfa açıkken).
+  // Menü ve kısayol komutları (bu sayfa açıkken). Bölünmüş görünümün ikinci bölmesi komut kaydetmez.
   useEffect(() => {
+    if (props.secondary) return;
     const d = () => docRef.current;
     const offs = [
+      registerCommand("comment.add", async () => {
+        const e = getActiveEditor();
+        const anchor = e ? anchorFromSelection(e.state) : null;
+        if (!anchor) return propsRef.current.onToast(t("ws.selectToComment"));
+        const body = (await askText(t("ws.commentPrompt", { quote: anchor.text.slice(0, 60) })))?.trim();
+        if (!body) return;
+        try {
+          await api.addComment(id, anchor, body);
+          commentsChanged();
+          propsRef.current.onToast(t("ws.commentAdded"));
+        } catch (err) {
+          propsRef.current.onToast((err as Error).message);
+        }
+      }),
+      registerCommand("note.checkpoint", async () => {
+        const label = (await askText(t("ws.checkpointName"), new Date().toLocaleString()))?.trim();
+        if (!label) return;
+        await flush();
+        try {
+          await api.checkpoint(id, label);
+          propsRef.current.onToast(t("ws.checkpointSaved", { name: label }));
+        } catch (err) {
+          propsRef.current.onToast((err as Error).message);
+        }
+      }),
+      registerCommand("note.wordGoal", async () => {
+        const cur = d()?.wordGoal;
+        const raw = await askText(t("ws.goalPrompt"), cur ? String(cur) : "");
+        if (raw === null) return;
+        const n = Math.round(Number(raw.replace(/[^\d]/g, "")));
+        void setFields({ wordGoal: n > 0 ? Math.min(n, 10_000_000) : null });
+      }),
       registerCommand("note.pin", () => d() && void setFields({ pinned: d()!.pinned ? null : true }).then(() => propsRef.current.onToast(d()!.pinned ? t("cmd.unpin") : t("node.pinned")))),
       registerCommand("note.lightBg", () => d() && void setFields({ lightBg: d()!.lightBg ? null : true })),
       registerCommand("page.sortChecked", () => d() && void setFields({ sortChecked: d()!.sortChecked ? null : true })),
@@ -443,7 +502,7 @@ export function NodeView(props: NodeViewProps) {
       }),
     ];
     return () => offs.forEach((off) => off());
-  }, [id, flush, setFields]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, flush, setFields, props.secondary]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!speaking) return;
@@ -484,6 +543,20 @@ export function NodeView(props: NodeViewProps) {
     }
   }
 
+  /** "/" menüsünden bu sayfanın altında yeni Codex, Axis, Mosaic ya da Lore. */
+  async function createProject(kind: "manuscript" | "outline" | "cards" | "wiki") {
+    await flush();
+    const meta = { manuscript: ["ws.untitledManuscript", "📕"], outline: ["ws.untitledOutline", "🗂"], cards: ["ws.untitledCards", "🗃"], wiki: ["ws.untitledWiki", "📚"] } as const;
+    try {
+      const n = await api.create(t(meta[kind][0]), id, kind === "wiki" ? "" : writingBody(kind), { layout: kind, icon: meta[kind][1] });
+      propsRef.current.onChanged();
+      return n;
+    } catch (e) {
+      setError((e as Error).message);
+      return null;
+    }
+  }
+
   async function createDatabase(dbTitle: string) {
     await flush();
     try {
@@ -515,8 +588,9 @@ export function NodeView(props: NodeViewProps) {
 
   const locked = !!doc.locked || isLockedBody(doc.body);
   lockedRef.current = locked;
+  const pageFont = doc.font ?? (writingFont || undefined);
   const pageStyle = {
-    ...(doc.font ? { "--page-font": fontStack(doc.font) } : {}),
+    ...(pageFont ? { "--page-font": fontStack(pageFont) } : {}),
     ...(doc.fontSize ? { "--page-font-size": `${doc.fontSize}px` } : {}),
   } as React.CSSProperties;
 
@@ -556,6 +630,19 @@ export function NodeView(props: NodeViewProps) {
             </button>
           )}
           {doc.pinned && <span className="status-pill">📌 {t("node.pinned")}</span>}
+          {props.onSwapSplit && (
+            <button className="icon-btn" title={t("ws.splitSwap")} onClick={props.onSwapSplit}>
+              ⇄
+            </button>
+          )}
+          {props.onCloseSplit && (
+            <button className="icon-btn" title={t("ws.splitClose")} onClick={props.onCloseSplit}>
+              ✕
+            </button>
+          )}
+          {!props.secondary && !props.focus && (
+            <StudioToolbar comments={noteComments.filter((c) => !c.resolved).length} onComments={() => props.onOpenPanel?.("comments")} onHistory={() => props.onOpenPanel?.("history")} />
+          )}
           <span className={`status ${status}`}>{t(STATUS_KEY[status])}</span>
           <button className="claude-btn" onClick={props.onOpenAI} title={t("node.openAi")}>
             <NularcheMark size={15} /> Nularche AI
@@ -603,6 +690,33 @@ export function NodeView(props: NodeViewProps) {
                   🔒 {locked ? t("lock.remove") : t("cmd.lock")}
                 </button>
                 <button onClick={() => (setMenu(null), setDialog("font"))}>Aa {t("cmd.fontPanel")}</button>
+                <button
+                  onClick={async () => {
+                    setMenu(null);
+                    const raw = await askText(t("ws.goalPrompt"), doc.wordGoal ? String(doc.wordGoal) : "");
+                    if (raw === null) return;
+                    const n = Math.round(Number(raw.replace(/[^\d]/g, "")));
+                    void setFields({ wordGoal: n > 0 ? Math.min(n, 10_000_000) : null });
+                  }}
+                >
+                  🎯 {t("ws.setGoal")} {doc.wordGoal ? `· ${doc.wordGoal.toLocaleString()}` : ""}
+                </button>
+                <button
+                  onClick={async () => {
+                    setMenu(null);
+                    const label = (await askText(t("ws.checkpointName"), new Date().toLocaleString()))?.trim();
+                    if (!label) return;
+                    await flush();
+                    try {
+                      await api.checkpoint(id, label);
+                      props.onToast(t("ws.checkpointSaved", { name: label }));
+                    } catch (e) {
+                      props.onToast((e as Error).message);
+                    }
+                  }}
+                >
+                  ⚑ {t("ws.checkpoint")}
+                </button>
                 {doc.cover && <button onClick={() => (setMenu(null), void setFields({ cover: null }))}>▭ {t("node.removeCover")}</button>}
                 <button onClick={() => (setMenu(null), void setFields({ lightBg: doc.lightBg ? null : true }))}>
                   ☀ {t("cmd.lightBg")} {doc.lightBg ? "✓" : ""}
@@ -796,7 +910,7 @@ export function NodeView(props: NodeViewProps) {
         />
       )}
       {dialog === "font" && <FontDialog font={doc.font} size={doc.fontSize} onChange={(font, size) => void setFields({ font, fontSize: size })} onClose={() => setDialog(null)} />}
-      <article className={`page ${reading ? "reading" : ""} ${doc.layoutMode === "canvas" ? "page-canvas" : ""} ${cover ? "has-cover" : ""} ${doc.lightBg ? "page-light" : ""} ${doc.font || doc.fontSize ? "page-typed" : ""}`} style={pageStyle}>
+      <article className={`page ${reading ? "reading" : ""} ${doc.layoutMode === "canvas" ? "page-canvas" : ""} ${cover ? "has-cover" : ""} ${doc.lightBg ? "page-light" : ""} ${pageFont || doc.fontSize ? "page-typed" : ""} ${["manuscript", "outline", "cards", "wiki"].includes(doc.layoutMode) ? `page-studio page-${doc.layoutMode}` : ""}`} style={pageStyle}>
         {doc.icon && (
           <div className="rel">
             <span className="page-icon" onClick={() => setMenu(menu === "icon" ? null : "icon")} title={t("node.changeIcon")}>
@@ -892,7 +1006,27 @@ export function NodeView(props: NodeViewProps) {
           />
         ) : doc.layoutMode === "canvas" ? (
           <CanvasView key={`${doc.id}:${version}`} body={doc.body} nodes={nodes} onChange={(body) => schedule({ body })} onOpen={(nid) => (void flush(), props.onNavigate(nid))} />
+        ) : doc.layoutMode === "manuscript" ? (
+          <ManuscriptView
+            key={`${doc.id}:${version}`}
+            id={doc.id}
+            path={doc.path}
+            body={doc.body}
+            goal={doc.wordGoal}
+            nodes={nodes}
+            onChange={(body) => schedule({ body })}
+            onOpen={(nid) => (void flush(), props.onNavigate(nid))}
+            onChanged={props.onChanged}
+            onToast={props.onToast}
+            onFlush={flush}
+          />
+        ) : doc.layoutMode === "outline" ? (
+          <OutlineView key={`${doc.id}:${version}`} id={doc.id} body={doc.body} nodes={nodes} onChange={(body) => schedule({ body })} onOpen={(nid) => (void flush(), props.onNavigate(nid))} onChanged={props.onChanged} onToast={props.onToast} onFlush={flush} />
+        ) : doc.layoutMode === "cards" ? (
+          <CardsView key={`${doc.id}:${version}`} id={doc.id} body={doc.body} nodes={nodes} onChange={(body) => schedule({ body })} onOpen={(nid) => (void flush(), props.onNavigate(nid))} onChanged={props.onChanged} onToast={props.onToast} onFlush={flush} />
         ) : (
+        <>
+        {doc.layoutMode === "wiki" && <WikiView id={doc.id} nodes={nodes} changeTick={props.changeTick} onOpen={(nid) => (void flush(), props.onNavigate(nid))} onChanged={props.onChanged} onToast={props.onToast} />}
         <DatabaseHostContext.Provider value={{ nodes, onChanged: props.onChanged, onNavigate: props.onNavigate, onToast: props.onToast }}>
         <Editor
           docKey={`${doc.id}:${version}`}
@@ -900,7 +1034,10 @@ export function NodeView(props: NodeViewProps) {
           sortChecked={doc.sortChecked}
           mathMode={mathMode}
           spellcheck={spellcheck}
-          onStats={setStats}
+          onStats={(st) => {
+            setStats(st);
+            if (!locked) trackWords(docKey, st.words);
+          }}
           onTagClick={props.onOpenTag}
           onToast={props.onToast}
           nodePath={doc.path}
@@ -913,17 +1050,25 @@ export function NodeView(props: NodeViewProps) {
           onOpenPath={(p) => (void flush(), props.onOpenPath(p))}
           onCreateChild={createChild}
           onCreateDatabase={createDatabase}
+          onCreateProject={createProject}
           onCreateNote={props.onCreateTitle}
           onError={setError}
-          onSelectionText={(sel) => !locked && props.onContext({ nodeId: id, nodeTitle: title || doc.title, selection: sel })}
+          onSelectionText={(sel) => !locked && !props.secondary && props.onContext({ nodeId: id, nodeTitle: title || doc.title, selection: sel })}
         />
         </DatabaseHostContext.Provider>
+        </>
         )}
-        {showStats && stats && !(locked && plain === null) && (
+        {showStats && stats && !(locked && plain === null) && (doc.layoutMode === "stream" || doc.layoutMode === "wiki") && (
           <div className="word-stats">
             {stats.selWords > 0 || stats.selChars > 0
               ? t("stats.selection", { words: stats.selWords.toLocaleString(), chars: stats.selChars.toLocaleString() })
               : `${t("stats.words", { n: stats.words.toLocaleString() })} · ${t("stats.chars", { n: stats.chars.toLocaleString() })} · ${t("stats.read", { n: Math.max(1, Math.round(stats.words / 200)) })}`}
+            {doc.wordGoal ? (
+              <>
+                {" · "}
+                <Progress value={stats.words} goal={doc.wordGoal} />
+              </>
+            ) : null}
           </div>
         )}
         {backlinks.length > 0 && (

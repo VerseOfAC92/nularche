@@ -1,4 +1,4 @@
-// Obsidian uyumluluğu arayüz metinleri. strings.ts sözlüğüne katılır; her iki dili de yazın.
+// Bağlantılı notlar arayüz metinleri. strings.ts sözlüğüne katılır; her iki dili de yazın.
 
 export const STRINGS_16 = {
   "menu.go": { tr: "Git", en: "Go" },
@@ -104,7 +104,7 @@ export const STRINGS_16 = {
   "ob.hotkeyHint": { tr: "Bir kısayola tıklayıp yeni tuşlara basın; Backspace kısayolu kaldırır, Esc vazgeçer. Kırmızı satırlar çakışıyor.", en: "Click a shortcut and press the new keys; Backspace removes it, Esc cancels. Red rows conflict." },
   "ob.hotkeyConflict": { tr: "Bu kısayol başka bir komutta da kullanılıyor.", en: "This shortcut is used by another command too." },
   "ob.pressKeys": { tr: "Tuşlara basın…", en: "Press keys…" },
-  "ob.title": { tr: "Bağlantılı notlar (Obsidian)", en: "Linked notes (Obsidian)" },
+  "ob.title": { tr: "Bağlantılı notlar", en: "Linked notes" },
   "ob.insertTemplate": { tr: "Şablon ekle…", en: "Insert template…" },
   "ob.templatePlaceholder": { tr: "Hangi şablon eklensin? ({{title}}, {{date}}, {{time}} doldurulur)", en: "Which template? ({{title}}, {{date}}, {{time}} are filled in)" },
   "ob.newTab": { tr: "Yeni sekme", en: "New tab" },

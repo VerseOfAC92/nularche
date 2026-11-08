@@ -1,4 +1,4 @@
-// Not özellikleri (Obsidian "Properties"): frontmatter'daki kullanıcı alanları başlığın altında düzenlenir.
+// Not özellikleri ("Properties"): frontmatter'daki kullanıcı alanları başlığın altında düzenlenir.
 // Tür değerden anlaşılır: liste, onay kutusu, sayı, tarih (YYYY-AA-GG) ya da metin. `aliases` ve `tags` listedir.
 
 import { useEffect, useRef, useState } from "react";

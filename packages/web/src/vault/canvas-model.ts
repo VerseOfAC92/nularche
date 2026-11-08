@@ -1,4 +1,4 @@
-// Tuval sayfası verisi: JSON Canvas (jsoncanvas.org, Obsidian'ın açık biçimi) notun gövdesinde ```json canvas bloğunda
+// Tuval sayfası verisi: JSON Canvas (jsoncanvas.org, açık biçim) notun gövdesinde ```json canvas bloğunda
 // saklanır. Blok dışındaki metin korunur; bilinmeyen alanlar (ör. başka araçların eklediği) olduğu gibi yazılır.
 
 export type Side = "top" | "right" | "bottom" | "left";

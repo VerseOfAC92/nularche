@@ -1,4 +1,4 @@
-// Bağlantı grafiği (Obsidian "Graph view"): notlar düğüm, bağlantılar kenar. Tüm kasa ya da açık notun çevresi (yerel
+// Bağlantı grafiği ("Graph view"): notlar düğüm, bağlantılar kenar. Tüm kasa ya da açık notun çevresi (yerel
 // grafik). Kuvvet yerleşimi tarayıcıda çalışır; sürükle (kaydır), tekerlek (yakınlaş), düğümü sürükle, tıkla (aç).
 // Renkler Arche'ye göredir; var olmayan wiki hedefleri ve etiketler isteğe bağlı gösterilir.
 

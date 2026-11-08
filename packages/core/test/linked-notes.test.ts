@@ -9,7 +9,7 @@ let dir: string;
 let store: NodeStore;
 
 beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), "nularche-obsidian-"));
+  dir = await mkdtemp(path.join(tmpdir(), "nularche-linked-"));
   store = new NodeStore(dir);
   await store.ensureRoot();
 });

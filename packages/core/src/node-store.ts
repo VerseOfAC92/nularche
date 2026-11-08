@@ -18,6 +18,8 @@ import { parseNodeFile, revisionOf, serializeNodeFile, slugify, type Frontmatter
 import { bodyFacts, fillTemplate, isLockedBody, plainText, renameTagInBody, tagKey } from "./note-text.ts";
 import { extractWikiLinks, wikiResolver } from "./wikilinks.ts";
 import { canvasFiles, rewriteCanvasFiles } from "./canvas.ts";
+import { findAllMentions, rewriteWritingFiles, writingFiles, writingKindOf } from "./writing.ts";
+export { findAllMentions } from "./writing.ts";
 
 export { parseNodeFile, revisionOf, serializeNodeFile, slugify } from "./node-file.ts";
 
@@ -34,11 +36,18 @@ export class NodeError extends Error {
   }
 }
 
-export type LayoutMode = "stream" | "canvas";
+export type LayoutMode = "stream" | "canvas" | "manuscript" | "outline" | "cards" | "wiki";
+export const LAYOUT_MODES: readonly LayoutMode[] = ["stream", "canvas", "manuscript", "outline", "cards", "wiki"];
+const isLayout = (v: unknown): v is LayoutMode => typeof v === "string" && (LAYOUT_MODES as readonly string[]).includes(v) && v !== "stream";
+/** Gövdesi serbest metin değil, yapılandırılmış veri olan düzenler (anılış ve wiki bağlantısı aranmaz). */
+const STRUCTURED = new Set<LayoutMode>(["canvas", "manuscript", "outline", "cards"]);
 
 /** Frontmatter'da tutulan, uygulamanın anlamlandırdığı isteğe bağlı Node alanları. */
 export interface PageFields {
-  /** `canvas`: serbest tuval (OneNote benzeri); yoksa dikey akış (stream). */
+  /**
+   * `canvas`: serbest tuval; `manuscript`, `outline`, `cards`: yazma projeleri (bkz. writing.ts); `wiki`: alt sayfaları
+   * wiki girdileri olan başvuru kitaplığı. Yoksa dikey akış (stream).
+   */
   layout?: LayoutMode;
   /** Emoji ikon. */
   icon?: string;
@@ -65,6 +74,12 @@ export interface PageFields {
   lightBg?: boolean;
   /** İşaretlenen yapılacaklar listenin sonuna taşınır. */
   sortChecked?: boolean;
+  /** Kelime hedefi (sayfa ya da manuskriptin toplamı için). */
+  wordGoal?: number;
+  /** Wiki kategorisi: bu kategoride oluşturulan girdilere eklenecek özellik alanları ("hızlı bilgiler" şablonu). */
+  wikiFields?: string[];
+  /** Wiki girdisi: anma tespiti (notlarda adının altının çizilmesi ve "Geçtiği yerler") kapalı. */
+  noMentions?: boolean;
 }
 
 export const PAGE_FIELD_KEYS = [
@@ -83,13 +98,16 @@ export const PAGE_FIELD_KEYS = [
   "fontSize",
   "lightBg",
   "sortChecked",
+  "wordGoal",
+  "wikiFields",
+  "noMentions",
 ] as const;
 export type PageFieldKey = (typeof PAGE_FIELD_KEYS)[number];
 
 /** Kullanıcı özelliği olarak düzenlenemeyen frontmatter anahtarları (kimlik ve uygulama alanları). */
 const RESERVED_KEYS = new Set<string>(["id", "title", "created", "updated", ...PAGE_FIELD_KEYS]);
 
-/** Frontmatter'daki kullanıcı özellikleri (Obsidian "Properties"): uygulamanın kendi alanları dışındaki anahtarlar. */
+/** Frontmatter'daki kullanıcı özellikleri ("Properties"): uygulamanın kendi alanları dışındaki anahtarlar. */
 export function userProperties(fm: Frontmatter): Record<string, unknown> {
   return Object.fromEntries(Object.entries(fm).filter(([k]) => !RESERVED_KEYS.has(k)));
 }
@@ -132,7 +150,7 @@ export interface NodeMeta extends PageFields {
   /** Ek (resim, dosya, ses, çizim) sayısı. */
   attachments: number;
   words: number;
-  /** Frontmatter'daki `aliases` (Obsidian uyumlu takma adlar); wiki bağlantıları ve hızlı geçişte kullanılır. */
+  /** Frontmatter'daki `aliases` (takma adlar); wiki bağlantıları ve hızlı geçişte kullanılır. */
   aliases: string[];
 }
 
@@ -167,6 +185,45 @@ export interface HistoryEntry {
   /** Anlık görüntünün zamanı (ms); kimlik olarak da kullanılır. */
   at: number;
   size: number;
+  /** Elle oluşturulmuş kontrol noktasının adı; otomatik anlık görüntülerde yok. Kontrol noktaları kendiliğinden silinmez. */
+  label?: string;
+}
+
+/** Not başına saklanan en fazla kontrol noktası. */
+export const CHECKPOINT_LIMIT = 30;
+
+/** Bir wiki sayfasının girdisi (alt sayfası olan girdiler aynı zamanda kategoridir). */
+export interface WikiEntry {
+  id: string;
+  title: string;
+  path: string;
+  parentNodeId: string | null;
+  /** Wiki köküne göre derinlik (doğrudan alt sayfa = 0). */
+  depth: number;
+  category: boolean;
+  aliases: string[];
+  icon?: string;
+  excerpt: string;
+  properties: Record<string, unknown>;
+  wikiFields?: string[];
+  noMentions?: boolean;
+  updatedAt: number;
+}
+
+/** Wiki girdisinin adının (ya da takma adının) geçtiği not. */
+export interface WikiMention {
+  id: string;
+  title: string;
+  count: number;
+  snippet: string;
+}
+
+/** Notlarda altı çizilecek wiki girdisi adları. */
+export interface WikiTerm {
+  id: string;
+  title: string;
+  path: string;
+  names: string[];
 }
 
 /** `Attachments/` klasöründeki bir dosya ve ona bağlantı veren Node'lar. */
@@ -230,7 +287,7 @@ function asString(v: unknown): string | undefined {
 
 function pageFields(fm: Frontmatter): PageFields {
   const out: PageFields = {};
-  if (fm.layout === "canvas") out.layout = "canvas";
+  if (isLayout(fm.layout)) out.layout = fm.layout;
   if (typeof fm.icon === "string" && fm.icon) out.icon = fm.icon;
   if (typeof fm.cover === "string" && fm.cover) out.cover = fm.cover;
   if (typeof fm.order === "number" && Number.isFinite(fm.order)) out.order = fm.order;
@@ -245,6 +302,12 @@ function pageFields(fm: Frontmatter): PageFields {
   if (typeof fm.fontSize === "number" && fm.fontSize >= 8 && fm.fontSize <= 48) out.fontSize = fm.fontSize;
   if (fm.lightBg === true) out.lightBg = true;
   if (fm.sortChecked === true) out.sortChecked = true;
+  if (typeof fm.wordGoal === "number" && Number.isFinite(fm.wordGoal) && fm.wordGoal >= 1 && fm.wordGoal <= 10_000_000) out.wordGoal = Math.round(fm.wordGoal);
+  if (Array.isArray(fm.wikiFields)) {
+    const fields = fm.wikiFields.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim().slice(0, 64));
+    if (fields.length) out.wikiFields = [...new Set(fields)].slice(0, 40);
+  }
+  if (fm.noMentions === true) out.noMentions = true;
   return out;
 }
 
@@ -312,6 +375,21 @@ function lowerTr(s: string): string {
 function toPosix(p: string): string {
   return p.split(path.sep).join("/");
 }
+
+/** Yapılandırılmış düzenlerin (tuval, manuskript, taslak, kartlar) gövdesinde başvurulan Origin yolları. */
+function refFiles(layout: LayoutMode, body: string): string[] {
+  if (layout === "canvas") return canvasFiles(body);
+  const kind = writingKindOf(layout);
+  return kind ? writingFiles(kind, body) : [];
+}
+
+function rewriteRefFiles(layout: LayoutMode, body: string, moved: Map<string, string>): string {
+  if (layout === "canvas") return rewriteCanvasFiles(body, moved);
+  const kind = writingKindOf(layout);
+  return kind ? rewriteWritingFiles(kind, body, moved) : body;
+}
+
+
 
 interface CacheEntry {
   mtimeMs: number;
@@ -408,7 +486,7 @@ export class NodeStore {
         createdAt: (created && Date.parse(created)) || st.birthtimeMs,
         updatedAt: (updated && Date.parse(updated)) || st.mtimeMs,
         revision: revisionOf(text),
-        layoutMode: fm.layout === "canvas" ? "canvas" : "stream",
+        layoutMode: isLayout(fm.layout) ? fm.layout : "stream",
         tags: mergeTags(facts.tags, stringList(fm.tags).map((t) => t.replace(/^#/, ""))),
         excerpt: facts.excerpt,
         image,
@@ -602,10 +680,10 @@ export class NodeStore {
       const newPath = moved.get(oldPath) ?? oldPath;
       const cover = rewriteCover(n.meta.cover, oldPath, newPath, moved);
       const links = extractLinks(oldPath, n.body);
-      const cards = n.meta.layoutMode === "canvas" ? canvasFiles(n.body) : [];
+      const cards = refFiles(n.meta.layoutMode, n.body);
       if (cover === n.meta.cover && newPath === oldPath && !links.some((l) => moved.has(l.target)) && !cards.some((f) => moved.has(f))) continue;
       let body = links.length ? rewriteLinks(n.body, oldPath, newPath, moved) : n.body;
-      if (cards.length) body = rewriteCanvasFiles(body, moved);
+      if (cards.length) body = rewriteRefFiles(n.meta.layoutMode, body, moved);
       if (body === n.body && cover === n.meta.cover) continue;
       const abs = this.abs(newPath);
       const text = await readFile(abs, "utf8");
@@ -917,14 +995,15 @@ export class NodeStore {
   private targetsOf(n: Loaded, resolve: (name: string) => string | null): string[] {
     if (n.meta.locked) return [];
     if (n.meta.layoutMode === "canvas") return [...new Set(canvasFiles(n.body))];
+    const refs = refFiles(n.meta.layoutMode, n.body);
     const md = extractLinks(n.meta.path, n.body).map((l) => l.target);
     const wiki = extractWikiLinks(n.body)
       .map((l) => (l.target ? resolve(l.target) : n.meta.path))
       .filter((p): p is string => !!p);
-    return [...new Set([...md, ...wiki])];
+    return [...new Set([...refs, ...md, ...wiki])];
   }
 
-  /** Bağlantı grafiği (Obsidian "Graph view"). Kilitli notların bağlantıları sayılmaz. */
+  /** Bağlantı grafiği ("Graph view"). Kilitli notların bağlantıları sayılmaz. */
   async graph(): Promise<LinkGraph> {
     const all = await this.loadAll();
     const resolve = this.resolver(all);
@@ -936,14 +1015,14 @@ export class NodeStore {
         const id = idByPath.get(p);
         if (id && id !== n.meta.id) links.push({ source: n.meta.id, target: id });
       }
-      if (n.meta.locked || n.meta.layoutMode === "canvas") continue;
+      if (n.meta.locked || STRUCTURED.has(n.meta.layoutMode)) continue;
       for (const w of extractWikiLinks(n.body)) if (w.target && !resolve(w.target) && !/\.[a-z0-9]{2,4}$/i.test(w.target)) unresolved.push({ source: n.meta.id, name: w.target });
     }
     const nodes = [...all.values()].map(({ meta }) => ({ id: meta.id, title: meta.title, path: meta.path, tags: meta.tags, archeId: meta.archeId }));
     return { nodes, links, unresolved };
   }
 
-  /** Notun giden bağlantıları (Obsidian "Outgoing links"). */
+  /** Notun giden bağlantıları ("Outgoing links"). */
   async outgoing(ref: string): Promise<OutgoingLinks> {
     const all = await this.loadAll();
     const n = await this.find(ref, all);
@@ -956,7 +1035,7 @@ export class NodeStore {
     return { linked, unresolved };
   }
 
-  /** Bu notun başlığını ya da takma adını anan ama bağlantı vermeyen notlar (Obsidian "Unlinked mentions"). */
+  /** Bu notun başlığını ya da takma adını anan ama bağlantı vermeyen notlar ("Unlinked mentions"). */
   async unlinkedMentions(ref: string): Promise<MentionHit[]> {
     const all = await this.loadAll();
     const target = await this.find(ref, all);
@@ -965,7 +1044,7 @@ export class NodeStore {
     if (!names.length) return [];
     const out: MentionHit[] = [];
     for (const n of all.values()) {
-      if (n.meta.id === target.meta.id || n.meta.locked || n.meta.layoutMode === "canvas") continue;
+      if (n.meta.id === target.meta.id || n.meta.locked || STRUCTURED.has(n.meta.layoutMode)) continue;
       if (this.targetsOf(n, resolve).includes(target.meta.path)) continue;
       const text = plainText(n.body);
       const at = findMention(text, names);
@@ -993,7 +1072,7 @@ export class NodeStore {
 
   /**
    * `sourceRef` notunu `targetRef` notunun sonuna ekler, kaynağa giden bağlantıları hedefe yönlendirir ve kaynağı
-   * çöpe taşır (Obsidian "Note composer: merge"). Alt sayfası olan ya da kilitli notlar birleştirilmez.
+   * çöpe taşır ("Note composer: merge"). Alt sayfası olan ya da kilitli notlar birleştirilmez.
    */
   async merge(sourceRef: string, targetRef: string): Promise<NodeDoc> {
     const all = await this.loadAll();
@@ -1024,7 +1103,7 @@ export class NodeStore {
     return this.read(target.meta.id);
   }
 
-  // ---------------------------------------------------------------- Dosya geçmişi (Obsidian "File recovery")
+  // ---------------------------------------------------------------- Dosya geçmişi ("File recovery")
 
   private historyDir(id: string): string {
     if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", `Geçersiz id: ${id}`);
@@ -1035,10 +1114,53 @@ export class NodeStore {
   private async snapshot(id: string, text: string): Promise<void> {
     const dir = this.historyDir(id);
     const entries = await this.history(id).catch(() => []);
-    if (entries[0] && Date.now() - entries[0].at < HISTORY_INTERVAL_MS) return;
+    const auto = entries.filter((e) => !e.label);
+    if (auto[0] && Date.now() - auto[0].at < HISTORY_INTERVAL_MS) return;
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, `${Date.now()}.md`), text);
-    for (const old of entries.slice(HISTORY_LIMIT - 1)) await rm(path.join(dir, `${old.at}.md`), { force: true });
+    for (const old of auto.slice(HISTORY_LIMIT - 1)) await rm(path.join(dir, `${old.at}.md`), { force: true });
+  }
+
+  private async historyLabels(id: string): Promise<Record<string, string>> {
+    try {
+      const data = JSON.parse(await readFile(path.join(this.historyDir(id), "labels.json"), "utf8"));
+      return data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, string>) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * Kontrol noktası: notun şimdiki halini adlandırılmış bir anlık görüntü olarak hemen saklar (beş dakika sınırı yok,
+   * kendiliğinden silinmez). En fazla CHECKPOINT_LIMIT tane; sınıra ulaşılınca önce biri silinmelidir.
+   */
+  async checkpoint(ref: string, label: string): Promise<HistoryEntry> {
+    const { meta } = await this.find(ref);
+    const name = label.replace(/\s+/g, " ").trim().slice(0, 80) || new Date().toISOString().slice(0, 16).replace("T", " ");
+    const entries = await this.history(meta.id);
+    if (entries.filter((e) => e.label).length >= CHECKPOINT_LIMIT) throw new NodeError("invalid", `En fazla ${CHECKPOINT_LIMIT} kontrol noktası saklanır; önce birini silin.`);
+    const dir = this.historyDir(meta.id);
+    await mkdir(dir, { recursive: true });
+    let at = Date.now();
+    while (entries.some((e) => e.at === at)) at++;
+    const text = await readFile(this.abs(meta.path), "utf8");
+    await writeFile(path.join(dir, `${at}.md`), text);
+    const labels = await this.historyLabels(meta.id);
+    labels[String(at)] = name;
+    await this.atomicWrite(path.join(dir, "labels.json"), JSON.stringify(labels, null, 2));
+    return { at, size: Buffer.byteLength(text), label: name };
+  }
+
+  /** Bir anlık görüntüyü ya da kontrol noktasını siler. */
+  async deleteHistory(ref: string, at: number): Promise<void> {
+    const { meta } = await this.find(ref);
+    if (!Number.isSafeInteger(at)) throw new NodeError("invalid", "Geçersiz zaman.");
+    await rm(path.join(this.historyDir(meta.id), `${at}.md`), { force: true });
+    const labels = await this.historyLabels(meta.id);
+    if (String(at) in labels) {
+      delete labels[String(at)];
+      await this.atomicWrite(path.join(this.historyDir(meta.id), "labels.json"), JSON.stringify(labels, null, 2));
+    }
   }
 
   /** Notun anlık görüntüleri (en yeni önce). */
@@ -1051,10 +1173,12 @@ export class NodeStore {
       return [];
     }
     const out: HistoryEntry[] = [];
+    const labels = files.includes("labels.json") ? await this.historyLabels(id) : {};
     for (const f of files) {
       const at = Number(/^(\d+)\.md$/.exec(f)?.[1]);
       if (!at) continue;
-      out.push({ at, size: (await stat(path.join(this.historyDir(id), f))).size });
+      const label = labels[String(at)];
+      out.push({ at, size: (await stat(path.join(this.historyDir(id), f))).size, ...(typeof label === "string" && label ? { label } : {}) });
     }
     return out.sort((a, b) => b.at - a.at);
   }
@@ -1077,6 +1201,77 @@ export class NodeStore {
     this.checkRevision(meta, baseRevision);
     await this.snapshot(meta.id, await readFile(this.abs(meta.path), "utf8")).catch(() => undefined);
     return this.update(meta.id, { body });
+  }
+
+  // ---------------------------------------------------------------- Wiki (hikâye kitaplığı)
+
+  /** Wiki sayfasının (layout: wiki) altındaki tüm girdiler, ağaç sırasıyla. */
+  async wikiEntries(ref: string): Promise<WikiEntry[]> {
+    const all = await this.loadAll();
+    const root = await this.find(ref, all);
+    if (root.meta.layoutMode !== "wiki") throw new NodeError("invalid", "Bu sayfa bir wiki değil.");
+    const nodes = [...all.values()];
+    const out: WikiEntry[] = [];
+    const walk = (pid: string, depth: number) => {
+      const kids = nodes.filter((n) => n.meta.parentNodeId === pid).sort((a, b) => this.sortSiblings(a.meta, b.meta));
+      for (const k of kids) {
+        const category = nodes.some((n) => n.meta.parentNodeId === k.meta.id);
+        out.push({
+          id: k.meta.id,
+          title: k.meta.title,
+          path: k.meta.path,
+          parentNodeId: k.meta.parentNodeId,
+          depth,
+          category,
+          aliases: k.meta.aliases,
+          ...(k.meta.icon ? { icon: k.meta.icon } : {}),
+          excerpt: k.meta.excerpt,
+          properties: k.meta.locked ? {} : userProperties(k.frontmatter),
+          ...(k.meta.wikiFields ? { wikiFields: k.meta.wikiFields } : {}),
+          ...(k.meta.noMentions ? { noMentions: true } : {}),
+          updatedAt: k.meta.updatedAt,
+        });
+        if (category) walk(k.meta.id, depth + 1);
+      }
+    };
+    walk(root.meta.id, 0);
+    return out;
+  }
+
+  /** Tüm wiki'lerin anma tespiti açık girdileri (kategoriler dahil); notlarda adlarının altı çizilir. */
+  async wikiTerms(): Promise<WikiTerm[]> {
+    const all = await this.loadAll();
+    const byId = new Map([...all.values()].map((n) => [n.meta.id, n.meta]));
+    const inWiki = (m: NodeMeta) => {
+      for (let p = m.parentNodeId ? byId.get(m.parentNodeId) : undefined; p; p = p.parentNodeId ? byId.get(p.parentNodeId) : undefined) if (p.layoutMode === "wiki") return true;
+      return false;
+    };
+    const out: WikiTerm[] = [];
+    for (const { meta } of all.values()) {
+      if (meta.noMentions || meta.locked || !inWiki(meta)) continue;
+      const names = [meta.title, ...meta.aliases].map((x) => x.trim()).filter((x) => x.length >= 2);
+      if (names.length) out.push({ id: meta.id, title: meta.title, path: meta.path, names: [...new Set(names)] });
+    }
+    return out;
+  }
+
+  /** Wiki girdisinin adının ya da takma adının geçtiği notlar (wiki dışındaki ve wiki içindeki diğer girdiler), çoktan aza. */
+  async wikiMentions(ref: string): Promise<WikiMention[]> {
+    const all = await this.loadAll();
+    const target = await this.find(ref, all);
+    const names = [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 2);
+    if (!names.length) return [];
+    const out: WikiMention[] = [];
+    for (const n of all.values()) {
+      if (n.meta.id === target.meta.id || n.meta.locked || STRUCTURED.has(n.meta.layoutMode)) continue;
+      const text = plainText(n.body);
+      const hits = findAllMentions(text, names);
+      if (!hits.length) continue;
+      const at = hits[0].index;
+      const start = Math.max(0, at - 50);
+      out.push({ id: n.meta.id, title: n.meta.title, count: hits.length, snippet: (start ? "…" : "") + text.slice(start, at + 110).replace(/\s+/g, " ").trim() });
+    }
+    return out.sort((a, b) => b.count - a.count || a.title.localeCompare(b.title, "tr"));
   }
 
   /** Gelen kutusu ve bağlantısız Node'lar. */

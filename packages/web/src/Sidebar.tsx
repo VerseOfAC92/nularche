@@ -8,6 +8,8 @@ import { usePref } from "./prefs.ts";
 import type { Route } from "./App.tsx";
 import { t } from "./i18n/index.ts";
 import { keys } from "./shortcuts.tsx";
+import { runCommand } from "./commands.ts";
+import { NewProjectMenu, termTip } from "./studio/StudioTools.tsx";
 
 const DRAG_TYPE = "application/x-nularche-node";
 
@@ -43,6 +45,7 @@ export function Sidebar(props: SidebarProps) {
   const [drop, setDrop] = useState<{ id: string; zone: DropZone } | null>(null);
   const [dropTarget, setDropTarget] = useState<"shadow" | "root" | null>(null);
   const [collapsed, setCollapsed] = usePref<Record<string, boolean>>("sidebarCollapsed", {});
+  const [projectMenu, setProjectMenu] = useState<DOMRect | null>(null);
   const toggleSection = (k: string) => setCollapsed({ ...collapsed, [k]: !collapsed[k] });
 
   const children = useMemo(() => {
@@ -216,6 +219,9 @@ export function Sidebar(props: SidebarProps) {
           <small title={props.originName}>Origin · {props.originName}</small>
         </div>
       </div>
+      <button className={`side-btn ${route.kind === "home" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "home" })} title={termTip("Atrium", "gloss.atrium")}>
+        🏛 Atrium
+      </button>
       <button className="side-btn" onClick={props.onOpenSearch}>
         ⌕ {t("sidebar.search")} <kbd>{keys("Mod+K")}</kbd>
       </button>
@@ -236,6 +242,12 @@ export function Sidebar(props: SidebarProps) {
       <button className="side-btn" onClick={props.onOpenTemplates}>
         📋 {t("tpl.title")}
       </button>
+      <div className="rel">
+        <button data-menu-trigger className={`side-btn ${projectMenu ? "active" : ""}`} onClick={(e) => setProjectMenu(projectMenu ? null : e.currentTarget.getBoundingClientRect())} title={t("ws.newProjectHint")}>
+          ✦ {t("ws.newProject")} <span className="side-caret">▸</span>
+        </button>
+        {projectMenu && <NewProjectMenu anchor={projectMenu} onClose={() => setProjectMenu(null)} />}
+      </div>
       <button className={`side-btn ${route.kind === "notes" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "notes" })}>
         🗒 {t("list.allNotes")}
       </button>
@@ -338,6 +350,9 @@ export function Sidebar(props: SidebarProps) {
           title={t("trash.title")}
         >
           🗑 {t("trash.title")} {props.trashCount > 0 && <span className="badge">{props.trashCount}</span>}
+        </button>
+        <button className="side-btn" onClick={() => runCommand("help.glossary")} title={t("gloss.intro")}>
+          ⓘ {t("gloss.title")}
         </button>
         <button className="side-btn" onClick={props.onOpenSettings}>
           ⚙ {t("settings.title")}

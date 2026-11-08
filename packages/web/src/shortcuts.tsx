@@ -108,7 +108,7 @@ const GROUPS: { title: StringKey; items: Shortcut[] }[] = [
 
 const literal = (combo: string) => combo === "/" || combo === "[[" || combo === "#" || combo === "Tab";
 
-/** Obsidian'dan gelen komutlar: kullanıcının değiştirdiği kısayollar dahil, komut tanımlarından okunur. */
+/** Bağlantılı not komutları: kullanıcının değiştirdiği kısayollar dahil, komut tanımlarından okunur. */
 const VAULT_IDS = ["app.palette", "app.switcher", "nav.back", "nav.forward", "view.sidePanel", "note.addProperty", "note.reading", "fmt.clear", "line.up", "line.down"];
 
 export function ShortcutList() {

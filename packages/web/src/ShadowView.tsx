@@ -2,7 +2,7 @@
 // bağlantısı olmayan Node'lar. Amaç dağınık fikirleri yakalayıp bilgi ağına bağlamak.
 
 import { useEffect, useState } from "react";
-import { api, type NodeMeta, type ShadowView as ShadowData } from "./api.ts";
+import { api, type CaptureKind, type NodeMeta, type ShadowView as ShadowData } from "./api.ts";
 
 import { ago, t } from "./i18n/index.ts";
 import { keys, modPressed } from "./shortcuts.tsx";
@@ -31,11 +31,33 @@ export function ShadowView({
 
   async function capture() {
     if (!text.trim()) return;
-    await api.capture(text);
-    setText("");
-    onChanged();
-    onToast(t("shadow.captured"));
+    try {
+      const res = await api.capture(text);
+      setText("");
+      onChanged();
+      onToast("routed" in res ? t("ws.routedTo", { title: res.routed.targetTitle }) : t("shadow.captured"));
+    } catch (e) {
+      onToast((e as Error).message);
+    }
   }
+
+  /** Shadow notunu kart destesine, taslağa, wiki'ye ya da bir nota yapılacak olarak gönderir. */
+  async function promote(n: NodeMeta, value: string) {
+    const [kind, target] = value.split(":") as [CaptureKind | "auto", string];
+    try {
+      const res = await api.promote(n.id, kind === "auto" ? {} : { kind, target });
+      onChanged();
+      onToast(t("ws.routedTo", { title: res.targetTitle }));
+    } catch (e) {
+      onToast((e as Error).message);
+    }
+  }
+  // Yapılacak hedefleri: sık kullanılan ve sabitlenmiş notlar.
+  const taskTargets = nodes.filter((x) => (x.favorite || x.pinned) && x.layoutMode === "stream" && !x.database && !x.locked && x.archeId !== null);
+  const destinations = (["card", "outline", "wiki"] as CaptureKind[]).map((kind) => ({
+    kind,
+    nodes: nodes.filter((x) => !x.locked && (kind === "card" ? x.layoutMode === "cards" : kind === "outline" ? x.layoutMode === "outline" : kind === "wiki" ? x.layoutMode === "wiki" : false)),
+  }));
 
   async function moveTo(n: NodeMeta, target: string) {
     await api.move(n.id, target === "__root" ? null : target);
@@ -59,6 +81,32 @@ export function ShadowView({
               {a.icon ?? "◈"} {a.title}
             </option>
           ))}
+        </select>
+      )}
+      {withMove && (
+        <select value="" onChange={(e) => e.target.value && void promote(n, e.target.value)} title={t("ws.promoteHint")}>
+          <option value="">{t("ws.promote")}</option>
+          {/^\s*::/.test(n.excerpt) && <option value="auto:">⚡ {t("ws.promoteAuto")}</option>}
+          {destinations.map((d) =>
+            d.nodes.length ? (
+              <optgroup key={d.kind} label={t(`ws.ck.${d.kind}`)}>
+                {d.nodes.map((x) => (
+                  <option key={x.id} value={`${d.kind}:${x.id}`}>
+                    {x.icon ?? "◇"} {x.title}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null,
+          )}
+          {taskTargets.length > 0 && (
+            <optgroup label={t("ws.ck.task")}>
+              {taskTargets.map((x) => (
+                <option key={x.id} value={`task:${x.id}`}>
+                  {x.icon ?? "◇"} {x.title}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
       )}
     </div>

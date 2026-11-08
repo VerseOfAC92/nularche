@@ -125,6 +125,14 @@ try {
   await page.getByText("Nularche'ye hoş geldiniz").waitFor({ timeout: 20_000 });
   await shot("1-hosgeldiniz");
   await page.getByRole("button", { name: "İleri" }).click();
+  // 2.0: Nularche dili adımı tüm adları ve anlamlarını gösterir.
+  await page.locator(".onboarding .glossary").waitFor();
+  for (const term of ["Origin", "Arche", "Codex", "Axis", "Mosaic", "Lore", "Marginalia", "Epoch", "Ark"]) {
+    assert.ok(await page.locator(".onboarding .gloss-row dt", { hasText: term }).count(), `sözlükte yok: ${term}`);
+  }
+  assert.ok(!/obsidian/i.test(await page.locator("body").innerText()), "arayüzde Obsidian geçmemeli");
+  await shot("1b-nularche-dili");
+  await page.getByRole("button", { name: "İleri" }).click();
   await page.getByRole("button", { name: /ChatGPT/ }).click();
   await page.getByText("ChatGPT uygulamasını açın").waitFor();
   await shot("2-chatgpt-secildi");
@@ -160,6 +168,8 @@ try {
   // Otomatik mod: Gemini anahtarı → Nularche AI isteği arka planda işlenir, cevap pencerede görünür.
   await page.locator(".nai-panel .icon-btn").click(); // küçült
   await page.locator(".sidebar-foot .side-btn").last().click(); // Ayarlar
+  // 2.0: ayarlar kategorilere ayrıldı.
+  await page.getByRole("tab", { name: "Yapay zekâ" }).click();
   await page.getByPlaceholder(/Anahtarı buraya yapıştırın/).fill("AIza-test-anahtari");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
   await page.getByText("✓ Otomatik mod açık").waitFor({ timeout: 10_000 });
@@ -228,6 +238,7 @@ try {
 
   // Dil: Ayarlar → English; arayüz, kayıtlı ayar ve yapay zekâ cevap dili İngilizceye geçer.
   await page.locator(".sidebar-foot .side-btn").last().click();
+  await page.getByRole("tab", { name: "Görünüm" }).click();
   await page.getByRole("button", { name: "English", exact: true }).click();
   await page.getByRole("heading", { name: "Settings" }).waitFor({ timeout: 5_000 });
   await page.getByRole("heading", { name: "Appearance" }).waitFor();
@@ -335,10 +346,10 @@ try {
   const coverAfter = await page.evaluate(async (id) => (await (await fetch(`/api/nodes/${id}`)).json()).cover ?? null, note);
   assert.equal(coverAfter, null, "kapak dosyadan kaldırılmadı");
 
-  // Obsidian uyumu: wiki bağlantısı, matematik ve kutu çizilir; dosya açılıp kaydedilince bozulmaz.
+  // Bağlantılı notlar: wiki bağlantısı, matematik ve kutu çizilir; dosya açılıp kaydedilince bozulmaz.
   await page.evaluate(() => fetch("/api/prefs", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ writingBgEverywhere: false }) }));
-  const obsidianBody = "Bkz. [[Genişlik]] ve [[Yok]]. $e^{i\\pi}+1=0$\n\n> [!info] Başlık\n> içerik\n\nDipnot[^1]\n\n[^1]: açıklama\n";
-  const obs = await page.evaluate(async (body) => (await (await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Obsidian notu", parentNodeId: null, body }) })).json()).id as string, obsidianBody);
+  const linkedBody = "Bkz. [[Genişlik]] ve [[Yok]]. $e^{i\\pi}+1=0$\n\n> [!info] Başlık\n> içerik\n\nDipnot[^1]\n\n[^1]: açıklama\n";
+  const obs = await page.evaluate(async (body) => (await (await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Bağlantılı not", parentNodeId: null, body }) })).json()).id as string, linkedBody);
   await page.evaluate((id) => (location.hash = id), obs);
   await page.locator(".ProseMirror .wiki-link").first().waitFor({ timeout: 10_000 });
   assert.equal(await page.locator(".ProseMirror .wiki-link.unresolved").count(), 1);
@@ -361,6 +372,7 @@ try {
   await page.getByText(/Önce Ayarlar|First connect an account/).waitFor({ timeout: 5_000 });
   await page.keyboard.press("Escape");
   await page.locator(".sidebar-foot .side-btn").last().click();
+  await page.getByRole("tab", { name: /^(Takvim|Calendar)$/ }).click();
   await page.getByRole("button", { name: /Apple Takvim \(iCloud\) bağla|Connect Apple Calendar \(iCloud\)/ }).click();
   await page.getByPlaceholder(/Apple Kimliği|Apple ID/).fill("me@icloud.com");
   await page.getByPlaceholder(/Uygulamaya özel parola|App-specific password/).fill(" abcd-efgh-ijkl-mnop ");
@@ -404,17 +416,17 @@ try {
   await shot("17-grafik");
   // Hızlı geçiş: takma adla bulur.
   await page.keyboard.press(`${mod}+O`);
-  await page.locator(".picker input").fill("obsidian");
-  await page.locator(".picker .results button", { hasText: "Obsidian notu" }).first().waitFor();
+  await page.locator(".picker input").fill("bağlantılı");
+  await page.locator(".picker .results button", { hasText: "Bağlantılı not" }).first().waitFor();
   await page.keyboard.press("Enter");
   await page.locator(".title-input").waitFor();
-  assert.equal(await page.locator(".title-input").inputValue(), "Obsidian notu");
+  assert.equal(await page.locator(".title-input").inputValue(), "Bağlantılı not");
   // Sekmeler: yeni sekme açılır, sekme çubuğu görünür, sekme kapanınca çubuk gizlenir ve önceki sayfa kalır.
   await page.keyboard.press(`${mod}+Alt+T`);
   await page.locator(".tab-bar .tab").nth(1).waitFor({ timeout: 5_000 });
   await page.keyboard.press(`${mod}+Alt+W`);
   await page.locator(".tab-bar").waitFor({ state: "detached", timeout: 5_000 });
-  assert.equal(await page.locator(".title-input").inputValue(), "Obsidian notu");
+  assert.equal(await page.locator(".title-input").inputValue(), "Bağlantılı not");
   console.log(`Tamam. Ekran görüntüleri: ${shots ?? "(yok)"}`);
 } catch (err) {
   await shot("hata").catch(() => undefined);

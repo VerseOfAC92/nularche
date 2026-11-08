@@ -1,7 +1,7 @@
-// Komut paleti (⇧⌘P) ve hızlı geçiş (⌘O): Obsidian'daki gibi klavyeden komut çalıştırma ve not açma/oluşturma.
+// Komut paleti (⇧⌘P) ve hızlı geçiş (⌘O): klavyeden komut çalıştırma ve not açma/oluşturma.
 
 import type { NodeMeta } from "../api.ts";
-import { ALL_COMMANDS, canRun, comboFor, runCommand } from "../commands.ts";
+import { allCommands, canRun, comboFor, commandLabel, runCommand } from "../commands.ts";
 import { t } from "../i18n/index.ts";
 import { getPref, setPref } from "../prefs.ts";
 import { keys } from "../shortcuts.tsx";
@@ -11,12 +11,12 @@ import { Picker, type PickItem } from "./Picker.tsx";
 export function CommandPalette({ onClose }: { onClose: () => void }) {
   const recent = getPref<string[]>("paletteRecent", []);
   const seen = new Set<string>();
-  const cmds = ALL_COMMANDS.filter((c) => c.id !== "app.palette" && !seen.has(c.id) && seen.add(c.id) && canRun(c.id));
+  const cmds = allCommands().filter((c) => c.id !== "app.palette" && !seen.has(c.id) && seen.add(c.id) && canRun(c.id));
   // Son kullanılanlar önce.
   cmds.sort((a, b) => (recent.indexOf(a.id) + 1 || 999) - (recent.indexOf(b.id) + 1 || 999));
   const items: PickItem[] = cmds.map((c) => {
     const combo = comboFor(c);
-    return { id: c.id, label: t(c.label), hint: combo ? keys(combo) : undefined };
+    return { id: c.id, label: commandLabel(c), hint: combo ? keys(combo) : undefined };
   });
   return (
     <Picker

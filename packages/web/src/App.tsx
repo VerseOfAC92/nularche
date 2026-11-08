@@ -16,7 +16,7 @@ import { NularcheAI, type AiContext } from "./ai/NularcheAI.tsx";
 import { Onboarding } from "./ai/Onboarding.tsx";
 import { PROVIDER_LABEL } from "./ai/prompts.ts";
 import { t, getLang, useLang } from "./i18n/index.ts";
-import { handleShortcut, menuSpec, registerCommand, runCommand, setHotkeyOverrides } from "./commands.ts";
+import { getActiveEditor, handleShortcut, menuSpec, registerCommand, runCommand, setDynamicCommands, setHotkeyOverrides } from "./commands.ts";
 import { CommandPalette, QuickSwitcher } from "./vault/Palettes.tsx";
 import { GraphView } from "./vault/GraphView.tsx";
 import { SidePanel, type PanelTab } from "./vault/SidePanel.tsx";
@@ -33,6 +33,14 @@ import { FocusHud } from "./focus/FocusHud.tsx";
 import { backgroundStyle, type WritingBg } from "./focus/scenes.ts";
 import { fileUrl } from "./editor/paths.ts";
 import type { TagCount } from "./api.ts";
+import { Dashboard } from "./studio/Dashboard.tsx";
+import { Glossary, GlossaryDialog } from "./studio/Glossary.tsx";
+import { Timer } from "./studio/Timer.tsx";
+import { COMMENT_FOCUS_EVENT, commentsChanged } from "./studio/Comments.tsx";
+import { setStudioData, setStudioHandlers, type TextShortcut } from "./studio/editor-plugins.ts";
+import { AMBIENCES, bell, setAmbience, typeSound, type Ambience, type TypeProfile } from "./studio/sounds.ts";
+import type { CustomCommand } from "./studio/StudioSettings.tsx";
+import { writingBody } from "../../core/src/writing.ts";
 
 export type Route =
   | { kind: "home" }
@@ -71,6 +79,10 @@ function routeHash(r: Route): string {
       return r.kind;
   }
 }
+
+/** Tercih yokken kullanılan sabit boş listeler (her çizimde yeni dizi etkileri yeniden çalıştırmasın). */
+const NO_SHORTCUTS: TextShortcut[] = [];
+const NO_COMMANDS: CustomCommand[] = [];
 
 /** Ayrı not penceresi (`?window=single`): yalnızca not görünümü. */
 const SINGLE = new URLSearchParams(location.search).get("window") === "single";
@@ -167,6 +179,21 @@ export function App() {
   const tabs: TabState = Array.isArray(tabsPref?.hashes) && tabsPref.hashes.length ? { hashes: tabsPref.hashes, active: Math.min(Math.max(0, tabsPref.active | 0), tabsPref.hashes.length - 1) } : EMPTY_TABS;
   const [workspaces, setWorkspaces] = usePref<Record<string, TabState>>("workspaces", {});
   const [workspacePick, setWorkspacePick] = useState(false);
+  const [split, setSplit] = usePref<string | null>("splitNode", null);
+  const [splitPick, setSplitPick] = useState(false);
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
+  const [timerOpen, setTimerOpen] = usePref<boolean>("timerOpen", false);
+  const [highContrast, setHighContrast] = usePref<boolean>("highContrast", false);
+  const [wikiMentions] = usePref<boolean>("wikiMentions", true);
+  const [textShortcuts] = usePref<TextShortcut[]>("textShortcuts", NO_SHORTCUTS);
+  const [customCommands] = usePref<CustomCommand[]>("customCommands", NO_COMMANDS);
+  const [typeSounds, setTypeSounds] = usePref<boolean>("typeSounds", false);
+  const [typeVolume] = usePref<number>("typeVolume", 0.5);
+  const [typeProfile] = usePref<TypeProfile>("typeProfile", "light");
+  const [typeBell] = usePref<boolean>("typeBell", true);
+  const [typeMargin] = usePref<number>("typeMargin", 72);
+  const [ambience, setAmbiencePref] = usePref<Ambience>("ambience", "off");
+  const [ambienceLevel] = usePref<number>("ambienceLevel", 0.5);
   const lang = useLang();
   setHotkeyOverrides(hotkeys);
 
@@ -211,7 +238,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    // Açılışta gösterilecek görünüm (Obsidian "Default file to open"): son açık sekme, günlük not ya da ana sayfa.
+    // Açılışta gösterilecek görünüm ("Default file to open"): son açık sekme, günlük not ya da ana sayfa.
     void loadPrefs().then(() => {
       if (location.hash || SINGLE) return;
       const startup = getPref<"last" | "daily" | "home">("startupView", "last");
@@ -252,6 +279,7 @@ export function App() {
       setChangeTick((t) => t + 1);
     });
     es.addEventListener("ai", () => setAiTick((t) => t + 1));
+    es.addEventListener("comments", () => commentsChanged());
     return () => es.close();
   }, [refresh]);
 
@@ -267,6 +295,82 @@ export function App() {
       root.setProperty("--nlc-accent-glow", `color-mix(in srgb, ${accent} 16%, transparent)`);
     }
   }, [accent]);
+
+  // Yüksek kontrast teması.
+  useEffect(() => {
+    if (highContrast) document.documentElement.dataset.contrast = "high";
+    else delete document.documentElement.dataset.contrast;
+  }, [highContrast]);
+
+  // Wiki anma tespiti: tüm wiki girdilerinin adları editörlere verilir.
+  useEffect(() => {
+    if (!wikiMentions) return setStudioData({ mentionsOn: false });
+    api.wikiTerms().then((terms) => setStudioData({ wikiTerms: terms, mentionsOn: true }), () => undefined);
+  }, [changeTick, wikiMentions, nodes.length]);
+  useEffect(() => setStudioData({ shortcuts: textShortcuts }), [textShortcuts]);
+  useEffect(
+    () =>
+      setStudioHandlers({
+        openNode: (id) => navigate({ kind: "node", id }),
+        openComment: (_noteId, commentId) => {
+          setPanel("comments");
+          setTimeout(() => dispatchEvent(new CustomEvent(COMMENT_FOCUS_EVENT, { detail: commentId })), 60);
+        },
+      }),
+    [navigate, setPanel],
+  );
+
+  // Ortam sesi.
+  useEffect(() => setAmbience(ambience, ambienceLevel), [ambience, ambienceLevel]);
+
+  // Daktilo sesleri: editörde yazarken tuş, satır başı ve kenar zili.
+  useEffect(() => {
+    if (!typeSounds) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.isComposing || !(e.target as HTMLElement | null)?.closest?.(".ProseMirror, .title-input, .outline-text, .card-edit")) return;
+      if (e.key === "Enter") return typeSound("return", typeVolume, typeProfile);
+      if (e.key === "Backspace" || e.key === "Delete") return typeSound("back", typeVolume, typeProfile);
+      if (e.key === " ") typeSound("space", typeVolume, typeProfile);
+      else if (e.key.length === 1) typeSound("key", typeVolume, typeProfile);
+      else return;
+      // Kenar zili: satır, kenara sekiz karakter kala çalar (gerçek daktilolardaki gibi).
+      if (!typeBell) return;
+      const ed = getActiveEditor();
+      const $from = ed?.state.selection.$from;
+      if (!$from) return;
+      const before = $from.parent.textBetween(0, $from.parentOffset, "\n", " ");
+      const col = before.length - before.lastIndexOf("\n") - 1;
+      if (col === Math.max(10, typeMargin - 8)) bell(typeVolume);
+    };
+    addEventListener("keydown", onKey, true);
+    return () => removeEventListener("keydown", onKey, true);
+  }, [typeSounds, typeVolume, typeProfile, typeBell, typeMargin]);
+
+  // Kullanıcının tanımladığı komutlar: komut paletinde görünür, kısayol atanabilir.
+  useEffect(() => {
+    const valid = customCommands.filter((c) => c.name.trim() && c.value.trim());
+    setDynamicCommands(valid.map((c) => ({ id: `custom.${c.id}`, label: "ws.customCommands", text: `★ ${c.name.trim()}` })));
+    const offs = valid.map((c) =>
+      registerCommand(`custom.${c.id}`, () => {
+        if (c.action === "open") return navigate({ kind: "node", id: c.value });
+        if (c.action === "run") return void c.value.split(/[,\s]+/).filter(Boolean).forEach((id) => runCommand(id));
+        if (c.action === "capture") {
+          void api.capture(c.value).then(
+            (r) => (refresh(), showToast("routed" in r ? t("ws.routedTo", { title: r.routed.targetTitle }) : t("shadow.captured"))),
+            (e: Error) => setError(e.message),
+          );
+          return;
+        }
+        const e = getActiveEditor();
+        if (!e) return showToast(t("ws.openNoteFirst"));
+        e.chain().focus().insertContent(c.value, { contentType: "markdown" } as never).run();
+      }),
+    );
+    return () => {
+      offs.forEach((o) => o());
+      setDynamicCommands([]);
+    };
+  }, [customCommands, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const create = useCallback(
     async (parent: ParentTarget) => {
@@ -442,6 +546,37 @@ export function App() {
         void createTitled(`${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`);
       }),
       registerCommand("canvas.new", () => void createTitled(t("ob.untitledCanvas"), { body: '```json canvas\n{\n  "nodes": [],\n  "edges": []\n}\n```\n', fields: { layout: "canvas", icon: "🧩" } })),
+      registerCommand("manuscript.new", () => void createTitled(t("ws.untitledManuscript"), { body: writingBody("manuscript"), fields: { layout: "manuscript", icon: "📕" } })),
+      registerCommand("outline.new", () => void createTitled(t("ws.untitledOutline"), { body: writingBody("outline"), fields: { layout: "outline", icon: "🗂" } })),
+      registerCommand("cards.new", () => void createTitled(t("ws.untitledCards"), { body: writingBody("cards"), fields: { layout: "cards", icon: "🗃" } })),
+      registerCommand("wiki.new", () => void createTitled(t("ws.untitledWiki"), { body: "", fields: { layout: "wiki", icon: "📚" } })),
+      registerCommand("view.dashboard", () => navigate({ kind: "home" })),
+      registerCommand("help.glossary", () => setGlossaryOpen(true)),
+      registerCommand("view.comments", () => setPanel("comments")),
+      registerCommand("split.open", () => setSplitPick(true)),
+      registerCommand("split.close", () => setSplit(null)),
+      registerCommand("split.swap", () => {
+        if (!split || route.kind !== "node") return;
+        const main = route.id;
+        navigate({ kind: "node", id: split });
+        setSplit(main);
+      }),
+      registerCommand("split.focus", () => {
+        const panes = [...document.querySelectorAll<HTMLElement>(".main .ProseMirror")];
+        const i = panes.findIndex((p) => p.contains(document.activeElement));
+        panes[(i + 1) % panes.length]?.focus();
+      }),
+      registerCommand("timer.toggle", () => setTimerOpen(!timerOpen)),
+      registerCommand("sound.typewriter", () => {
+        setTypeSounds(!typeSounds);
+        showToast(typeSounds ? t("ws.typeSoundsOff") : t("ws.typeSoundsOn"));
+      }),
+      registerCommand("sound.ambience", () => {
+        const next = AMBIENCES[(AMBIENCES.indexOf(ambience) + 1) % AMBIENCES.length];
+        setAmbiencePref(next);
+        showToast(t("ws.ambienceNow", { name: t(`ws.amb.${next}`) }));
+      }),
+      registerCommand("view.highContrast", () => setHighContrast(!highContrast)),
     ];
     return () => offs.forEach((o) => o());
   }); // eslint-disable-line react-hooks/exhaustive-deps -- her çizimde güncel sekme ve rota durumuyla yeniden kaydedilir
@@ -555,7 +690,7 @@ export function App() {
   }
 
   return (
-    <div className={`app ${focus ? "focus-mode" : ""} ${focus && focusDim ? "focus-dim" : ""} ${readable ? "readable" : ""} ${panel && !focus ? "with-panel" : ""}`}>
+    <div className={`app ${focus ? "focus-mode" : ""} ${focus && focusDim ? "focus-dim" : ""} ${readable ? "readable" : ""} ${panel && !focus ? "with-panel" : ""} ${split && route.kind === "node" && !focus ? "with-split" : ""}`}>
       {snippets
         .filter((x) => enabledSnippets.includes(x.name))
         .map((x) => (
@@ -616,6 +751,7 @@ export function App() {
             onOpenAI={() => setAiOpen(true)}
             onOpenTag={(tag) => navigate({ kind: "tag", tag })}
             onCreateTitle={(title) => void createTitled(title)}
+            onOpenPanel={(tab) => setPanel(tab)}
             focus={focus}
           />
         )}
@@ -707,8 +843,39 @@ export function App() {
         {route.kind === "trash" && (
           <TrashView changeTick={changeTick} onChanged={refresh} onToast={showToast} />
         )}
-        {route.kind === "home" && <Welcome onCreate={create} onShadow={() => navigate({ kind: "shadow" })} />}
+        {route.kind === "home" &&
+          (nodes.length ? (
+            <Dashboard nodes={nodes} onOpen={openNode} onCreate={create} onShadow={() => navigate({ kind: "shadow" })} onToast={showToast} onChanged={refresh} />
+          ) : (
+            <Welcome onCreate={create} onShadow={() => navigate({ kind: "shadow" })} />
+          ))}
       </main>
+      {split && route.kind === "node" && !focus && nodes.some((n) => n.id === split) && (
+        <main className={`${mainClass} split-pane`} style={mainStyle}>
+          <NodeView
+            key={`split:${split}`}
+            id={split}
+            nodes={nodes}
+            changeTick={changeTick}
+            secondary
+            onNavigate={(id) => setSplit(id)}
+            onOpenPath={(p) => {
+              const n = nodes.find((x) => x.path === p);
+              if (n) setSplit(n.id);
+            }}
+            onChanged={refresh}
+            onTrash={trash}
+            onToast={showToast}
+            onGone={() => setSplit(null)}
+            onContext={() => undefined}
+            onOpenAI={() => setAiOpen(true)}
+            onOpenTag={(tag) => navigate({ kind: "tag", tag })}
+            onCreateTitle={(title) => void createTitled(title)}
+            onCloseSplit={() => setSplit(null)}
+            onSwapSplit={() => runCommand("split.swap")}
+          />
+        </main>
+      )}
 
       {panel && !focus && (
         <SidePanel
@@ -724,6 +891,18 @@ export function App() {
         />
       )}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+      {glossaryOpen && <GlossaryDialog onClose={() => setGlossaryOpen(false)} />}
+      {timerOpen && <Timer onClose={() => setTimerOpen(false)} onToast={showToast} />}
+      {splitPick && (
+        <Picker
+          items={nodes
+            .filter((n) => !n.template && !(route.kind === "node" && n.id === route.id))
+            .map((n) => ({ id: n.id, label: n.title, aliases: [...n.aliases, n.path], detail: n.path.replace(/\.md$/, ""), icon: n.icon ?? "◇" }))}
+          placeholder={t("ws.splitPick")}
+          onClose={() => setSplitPick(false)}
+          onPick={(it) => (setSplitPick(false), setSplit(it.id))}
+        />
+      )}
       {switcherOpen && (
         <QuickSwitcher
           nodes={nodes}
@@ -757,7 +936,7 @@ export function App() {
         />
       )}
       {settingsOpen && (
-        <Settings onClose={() => setSettingsOpen(false)} onToast={showToast} onChanged={refresh} aiTick={aiTick} onShortcuts={() => setShortcutsOpen(true)} onImport={importNotes} />
+        <Settings nodes={nodes} onClose={() => setSettingsOpen(false)} onToast={showToast} onChanged={refresh} aiTick={aiTick} onShortcuts={() => setShortcutsOpen(true)} onImport={importNotes} />
       )}
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
       {smartEdit && (
@@ -804,18 +983,7 @@ function Welcome({ onCreate, onShadow }: { onCreate: (p: ParentTarget) => void; 
       <h1>Nularche</h1>
       <div className="phonetic">/ˈnʌl.ɑːrk/ · nul-ark</div>
       <p className="muted">{t("welcome.tagline")}</p>
-      <div className="terms">
-        <b>Origin</b>
-        <span>{t("term.origin")}</span>
-        <b>Arche</b>
-        <span>{t("term.arche")}</span>
-        <b>Node</b>
-        <span>{t("term.node")}</span>
-        <b>Shard</b>
-        <span>{t("term.shard")}</span>
-        <b>Shadow</b>
-        <span>{t("term.shadow")}</span>
-      </div>
+      <Glossary compact />
       <div className="row" style={{ display: "flex", gap: 8 }}>
         <button className="primary" onClick={() => onCreate(null)}>
           ◈ {t("common.newArche")}

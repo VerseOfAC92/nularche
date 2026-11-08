@@ -15,7 +15,12 @@ export interface CommandSpec {
   combo?: string;
   /** Kısayolu editörün kendi tuş eşlemesi (TipTap) işler; genel dinleyici yalnızca menü için kullanır. */
   editorKey?: boolean;
+  /** Çevrilmeyen, kullanıcının verdiği ad (özel komutlar). */
+  text?: string;
 }
+
+/** Komutun görünen adı. */
+export const commandLabel = (c: CommandSpec): string => c.text ?? t(c.label);
 
 type Group = { id: string; label: StringKey; items: (CommandSpec | "-" | { submenu: StringKey; items: (CommandSpec | "-")[] })[] };
 
@@ -30,6 +35,10 @@ export const MENU: Group[] = [
       c("note.new", "common.quickNote", "Mod+N"),
       c("note.unique", "ob.uniqueNote"),
       c("canvas.new", "ob.newCanvas"),
+      {
+        submenu: "ws.newProject",
+        items: [c("manuscript.new", "ws.newManuscript"), c("outline.new", "ws.newOutline"), c("cards.new", "ws.newCards"), c("wiki.new", "ws.newWiki")],
+      },
       c("note.window", "cmd.openWindow"),
       c("note.slides", "ob.slides"),
       "-",
@@ -41,6 +50,8 @@ export const MENU: Group[] = [
         items: [c("note.export.pdf", "node.savePdf"), c("note.export.docx", "cmd.exportDocx"), c("note.export.rtf", "cmd.exportRtf"), c("note.export.txt", "cmd.exportTxt"), c("note.export.md", "export.md"), c("note.export.html", "export.html")],
       },
       c("note.print", "cmd.print", "Mod+P"),
+      "-",
+      c("note.checkpoint", "ws.checkpoint", "Mod+Alt+S"),
       "-",
       c("note.copyPath", "ob.copyPath"),
       c("note.reveal", "ob.reveal"),
@@ -60,6 +71,9 @@ export const MENU: Group[] = [
       c("find.prev", "cmd.findPrev", "Mod+Shift+G"),
       "-",
       c("edit.spellcheck", "cmd.spellcheck"),
+      "-",
+      c("comment.add", "ws.addComment", "Mod+Alt+M"),
+      c("note.wordGoal", "ws.setGoal"),
       "-",
       c("note.addProperty", "ob.addProperty", "Mod+;"),
       c("note.reading", "ob.readingView", "Mod+Alt+E"),
@@ -158,6 +172,16 @@ export const MENU: Group[] = [
     label: "menu.view",
     items: [
       c("view.focus", "cmd.focusMode", "Mod+Shift+F"),
+      c("view.dashboard", "ws.dashboard"),
+      {
+        submenu: "ws.split",
+        items: [c("split.open", "ws.splitOpen", "Mod+Alt+\\"), c("split.swap", "ws.splitSwap"), c("split.focus", "ws.splitFocus"), c("split.close", "ws.splitClose")],
+      },
+      "-",
+      {
+        submenu: "ws.studio",
+        items: [c("timer.toggle", "ws.timer", "Mod+Alt+P"), c("sound.typewriter", "ws.typeSounds"), c("sound.ambience", "ws.ambienceNext"), "-", c("view.highContrast", "ws.highContrast")],
+      },
       "-",
       c("view.allNotes", "list.allNotes"),
       c("view.recent", "list.recent"),
@@ -197,6 +221,7 @@ export const MENU: Group[] = [
       c("view.links", "ob.links"),
       c("view.localGraph", "ob.localGraph"),
       c("view.history", "ob.history"),
+      c("view.comments", "ws.comments"),
       "-",
       c("daily.today", "ob.dailyToday", "Mod+Shift+D"),
       c("daily.prev", "ob.dailyPrev"),
@@ -205,6 +230,7 @@ export const MENU: Group[] = [
       "-",
       c("app.settings", "ob.settings", "Mod+,"),
       c("app.shortcuts", "keys.title", "Mod+/"),
+      c("help.glossary", "gloss.open"),
     ],
   },
 ];
@@ -212,7 +238,19 @@ export const MENU: Group[] = [
 /** Kısayolu olan tüm komutlar (kısayol listesi ve genel dinleyici). */
 export const ALL_COMMANDS: CommandSpec[] = MENU.flatMap((g) => g.items.flatMap((i) => (i === "-" ? [] : "submenu" in i ? i.items.filter((x): x is CommandSpec => x !== "-") : [i])));
 
-// ------------------------------------------------------------------ Kullanıcı kısayolları (Obsidian "Hotkeys")
+/** Kullanıcının tanımladığı komutlar (Ayarlar → Özel komutlar); App kaydeder. */
+let dynamicCommands: CommandSpec[] = [];
+
+export function setDynamicCommands(list: CommandSpec[]): void {
+  dynamicCommands = list;
+}
+
+/** Menüdeki ve kullanıcının tanımladığı tüm komutlar (komut paleti, kısayol düzenleyici, genel kısayol dinleyicisi). */
+export function allCommands(): CommandSpec[] {
+  return dynamicCommands.length ? [...ALL_COMMANDS, ...dynamicCommands] : ALL_COMMANDS;
+}
+
+// ------------------------------------------------------------------ Kullanıcı kısayolları ("Hotkeys")
 
 /** Kullanıcının değiştirdiği kısayollar: komut id → kısayol ("" = kısayolsuz). Tercihlerden App yükler. */
 let overrides: Record<string, string> = {};
@@ -366,7 +404,7 @@ const normalizeCombo = (combo: string) =>
 /** Genel kısayol dinleyicisi: editör dışında da çalışan kısayollar. Editörün kendi işlediği kısayollar atlanır. */
 export function handleShortcut(e: KeyboardEvent): boolean {
   const combo = comboOf(e);
-  for (const cmd of ALL_COMMANDS) {
+  for (const cmd of allCommands()) {
     const own = comboFor(cmd);
     // Editörün kendi tuş eşlemesi varsayılan kısayolu işler; kullanıcı kısayol atadıysa onu genel dinleyici çalıştırır.
     if (!own || (cmd.editorKey && !(cmd.id in overrides)) || e.defaultPrevented) continue;

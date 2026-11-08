@@ -1,4 +1,4 @@
-// Obsidian sözdizimi: wiki bağlantıları ve gömmeler (`[[Not]]`, `![[Not]]`), dipnot başvuruları (`[^1]`), satır içi ve
+// Bağlantılı not sözdizimi: wiki bağlantıları ve gömmeler (`[[Not]]`, `![[Not]]`), dipnot başvuruları (`[^1]`), satır içi ve
 // blok matematik (`$…$`, `$$…$$`), `%%yorum%%`, Mermaid diyagramları ve blok taşıma.
 // Bu yapılar ayrı editör düğümleridir ve Markdown'a okundukları gibi yazılır: düz metin olsalardı Markdown yazıcısı
 // köşeli parantezleri ve ters eğik çizgileri kaçışlayıp (`\[\[Not\]\]`) dosyayı bozardı.
@@ -30,7 +30,7 @@ export const VaultHostContext = createContext<VaultHost | null>(null);
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
-    obsidian: {
+    vaultSyntax: {
       insertFootnote: () => ReturnType;
       insertMathBlock: () => ReturnType;
       toggleComment: () => ReturnType;
@@ -437,7 +437,7 @@ export const MathBlock = Node.create({
 
 // ------------------------------------------------------------------ %%Yorum%%, Mermaid ve blok taşıma
 
-const decoKey = new PluginKey<DecorationSet>("nlObsidianDeco");
+const decoKey = new PluginKey<DecorationSet>("nlVaultDeco");
 
 let mermaidSeq = 0;
 /** Mermaid kod bloğunun altına çizilen diyagram (kitaplık ilk kullanımda yüklenir). */
@@ -459,7 +459,7 @@ function mermaidWidget(code: string): HTMLElement {
   return el;
 }
 
-function obsidianDecorations(doc: PMNode): DecorationSet {
+function vaultDecorations(doc: PMNode): DecorationSet {
   const decos: Decoration[] = [];
   doc.descendants((node, pos) => {
     if (node.type.name === "codeBlock") {
@@ -502,8 +502,8 @@ function moveBlock(state: EditorState, dir: -1 | 1) {
   return tr.scrollIntoView();
 }
 
-export const ObsidianTools = Extension.create({
-  name: "obsidianTools",
+export const VaultTools = Extension.create({
+  name: "vaultTools",
   addCommands() {
     return {
       toggleComment:
@@ -535,12 +535,12 @@ export const ObsidianTools = Extension.create({
       new Plugin({
         key: decoKey,
         state: {
-          init: (_c, state) => obsidianDecorations(state.doc),
-          apply: (tr, old) => (tr.docChanged ? obsidianDecorations(tr.doc) : old),
+          init: (_c, state) => vaultDecorations(state.doc),
+          apply: (tr, old) => (tr.docChanged ? vaultDecorations(tr.doc) : old),
         },
         props: { decorations: (state) => decoKey.getState(state) },
       }),
-      // Parantez ve tırnakları kapatma (Obsidian "Auto-pair"; Ayarlar'dan açılır). Seçim varsa sarar; aynı kapanış
+      // Parantez ve tırnakları kapatma ("Auto-pair"; Ayarlar'dan açılır). Seçim varsa sarar; aynı kapanış
       // karakteri imleçten sonra zaten varsa üzerinden geçer.
       new Plugin({
         props: {

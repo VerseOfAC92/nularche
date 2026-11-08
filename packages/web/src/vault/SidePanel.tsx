@@ -1,5 +1,5 @@
 // Sağ kenar paneli: ana hat (başlıklar), bağlantılar (geri, giden, bağlantısız anılışlar), yerel grafik ve dosya geçmişi.
-// Obsidian'ın sağ kenar çubuğundaki Outline, Backlinks, Outgoing links, Local graph ve File recovery karşılıkları.
+// Ayrıca Marginalia (yorumlar) ve Epoch'lu dosya geçmişi.
 
 import { useEffect, useState } from "react";
 import type { Editor as TiptapEditor } from "@tiptap/react";
@@ -8,8 +8,11 @@ import { getActiveEditor } from "../commands.ts";
 import { headings } from "../editor/notes-extensions.ts";
 import { t, ago } from "../i18n/index.ts";
 import { GraphView } from "./GraphView.tsx";
+import { CommentsPanel } from "../studio/Comments.tsx";
+import { DiffView } from "../studio/DiffView.tsx";
+import { askText } from "../ask.tsx";
 
-export type PanelTab = "outline" | "links" | "graph" | "history";
+export type PanelTab = "outline" | "links" | "graph" | "history" | "comments";
 
 export function SidePanel({
   nodeId,
@@ -37,6 +40,7 @@ export function SidePanel({
     ["links", t("ob.links")],
     ["graph", t("ob.localGraph")],
     ["history", t("ob.history")],
+    ["comments", t("ws.comments")],
   ];
   return (
     <aside className="side-panel">
@@ -60,6 +64,8 @@ export function SidePanel({
           <Links key={nodeId} id={nodeId} nodes={nodes} changeTick={changeTick} onOpen={onOpen} onCreateTitle={onCreateTitle} onToast={onToast} />
         ) : tab === "graph" ? (
           <GraphView focusId={nodeId} compact changeTick={changeTick} onOpen={onOpen} />
+        ) : tab === "comments" ? (
+          <CommentsPanel key={nodeId} nodeId={nodeId} onToast={onToast} />
         ) : (
           <History key={nodeId} id={nodeId} changeTick={changeTick} onToast={onToast} />
         )}
@@ -188,26 +194,75 @@ function Links({
   );
 }
 
-/** Dosya geçmişi: anlık görüntüler, önizleme ve geri yükleme. */
+/** Dosya geçmişi: anlık görüntüler ve adlandırılmış kontrol noktaları; önizleme, şimdiki halle karşılaştırma ve geri yükleme. */
 function History({ id, changeTick, onToast }: { id: string; changeTick: number; onToast: (msg: string) => void }) {
-  const [entries, setEntries] = useState<{ at: number; size: number }[] | null>(null);
+  const [entries, setEntries] = useState<{ at: number; size: number; label?: string }[] | null>(null);
   const [preview, setPreview] = useState<{ at: number; body: string } | null>(null);
+  const [current, setCurrent] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     api.history(id).then(setEntries, () => setEntries([]));
-  }, [id, changeTick]);
+  }, [id, changeTick, tick]);
+  const checkpoint = async () => {
+    const label = (await askText(t("ws.checkpointName"), new Date().toLocaleString()))?.trim();
+    if (!label) return;
+    try {
+      await api.checkpoint(id, label);
+      onToast(t("ws.checkpointSaved", { name: label }));
+      setTick((x) => x + 1);
+    } catch (e) {
+      onToast((e as Error).message);
+    }
+  };
   if (!entries) return null;
-  if (!entries.length) return <p className="muted small">{t("ob.historyEmpty")}</p>;
+  const checkpoints = entries.filter((e) => e.label).length;
   return (
     <div className="history-panel">
-      <p className="muted small">{t("ob.historyHint")}</p>
-      {entries.map((e) => (
-        <button key={e.at} className={`link-row ${preview?.at === e.at ? "on" : ""}`} onClick={async () => setPreview({ at: e.at, body: await api.historyBody(id, e.at) })}>
-          🕘 {new Date(e.at).toLocaleString()} <span className="muted small">· {ago(e.at)}</span>
+      <div className="row">
+        <button className="secondary small-btn" onClick={() => void checkpoint()}>
+          ⚑ {t("ws.checkpoint")}
         </button>
+        <span className="muted small">{t("ws.checkpointCount", { n: checkpoints, max: 30 })}</span>
+      </div>
+      {!entries.length ? <p className="muted small">{t("ob.historyEmpty")}</p> : <p className="muted small">{t("ob.historyHint")}</p>}
+      {entries.map((e) => (
+        <div key={e.at} className={`history-row ${preview?.at === e.at ? "on" : ""}`}>
+          <button
+            className="link-row"
+            onClick={async () => {
+              setCurrent(null);
+              setPreview({ at: e.at, body: await api.historyBody(id, e.at) });
+            }}
+          >
+            {e.label ? `⚑ ${e.label}` : "🕘"} <span className="muted small">{e.label ? `· ${new Date(e.at).toLocaleString()}` : `${new Date(e.at).toLocaleString()} · ${ago(e.at)}`}</span>
+          </button>
+          {e.label && (
+            <button
+              className="icon-btn"
+              title={t("ws.deleteCheckpoint")}
+              onClick={async () => {
+                if (!confirm(t("ws.deleteCheckpointConfirm", { name: e.label! }))) return;
+                await api.deleteHistory(id, e.at);
+                if (preview?.at === e.at) setPreview(null);
+                setTick((x) => x + 1);
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
       ))}
       {preview && (
         <div className="history-preview">
-          <pre>{preview.body}</pre>
+          <div className="row">
+            <button className={`secondary small-btn ${current === null ? "on" : ""}`} onClick={() => setCurrent(null)}>
+              {t("ws.previewVersion")}
+            </button>
+            <button className={`secondary small-btn ${current !== null ? "on" : ""}`} onClick={async () => setCurrent((await api.read(id)).body)}>
+              ⇄ {t("ws.compareCurrent")}
+            </button>
+          </div>
+          {current !== null ? <DiffView before={preview.body} after={current} /> : <pre>{preview.body}</pre>}
           <button
             className="primary"
             onClick={async () => {
@@ -215,6 +270,7 @@ function History({ id, changeTick, onToast }: { id: string; changeTick: number; 
               await api.restoreHistory(id, preview.at);
               onToast(t("ob.restored"));
               setPreview(null);
+              setTick((x) => x + 1);
             }}
           >
             {t("ob.restore")}

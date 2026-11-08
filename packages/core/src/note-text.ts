@@ -76,7 +76,7 @@ export function renameTagInBody(body: string, from: string, to: string): string 
 /** Markdown'dan okunabilir düz metin (özetler ve sayımlar için kaba ama güvenli bir dönüşüm). */
 export function plainText(body: string): string {
   if (isLockedBody(body)) return "";
-  // Obsidian sözdizimi önce sadeleşir: yorumlar atılır, [[wiki]] bağlantıları görünen adlarına iner.
+  // Bağlantılı not sözdizimi önce sadeleşir: yorumlar atılır, [[wiki]] bağlantıları görünen adlarına iner.
   return exportableMarkdown(body)
     .replace(/^(```|~~~)[^\n]*\n([\s\S]*?)^\1[ \t]*$/gm, "$2")
     .replace(/^@\[(youtube|database|audio|drawing)\]\([^)]*\)[ \t]*$/gm, "")
@@ -139,7 +139,7 @@ export function bodyFacts(body: string): BodyFacts {
 }
 
 /**
- * Dışa aktarma için Obsidian sözdizimini sadeleştirir: `%%yorum%%` atılır (yayımlanmaz), `[[Not|ad]]` görünen ada,
+ * Dışa aktarma için bağlantılı not sözdizimini sadeleştirir: `%%yorum%%` atılır (yayımlanmaz), `[[Not|ad]]` görünen ada,
  * `![[resim.png]]` Attachments resmine çevrilir; not gömmeleri (`![[Not]]`) atılır. Kod blokları değişmez.
  */
 export function exportableMarkdown(body: string): string {
@@ -157,21 +157,21 @@ export function exportableMarkdown(body: string): string {
   return out + body.slice(last);
 }
 
-/** Kutu (callout) türleri: GitHub'ın beş türü ve Obsidian'ın ek türleri (tür adı dosyada olduğu gibi kalır). */
+/** Kutu (callout) türleri: GitHub'ın beş türü ve yaygın ek türler (tür adı dosyada olduğu gibi kalır). */
 export const CALLOUT_KINDS = ["note", "tip", "important", "warning", "caution"] as const;
 export type CalloutKind = (typeof CALLOUT_KINDS)[number];
 
-/** Obsidian'ın ek kutu türleri, beş temel renkten birine eşlenir (tür adı dosyada olduğu gibi kalır). */
+/** Ek kutu türleri, beş temel renkten birine eşlenir (tür adı dosyada olduğu gibi kalır). */
 const CALLOUT_TONE: Record<string, CalloutKind> = {
   info: "note", abstract: "note", summary: "note", tldr: "note", todo: "note", quote: "note", cite: "note", example: "important",
   hint: "tip", success: "tip", check: "tip", done: "tip", question: "important", help: "important", faq: "important",
   attention: "warning", failure: "caution", fail: "caution", missing: "caution", danger: "caution", error: "caution", bug: "caution",
 };
-/** Obsidian türünü beş temel renkten birine eşler. */
+/** Ek kutu türünü beş temel renkten birine eşler. */
 export const calloutTone = (kind: string): CalloutKind => ((CALLOUT_KINDS as readonly string[]).includes(kind) ? (kind as CalloutKind) : (CALLOUT_TONE[kind] ?? "note"));
 
 /**
- * Şablon değişkenleri (Obsidian "Templates"): `{{title}}`, `{{date}}`, `{{time}}` ve biçimli `{{date:YYYY-MM-DD}}`,
+ * Şablon değişkenleri ("Templates"): `{{title}}`, `{{date}}`, `{{time}}` ve biçimli `{{date:YYYY-MM-DD}}`,
  * `{{time:HH:mm}}`. Biçim belirteçleri: YYYY, YY, MM, M, DD, D, HH, H, mm, ss. Kod blokları değişmez.
  */
 export function fillTemplate(text: string, vars: { title: string; now: Date }): string {

@@ -1,9 +1,9 @@
-// Sayfa önizlemesi (Obsidian "Page preview"): bir not bağlantısının üzerine gelince notun içeriği küçük bir pencerede
+// Sayfa önizlemesi ("Page preview"): bir not bağlantısının üzerine gelince notun içeriği küçük bir pencerede
 // görünür. Düzenlerken ⌘/Ctrl basılıyken, okuma görünümünde ve kenar panelinde doğrudan çalışır.
 
 import { useEffect, useRef, useState } from "react";
 import { api, type NodeMeta } from "../api.ts";
-import { headingSection, safeHtml } from "../editor/obsidian-nodes.tsx";
+import { headingSection, safeHtml } from "../editor/linked-nodes.tsx";
 import { toEditorMarkdown, vaultPathFromUrl } from "../editor/paths.ts";
 import { modPressed } from "../shortcuts.tsx";
 import { t } from "../i18n/index.ts";

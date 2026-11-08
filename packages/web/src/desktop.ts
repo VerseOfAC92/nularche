@@ -136,6 +136,12 @@ export interface DesktopBridge {
   /** Bir eşitleme bittiğinde. */
   onCalendarSynced(cb: () => void): () => void;
   printPdf(name: string): Promise<string | null>;
+  /** Otomatik yedekleme (2.0). */
+  backupStatus(): Promise<BackupStatus>;
+  backupChooseDir(): Promise<string | null>;
+  backupSet(patch: { interval?: BackupStatus["interval"]; keep?: number }): Promise<void>;
+  backupNow(): Promise<{ ok: boolean; name?: string; error?: string }>;
+  backupReveal(): Promise<void>;
   exportArchive(nodeId: string | null, kind: "nlc" | "nla"): Promise<string | null>;
   /** Markdown (.zip), tek dosya HTML ya da statik site (klasöre) dışa aktarır. */
   exportAs(kind: "md" | "html" | "site" | "rtf" | "docx" | "txt", nodeId: string | null): Promise<{ ok: boolean; path?: string | null; error?: string }>;
@@ -163,6 +169,15 @@ export interface DesktopBridge {
   skipUpdate(version: string): Promise<void>;
   /** `nularche://open?node=…` ve içe aktarma sonrası gezinme isteği. */
   onNavigate(cb: (nodeId: string) => void): () => void;
+}
+
+export interface BackupStatus {
+  dir: string | null;
+  interval: "off" | "hourly" | "daily" | "weekly";
+  keep: number;
+  lastAt: number | null;
+  lastError: string | null;
+  count: number;
 }
 
 export const desktop: DesktopBridge | undefined = (window as unknown as { nularche?: DesktopBridge }).nularche;

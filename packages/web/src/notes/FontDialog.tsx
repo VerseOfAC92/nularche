@@ -1,6 +1,7 @@
 // Sayfa yazı tipi ve boyutu (Writer'daki ⌘T yazı tipi paneli karşılığı). Ayar sayfanın frontmatter'ına yazılır.
 
 import { t } from "../i18n/index.ts";
+import { BUNDLED_FONTS } from "../studio/fonts.ts";
 
 export const FONT_STACKS: Record<string, string> = {
   serif: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif',
@@ -58,6 +59,13 @@ export function FontDialog({ font, size, onChange, onClose }: { font?: string; s
             <option value="serif">{t("font.serif")}</option>
             <option value="sans">{t("font.sans")}</option>
             <option value="mono">{t("font.mono")}</option>
+            <optgroup label={t("ws.bundledFonts")}>
+              {BUNDLED_FONTS.map((f) => (
+                <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>
+                  {f.family}
+                </option>
+              ))}
+            </optgroup>
             <optgroup label="—">
               {SYSTEM_FONTS.map((f) => (
                 <option key={f} value={f} style={{ fontFamily: f }}>

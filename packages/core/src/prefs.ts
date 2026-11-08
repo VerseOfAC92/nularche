@@ -37,7 +37,7 @@ export async function writePrefs(root: string, patch: Prefs): Promise<Prefs> {
   return current;
 }
 
-/** Kullanıcının CSS parçacıkları (Obsidian "CSS snippets"): Origin'in `.nularche/snippets/*.css` dosyaları, ada göre. */
+/** Kullanıcının CSS parçacıkları ("CSS snippets"): Origin'in `.nularche/snippets/*.css` dosyaları, ada göre. */
 export async function readSnippets(root: string): Promise<{ name: string; css: string }[]> {
   const dir = path.join(root, ".nularche", "snippets");
   let names: string[];
