@@ -470,7 +470,8 @@ settings grouped in cards on the right. The window remembers the last category y
 - **Automation:** Sigils, Rites and Conduit rules.
 - **Notes and Origin:** your notes folder, startup and new-note options, excluded files, Ark backups, archives and
   import.
-- **Shortcuts**, **Publishing**, **Calendar**, **AI** and **About** (version, licence and the Nularche vocabulary).
+- **Shortcuts**, **Publishing**, **Calendar**, **AI** and **About** (what Nularche is and does, version, licence,
+  the support email and the Nularche vocabulary).
 
 ## AI (Claude, ChatGPT, Gemini)
 
@@ -633,6 +634,11 @@ them only if all the tests pass.
 Contributions are welcome: open an issue or a pull request. Please keep notes as plain Markdown, keep the app
 local-first, and add tests for behaviour changes.
 
+## Support
+
+Questions, ideas or bug reports: write to **[verseofac@gmail.com](mailto:verseofac@gmail.com)** or open an
+[issue on GitHub](https://github.com/VerseOfAC92/nularche/issues). The address is also in **Settings → About**.
+
 ## Licence
 
 [MIT](LICENSE) © 2026 VerseOfAC92
@@ -758,6 +764,8 @@ yazılmış notlar Nularche'de düzenlenirken bozulmaz.
   kapatma** ve **hariç tutulan dosyalar**.
 - MCP sunucusunda `get_links` aracı; `update_node` özellik de yazabilir.
 
+- **Destek:** soru, öneri ya da hata bildirimi için **[verseofac@gmail.com](mailto:verseofac@gmail.com)** adresine
+  yazın ya da GitHub'da bir [issue](https://github.com/VerseOfAC92/nularche/issues) açın (adres Ayarlar → Hakkında'da da var).
 - **İndirme:** yukarıdaki [Download](#download) tablosundan sisteminize uygun dosyayı seçin.
 - **1.x'ten güncelleme:** 2.0'ı eskisinin üzerine aynı şekilde kurun (macOS'ta Uygulamalar klasörüne sürükleyin,
   Windows'ta kurulumu çalıştırın, Linux'ta `sudo apt install ./Nularche-Linux-amd64.deb`) ya da terminal kurulumunu

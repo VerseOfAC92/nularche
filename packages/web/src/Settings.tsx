@@ -40,7 +40,22 @@ const CATEGORIES: Category[] = [
   { id: "publish", icon: "🌐", label: "settings.catPublish", hint: "settings.catPublishHint", keywords: "yayınla publish site web" },
   { id: "calendar", icon: "🗓", label: "settings.catCalendar", hint: "settings.catCalendarHint", keywords: "takvim calendar google apple icloud" },
   { id: "ai", icon: "✦", label: "settings.catAi", hint: "settings.catAiHint", keywords: "ai yapay zekâ claude chatgpt gemini mcp" },
-  { id: "about", icon: "ⓘ", label: "settings.catAbout", hint: "settings.catAboutHint", keywords: "hakkında about sürüm version lisans license sözlük glossary" },
+  { id: "about", icon: "ⓘ", label: "settings.catAbout", hint: "settings.catAboutHint", keywords: "hakkında about sürüm version lisans license sözlük glossary destek support e-posta email iletişim contact" },
+];
+
+/** Destek e-postası (Hakkında). */
+const SUPPORT_EMAIL = "verseofac@gmail.com";
+
+/** Hakkında sayfasındaki kısa özellik listesi: simge, başlık, açıklama. */
+const ABOUT_FEATURES: [string, StringKey, StringKey][] = [
+  ["🗂", "about.f.filesTitle", "about.f.files"],
+  ["🔗", "about.f.linksTitle", "about.f.links"],
+  ["▦", "about.f.dbTitle", "about.f.db"],
+  ["📕", "about.f.studioTitle", "about.f.studio"],
+  ["🎯", "about.f.focusTitle", "about.f.focus"],
+  ["✦", "about.f.aiTitle", "about.f.ai"],
+  ["🔒", "about.f.privacyTitle", "about.f.privacy"],
+  ["⇩", "about.f.exportTitle", "about.f.export"],
 ];
 
 /** Bir kategori içindeki başlıklı kart. */
@@ -309,12 +324,44 @@ export function Settings({
     about: () => (
       <>
         <Card title="Nularche">
-          <p className="muted">
+          <p className="about-intro">{t("about.intro")}</p>
+          <p className="muted small">
             Nularche {info?.version ?? ""} · /ˈnʌl.ɑːrk/ · {t("settings.license")} ·{" "}
             <a href="https://github.com/VerseOfAC92/nularche" target="_blank" rel="noreferrer">
               GitHub
             </a>
           </p>
+        </Card>
+        <Card title={t("about.featuresTitle")}>
+          <ul className="about-features">
+            {ABOUT_FEATURES.map(([icon, title, text]) => (
+              <li key={title}>
+                <span className="about-icon" aria-hidden>
+                  {icon}
+                </span>
+                <span>
+                  <b>{t(title)}</b> {t(text)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+        <Card title={t("about.supportTitle")} hint={t("about.supportHint")}>
+          <div className="row about-support">
+            <a className="about-mail" href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Nularche ${info?.version ?? ""}`.trim())}`} target="_blank" rel="noreferrer">
+              ✉ {SUPPORT_EMAIL}
+            </a>
+            <button
+              className="secondary small-btn"
+              onClick={async () => {
+                if (desktop) await desktop.copy(SUPPORT_EMAIL);
+                else await navigator.clipboard.writeText(SUPPORT_EMAIL);
+                onToast(t("about.copied"));
+              }}
+            >
+              ⧉ {t("about.copy")}
+            </button>
+          </div>
         </Card>
         <Card title={t("gloss.title")} hint={t("gloss.intro")}>
           <div className="row">
