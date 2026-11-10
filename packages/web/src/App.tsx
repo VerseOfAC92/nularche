@@ -552,6 +552,7 @@ export function App() {
       registerCommand("wiki.new", () => void createTitled(t("ws.untitledWiki"), { body: "", fields: { layout: "wiki", icon: "📚" } })),
       registerCommand("view.dashboard", () => navigate({ kind: "home" })),
       registerCommand("help.glossary", () => setGlossaryOpen(true)),
+      registerCommand("view.sidebar", () => setPref("sidebarMini", !getPref("sidebarMini", false))),
       registerCommand("view.comments", () => setPanel("comments")),
       registerCommand("split.open", () => setSplitPick(true)),
       registerCommand("split.close", () => setSplit(null)),

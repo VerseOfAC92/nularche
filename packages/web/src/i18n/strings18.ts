@@ -360,4 +360,8 @@ export const STRINGS_18 = {
   "ws.backupDesktopOnly": { tr: "Ark masaüstü uygulamasında kullanılabilir.", en: "The Ark is available in the desktop app." },
   "settings.theme": { tr: "Tema", en: "Theme" },
   "ws.highContrastLabel": { tr: "Yüksek kontrast (daha güçlü kenarlıklar ve metin)", en: "High contrast (stronger borders and text)" },
+  "ws.sidebar": { tr: "Kenar çubuğu", en: "Sidebar" },
+  "ws.toggleSidebar": { tr: "Kenar çubuğunu küçült / aç", en: "Collapse / Expand Sidebar" },
+  "ws.collapseSidebar": { tr: "Kenar çubuğunu küçült", en: "Collapse sidebar" },
+  "ws.expandSidebar": { tr: "Kenar çubuğunu aç", en: "Expand sidebar" },
 };

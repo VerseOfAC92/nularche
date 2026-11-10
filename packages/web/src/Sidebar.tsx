@@ -1,7 +1,7 @@
 // Kenar çubuğu: Origin başlığı, Shadow, favoriler ve Arche ağacı.
 // Node'lar sürüklenerek başka bir Node'un altına, kardeşlerin arasına, köke (Arche) ya da Shadow'a bırakılabilir.
 
-import { useMemo, useState, type DragEvent } from "react";
+import { useMemo, useState, type DragEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { api, SHADOW, type NodeMeta, type ParentTarget, type TagCount } from "./api.ts";
 import type { SmartFolder } from "./notes/smart.ts";
 import { usePref } from "./prefs.ts";
@@ -46,6 +46,12 @@ export function Sidebar(props: SidebarProps) {
   const [dropTarget, setDropTarget] = useState<"shadow" | "root" | null>(null);
   const [collapsed, setCollapsed] = usePref<Record<string, boolean>>("sidebarCollapsed", {});
   const [projectMenu, setProjectMenu] = useState<DOMRect | null>(null);
+  const [mini, setMini] = usePref<boolean>("sidebarMini", false);
+  const [tip, setTip] = useState<{ label: string; sub?: string; top: number } | null>(null);
+  const showTip = (e: ReactMouseEvent<HTMLElement>, label: string, sub?: string) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setTip({ label, sub, top: r.top + r.height / 2 });
+  };
   const toggleSection = (k: string) => setCollapsed({ ...collapsed, [k]: !collapsed[k] });
 
   const children = useMemo(() => {
@@ -210,6 +216,57 @@ export function Sidebar(props: SidebarProps) {
 
   const arches = children.get(null) ?? [];
 
+  if (mini) {
+    // Küçültülmüş şerit: yalnızca simgeler; adlar üzerine gelince ipucu olarak görünür.
+    const currentArche = route.kind === "node" ? nodes.find((n) => n.id === route.id)?.archeId : null;
+    const item = (key: string, icon: string, label: string, onClick: (e: ReactMouseEvent<HTMLButtonElement>) => void, opts: { active?: boolean; badge?: number; sub?: string; dropZone?: "shadow" } = {}) => (
+      <button
+        key={key}
+        className={`rail-btn ${opts.active ? "active" : ""} ${opts.dropZone && dropTarget === opts.dropZone ? "drop-target" : ""}`}
+        aria-label={label}
+        onClick={onClick}
+        onMouseEnter={(e) => showTip(e, label, opts.sub)}
+        onMouseLeave={() => setTip(null)}
+        {...(opts.dropZone ? dropHandlers(opts.dropZone) : {})}
+      >
+        <span aria-hidden>{icon}</span>
+        {!!opts.badge && <span className="rail-badge">{Math.min(opts.badge, 99)}</span>}
+      </button>
+    );
+    return (
+      <aside className="sidebar mini" aria-label={t("ws.sidebar")}>
+        <img className="rail-logo" src="/logo.png" alt="Nularche" onMouseEnter={(e) => showTip(e, "Nularche", `Origin · ${props.originName}`)} onMouseLeave={() => setTip(null)} />
+        {item("expand", "››", t("ws.expandSidebar"), () => setMini(false), { sub: keys("Mod+Alt+B") })}
+        <div className="rail-scroll">
+          {item("atrium", "🏛", "Atrium", () => props.onNavigate({ kind: "home" }), { active: route.kind === "home" })}
+          {item("search", "⌕", t("sidebar.search"), props.onOpenSearch, { sub: keys("Mod+K") })}
+          {item("shadow", "◐", "Shadow", () => props.onNavigate({ kind: "shadow" }), { active: route.kind === "shadow", badge: props.shadowCount, dropZone: "shadow" })}
+          {item("quick", "＋", t("common.quickNote"), () => props.onCreate(SHADOW), { sub: keys("Mod+N") })}
+          {item("today", "📅", t("daily.today"), props.onDaily, { sub: keys("Mod+Shift+D") })}
+          {item("templates", "📋", t("tpl.title"), props.onOpenTemplates)}
+          {item("project", "✦", t("ws.newProject"), (e) => setProjectMenu(projectMenu ? null : e.currentTarget.getBoundingClientRect()))}
+          {item("all", "🗒", t("list.allNotes"), () => props.onNavigate({ kind: "notes" }), { active: route.kind === "notes" })}
+          {item("recent", "🕘", t("list.recent"), () => props.onNavigate({ kind: "recent" }), { active: route.kind === "recent", badge: props.recentCount })}
+          {item("attachments", "📎", t("att.title"), () => props.onNavigate({ kind: "attachments" }), { active: route.kind === "attachments" })}
+          {arches.length > 0 && <div className="rail-sep" />}
+          {arches.map((n) => item(n.id, n.icon ?? "◈", n.title, () => props.onNavigate({ kind: "node", id: n.id }), { active: currentArche === n.id, sub: "Arche" }))}
+        </div>
+        <div className="rail-foot">
+          {item("trash", "🗑", t("trash.title"), () => props.onNavigate({ kind: "trash" }), { active: route.kind === "trash", badge: props.trashCount })}
+          {item("glossary", "ⓘ", t("gloss.title"), () => runCommand("help.glossary"))}
+          {item("settings", "⚙", t("settings.title"), props.onOpenSettings, { sub: keys("Mod+,") })}
+        </div>
+        {projectMenu && <NewProjectMenu anchor={projectMenu} onClose={() => setProjectMenu(null)} />}
+        {tip && (
+          <div className="rail-tip" style={{ top: tip.top }} role="tooltip">
+            {tip.label}
+            {tip.sub && <small>{tip.sub}</small>}
+          </div>
+        )}
+      </aside>
+    );
+  }
+
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -218,6 +275,9 @@ export function Sidebar(props: SidebarProps) {
           <strong>Nularche</strong>
           <small title={props.originName}>Origin · {props.originName}</small>
         </div>
+        <button className="sidebar-collapse" onClick={() => setMini(true)} title={`${t("ws.collapseSidebar")} (${keys("Mod+Alt+B")})`} aria-label={t("ws.collapseSidebar")}>
+          ‹‹
+        </button>
       </div>
       <button className={`side-btn ${route.kind === "home" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "home" })} title={termTip("Atrium", "gloss.atrium")}>
         🏛 Atrium

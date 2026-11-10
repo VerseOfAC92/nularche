@@ -122,6 +122,9 @@ the same way canvas pages do, so they open in any editor and track nicely in Git
   Diptych and Clepsydra.
 - **Focus mode:** Clepsydra and Aura buttons in the top bar.
 - **Settings** are grouped into categories with search (see [Settings](#settings)).
+- **Collapsible sidebar:** the ‹‹ button next to the logo (or ⌥⌘B / Ctrl+Alt+B) shrinks the sidebar to a narrow strip
+  of icons: the logo, every menu item and your Arches with their icons (◈ when an Arche has none). Hover an icon to
+  see its name; ›› opens the full sidebar again, and your choice is remembered.
 
 **AI**
 - The MCP server gains `get_manuscript`, `add_to_writing_project`, `list_wiki_entries`, `get_wiki_mentions`,
@@ -531,6 +534,7 @@ Press **⌘ /** (macOS) or **Ctrl + /** (Windows, Linux) in the app to see this 
 | Add comment · Create checkpoint | ⌥ ⌘ M · ⌥ ⌘ S | Ctrl + Alt + M · Ctrl + Alt + S |
 | Open a note beside (split view) | ⌥ ⌘ \ | Ctrl + Alt + \ |
 | Writing timer | ⌥ ⌘ P | Ctrl + Alt + P |
+| Collapse / expand the sidebar | ⌥ ⌘ B | Ctrl + Alt + B |
 | Outline: new row · indent · outdent · row notes | ↩ · Tab · ⇧ Tab · ⌘ ↩ | Enter · Tab · Shift + Tab · Ctrl + Enter |
 
 Every command's shortcut can be changed in **Settings → Keyboard shortcuts**.
@@ -692,6 +696,9 @@ adımında ve uygulamadaki **Nularche dili** penceresinde (⇧⌘P → “Nularc
   her biri kısa açıklamasıyla) ve **ⓘ Nularche dili**; her notun üst çubuğunda ✎ Marginalia, ⚑ Epoch, ◫ Diptych,
   ⧗ Clepsydra ve ♪ Aura; metin seçince açılan balonda **✎ Marginalia**; `/` menüsünde **Yazma stüdyosu** grubu; odak
   modunda Clepsydra ve Aura. Düğmelerin üzerine gelince adın anlamı görünür.
+- **Küçültülebilir kenar çubuğu:** logonun yanındaki ‹‹ düğmesi (ya da ⌥⌘B / Ctrl+Alt+B) kenar çubuğunu yalnızca
+  simgelerden oluşan dar bir şeride indirir: logo, tüm menü öğeleri ve Arche'ler simgeleriyle (simgesi olmayan Arche
+  ◈ ile) görünür. Üzerine gelince adı çıkar; ›› ile geri açılır ve seçim hatırlanır.
 - **Yeni Ayarlar penceresi:** solda aranabilir kategoriler (Görünüm, Yazma, Aura ve Odak, Otomasyon, Notlar ve Origin,
   Kısayollar, Yayınlama, Takvim, Yapay zekâ, Hakkında), sağda kartlar halinde ayarlar.
 - **MCP sunucusu:** 7 yeni araç (`get_manuscript`, `add_to_writing_project`, `list_wiki_entries`, `get_wiki_mentions`,

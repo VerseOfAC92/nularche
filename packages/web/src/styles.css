@@ -1271,3 +1271,22 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
   .settings-tabs { flex-direction: row; overflow-x: auto; }
   .settings-tabs button { white-space: nowrap; }
 }
+
+/* Küçültülebilir kenar çubuğu */
+.brand { position: relative; }
+.sidebar-collapse { margin-left: auto; width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; color: var(--nlc-text-secondary); font-size: 13px; flex: none; }
+.sidebar-collapse:hover { background: var(--nlc-hover); color: var(--nlc-accent-primary); }
+.sidebar.mini { width: 60px; padding: 10px 8px; align-items: center; overflow: visible; gap: 2px; }
+.rail-logo { width: 30px; height: 30px; border-radius: 50%; margin: 2px 0 8px; flex: none; }
+.rail-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; scrollbar-width: none; }
+.rail-scroll::-webkit-scrollbar { display: none; }
+.rail-btn { position: relative; width: 40px; height: 34px; flex: none; border-radius: 8px; display: grid; place-items: center; font-size: 17px; line-height: 1; color: var(--nlc-text-secondary); }
+.rail-btn:hover { background: var(--nlc-hover); color: var(--nlc-text-primary); }
+.rail-btn.active { background: var(--nlc-accent-glow); color: var(--nlc-text-primary); }
+.rail-btn.drop-target { outline: 1px dashed var(--nlc-accent-primary); }
+.rail-badge { position: absolute; top: 2px; right: 1px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: var(--nlc-accent-deep); color: var(--nlc-text-primary); font-size: 9px; font-weight: 700; line-height: 15px; text-align: center; }
+.rail-sep { width: 30px; border-top: 1px solid var(--nlc-border-subtle); margin: 6px 0; flex: none; }
+.rail-foot { border-top: 1px solid var(--nlc-border-subtle); padding-top: 6px; margin-top: 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; }
+.rail-tip { position: fixed; left: 64px; transform: translateY(-50%); z-index: 60; background: #1f2328; color: #fff; font-size: 12.5px; padding: 6px 10px; border-radius: 6px; white-space: nowrap; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25); pointer-events: none; }
+.rail-tip::before { content: ""; position: absolute; left: -5px; top: 50%; margin-top: -5px; border: 5px solid transparent; border-left: 0; border-right-color: #1f2328; }
+.rail-tip small { display: block; color: #b9c0c8; font-size: 11px; }
