@@ -36,6 +36,8 @@ step of the first-run wizard, on the empty-Origin welcome screen and in the *Nul
   menu; Clepsydra and Aura in focus mode. Tooltips explain each Nularche name.
 - Collapsible sidebar (‹‹ next to the logo or ⌥⌘B): a narrow strip with the logo, every menu item and each Arche's
   icon (◈ when it has none), with names on hover; the choice is remembered.
+- Settings → About now explains what Nularche is and does, lists its main features and gives the support address
+  (verseofac@gmail.com).
 - Settings reorganised into searchable categories (Appearance, Writing, Aura and Focus, Automation, Notes and Origin,
   Shortcuts, Publishing, Calendar, AI, About) with grouped cards.
 
