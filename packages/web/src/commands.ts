@@ -172,6 +172,7 @@ export const MENU: Group[] = [
     label: "menu.view",
     items: [
       c("view.focus", "cmd.focusMode", "Mod+Shift+F"),
+      c("view.sidebar", "ws.toggleSidebar", "Mod+Alt+B"),
       c("view.dashboard", "ws.dashboard"),
       {
         submenu: "ws.split",

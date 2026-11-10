@@ -34,6 +34,8 @@ step of the first-run wizard, on the empty-Origin welcome screen and in the *Nul
 - Sidebar entries for Atrium, New Writing Project and the Nularche vocabulary; a studio toolbar on every note
   (Marginalia, Epoch, Diptych, Clepsydra, Aura); Marginalia in the selection bubble; a Writing studio group in the `/`
   menu; Clepsydra and Aura in focus mode. Tooltips explain each Nularche name.
+- Collapsible sidebar (‹‹ next to the logo or ⌥⌘B): a narrow strip with the logo, every menu item and each Arche's
+  icon (◈ when it has none), with names on hover; the choice is remembered.
 - Settings reorganised into searchable categories (Appearance, Writing, Aura and Focus, Automation, Notes and Origin,
   Shortcuts, Publishing, Calendar, AI, About) with grouped cards.
 
