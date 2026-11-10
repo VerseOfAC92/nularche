@@ -125,6 +125,30 @@ the same way canvas pages do, so they open in any editor and track nicely in Git
 - **Collapsible sidebar:** the ‹‹ button next to the logo (or ⌥⌘B / Ctrl+Alt+B) shrinks the sidebar to a narrow strip
   of icons: the logo, every menu item and your Arches with their icons (◈ when an Arche has none). Hover an icon to
   see its name; ›› opens the full sidebar again, and your choice is remembered.
+- **Settings → About** explains what Nularche is and does, lists its main features and gives the support address.
+
+<p align="center">
+  <img src="docs/screenshots/sidebar-mini-dark.png" width="49%" alt="The collapsed sidebar: the logo, menu icons and Arche icons, with a name on hover" />
+  <img src="docs/screenshots/about-light.png" width="49%" alt="Settings → About: features, support address and the Nularche language" />
+</p>
+
+**A window that matches your background**
+- When a writing background is shown (*Also show the background on normal pages* in the focus-mode background settings, or in focus mode), it
+  fills the whole window. The sidebar, the side panel and the title bar become frosted glass over it, so they take
+  on the colours of the chosen landscape, palette, colour or your own image. Text stays readable: light on dark
+  backgrounds, dark on light ones.
+- With no background, the sidebar and title bar follow the app's own theme (Dark, Light or System) rather than the
+  operating system's.
+- On macOS Nularche draws its own title bar (the window buttons stay where they are, and you drag the window by the
+  bar). On Windows and Linux the native title bar and menus switch to dark or light to match the background.
+
+<p align="center">
+  <img src="docs/screenshots/chrome-lavender.png" width="49%" alt="The Lavender Hills landscape behind the sidebar, the title bar and the note" />
+  <img src="docs/screenshots/chrome-night.png" width="49%" alt="The Night Sky landscape: sidebar and title bar in the same dark tones" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/chrome-sepia.png" width="860" alt="The Sepia palette with the app in dark theme: the whole window stays sepia" />
+</p>
 
 **AI**
 - The MCP server gains `get_manuscript`, `add_to_writing_project`, `list_wiki_entries`, `get_wiki_mentions`,

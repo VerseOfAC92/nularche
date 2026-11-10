@@ -12,6 +12,13 @@ contextBridge.exposeInMainWorld("nularche", {
   setLanguage: (lang: string) => invoke("set-language", lang),
   theme: themeArg === "dark" || themeArg === "light" || themeArg === "system" ? themeArg : null,
   setTheme: (theme: string) => invoke("set-theme", theme),
+  platform: process.platform,
+  setChrome: (mode: string | null) => invoke("set-chrome", mode),
+  onFullScreen: (cb: (on: boolean) => void) => {
+    const listener = (_e: IpcRendererEvent, on: unknown) => cb(on === true);
+    ipcRenderer.on("nularche:full-screen", listener);
+    return () => ipcRenderer.removeListener("nularche:full-screen", listener);
+  },
   rendererReady: () => invoke("renderer-ready"),
   info: () => invoke("info"),
   changeOrigin: () => invoke("change-origin"),

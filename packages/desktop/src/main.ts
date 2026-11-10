@@ -4,7 +4,7 @@
 // .nlc/.nla dosyalarını karşılar. Uygulama hiçbir AI kimlik bilgisine dokunmaz; AI işi kullanıcının
 // seçtiği resmi araçta (Claude, ChatGPT, Gemini) "nularche" MCP sunucusuyla yapılır.
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, shell, type MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, shell, type BrowserWindowConstructorOptions, type MenuItemConstructorOptions } from "electron";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -349,6 +349,22 @@ async function importArchiveFile(file: string): Promise<{ imported: number; root
   return { imported: res.imported, rootIds: res.rootIds };
 }
 
+/** Pencere çerçevesi: macOS'ta başlık çubuğunu arayüz çizer (seçilen arka plana uysun diye); trafik ışıkları yerinde kalır.
+ * Windows ve Linux'ta yerel çerçeve ve menü çubuğu korunur; renkleri `set-chrome` ile koyu/açık olarak arka plana uyar. */
+const frameOptions = (): BrowserWindowConstructorOptions =>
+  process.platform === "darwin" ? { titleBarStyle: "hidden", trafficLightPosition: { x: 14, y: 13 } } : {};
+
+/** Arka plan seçiliyken yerel çerçevenin (başlık çubuğu, menüler) koyu/açık görünümü; null ise kullanıcının teması. */
+let chromeOverride: "dark" | "light" | null = null;
+const applyNativeTheme = () => (nativeTheme.themeSource = chromeOverride ?? settings.theme ?? "system");
+
+/** Tam ekrandayken arayüzün çizdiği başlık çubuğu gizlenir. */
+function watchFullScreen(w: BrowserWindow): void {
+  const send = (on: boolean) => w.webContents.send("nularche:full-screen", on);
+  w.on("enter-full-screen", () => send(true));
+  w.on("leave-full-screen", () => send(false));
+}
+
 /** Ayrı not pencereleri (Pencere → Notu ayrı pencerede aç). */
 const noteWindows = new Set<BrowserWindow>();
 
@@ -362,6 +378,7 @@ function createNoteWindow(nodeId: string): void {
     title: "Nularche",
     backgroundColor: nativeTheme.shouldUseDarkColors ? DARK_BG : LIGHT_BG,
     show: false,
+    ...frameOptions(),
     webPreferences: {
       preload: resourcePath("preload.cjs"),
       contextIsolation: true,
@@ -371,6 +388,7 @@ function createNoteWindow(nodeId: string): void {
     },
   });
   noteWindows.add(w);
+  watchFullScreen(w);
   w.once("ready-to-show", () => w.show());
   guardNavigation(w);
   w.on("closed", () => noteWindows.delete(w));
@@ -408,6 +426,7 @@ function createWindow(): void {
     title: "Nularche",
     backgroundColor: nativeTheme.shouldUseDarkColors ? DARK_BG : LIGHT_BG,
     show: false,
+    ...frameOptions(),
     webPreferences: {
       preload: resourcePath("preload.cjs"),
       contextIsolation: true,
@@ -417,6 +436,7 @@ function createWindow(): void {
       additionalArguments: [`--nlc-lang=${desktopLang()}`, `--nlc-theme=${settings.theme ?? "system"}`],
     },
   });
+  watchFullScreen(win);
   win.once("ready-to-show", () => win?.show());
   if (SMOKE) {
     win.webContents.on("console-message", (e) => {
@@ -748,8 +768,12 @@ function registerIpc(): void {
   ipcMain.handle("nularche:set-theme", async (_e, theme: unknown) => {
     if (!isTheme(theme)) return;
     settings.theme = theme;
-    nativeTheme.themeSource = theme;
+    applyNativeTheme();
     await saveSettings(settings);
+  });
+  ipcMain.handle("nularche:set-chrome", (_e, mode: unknown) => {
+    chromeOverride = mode === "dark" || mode === "light" ? mode : null;
+    applyNativeTheme();
   });
   ipcMain.handle("nularche:set-language", async (_e, lang: unknown) => {
     if (!isLang(lang)) return;

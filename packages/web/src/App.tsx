@@ -12,6 +12,7 @@ import { TemplateGallery } from "./templates/TemplateGallery.tsx";
 import { BUILTIN_TEMPLATES } from "./templates/builtins.ts";
 import { todayIso } from "./database/model.ts";
 import { Sidebar } from "./Sidebar.tsx";
+import { TitleBar } from "./TitleBar.tsx";
 import { NularcheAI, type AiContext } from "./ai/NularcheAI.tsx";
 import { Onboarding } from "./ai/Onboarding.tsx";
 import { PROVIDER_LABEL } from "./ai/prompts.ts";
@@ -656,8 +657,13 @@ export function App() {
 
   const bg = backgroundStyle(writingBg, fileUrl);
   const bgOn = (focus || bgEverywhere) && writingBg.kind !== "none";
+  // Arka plan bütün pencereye yayılır; kenar çubuğu ve başlık çubuğu onu buzlu cam gibi gösterir.
+  const chrome = bgOn ? (bg.dark ? "dark" : "light") : null;
+  const appStyle = (bgOn && bg.background ? { background: bg.background } : undefined) as React.CSSProperties | undefined;
+  const wrapClass = chrome ? `wrap-bg chrome-${chrome}` : "";
+  // Yerel çerçeve (Windows/Linux başlık çubuğu, menüler) de arka planın koyu/açık tonuna uyar.
+  useEffect(() => void desktop?.setChrome?.(chrome), [chrome]);
   const mainStyle = {
-    ...(bgOn && bg.background ? { background: bg.background } : {}),
     ...(bgOn && bg.color ? { "--bg-text": bg.color } : {}),
     // Varsayılan olarak satırlar 1.0'daki gibi pencere genişliğine uyar; sabit genişlik isteğe bağlıdır.
     "--focus-width": fixedWidth ? `${focusWidth}px` : "100%",
@@ -666,7 +672,8 @@ export function App() {
 
   if (SINGLE && route.kind === "node") {
     return (
-      <div className={`app single-window ${focus ? "focus-mode" : ""}`}>
+      <div className={`app single-window ${focus ? "focus-mode" : ""} ${wrapClass}`} style={appStyle}>
+        <TitleBar />
         <main className={mainClass} style={mainStyle}>
           <NodeView
             key={route.id}
@@ -691,7 +698,11 @@ export function App() {
   }
 
   return (
-    <div className={`app ${focus ? "focus-mode" : ""} ${focus && focusDim ? "focus-dim" : ""} ${readable ? "readable" : ""} ${panel && !focus ? "with-panel" : ""} ${split && route.kind === "node" && !focus ? "with-split" : ""}`}>
+    <div
+      className={`app ${focus ? "focus-mode" : ""} ${focus && focusDim ? "focus-dim" : ""} ${readable ? "readable" : ""} ${panel && !focus ? "with-panel" : ""} ${split && route.kind === "node" && !focus ? "with-split" : ""} ${wrapClass}`}
+      style={appStyle}
+    >
+      <TitleBar />
       {snippets
         .filter((x) => enabledSnippets.includes(x.name))
         .map((x) => (

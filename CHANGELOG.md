@@ -38,6 +38,10 @@ step of the first-run wizard, on the empty-Origin welcome screen and in the *Nul
   icon (◈ when it has none), with names on hover; the choice is remembered.
 - Settings → About now explains what Nularche is and does, lists its main features and gives the support address
   (verseofac@gmail.com).
+- Backgrounds fill the whole window: the sidebar, side panel and title bar turn into frosted glass over the chosen
+  landscape, palette, colour or image, with readable text on dark and light backgrounds. Without a background they
+  follow the app theme instead of the system theme. macOS gets a title bar drawn by Nularche; on Windows and Linux
+  the native title bar and menus switch to dark or light to match.
 - Settings reorganised into searchable categories (Appearance, Writing, Aura and Focus, Automation, Notes and Origin,
   Shortcuts, Publishing, Calendar, AI, About) with grouped cards.
 

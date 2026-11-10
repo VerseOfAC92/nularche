@@ -1300,3 +1300,53 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .about-support { align-items: center; }
 .about-mail { font-size: 15px; font-weight: 600; color: var(--nlc-accent-primary); text-decoration: none; padding: 6px 12px; border: 1px solid var(--nlc-border-subtle); border-radius: 8px; }
 .about-mail:hover { border-color: var(--nlc-accent-primary); background: var(--nlc-accent-glow); }
+
+/* Arayüzün çizdiği macOS başlık çubuğu (2.0): tema ya da seçilen arka planla aynı tonda. */
+:root[data-frame="mac"] { --frame-top: 38px; }
+:root[data-frame="mac"] .app { padding-top: var(--frame-top); }
+.titlebar { position: fixed; top: 0; left: 0; right: 0; height: 38px; z-index: 1000; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600; letter-spacing: 0.02em; color: var(--nlc-text-secondary); background: var(--nlc-bg-elevated); border-bottom: 1px solid var(--nlc-border-subtle); -webkit-app-region: drag; user-select: none; }
+.focus-hud.top { top: var(--frame-top, 0px); }
+.focus-picker { top: calc(var(--frame-top, 0px) + 46px); }
+.rail-tip { z-index: 1001; }
+
+/* Seçilen arka plan bütün pencereye yayılır: kenar çubuğu ve başlık çubuğu onu buzlu cam gibi gösterir.
+   Yazılar arka planın koyu/açık tonuna göre okunur; açılır menüler opak kalır. */
+.app.wrap-bg > .main { background: transparent; }
+.app.wrap-bg > .sidebar, .app.wrap-bg > .titlebar, .app.wrap-bg > .side-panel { background: var(--chrome-glass); backdrop-filter: blur(22px) saturate(1.3); -webkit-backdrop-filter: blur(22px) saturate(1.3); color: var(--nlc-text-primary); }
+.app.wrap-bg.chrome-dark > .sidebar, .app.wrap-bg.chrome-dark > .titlebar, .app.wrap-bg.chrome-dark > .side-panel {
+  --chrome-glass: rgba(14, 18, 24, 0.46);
+  --nlc-bg-surface: #12161b;
+  --nlc-bg-elevated: #1a2027;
+  --nlc-border-subtle: rgba(255, 255, 255, 0.12);
+  --nlc-border-focus: rgba(255, 255, 255, 0.24);
+  --nlc-text-primary: #eef2f6;
+  --nlc-text-secondary: #c0c8d0;
+  --nlc-text-shadow: #95a0ab;
+  --nlc-accent-primary: #3cc6d0;
+  --nlc-accent-glow: rgba(60, 198, 208, 0.2);
+  --nlc-accent-deep: #005f66;
+  --nlc-hover: rgba(255, 255, 255, 0.08);
+  --nlc-code-bg: rgba(0, 0, 0, 0.25);
+  color-scheme: dark;
+}
+.app.wrap-bg.chrome-light > .sidebar, .app.wrap-bg.chrome-light > .titlebar, .app.wrap-bg.chrome-light > .side-panel {
+  --chrome-glass: rgba(255, 255, 255, 0.5);
+  --nlc-bg-surface: #ffffff;
+  --nlc-bg-elevated: #f6f8fa;
+  --nlc-border-subtle: rgba(0, 0, 0, 0.1);
+  --nlc-border-focus: rgba(0, 0, 0, 0.22);
+  --nlc-text-primary: #1f2328;
+  --nlc-text-secondary: #424a53;
+  --nlc-text-shadow: #656d76;
+  --nlc-accent-primary: #007f89;
+  --nlc-accent-glow: rgba(0, 127, 137, 0.14);
+  --nlc-accent-deep: #9ad9de;
+  --nlc-hover: rgba(0, 0, 0, 0.06);
+  --nlc-code-bg: rgba(0, 0, 0, 0.05);
+  color-scheme: light;
+}
+/* Arka plan üzerinde kaydırma çubukları ince ve yarı saydamdır; gri şeritler sahneyi bölmez. */
+.app.wrap-bg ::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+.app.wrap-bg ::-webkit-scrollbar-thumb { border-radius: 8px; border: 3px solid transparent; background-clip: padding-box; }
+.app.wrap-bg.chrome-dark ::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.22); }
+.app.wrap-bg.chrome-light ::-webkit-scrollbar-thumb { background-color: rgba(0, 0, 0, 0.22); }
