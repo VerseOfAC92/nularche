@@ -23,9 +23,11 @@ function load(key: string): Pos | null {
 function clamp(pos: Pos, el: HTMLElement | null): Pos {
   const w = el?.offsetWidth ?? 0;
   const h = el?.offsetHeight ?? 0;
+  // macOS'ta arayüzün çizdiği başlık çubuğunun altında kalır (pencere sürükleme alanı tıklamaları yutar).
+  const top = MARGIN + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--frame-top")) || 0);
   return {
     x: Math.min(Math.max(MARGIN, pos.x), Math.max(MARGIN, window.innerWidth - w - MARGIN)),
-    y: Math.min(Math.max(MARGIN, pos.y), Math.max(MARGIN, window.innerHeight - h - MARGIN)),
+    y: Math.min(Math.max(top, pos.y), Math.max(top, window.innerHeight - h - MARGIN)),
   };
 }
 

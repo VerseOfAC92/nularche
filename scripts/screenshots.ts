@@ -86,6 +86,11 @@ const app = await electron.launch({
 const page: Page = await app.firstWindow();
 await page.setViewportSize({ width: 1440, height: 900 });
 const shot = (name: string) => page.screenshot({ path: path.join(out, `${name}.png`) });
+// Sayfa görüntüsü yerel trafik ışıklarını içermez; macOS penceresi gibi görünsün diye başlık çubuğuna çizilir.
+const lights = `.titlebar::before { content: ""; position: absolute; left: 14px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: 20px 0 #febc2e, 40px 0 #28c840; }`;
+await page.addInitScript((css) => addEventListener("DOMContentLoaded", () => document.head.append(Object.assign(document.createElement("style"), { textContent: css }))), lights);
+await page.addStyleTag({ content: lights });
+const putPrefs = (prefs: Record<string, unknown>) => page.evaluate(async (b) => void (await fetch("/api/prefs", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(b) })), prefs);
 const fromTemplate = async (name: string) => {
   await page.locator(".side-btn", { hasText: "Templates" }).click();
   await page.locator(".segmented button", { hasText: "New Arche" }).click();
@@ -416,6 +421,41 @@ try {
   await page.locator(".glossary").waitFor();
   await page.waitForTimeout(300);
   await shot("vocabulary-light");
+  await page.keyboard.press("Escape");
+  // Arka plana uyan kenar çubuğu ve başlık çubuğu, küçültülmüş kenar çubuğu ve Hakkında sayfası.
+  const withBg = async (writingBg: unknown, name: string, scheme: "dark" | "light") => {
+    await putPrefs({ writingBg, writingBgEverywhere: true });
+    await page.evaluate(() => location.reload());
+    await page.locator(".sidebar").waitFor();
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.evaluate((id) => (location.hash = id), studio.arrival);
+    await page.locator(".ProseMirror").first().waitFor();
+    await page.mouse.move(700, 10);
+    await page.waitForTimeout(900);
+    await shot(name);
+  };
+  await withBg({ kind: "scene", id: "lavender" }, "chrome-lavender", "light");
+  await withBg({ kind: "scene", id: "night" }, "chrome-night", "light");
+  await withBg({ kind: "palette", id: "sepia" }, "chrome-sepia", "dark");
+  await putPrefs({ writingBg: { kind: "none" }, writingBgEverywhere: false, sidebarMini: true });
+  await page.evaluate(() => location.reload());
+  await page.locator(".sidebar.mini").waitFor();
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.evaluate(() => (location.hash = ""));
+  await page.locator(".dashboard").waitFor();
+  const tip = page.locator(".sidebar.mini .rail-btn").nth(11);
+  await tip.hover().catch(() => undefined);
+  await page.waitForTimeout(500);
+  await shot("sidebar-mini-dark");
+  await putPrefs({ sidebarMini: false });
+  await page.evaluate(() => location.reload());
+  await page.locator(".sidebar:not(.mini)").waitFor();
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.locator(".side-btn", { hasText: "Settings" }).click();
+  await page.getByRole("tab", { name: "About" }).click();
+  await page.locator(".settings-body").evaluate((el) => (el.scrollTop = 250));
+  await page.waitForTimeout(500);
+  await shot("about-light");
   await page.keyboard.press("Escape");
   console.log(`Ekran görüntüleri: ${out}`);
 } finally {

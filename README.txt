@@ -85,6 +85,11 @@ NEW IN 2.0.0
   folder of your choice). Seven new MCP tools. The first-run wizard explains
   every name.
 
+  The sidebar collapses to an icon strip (Opt+Cmd+B / Ctrl+Alt+B). Settings >
+  About describes Nularche and gives the support address. A chosen background
+  now fills the whole window: the sidebar, side panel and title bar become
+  frosted glass over it; without one they follow the app theme.
+
 ------------------------------------------------------------------------------
 NEW IN 1.5.0
 ------------------------------------------------------------------------------

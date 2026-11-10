@@ -86,6 +86,11 @@ export interface DesktopBridge {
   /** Masaüstü ayarlarında kayıtlı tema seçimi (yoksa null = sistem). */
   theme: "dark" | "light" | "system" | null;
   setTheme(theme: "dark" | "light" | "system"): Promise<void>;
+  /** İşletim sistemi (preload'dan; eski sürümlerde yok). */
+  platform?: string;
+  /** Yerel çerçevenin koyu/açık görünümü seçilen arka plana uysun; null kullanıcının temasına döner. */
+  setChrome?(mode: "dark" | "light" | null): Promise<void>;
+  onFullScreen?(cb: (on: boolean) => void): () => void;
   setLanguage(lang: "tr" | "en"): Promise<void>;
   rendererReady(): Promise<string | null>;
   info(): Promise<{ version: string; platform: string; originDir: string; warning: string | null }>;
