@@ -187,3 +187,50 @@ test("cevap dili isteğin diline göre modele bildirilir; dil verilmemiş eski i
   assert.match(systems[0], /reply to the user in English/);
   assert.match(systems[1], /reply to the user in Turkish/);
 });
+
+test("uzun not numaralı bloklarla gösterilir ve rearrange_node içeriği değiştirmeden gruplar", async () => {
+  const { splitBlocks, rearrangeBlocks } = await import("../src/blocks.ts");
+  const body = "# Prompts\n\nID 1 Image: kedi\n\n```\nkod\n\niç\n```\n\nID 2 Video: deniz\n";
+  const blocks = splitBlocks(body);
+  assert.deepEqual(blocks, ["# Prompts", "ID 1 Image: kedi", "```\nkod\n\niç\n```", "ID 2 Video: deniz"]);
+  const ok = rearrangeBlocks(blocks, [{ block: 0 }, { text: "## Image" }, { block: 1 }, { block: 2 }, { text: "## Video" }, { block: 3 }]);
+  assert.ok("body" in ok);
+  assert.equal(ok.body, "# Prompts\n\n## Image\n\nID 1 Image: kedi\n\n```\nkod\n\niç\n```\n\n## Video\n\nID 2 Video: deniz\n");
+  const missing = rearrangeBlocks(blocks, [{ block: 0 }, { block: 1 }]);
+  assert.ok("error" in missing && /2, 3/.test(missing.error));
+  assert.ok("error" in rearrangeBlocks(blocks, [{ block: 0 }, { block: 0 }, { block: 1 }, { block: 2 }, { block: 3 }]));
+  assert.ok("body" in rearrangeBlocks(blocks, [{ block: 0 }], [1, 2, 3]));
+});
+
+test("yanıt vermeyen Gemini isteği süre sınırında başarısız olarak biter", async () => {
+  const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "x" });
+  const hang = ((_u: string, init: RequestInit) =>
+    new Promise((_r, reject) => init.signal?.addEventListener("abort", () => reject(new Error("aborted"))))) as unknown as typeof fetch;
+  const res = await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["a", "b"], fetchImpl: hang, deadlineMs: 50 });
+  assert.equal(res.request.status, "failed");
+  assert.match(res.request.reply ?? "", /dakika/);
+});
+
+test("uzun notta Gemini rearrange_node ile gruplar; blok metinleri aynen korunur", async () => {
+  const lines = Array.from({ length: 400 }, (_, i) => `Prompt ID ${i} ${i % 2 ? "Video" : "Image"}: ${"x".repeat(60)}`);
+  const node = await store.create({ title: "Prompts", body: lines.join("\n\n"), parentNodeId: null });
+  const req = await ai.createRequest({ provider: "gemini", label: "grupla", instruction: "grupla", nodeId: node.id });
+  let intro = "";
+  let step = 0;
+  const fake = (async (_u: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    if (step++ === 0) {
+      intro = body.contents[0].parts[0].text;
+      const items = [{ text: "## Image" }, ...lines.map((_, i) => i).filter((i) => i % 2 === 0).map((block) => ({ block })), { text: "## Video" }, ...lines.map((_, i) => i).filter((i) => i % 2).map((block) => ({ block }))];
+      return json(200, { candidates: [{ content: { parts: [{ functionCall: { name: "rearrange_node", args: { node: node.id, items } } }] } }] });
+    }
+    return json(200, { candidates: [{ content: { parts: [{ text: "Gruplandı." }] } }] });
+  }) as unknown as typeof fetch;
+  const res = await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["a"], fetchImpl: fake });
+  assert.equal(res.request.status, "done");
+  assert.match(intro, /\[399\]\nPrompt ID 399 Video/);
+  const after = (await store.read(node.id)).body;
+  assert.ok(after.startsWith("## Image\n\nPrompt ID 0 Image"));
+  for (const l of lines) assert.ok(after.includes(l), l);
+  assert.ok(after.indexOf("## Video") > after.indexOf("Prompt ID 398 Image"));
+});

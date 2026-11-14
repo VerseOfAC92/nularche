@@ -42,6 +42,11 @@ step of the first-run wizard, on the empty-Origin welcome screen and in the *Nul
   landscape, palette, colour or image, with readable text on dark and light backgrounds. Without a background they
   follow the app theme instead of the system theme. macOS gets a title bar drawn by Nularche; on Windows and Linux
   the native title bar and menus switch to dark or light to match.
+- Nularche AI (automatic mode): every Gemini call has a time limit and each request an overall deadline, so a
+  request that gets no answer fails with a message instead of waiting forever and blocking the ones behind it.
+  Long notes (over 20,000 characters) are shown to Gemini as numbered blocks and reorganised with a new
+  `rearrange_node` tool that moves blocks unchanged instead of rewriting the whole note. The full text of each
+  request is shown in the Nularche AI window, and the input box grows as you type.
 - Settings reorganised into searchable categories (Appearance, Writing, Aura and Focus, Automation, Notes and Origin,
   Shortcuts, Publishing, Calendar, AI, About) with grouped cards.
 

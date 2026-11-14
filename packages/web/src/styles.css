@@ -351,7 +351,8 @@ button.nai-chip:hover { color: var(--nlc-text-primary); border-color: var(--nlc-
 .nai-actions button span { color: var(--nlc-accent-primary); }
 .nai-actions button:hover { background: var(--nlc-hover); color: var(--nlc-text-primary); }
 .nai-input { display: flex; gap: 6px; align-items: flex-end; }
-.nai-input textarea { flex: 1; resize: none; height: 56px; background: var(--nlc-bg-surface); border: 1px solid var(--nlc-border-subtle); border-radius: 10px; padding: 8px 10px; outline: none; font-size: 14px; }
+.nai-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.nai-input textarea { flex: 1; resize: none; min-height: 56px; max-height: 40vh; field-sizing: content; overflow-y: auto; background: var(--nlc-bg-surface); border: 1px solid var(--nlc-border-subtle); border-radius: 10px; padding: 8px 10px; outline: none; font-size: 14px; }
 .nai-input textarea:focus { border-color: var(--nlc-accent-primary); box-shadow: 0 0 0 3px var(--nlc-accent-glow); }
 .nai-input .primary { height: 36px; width: 36px; padding: 0; border-radius: 10px; font-size: 16px; }
 

@@ -177,7 +177,7 @@ export function NularcheAI({
             {ordered.map((r) => (
               <div key={r.id} className="nai-turn">
                 <div className="nai-user">
-                  <div>{r.label === r.instruction ? r.instruction : r.label}</div>
+                  <div className="nai-text">{r.label === r.instruction || r.instruction.startsWith(r.label) ? r.instruction : r.label}</div>
                   {r.nodeTitle && (
                     <button className="nai-chip" onClick={() => r.nodeId && onOpenNode(r.nodeId)}>
                       ◇ {r.nodeTitle}
