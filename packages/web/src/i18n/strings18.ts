@@ -396,7 +396,30 @@ export const STRINGS_18 = {
   "about.f.focusTitle": { tr: "Odaklı yazma:", en: "Focused writing:" },
   "about.f.focus": { tr: "Odak modu, Atrium'da günlük hedef ve seri, Clepsydra zamanlayıcısı, Aura sesleri ve uygulamayla gelen yazı tipleri.", en: "Focus mode, a daily goal and streak in the Atrium, the Clepsydra timer, Aura sounds and bundled writing fonts." },
   "about.f.aiTitle": { tr: "Yapay zekâ:", en: "AI:" },
-  "about.f.ai": { tr: "Claude, ChatGPT ya da Gemini üyeliğinizle ya da ücretsiz bir Gemini anahtarıyla; ek API ücreti olmadan.", en: "Use your Claude, ChatGPT or Gemini subscription, or a free Gemini key, with no extra API fees." },
+  "about.f.ai": {
+    tr: "Claude, ChatGPT ya da Gemini üyeliğinizle ya da ücretsiz bir Gemini anahtarıyla; ek API ücreti olmadan. Sorulara notlarınızı değiştirmeden cevap verir, “Yalnızca cevap” ile hiçbir not değişmez; istekleri iptal edebilir, her değişikliği geri alabilirsiniz.",
+    en: "Use your Claude, ChatGPT or Gemini subscription, or a free Gemini key, with no extra API fees. Questions are answered without touching your notes, “Reply only” guarantees that nothing changes, requests can be cancelled and every change can be undone.",
+  },
+  "about.f.tabulaTitle": { tr: "Tabula:", en: "Tabula:" },
+  "about.f.tabula": {
+    tr: "Beyaz tahta: kalemle çizim, yapışkan notlar, metin, tablo ve görseller; akış şeması, BPMN, UML ve ağ şekilleri ile binlerce simge; şekilleri bağlayan oklar; PNG ve SVG olarak dışa aktarma.",
+    en: "A whiteboard: drawing, sticky notes, text, tables and images; flowchart, BPMN, UML and network shapes plus thousands of icons; connectors between shapes; export to PNG and SVG.",
+  },
+  "about.f.atriumTitle": { tr: "Atrium:", en: "Atrium:" },
+  "about.f.atrium": {
+    tr: "Kaldığınız yer, günlük hedef, yazma projeleri ve Tabula panoları, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden keşfedilecek bir not.",
+    en: "Where you left off, your daily goal, writing projects and Tabula boards, open tasks, the Shadow inbox, an Origin summary and a note to rediscover each day.",
+  },
+  "about.f.lookTitle": { tr: "Görünüm:", en: "Look:" },
+  "about.f.look": {
+    tr: "Seçtiğiniz manzara, palet ya da görsel bütün pencereyi kaplar; kenar çubuğu, başlık çubuğu ve kartlar buzlu cam gibi ona uyar. Kenar çubuğu tamamen gizlenip üzerine gelince açılabilir.",
+    en: "Your chosen landscape, palette or image fills the whole window; the sidebar, title bar and cards turn to frosted glass over it. The sidebar can hide completely and appear on hover.",
+  },
+  "about.creditsTitle": { tr: "Açık kaynak bileşenler", en: "Open-source components" },
+  "about.credits": {
+    tr: "Tabula simgeleri: Tabler Icons (MIT, © Paweł Kuna). Serbest çizim: perfect-freehand (MIT, © Steve Ruiz). Yazı tipleri: Atkinson Hyperlegible, Literata, Lora, Crimson Pro, Courier Prime ve Special Elite (SIL OFL 1.1 / Apache 2.0).",
+    en: "Tabula icons: Tabler Icons (MIT, © Paweł Kuna). Freehand drawing: perfect-freehand (MIT, © Steve Ruiz). Fonts: Atkinson Hyperlegible, Literata, Lora, Crimson Pro, Courier Prime and Special Elite (SIL OFL 1.1 / Apache 2.0).",
+  },
   "about.f.privacyTitle": { tr: "Gizlilik:", en: "Privacy:" },
   "about.f.privacy": { tr: "Parolalı notlar bilgisayarınızda şifrelenir; Ark ile Origin'in tamamı seçtiğiniz klasöre yedeklenir.", en: "Password-locked notes are encrypted on your computer; the Ark backs up your whole Origin to a folder you choose." },
   "about.f.exportTitle": { tr: "Dışa aktarma:", en: "Export:" },

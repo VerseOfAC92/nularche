@@ -1,3 +1,5 @@
+import { fontStack } from "../notes/font-stack.ts";
+
 // Tabula (beyaz tahta) verisi: notun gövdesindeki ```json whiteboard bloğunda saklanır. Blok dışındaki metin
 // korunur; bozuk blok üzerine yazılmaz. Koordinatlar dünya birimidir (yakınlaştırmadan bağımsız).
 
@@ -17,7 +19,8 @@ export interface Style {
   radius?: number;
   shadow?: boolean;
   fontSize?: number;
-  font?: "sans" | "serif" | "mono" | "hand";
+  /** "sans", "serif", "mono", "hand" ya da notlarda kullanılabilen herhangi bir yazı tipi adı. */
+  font?: string;
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
@@ -245,12 +248,9 @@ export function headPath(kind: ArrowHead, p: { x: number; y: number }, angle: nu
 
 export const PALETTE = ["#1f2328", "#59636e", "#ffffff", "#f85149", "#f0883e", "#d29922", "#3fb950", "#00a8b5", "#2f81f7", "#a371f7", "#db61a2", "#8b5a2b"];
 export const STICKY_COLORS = ["#fff3a3", "#ffd6a5", "#ffc9de", "#d7c8ff", "#c6e2ff", "#c7f0d2", "#e9eef3"];
-export const FONT_FAMILY: Record<NonNullable<Style["font"]>, string> = {
-  sans: "Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
-  serif: "'Literata', 'Crimson Pro', Georgia, serif",
-  mono: "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-  hand: "'Comic Sans MS', 'Chalkboard SE', 'Bradley Hand', cursive",
-};
+const HAND_FONT = "'Comic Sans MS', 'Chalkboard SE', 'Bradley Hand', cursive";
+/** Öğenin yazı tipi yığını: notlardaki yazı tipi seçenekleriyle aynı (uygulamayla gelenler ve sistem yazı tipleri). */
+export const fontFamily = (font: string | undefined) => (font === "hand" ? HAND_FONT : fontStack(font ?? "sans")!);
 
 /** Çizimdeki ve görsellerdeki Origin dosyaları (bağlantı izleme için). */
 export const boardFiles = (b: Board) => b.items.flatMap((i) => (i.type === "image" && i.file ? [i.file] : []));

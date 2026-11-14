@@ -1,7 +1,7 @@
 // Kenar çubuğu: Origin başlığı, Shadow, favoriler ve Arche ağacı.
 // Node'lar sürüklenerek başka bir Node'un altına, kardeşlerin arasına, köke (Arche) ya da Shadow'a bırakılabilir.
 
-import { useMemo, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { api, SHADOW, type NodeMeta, type ParentTarget, type TagCount } from "./api.ts";
 import type { SmartFolder } from "./notes/smart.ts";
 import { usePref } from "./prefs.ts";
@@ -51,6 +51,15 @@ export function Sidebar(props: SidebarProps) {
   // Gizli kenar çubuğu yerinde yer kaplamaz; küçültme düğmesinin üzerine gelince açılır panel olarak belirir.
   const [hidden] = usePref<boolean>("sidebarMini", false);
   const peek = usePeek();
+  const asideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (hidden && !peek) setProjectMenu(null);
+  }, [hidden, peek]);
+  // Menü (seçimle ya da dışarı tıklanınca) kapandığında fare panelde değilse panel de kapanır: menü kalkınca
+  // tarayıcı "fare ayrıldı" olayı göndermez.
+  useEffect(() => {
+    if (hidden && !projectMenu && !asideRef.current?.matches(":hover")) peekLeave();
+  }, [hidden, projectMenu]);
   const toggleSection = (k: string) => setCollapsed({ ...collapsed, [k]: !collapsed[k] });
 
   const children = useMemo(() => {
@@ -217,6 +226,7 @@ export function Sidebar(props: SidebarProps) {
 
   return (
     <aside
+      ref={asideRef}
       className={`sidebar ${hidden ? `peek ${peek ? "open" : ""}` : ""}`}
       aria-hidden={hidden && !peek ? true : undefined}
       onMouseEnter={hidden ? peekEnter : undefined}
@@ -257,7 +267,7 @@ export function Sidebar(props: SidebarProps) {
         <button data-menu-trigger className={`side-btn ${projectMenu ? "active" : ""}`} onClick={(e) => setProjectMenu(projectMenu ? null : e.currentTarget.getBoundingClientRect())} title={t("ws.newProjectHint")}>
           ✦ {t("ws.newProject")} <span className="side-caret">▸</span>
         </button>
-        {projectMenu && <NewProjectMenu anchor={projectMenu} onClose={() => setProjectMenu(null)} />}
+        {projectMenu && <NewProjectMenu anchor={projectMenu} onClose={() => setProjectMenu(null)} onMouseEnter={hidden ? peekEnter : undefined} onMouseLeave={hidden ? peekLeave : undefined} />}
       </div>
       <button className={`side-btn ${route.kind === "notes" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "notes" })}>
         🗒 {t("list.allNotes")}

@@ -30,12 +30,10 @@ official Claude, ChatGPT or Gemini app you already use, or for free with a Gemin
 
 The name comes from **Null** (a clean starting point) and **Arche** (first principle, root).
 
-## What's new in 2.0.0
+## What's new in 2.5.0
 
-Nularche 2.0 adds a **writing studio** for long-form work: novels, theses, scripts and reports. Its parts have their own
-Nularche names, explained in the [Glossary](#glossary) and on the *Vocabulary* step of the first-run wizard. Everything still lives
-in plain Markdown files in your Origin; the new page types keep their structure in a small JSON block inside the note,
-the same way canvas pages do, so they open in any editor and track nicely in Git.
+Nularche 2.5 adds **Tabula**, a whiteboard that sits over your writing background, a sidebar that hides completely,
+a richer **Atrium**, and a Nularche AI that can no longer hang and never edits a note unless you ask it to.
 
 <p align="center">
   <img src="docs/screenshots/atrium-lavender.png" width="860" alt="Atrium over the Lavender Hills background: continue writing, daily goal, quick capture and writing projects as frosted-glass cards" />
@@ -71,6 +69,46 @@ the same way canvas pages do, so they open in any editor and track nicely in Git
   colour. Zoom with pinch or ⌘ + scroll, pan with two fingers, Space-drag or the hand tool. Export to **PNG** or
   **SVG**.
 - Free text and drawings get a soft outline so they stay readable over busy backgrounds.
+
+- Works at every window size: the toolbar wraps onto a second row in narrow windows and the format panel can be
+  collapsed with ›.
+- Text uses every font available for notes: the six bundled fonts, the system fonts, sans, serif, mono and
+  handwriting.
+
+**Window**
+
+- **Hide the sidebar:** the sidebar button next to the window buttons (or ⌥⌘B / Ctrl+Alt+B) hides the sidebar
+  completely. Hover the button and the sidebar slides in as a panel tinted by your background; move away and it
+  hides again. Click the button to bring it back for good. On Windows and Linux the button sits at the top left of the
+  window while the sidebar is hidden.
+- With a background, the Atrium cards and the cards and lists on other pages are frosted glass too, so nothing looks
+  pasted on. The glass blur now renders in the desktop app (it was missing before).
+- The `/` menu opens above the line when you type near the bottom of the window, so it never covers your text.
+
+<p align="center">
+  <img src="docs/screenshots/sidebar-peek-night.png" width="49%" alt="The hidden sidebar shown as a panel over the Night Sky background while hovering its button" />
+  <img src="docs/screenshots/about-light.png" width="49%" alt="Settings → About: features, support address and the Nularche language" />
+</p>
+
+**Nularche AI**
+- A request that gets no answer from Gemini stops after a time limit with a clear message instead of waiting forever
+  and blocking the requests behind it. **✕ Cancel** stops a request at any time; a request left “working” after a
+  restart can be cleared from the history.
+- Long notes are reorganised block by block, so Gemini moves your text unchanged instead of rewriting the whole note.
+- Nularche AI only changes notes when you ask for a change. Questions, summaries and analysis are answered without
+  editing, and the **💬 Reply only** switch removes every editing tool. Any change can still be undone with ↶ Undo.
+- The full text of your request is shown, and the input box grows as you type.
+
+## What's new in 2.0.0
+
+Nularche 2.0 adds a **writing studio** for long-form work: novels, theses, scripts and reports. Its parts have their own
+Nularche names, explained in the [Glossary](#glossary) and on the *Vocabulary* step of the first-run wizard. Everything still lives
+in plain Markdown files in your Origin; the new page types keep their structure in a small JSON block inside the note,
+the same way canvas pages do, so they open in any editor and track nicely in Git.
+
+<p align="center">
+  <img src="docs/screenshots/atrium-dark.png" width="860" alt="Atrium: daily goal, streak, writing projects and quick capture" />
+</p>
 
 **Writing projects**
 
@@ -153,20 +191,12 @@ the same way canvas pages do, so they open in any editor and track nicely in Git
   Diptych and Clepsydra.
 - **Focus mode:** Clepsydra and Aura buttons in the top bar.
 - **Settings** are grouped into categories with search (see [Settings](#settings)).
-- **Hide the sidebar:** the sidebar button next to the window buttons (or ⌥⌘B / Ctrl+Alt+B) hides the sidebar
-  completely. Hover the button and the sidebar slides in as a panel tinted by your background; move away and it
-  hides again. Click the button to bring it back for good. On Windows and Linux the button sits at the top left of the
-  window while the sidebar is hidden.
 - **Settings → About** explains what Nularche is and does, lists its main features and gives the support address.
 
-<p align="center">
-  <img src="docs/screenshots/sidebar-peek-night.png" width="49%" alt="The hidden sidebar shown as a panel over the Night Sky background while hovering its button" />
-  <img src="docs/screenshots/about-light.png" width="49%" alt="Settings → About: features, support address and the Nularche language" />
-</p>
 
 **A window that matches your background**
 - When a writing background is shown (*Also show the background on normal pages* in the focus-mode background settings, or in focus mode), it
-  fills the whole window. The sidebar, the side panel, the title bar and every card and list on the page become frosted glass over it, so they take
+  fills the whole window. The sidebar, the side panel and the title bar become frosted glass over it, so they take
   on the colours of the chosen landscape, palette, colour or your own image. Text stays readable: light on dark
   backgrounds, dark on light ones.
 - With no background, the sidebar and title bar follow the app's own theme (Dark, Light or System) rather than the
@@ -352,9 +382,9 @@ extra step:
 On first launch Nularche asks where your notes should live (your **Origin** folder) and offers to connect an AI.
 Both can be changed later in **Settings**.
 
-**Updating from 1.x:** install 2.0 over the old version the same way (drag it to Applications on macOS, run the
+**Updating from 1.x or 2.0:** install 2.5 over the old version the same way (drag it to Applications on macOS, run the
 installer on Windows, `sudo apt install ./Nularche-Linux-amd64.deb` on Linux) or run the terminal installer again.
-Your Origin folder, notes and settings stay as they are; 1.x notes open unchanged.
+Your Origin folder, notes and settings stay as they are; older notes open unchanged.
 
 ## Install from the terminal
 
@@ -712,6 +742,22 @@ Questions, ideas or bug reports: write to **[verseofac@gmail.com](mailto:verseof
 bilgi yönetimi uygulamasıdır. Veritabanları (tablo, pano, takvim, galeri, liste, zaman çizelgesi), şablonlar, günlük
 not, Çöp, statik site yayınlama ve Claude / ChatGPT / Gemini entegrasyonu içerir. Arayüz Ayarlar'dan Türkçeye
 alınabilir.
+
+### 2.5.0'daki yenilikler
+
+- **Tabula** (beyaz tahta): kalem, kurşun kalem, keçeli ve fosforlu kalem, silgi; yapışkan notlar, metin, tablo,
+  görsel ve not kartları; akış şeması, BPMN, UML, ağ ve daha fazlası için 130'dan fazla şekil ve 13 grupta yaklaşık
+  4.800 simge; şekilleri bağlayan ve şekiller taşınınca onları izleyen oklar; hizalama kılavuzları, gruplama, kilit,
+  katman sırası, hizala/dağıt, çevir, geri al/yinele; not yazarken kullanılan bütün yazı tipleri. Tahta saydamdır ve
+  seçtiğiniz arka planı gösterir; PNG ve SVG olarak dışa aktarılır. *Yeni yazma projesi* menüsünde, Atrium'da ve “/”
+  menüsünde.
+- **Kenar çubuğu tamamen gizlenir** (pencere düğmelerinin yanındaki düğme ya da ⌥⌘B); düğmenin üzerine gelince arka
+  planın renginde bir panel olarak belirir, fare çekilince kaybolur.
+- **Atrium** zenginleşti: Tabula panoları, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden
+  keşfedilecek bir not. Arka plan seçiliyken Atrium'daki ve diğer sayfalardaki kartlar da buzlu cam olur.
+- **Nularche AI**: yanıt vermeyen istekler süre sınırında açık bir mesajla durur, istekler iptal edilebilir, uzun notlar
+  baştan yazılmadan blok blok düzenlenir. Soru, özet ve analiz isteklerinde notlar değiştirilmez; **💬 Yalnızca cevap**
+  açıkken hiçbir not değişmez.
 
 ### 2.0.0'daki yenilikler
 

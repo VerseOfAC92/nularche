@@ -10,10 +10,12 @@ import { desktop } from "../desktop.ts";
 import { fileUrl } from "../editor/paths.ts";
 import { getLang, t } from "../i18n/index.ts";
 import { NotePicker } from "../vault/Palettes.tsx";
+import { SYSTEM_FONTS } from "../notes/font-stack.ts";
+import { BUNDLED_FONTS } from "../studio/fonts.ts";
 import {
   bounds,
   center,
-  FONT_FAMILY,
+  fontFamily,
   headPath,
   intersects,
   linePath,
@@ -132,6 +134,17 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
   const svg = useRef<SVGSVGElement>(null);
   const world = useRef<SVGGElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const toolbar = useRef<HTMLDivElement>(null);
+  // Araç çubuğu dar pencerede satır atlar; paneller onun gerçek alt kenarının altında açılır.
+  const [barBottom, setBarBottom] = useState(56);
+  const [panelOpen, setPanelOpen] = useState(true);
+  useEffect(() => {
+    const el = toolbar.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBarBottom(el.offsetTop + el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const bodyRef = useRef(body);
   bodyRef.current = body;
   const undoStack = useRef<Item[][]>([]);
@@ -759,7 +772,7 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
   };
   const textStyle = (i: Item): CSSProperties => ({
     fontSize: i.style.fontSize ?? 16,
-    fontFamily: FONT_FAMILY[i.style.font ?? "sans"],
+    fontFamily: fontFamily(i.style.font),
     fontWeight: i.style.bold ? 700 : 400,
     fontStyle: i.style.italic ? "italic" : "normal",
     textDecoration: [i.style.underline && "underline", i.style.strike && "line-through"].filter(Boolean).join(" ") || "none",
@@ -871,7 +884,7 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
         return (
           <g key={i.id} {...common} transform={rotT}>
             <foreignObject x={i.x} y={i.y} width={i.w} height={i.h}>
-              <table className="wb-table" style={{ fontSize: s.fontSize ?? 14, fontFamily: FONT_FAMILY[s.font ?? "sans"], borderColor: s.stroke ?? "var(--wb-line-soft)", background: s.fill ?? "var(--wb-card)", color: s.textColor ?? "var(--wb-ink)" }}>
+              <table className="wb-table" style={{ fontSize: s.fontSize ?? 14, fontFamily: fontFamily(s.font), borderColor: s.stroke ?? "var(--wb-line-soft)", background: s.fill ?? "var(--wb-card)", color: s.textColor ?? "var(--wb-ink)" }}>
                 <tbody>
                   {rows.map((row, r) => (
                     <tr key={r} style={{ height: `${100 / rows.length}%` }}>
@@ -1054,7 +1067,12 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
   const first0 = sel[0]?.style ?? {};
 
   const inspector = sel.length > 0 && !drag && (
-    <div className="wb-inspector" onPointerDown={(e) => e.stopPropagation()}>
+    <div className={`wb-inspector ${panelOpen ? "" : "collapsed"}`} onPointerDown={(e) => e.stopPropagation()}>
+      <button className="wb-panel-toggle" onClick={() => setPanelOpen(!panelOpen)} aria-expanded={panelOpen} title={panelOpen ? L("Paneli daralt", "Collapse panel") : L("Biçim paneli", "Format panel")}>
+        {panelOpen ? "›" : "‹"} {!panelOpen && L("Biçim", "Format")}
+      </button>
+      {panelOpen && (
+      <>
       {hasFill && (
         <section>
           <h5>{types.has("sticky") && types.size === 1 ? L("Not rengi", "Note colour") : L("Dolgu", "Fill")}</h5>
@@ -1105,11 +1123,25 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
         <section>
           <h5>{L("Yazı", "Text")}</h5>
           <div className="wb-row">
-            <select value={first0.font ?? "sans"} onChange={(e) => patchStyle({ font: e.target.value as Style["font"] })}>
+            <select value={first0.font ?? "sans"} onChange={(e) => patchStyle({ font: e.target.value })} style={{ fontFamily: fontFamily(first0.font) }} aria-label={L("Yazı tipi", "Font")}>
               <option value="sans">{L("Sade", "Sans")}</option>
               <option value="serif">{L("Tırnaklı", "Serif")}</option>
               <option value="mono">{L("Eş aralıklı", "Mono")}</option>
               <option value="hand">{L("El yazısı", "Handwriting")}</option>
+              <optgroup label={t("ws.bundledFonts")}>
+                {BUNDLED_FONTS.map((f) => (
+                  <option key={f.family} value={f.family} style={{ fontFamily: f.family }}>
+                    {f.family}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label={L("Sistem yazı tipleri", "System fonts")}>
+                {SYSTEM_FONTS.map((f) => (
+                  <option key={f} value={f} style={{ fontFamily: f }}>
+                    {f}
+                  </option>
+                ))}
+              </optgroup>
             </select>
             <input className="wb-num" type="number" min={8} max={160} value={first0.fontSize ?? 16} onChange={(e) => patchStyle({ fontSize: clamp(Number(e.target.value) || 16, 8, 160) })} aria-label={L("Boyut", "Size")} />
           </div>
@@ -1223,19 +1255,21 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
           <button className="wb-chip danger" onClick={removeSelected}>🗑 {L("Sil", "Delete")}</button>
         </div>
       </section>
+      </>
+      )}
     </div>
   );
 
   const shapeLibrary = library && <ShapeLibrary current={shapeId} onPick={(id) => (setShapeId(id), setTool("shape"), setLibrary(false))} />;
 
   return (
-    <div className={`wb ${parsed.broken ? "broken" : ""}`} ref={root} tabIndex={0} onKeyDown={onKeyDown} onKeyUp={onKeyUp} onDragOver={(e) => e.preventDefault()} onDrop={(e) => {
+    <div className={`wb ${parsed.broken ? "broken" : ""}`} ref={root} style={{ "--wb-bar": `${barBottom + 8}px` } as CSSProperties} tabIndex={0} onKeyDown={onKeyDown} onKeyUp={onKeyUp} onDragOver={(e) => e.preventDefault()} onDrop={(e) => {
       e.preventDefault();
       const files = [...e.dataTransfer.files];
       if (files.length) void addImageFiles(files, toWorld(e.clientX, e.clientY));
     }}>
       {parsed.broken && <div className="banner">{L("Tabula verisi okunamadı; değişiklikler kaydedilmeyecek.", "The Tabula data could not be read; changes will not be saved.")}</div>}
-      <div className="wb-toolbar" role="toolbar" aria-label="Tabula" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="wb-toolbar" ref={toolbar} role="toolbar" aria-label="Tabula" onPointerDown={(e) => e.stopPropagation()}>
         {tb("select", <ToolIcon name="select" />, L("Seç", "Select"), "V")}
         {tb("hand", <ToolIcon name="hand" />, L("Kaydır", "Pan"), "H")}
         <span className="wb-sep" />

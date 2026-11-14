@@ -324,6 +324,21 @@ try {
   const narrow = await pageWidth(1000);
   assert.ok(wide - narrow > 400, `sayfa pencereyle genişlemedi: ${wide} → ${narrow}`);
   await shot("15-manzara");
+  // 2.0: cam efektli sayfada "/" menüsü imlecin yanında açılır (bulanıklık açılır pencereleri kaydırmamalı).
+  await page.locator(".ProseMirror").click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("/");
+  const slash = page.locator(".pop.suggest");
+  await slash.waitFor({ timeout: 5_000 });
+  const caret = await page.evaluate(() => window.getSelection()!.getRangeAt(0).getBoundingClientRect().toJSON());
+  const sb0 = (await slash.boundingBox())!;
+  // Menü imlecin hemen altında ya da (pencerenin altına yakınsa) hemen üstünde açılır.
+  const below = sb0.y >= caret.top - 4 && sb0.y - caret.bottom < 60;
+  const above = sb0.y + sb0.height <= caret.bottom + 4 && caret.top - (sb0.y + sb0.height) < 60;
+  assert.ok(Math.abs(sb0.x - caret.left) < 80 && (below || above), `/ menüsü yanlış yerde: ${JSON.stringify({ sb0, caret })}`);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Backspace");
 
   // 1.5: odak modu ⇧⌘F ile açılır, sayfa yine pencereye uyar; Esc ile kapanır.
   await page.locator(".ProseMirror").click();
@@ -410,7 +425,8 @@ try {
   await page.keyboard.press(`${mod}+Shift+P`);
   const uiLang = await page.evaluate(() => document.documentElement.lang);
   await page.locator(".picker input").fill(uiLang === "tr" ? "grafik görünümü" : "graph view");
-  await page.locator(".picker .results button", { hasText: uiLang === "tr" ? "Grafik görünümü" : "Graph view" }).first().waitFor();
+  await page.locator(".picker .results button.active", { hasText: uiLang === "tr" ? "Grafik görünümü" : "Graph view" }).first().waitFor();
+  await page.waitForTimeout(150);
   await page.keyboard.press("Enter");
   await page.locator(".graph-canvas").waitFor({ timeout: 5_000 });
   await shot("17-grafik");
@@ -427,6 +443,58 @@ try {
   await page.keyboard.press(`${mod}+Alt+W`);
   await page.locator(".tab-bar").waitFor({ state: "detached", timeout: 5_000 });
   assert.equal(await page.locator(".title-input").inputValue(), "Bağlantılı not");
+  // 2.0: gizli kenar çubuğu üzerine gelince açılır; New Writing Project menüsü tam görünür, menüdeyken panel açık
+  // kalır ve menüden Tabula oluşturulur. Tabula'da kalemle çizim ve yapışkan not kaydedilir.
+  await page.evaluate(async () => {
+    await fetch("/api/prefs", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ writingBg: { kind: "scene", id: "night" }, writingBgEverywhere: true, sidebarMini: true }) });
+  });
+  await page.reload();
+  await page.locator(".sidebar.peek").waitFor({ state: "attached", timeout: 10_000 });
+  await page.mouse.move(700, 500);
+  await page.locator(".titlebar .sidebar-toggle, .sidebar-toggle.floating").first().hover();
+  await page.locator(".sidebar.peek.open").waitFor({ timeout: 5_000 });
+  const projectBtn = page.locator(".sidebar.peek .side-btn", { hasText: /New Writing Project|Yeni yazma projesi/ });
+  await projectBtn.hover();
+  await projectBtn.click();
+  const projectMenu = page.locator(".project-menu");
+  await projectMenu.waitFor({ timeout: 5_000 });
+  const mb = (await projectMenu.boundingBox())!;
+  const sideBox = (await page.locator(".sidebar.peek").boundingBox())!;
+  assert.ok(mb.x >= sideBox.x + sideBox.width - 2 && mb.width > 150 && mb.height > 150, `menü kırpıldı: ${JSON.stringify({ mb, sideBox })}`);
+  assert.ok(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest(".project-menu"), [mb.x + mb.width / 2, mb.y + mb.height / 2]), "menü görünmüyor");
+  const tabulaItem = projectMenu.locator("button", { hasText: "Tabula" });
+  await tabulaItem.hover();
+  await page.waitForTimeout(600);
+  assert.equal(await page.locator(".sidebar.peek.open").count(), 1, "panel menüdeyken kapandı");
+  await shot("20-gizli-kenar-menu");
+  await tabulaItem.click();
+  const board = page.locator(".wb-svg");
+  await board.waitFor({ timeout: 10_000 });
+  await page.mouse.move(900, 600);
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator(".sidebar.peek.open").count(), 0, "panel kapanmadı");
+  const bb = (await board.boundingBox())!;
+  await page.getByRole("button", { name: /^(Pen|Kalem)$/ }).click();
+  await page.mouse.move(bb.x + 200, bb.y + 250);
+  await page.mouse.down();
+  for (let i = 0; i < 15; i++) await page.mouse.move(bb.x + 200 + i * 10, bb.y + 250 + Math.sin(i / 2) * 25);
+  await page.mouse.up();
+  await page.getByRole("button", { name: /^(Sticky note|Yapışkan not)$/ }).click();
+  await page.mouse.click(bb.x + 600, bb.y + 250);
+  await page.locator(".wb-editor").waitFor();
+  await page.keyboard.type("Tabula notu");
+  await page.mouse.click(bb.x + 450, bb.y + 450);
+  await page.waitForTimeout(1500);
+  const tabulaBody = await page.evaluate(async () => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    return ((await (await fetch(`/api/nodes/${id}`)).json()) as { body: string; layoutMode: string });
+  });
+  assert.equal(tabulaBody.layoutMode, "whiteboard");
+  assert.ok(tabulaBody.body.includes('"type":"draw"') && tabulaBody.body.includes("Tabula notu"), "Tabula kaydedilmedi");
+  await shot("21-tabula");
+  await page.evaluate(async () => {
+    await fetch("/api/prefs", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ writingBg: { kind: "none" }, writingBgEverywhere: false, sidebarMini: false }) });
+  });
   console.log(`Tamam. Ekran görüntüleri: ${shots ?? "(yok)"}`);
 } catch (err) {
   await shot("hata").catch(() => undefined);

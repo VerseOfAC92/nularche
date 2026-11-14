@@ -1,4 +1,4 @@
-NULARCHE 2.0.0
+NULARCHE 2.5.0
 Local-first, AI-native notes, databases and templates in plain Markdown.
 https://github.com/VerseOfAC92/nularche   (full documentation with screenshots: README.md)
 
@@ -71,6 +71,16 @@ Windows (PowerShell):
   Insert a math result           Tab              Tab
 
 ------------------------------------------------------------------------------
+NEW IN 2.5.0
+------------------------------------------------------------------------------
+  Tabula: a whiteboard with drawing tools, sticky notes, tables, images, over
+  130 diagram shapes and about 4,800 icons, connectors and PNG/SVG export; the
+  board is transparent over your writing background. The sidebar hides
+  completely (Opt+Cmd+B / Ctrl+Alt+B) and appears on hover. A richer Atrium.
+  Nularche AI requests time out instead of hanging, can be cancelled, edit long
+  notes block by block and never change notes unless you ask (Reply only).
+
+------------------------------------------------------------------------------
 NEW IN 2.0.0
 ------------------------------------------------------------------------------
   Writing studio with its own vocabulary: Codex (manuscript: notes in order,
@@ -85,9 +95,7 @@ NEW IN 2.0.0
   folder of your choice). Seven new MCP tools. The first-run wizard explains
   every name.
 
-  Tabula: a whiteboard with drawing tools, sticky notes, tables, images, over
-  130 diagram shapes and about 4,800 icons, connectors and PNG/SVG export.
-  The sidebar hides completely (Opt+Cmd+B / Ctrl+Alt+B) and appears on hover. Settings >
+  The sidebar collapses to an icon strip (Opt+Cmd+B / Ctrl+Alt+B). Settings >
   About describes Nularche and gives the support address. A chosen background
   now fills the whole window: the sidebar, side panel and title bar become
   frosted glass over it; without one they follow the app theme.

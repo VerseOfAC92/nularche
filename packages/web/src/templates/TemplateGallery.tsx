@@ -1,6 +1,7 @@
 // Şablon galerisi: hazır şablonlar ve kullanıcının "şablon" olarak işaretlediği sayfalar.
 // Seçilen şablon yeni bir Arche olarak ya da açık sayfanın altına oluşturulur.
 
+import { useEscape } from "../useEscape.ts";
 import { useState } from "react";
 import { api, type NodeMeta, type ParentTarget } from "../api.ts";
 import { getLang, t } from "../i18n/index.ts";
@@ -23,6 +24,7 @@ export function TemplateGallery({
   const current = currentId ? nodes.find((n) => n.id === currentId && !n.database) : undefined;
   const [target, setTarget] = useState<"root" | "current">(current ? "current" : "root");
   const [busy, setBusy] = useState<string | null>(null);
+  useEscape(onClose);
   const mine = nodes.filter((n) => n.template && !nodes.find((p) => p.id === n.parentNodeId)?.database);
   const parent: ParentTarget = target === "current" && current ? current.id : null;
 

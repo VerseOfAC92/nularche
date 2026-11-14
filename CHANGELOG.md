@@ -1,5 +1,48 @@
 # Changelog
 
+## 2.5.0
+
+Tabula, a whiteboard that sits over your writing background; a sidebar that hides completely; a richer Atrium; and
+Nularche AI requests that can no longer hang, can be cancelled, and never edit notes unless you ask.
+
+### Tabula (whiteboard)
+- New page type (`layout: whiteboard`, JSON block in the note; images are Origin files): pen, pencil, marker,
+  highlighter (pressure-sensitive with a stylus) and object eraser; sticky notes, text boxes, tables, images (insert,
+  paste or drag in) and cards that link to notes.
+- Over 130 diagram shapes in eight groups (basic, arrows, flowchart, process/BPMN, UML and software, network and IT,
+  callouts, symbols) and about 4,800 icons from Tabler Icons (MIT) in thirteen groups, outline or filled, with search in
+  English and common Turkish words.
+- Lines, arrows and elbow or curved connectors with six end styles and labels; drag from the dots around a shape to
+  connect it, and connections follow when shapes move.
+- Move, resize, rotate, alignment guides, snap to grid, group, lock, layer order, align and distribute, flip, duplicate,
+  copy and paste, undo and redo; fill, stroke, dash, opacity, shadow and every font available for notes.
+- Transparent board over the writing background (or a solid colour), dot/grid/line backgrounds, PNG and SVG export.
+  Free text and ink get a soft outline so they stay readable over busy backgrounds. Works at every window size: the
+  toolbar wraps and the format panel can be collapsed.
+- Available from New Writing Project, the Atrium, the `/` menu, File → New Writing Project and the vocabulary.
+
+### Window and Atrium
+- The sidebar hides completely (button next to the window buttons, or ⌥⌘B); hovering the button shows it as a panel
+  tinted by the background, which hides again when the pointer leaves. Menus opened from it stay fully visible.
+- Atrium: Tabula boards, open tasks with progress, the Shadow inbox, an Origin summary with your most used tags, and a
+  note to rediscover each day.
+- With a background, the Atrium cards and the cards and lists on other pages are frosted glass too.
+- Fixed: the frosted-glass blur never rendered in the desktop app (the CSS build kept only `-webkit-backdrop-filter`).
+- Fixed: the `/` menu covered the line being typed near the bottom of the window; it now opens above the line.
+
+### Nularche AI
+- Every Gemini call has a time limit and each request an overall deadline, so a request that gets no answer fails
+  with a message instead of waiting forever and blocking the ones behind it.
+- Long notes (over 20,000 characters) are shown to Gemini as numbered blocks and reorganised with a new
+  `rearrange_node` tool that moves blocks unchanged instead of rewriting the whole note.
+- Requests can be cancelled while waiting or working; a request left “working” after a restart can be cleared.
+- Notes are only changed when the request asks for a change: questions, summaries and analysis are answered without
+  editing, and the *Reply only* switch removes every editing tool. MCP clients get the same rule.
+- The full text of each request is shown, and the input box grows as you type.
+
+### Settings
+- About lists Tabula, the Atrium and the new look, and credits the open-source components.
+
 ## 2.0.0
 
 A writing studio for long-form work. Notes stay plain Markdown; the new page types keep their structure in a JSON block
@@ -34,30 +77,13 @@ step of the first-run wizard, on the empty-Origin welcome screen and in the *Nul
 - Sidebar entries for Atrium, New Writing Project and the Nularche vocabulary; a studio toolbar on every note
   (Marginalia, Epoch, Diptych, Clepsydra, Aura); Marginalia in the selection bubble; a Writing studio group in the `/`
   menu; Clepsydra and Aura in focus mode. Tooltips explain each Nularche name.
-- Hide the sidebar (button next to the window buttons, or ⌥⌘B): it disappears completely; hovering the button shows
-  it as a panel tinted by the background, which hides again when the pointer leaves.
-- Tabula, a whiteboard page: pen, pencil, marker, highlighter and eraser; sticky notes, text, tables, images and note
-  cards; over 130 diagram shapes (basic, arrows, flowchart, BPMN, UML, network, callouts, symbols) and about 4,800
-  icons from Tabler Icons (MIT) in thirteen groups; connectors that follow shapes; move, resize, rotate, guides, snap,
-  group, lock, layers, align, distribute, flip, undo and redo; transparent board over the writing background; PNG and
-  SVG export. Available from New Writing Project, the Atrium, the `/` menu and the vocabulary.
-- Atrium: Tabula boards, open tasks, Shadow inbox, Origin summary with top tags and a daily note to rediscover.
+- Collapsible sidebar (‹‹ next to the logo or ⌥⌘B): a narrow strip with the logo, every menu item and each Arche's
+  icon (◈ when it has none), with names on hover; the choice is remembered.
 - Settings → About now explains what Nularche is and does, lists its main features and gives the support address
   (verseofac@gmail.com).
 - Backgrounds fill the whole window: the sidebar, side panel and title bar turn into frosted glass over the chosen
-  landscape, palette, colour or image, with readable text on dark and light backgrounds; so do the Atrium cards and
-  the cards and lists on other pages. The glass blur now also renders in the desktop app (the CSS build had dropped the
-  unprefixed `backdrop-filter`). Without a background they
-  follow the app theme instead of the system theme. macOS gets a title bar drawn by Nularche; on Windows and Linux
+  landscape, palette, colour or image, with readable text on dark and light backgrounds. Without a background they follow the app theme instead of the system theme. macOS gets a title bar drawn by Nularche; on Windows and Linux
   the native title bar and menus switch to dark or light to match.
-- Nularche AI (automatic mode): every Gemini call has a time limit and each request an overall deadline, so a
-  request that gets no answer fails with a message instead of waiting forever and blocking the ones behind it.
-  Long notes (over 20,000 characters) are shown to Gemini as numbered blocks and reorganised with a new
-  `rearrange_node` tool that moves blocks unchanged instead of rewriting the whole note. The full text of each
-  request is shown in the Nularche AI window, and the input box grows as you type. Requests can be cancelled while
-  waiting or working, and a request left “working” after a restart can be cleared from the history. Gemini only
-  changes notes when the request asks for a change; questions, summaries and analysis are answered without editing,
-  and a *Reply only* switch guarantees that no note is changed.
 - Settings reorganised into searchable categories (Appearance, Writing, Aura and Focus, Automation, Notes and Origin,
   Shortcuts, Publishing, Calendar, AI, About) with grouped cards.
 
