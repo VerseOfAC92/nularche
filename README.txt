@@ -85,7 +85,9 @@ NEW IN 2.0.0
   folder of your choice). Seven new MCP tools. The first-run wizard explains
   every name.
 
-  The sidebar collapses to an icon strip (Opt+Cmd+B / Ctrl+Alt+B). Settings >
+  Tabula: a whiteboard with drawing tools, sticky notes, tables, images, over
+  130 diagram shapes and about 4,800 icons, connectors and PNG/SVG export.
+  The sidebar hides completely (Opt+Cmd+B / Ctrl+Alt+B) and appears on hover. Settings >
   About describes Nularche and gives the support address. A chosen background
   now fills the whole window: the sidebar, side panel and title bar become
   frosted glass over it; without one they follow the app theme.

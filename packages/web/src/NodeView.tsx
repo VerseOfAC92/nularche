@@ -27,6 +27,8 @@ import { fillTemplate } from "../../core/src/note-text.ts";
 import { headings } from "./editor/notes-extensions.ts";
 import { PropertiesBlock } from "./vault/PropertiesBlock.tsx";
 import { CanvasView } from "./vault/CanvasView.tsx";
+import { WhiteboardView } from "./whiteboard/WhiteboardView.tsx";
+import { EMPTY_BODY as WHITEBOARD_BODY } from "./whiteboard/model.ts";
 import { Slides } from "./vault/Slides.tsx";
 import { NotePicker } from "./vault/Palettes.tsx";
 import { pushRecent, usePref } from "./prefs.ts";
@@ -544,11 +546,12 @@ export function NodeView(props: NodeViewProps) {
   }
 
   /** "/" menüsünden bu sayfanın altında yeni Codex, Axis, Mosaic ya da Lore. */
-  async function createProject(kind: "manuscript" | "outline" | "cards" | "wiki") {
+  async function createProject(kind: "manuscript" | "outline" | "cards" | "wiki" | "whiteboard") {
     await flush();
-    const meta = { manuscript: ["ws.untitledManuscript", "📕"], outline: ["ws.untitledOutline", "🗂"], cards: ["ws.untitledCards", "🗃"], wiki: ["ws.untitledWiki", "📚"] } as const;
+    const meta = { manuscript: ["ws.untitledManuscript", "📕"], outline: ["ws.untitledOutline", "🗂"], cards: ["ws.untitledCards", "🗃"], wiki: ["ws.untitledWiki", "📚"], whiteboard: ["ws.untitledWhiteboard", "🎨"] } as const;
     try {
-      const n = await api.create(t(meta[kind][0]), id, kind === "wiki" ? "" : writingBody(kind), { layout: kind, icon: meta[kind][1] });
+      const body = kind === "wiki" ? "" : kind === "whiteboard" ? WHITEBOARD_BODY : writingBody(kind);
+      const n = await api.create(t(meta[kind][0]), id, body, { layout: kind, icon: meta[kind][1] });
       propsRef.current.onChanged();
       return n;
     } catch (e) {
@@ -910,7 +913,7 @@ export function NodeView(props: NodeViewProps) {
         />
       )}
       {dialog === "font" && <FontDialog font={doc.font} size={doc.fontSize} onChange={(font, size) => void setFields({ font, fontSize: size })} onClose={() => setDialog(null)} />}
-      <article className={`page ${reading ? "reading" : ""} ${doc.layoutMode === "canvas" ? "page-canvas" : ""} ${cover ? "has-cover" : ""} ${doc.lightBg ? "page-light" : ""} ${pageFont || doc.fontSize ? "page-typed" : ""} ${["manuscript", "outline", "cards", "wiki"].includes(doc.layoutMode) ? `page-studio page-${doc.layoutMode}` : ""}`} style={pageStyle}>
+      <article className={`page ${reading ? "reading" : ""} ${doc.layoutMode === "canvas" ? "page-canvas" : ""} ${doc.layoutMode === "whiteboard" ? "page-whiteboard" : ""} ${cover ? "has-cover" : ""} ${doc.lightBg ? "page-light" : ""} ${pageFont || doc.fontSize ? "page-typed" : ""} ${["manuscript", "outline", "cards", "wiki"].includes(doc.layoutMode) ? `page-studio page-${doc.layoutMode}` : ""}`} style={pageStyle}>
         {doc.icon && (
           <div className="rel">
             <span className="page-icon" onClick={() => setMenu(menu === "icon" ? null : "icon")} title={t("node.changeIcon")}>
@@ -1004,6 +1007,8 @@ export function NodeView(props: NodeViewProps) {
               return true;
             }}
           />
+        ) : doc.layoutMode === "whiteboard" ? (
+          <WhiteboardView key={`${doc.id}:${version}`} body={doc.body} nodes={nodes} onChange={(body) => schedule({ body })} onOpen={(nid) => (void flush(), props.onNavigate(nid))} />
         ) : doc.layoutMode === "canvas" ? (
           <CanvasView key={`${doc.id}:${version}`} body={doc.body} nodes={nodes} onChange={(body) => schedule({ body })} onOpen={(nid) => (void flush(), props.onNavigate(nid))} />
         ) : doc.layoutMode === "manuscript" ? (

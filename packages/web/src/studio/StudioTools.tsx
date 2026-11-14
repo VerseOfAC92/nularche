@@ -16,6 +16,7 @@ export const PROJECT_KINDS: { cmd: string; icon: string; name: string; meaning: 
   { cmd: "outline.new", icon: "🗂", name: "Axis", meaning: "gloss.axis" },
   { cmd: "cards.new", icon: "🗃", name: "Mosaic", meaning: "gloss.mosaic" },
   { cmd: "wiki.new", icon: "📚", name: "Lore", meaning: "gloss.lore" },
+  { cmd: "whiteboard.new", icon: "🎨", name: "Tabula", meaning: "gloss.tabula" },
 ];
 
 /** Açılır pencere dışına tıklanınca ya da Esc ile kapanır. */

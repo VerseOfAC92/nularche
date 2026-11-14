@@ -47,13 +47,14 @@ interface CommandContext {
   draw: () => void;
 }
 
-export type ProjectKind = "manuscript" | "outline" | "cards" | "wiki";
+export type ProjectKind = "manuscript" | "outline" | "cards" | "wiki" | "whiteboard";
 /** "/" menüsündeki yazma projeleri: tür, simge, Nularche adı, anlamı ve arama sözcükleri. */
 const STUDIO_ITEMS: [ProjectKind, string, string, StringKey, string][] = [
   ["manuscript", "📕", "Codex", "gloss.codex", "codex manuskript manuscript kitap book roman"],
   ["outline", "🗂", "Axis", "gloss.axis", "axis taslak outline plan"],
   ["cards", "🗃", "Mosaic", "gloss.mosaic", "mosaic kart card pano corkboard sahne"],
   ["wiki", "📚", "Lore", "gloss.lore", "lore wiki karakter mekan story bible"],
+  ["whiteboard", "🎨", "Tabula", "gloss.tabula", "tabula whiteboard beyaz tahta çizim draw diagram şema akış flowchart"],
 ];
 
 const CALLOUT_LABELS: Record<CalloutKind, [StringKey, string]> = {

@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld("nularche", {
   autoEnable: (enabled: boolean) => invoke("auto-enable", enabled),
   autoRun: (requestId: string) => invoke("auto-run", requestId),
   autoRetry: (requestId: string) => invoke("auto-retry", requestId),
+  autoCancel: (requestId: string, reply: string) => invoke("auto-cancel", requestId, reply),
   aiDownload: (url: string) => invoke("ai-download", url),
   onAiConnected: (cb: (client: unknown) => void) => {
     const listener = (_e: IpcRendererEvent, c: unknown) => cb(c);

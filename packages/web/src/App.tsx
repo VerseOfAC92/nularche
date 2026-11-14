@@ -12,6 +12,7 @@ import { TemplateGallery } from "./templates/TemplateGallery.tsx";
 import { BUILTIN_TEMPLATES } from "./templates/builtins.ts";
 import { todayIso } from "./database/model.ts";
 import { Sidebar } from "./Sidebar.tsx";
+import { EMPTY_BODY as WHITEBOARD_BODY } from "./whiteboard/model.ts";
 import { TitleBar } from "./TitleBar.tsx";
 import { NularcheAI, type AiContext } from "./ai/NularcheAI.tsx";
 import { Onboarding } from "./ai/Onboarding.tsx";
@@ -550,6 +551,7 @@ export function App() {
       registerCommand("manuscript.new", () => void createTitled(t("ws.untitledManuscript"), { body: writingBody("manuscript"), fields: { layout: "manuscript", icon: "📕" } })),
       registerCommand("outline.new", () => void createTitled(t("ws.untitledOutline"), { body: writingBody("outline"), fields: { layout: "outline", icon: "🗂" } })),
       registerCommand("cards.new", () => void createTitled(t("ws.untitledCards"), { body: writingBody("cards"), fields: { layout: "cards", icon: "🗃" } })),
+      registerCommand("whiteboard.new", () => void createTitled(t("ws.untitledWhiteboard"), { body: WHITEBOARD_BODY, fields: { layout: "whiteboard", icon: "🎨" } })),
       registerCommand("wiki.new", () => void createTitled(t("ws.untitledWiki"), { body: "", fields: { layout: "wiki", icon: "📚" } })),
       registerCommand("view.dashboard", () => navigate({ kind: "home" })),
       registerCommand("help.glossary", () => setGlossaryOpen(true)),
@@ -673,7 +675,7 @@ export function App() {
   if (SINGLE && route.kind === "node") {
     return (
       <div className={`app single-window ${focus ? "focus-mode" : ""} ${wrapClass}`} style={appStyle}>
-        <TitleBar />
+        <TitleBar sidebarToggle={false} />
         <main className={mainClass} style={mainStyle}>
           <NodeView
             key={route.id}
@@ -702,7 +704,7 @@ export function App() {
       className={`app ${focus ? "focus-mode" : ""} ${focus && focusDim ? "focus-dim" : ""} ${readable ? "readable" : ""} ${panel && !focus ? "with-panel" : ""} ${split && route.kind === "node" && !focus ? "with-split" : ""} ${wrapClass}`}
       style={appStyle}
     >
-      <TitleBar />
+      <TitleBar sidebarToggle={!focus} />
       {snippets
         .filter((x) => enabledSnippets.includes(x.name))
         .map((x) => (
@@ -857,7 +859,7 @@ export function App() {
         )}
         {route.kind === "home" &&
           (nodes.length ? (
-            <Dashboard nodes={nodes} onOpen={openNode} onCreate={create} onShadow={() => navigate({ kind: "shadow" })} onToast={showToast} onChanged={refresh} />
+            <Dashboard nodes={nodes} onOpen={openNode} onCreate={create} onShadow={() => navigate({ kind: "shadow" })} onToast={showToast} onChanged={refresh} onTag={(tag) => navigate({ kind: "tag", tag })} />
           ) : (
             <Welcome onCreate={create} onShadow={() => navigate({ kind: "shadow" })} />
           ))}

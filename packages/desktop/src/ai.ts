@@ -272,6 +272,8 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
 
   // İstekler sırayla işlenir (aynı Node'a eşzamanlı düzenleme olmasın).
   let queue: Promise<unknown> = Promise.resolve();
+  /** İşlenmekte olan isteklerin iptal tetikleyicileri. */
+  const running = new Map<string, AbortController>();
 
   async function processRequest(requestId: string): Promise<{ ok: boolean; status?: string; error?: string }> {
     const root = ctx.originRoot();
@@ -285,6 +287,8 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
         .catch(() => undefined);
       return { ok: false, error: d("ai.noKey") };
     }
+    const abort = new AbortController();
+    running.set(requestId, abort);
     try {
       const { request, model } = await runGeminiAgent({
         store: new NodeStore(root),
@@ -292,12 +296,15 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
         requestId,
         apiKey: key,
         models: await modelOrder(key),
+        signal: abort.signal,
       });
       if (model && model !== ctx.settings().geminiModel) await ctx.save({ geminiModel: model });
       return { ok: request.status === "done", status: request.status };
     } catch (err) {
       await activity.completeRequest(requestId, `Beklenmeyen hata: ${(err as Error).message}`, true).catch(() => undefined);
       return { ok: false, error: (err as Error).message };
+    } finally {
+      running.delete(requestId);
     }
   }
 
@@ -310,6 +317,19 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
   ipcMain.handle("nularche:auto-run", async (_e, requestId: unknown) => {
     if (typeof requestId !== "string") return { ok: false, error: d("ai.badRequest") };
     return enqueue(requestId);
+  });
+
+  // İptal: önce istek iptal olarak işaretlenir (sonradan gelen cevap yazılmaz), sonra süren Gemini çağrısı kesilir.
+  ipcMain.handle("nularche:auto-cancel", async (_e, requestId: unknown, reply: unknown) => {
+    const root = ctx.originRoot();
+    if (typeof requestId !== "string" || !root) return { ok: false, error: d("ai.badRequest") };
+    try {
+      await new AiActivity(root).cancelRequest(requestId, typeof reply === "string" && reply ? reply : "—");
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+    running.get(requestId)?.abort();
+    return { ok: true };
   });
 
   ipcMain.handle("nularche:auto-retry", async (_e, requestId: unknown) => {

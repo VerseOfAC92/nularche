@@ -180,6 +180,7 @@ const TOOLS = [
 const SYSTEM = [
   "Sen Nularche AI'sın: kullanıcının Nularche not uygulamasındaki notları (Node'lar) üzerinde çalışan bir asistansın.",
   "Kullanıcının isteğini araçları kullanarak yerine getir. Bir Node'u değiştirirken update_node'a güncel revision'ı base_revision olarak ver; çakışma olursa read_node ile yeniden oku.",
+  "Önce isteğin niyetini belirle. Kullanıcı açıkça bir değişiklik (düzenle, yeniden yaz, düzelt, ekle, sil, grupla, sırala, çevir ve nota yaz, oluştur…) istemiyorsa — soru, özet, analiz, açıklama, kontrol, fikir ya da öneri istiyorsa — hiçbir notu değiştirme ve yeni not oluşturma; yalnızca cevabı yaz. Emin değilsen değiştirme; cevabında ne yapabileceğini öner.",
   "İçerik uydurma; teknik bilgileri değiştirme, yalnızca isteneni yap. Markdown biçimini koru ve düzgün kullan.",
   "İş bitince araç çağırmadan, kullanıcıya kısa ve net bir cevap yaz: ne yaptığını ya da sorunun cevabını. Bu cevap Nularche AI penceresinde gösterilir.",
 ].join("\n");
@@ -187,6 +188,9 @@ const SYSTEM = [
 /** Cevap dili: kullanıcının arayüz dili (eski isteklerde Türkçe). Not içeriğinin dili istek gerektirmedikçe değişmez. */
 const replyLanguageRule = (req: AiRequest) =>
   `Write your final reply to the user in ${REPLY_LANGUAGE_NAME[req.language ?? "tr"]}. Do not change the language of the notes unless the request asks for it.`;
+
+const WRITE_TOOLS = new Set(["update_node", "rearrange_node", "append_to_node", "create_node"]);
+const READ_ONLY_RULE = "Bu istek yalnızca cevap istiyor: notları değiştirecek araçların yok; yalnızca oku ve cevap yaz.";
 
 const summary = (m: NodeMeta) => ({ id: m.id, title: m.title, path: m.path, parent_node_id: m.parentNodeId });
 
@@ -261,6 +265,8 @@ export interface AgentOptions {
   retryDelayMs?: number;
   /** İsteğin toplam üst süresi (ms); varsayılan REQUEST_DEADLINE_MS. */
   deadlineMs?: number;
+  /** Kullanıcı isteği iptal ettiğinde tetiklenir. */
+  signal?: AbortSignal;
 }
 
 export interface AgentResult {
@@ -297,9 +303,9 @@ async function converse(o: AgentOptions, req: AiRequest, model: string, fetchImp
   const contents: any[] = [{ role: "user", parts: [{ text: await buildIntro(o, req) }] }];
   for (let step = 0; step < (o.maxSteps ?? 12); step++) {
     const data = await call(fetchImpl, o.apiKey, `models/${encodeURIComponent(model)}:generateContent`, {
-      systemInstruction: { parts: [{ text: `${SYSTEM}\n${replyLanguageRule(req)}` }] },
+      systemInstruction: { parts: [{ text: `${SYSTEM}\n${replyLanguageRule(req)}${req.readOnly ? `\n${READ_ONLY_RULE}` : ""}` }] },
       contents,
-      tools: [{ functionDeclarations: TOOLS }],
+      tools: [{ functionDeclarations: req.readOnly ? TOOLS.filter((t) => !WRITE_TOOLS.has(t.name)) : TOOLS }],
       generationConfig: { temperature: 0.3 },
     }, signal);
     const parts: any[] = data?.candidates?.[0]?.content?.parts ?? [];
@@ -321,6 +327,7 @@ async function converse(o: AgentOptions, req: AiRequest, model: string, fetchImp
       const { name, args, id } = p.functionCall;
       let response: unknown;
       try {
+        if (req.readOnly && WRITE_TOOLS.has(name)) throw new NodeError("invalid", "Bu istek yalnızca cevap istiyor; notlar değiştirilemez.");
         response = { result: await runTool(o.store, o.activity, req.id, name, args ?? {}) };
       } catch (err) {
         response = { error: err instanceof NodeError ? `${err.code}: ${err.message}` : String((err as Error).message ?? err) };
@@ -341,10 +348,13 @@ export async function runGeminiAgent(o: AgentOptions): Promise<AgentResult> {
   const fetchImpl = o.fetchImpl ?? fetch;
   const req = await o.activity.takeRequest(o.requestId, AUTO_CLIENT);
   if (!req) throw new NodeError("not_found", "İstek bulunamadı");
+  // Sırada beklerken iptal edilen ya da başka yerde tamamlanan istek işlenmez.
+  if (req.status !== "received") return { request: req, model: null };
   const tried: string[] = [];
   let lastKind: AgentError["kind"] | null = null;
   // Bütün denemelerin üst süresi: istekler sırayla işlendiği için takılan bir istek diğerlerini bekletmesin.
-  const deadline = AbortSignal.timeout(o.deadlineMs ?? REQUEST_DEADLINE_MS);
+  const timeLimit = AbortSignal.timeout(o.deadlineMs ?? REQUEST_DEADLINE_MS);
+  const deadline = o.signal ? AbortSignal.any([timeLimit, o.signal]) : timeLimit;
   try {
     if (!o.models.length) throw new AgentError("model", "Kullanılabilir Gemini modeli yok. Ayarlar'da anahtarı yeniden kaydedin.");
     for (const model of o.models) {
@@ -355,6 +365,7 @@ export async function runGeminiAgent(o: AgentOptions): Promise<AgentResult> {
         } catch (err) {
           if (!(err instanceof AgentError)) throw err;
           if (err.kind === "auth" || err.kind === "other") throw err;
+          if (o.signal?.aborted) throw new AgentError("other", "İptal edildi.");
           if (deadline.aborted)
             throw new AgentError(
               "timeout",

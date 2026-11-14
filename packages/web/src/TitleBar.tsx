@@ -4,10 +4,11 @@
 
 import { useEffect, useState } from "react";
 import { desktop } from "./desktop.ts";
+import { SidebarToggle } from "./SidebarToggle.tsx";
 
-const MAC_FRAME = desktop?.platform === "darwin";
+export const MAC_FRAME = desktop?.platform === "darwin";
 
-export function TitleBar() {
+export function TitleBar({ sidebarToggle = true }: { sidebarToggle?: boolean }) {
   const [full, setFull] = useState(false);
   useEffect(() => desktop?.onFullScreen?.(setFull), []);
   const shown = MAC_FRAME && !full;
@@ -16,10 +17,12 @@ export function TitleBar() {
     if (shown) root.dataset.frame = "mac";
     else delete root.dataset.frame;
   }, [shown]);
-  if (!shown) return null;
+  // Tam ekranda (ya da başlık çubuğu yokken) düğme pencerenin sol üst köşesinde durur.
+  if (!shown) return sidebarToggle ? <SidebarToggle floating /> : null;
   return (
-    <div className="titlebar" aria-hidden="true">
-      Nularche
+    <div className="titlebar">
+      {sidebarToggle && <SidebarToggle />}
+      <span aria-hidden="true">Nularche</span>
     </div>
   );
 }

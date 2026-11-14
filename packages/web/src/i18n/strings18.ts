@@ -63,6 +63,17 @@ export const STRINGS_18 = {
   "ws.kind.outline": { tr: "Axis", en: "Axis" },
   "ws.kind.cards": { tr: "Mosaic", en: "Mosaic" },
   "ws.kind.wiki": { tr: "Lore", en: "Lore" },
+  "ws.kind.whiteboard": { tr: "Tabula", en: "Tabula" },
+  "ws.openTasks": { tr: "Açık görevler", en: "Open tasks" },
+  "ws.noOpenTasks": { tr: "Bitmemiş yapılacak yok.", en: "No unfinished to-dos." },
+  "ws.shadowWaiting": { tr: "bir Arche'ye yerleştirilmeyi bekliyor", en: "waiting to be filed into an Arche" },
+  "ws.shadowEmpty": { tr: "Gelen kutusu boş.", en: "The inbox is empty." },
+  "ws.openShadow": { tr: "Shadow'u aç", en: "Open Shadow" },
+  "ws.wordsLabel": { tr: "kelime", en: "words" },
+  "ws.tagsLabel": { tr: "etiket", en: "tags" },
+  "ws.rediscover": { tr: "Yeniden keşfet", en: "Rediscover" },
+  "ws.newWhiteboard": { tr: "Yeni Tabula", en: "New Tabula" },
+  "ws.untitledWhiteboard": { tr: "Adsız Tabula", en: "Untitled Tabula" },
 
   // Manuskript
   "ws.totalWords": { tr: "Toplam {n} kelime", en: "{n} words in total" },
@@ -319,6 +330,10 @@ export const STRINGS_18 = {
   "gloss.codex": { tr: "Node'ları bölümler halinde sıralayıp tek bir eser gibi okuyan, sayan ve dışa aktaran kitap (manuskript).", en: "A book: Nodes in ordered sections that you read, count and export as one work (a manuscript)." },
   "gloss.axis": { tr: "Eserin omurgası: I., A., 1. düzeyli plan. Codex bir Axis'i izleyince yazılmamış satırlar planlanan bölüm olur.", en: "The backbone of a work: a plan in I., A., 1. levels. A Codex that follows an Axis shows its unwritten rows as planned chapters." },
   "gloss.mosaic": { tr: "Sahne ve fikir kartlarından oluşan pano; kartlar sürüklenir, renklenir, Node'a dönüşür.", en: "A board of scene and idea cards that you drag, colour and turn into Nodes." },
+  "gloss.tabula": {
+    tr: "Beyaz tahta: serbest çizim, yapışkan notlar, metin, tablo, görsel ve akış şeması, UML, ağ gibi yüzden fazla şekil; şekilleri bağlayan oklar. Tahta saydamdır, seçtiğiniz arka planı gösterir.",
+    en: "A whiteboard: freehand drawing, sticky notes, text, tables, images and over a hundred shapes for flowcharts, UML, networks and more, joined by connectors. The board is transparent and shows your chosen background.",
+  },
   "gloss.lore": { tr: "Karakterler, mekânlar ve kavramlar için kitaplık. Girdilerin adları notlarda işaretlenir ve geçtikleri yerler sayılır.", en: "A library of characters, places and ideas. Entry names are marked in your notes and their mentions are counted." },
   "gloss.marginalia": { tr: "Metne dokunmadan bir pasajın kenarına bırakılan yorum ve yanıtlar.", en: "Comments and replies left in the margin of a passage without touching the text." },
   "gloss.epoch": { tr: "Adlandırılmış sürüm. İstediğiniz zaman şimdiki halle karşılaştırıp geri dönebilirsiniz.", en: "A named version you can compare with the current text and go back to." },

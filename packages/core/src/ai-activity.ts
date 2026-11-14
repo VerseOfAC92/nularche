@@ -63,7 +63,14 @@ export interface AiRequest {
   reply?: string;
   changes: AiChange[];
   undoneAt?: number;
+  /** Kullanıcı iptal etti (durum "failed" olarak kalır; sonradan gelen cevap yazılmaz). */
+  cancelled?: boolean;
+  /** Yalnızca cevap: yapay zekâ hiçbir notu değiştiremez. */
+  readOnly?: boolean;
 }
+
+/** Bu süreden uzun "işleniyor" durumunda kalan istek sahipsiz sayılır (uygulama kapanmış ya da bağlantı kopmuş). */
+export const STALE_REQUEST_MS = 10 * 60_000;
 
 /** MCP istemci adından sağlayıcıyı tahmin eder. */
 export function providerFromClient(name: string): ProviderId | null {
@@ -128,6 +135,7 @@ export class AiActivity {
     nodeTitle?: string;
     selection?: string;
     language?: ReplyLanguage;
+    readOnly?: boolean;
   }): Promise<AiRequest> {
     const label = input.label.trim().slice(0, 120);
     const instruction = input.instruction.trim().slice(0, 20_000);
@@ -142,6 +150,7 @@ export class AiActivity {
       nodeTitle: input.nodeTitle,
       selection: input.selection?.slice(0, 20_000) || undefined,
       language: input.language,
+      ...(input.readOnly ? { readOnly: true } : {}),
       status: "pending",
       changes: [],
     };
@@ -192,6 +201,7 @@ export class AiActivity {
 
   async completeRequest(id: string, reply: string, failed = false, client?: string): Promise<AiRequest> {
     const req = await this.getRequest(id);
+    if (req.cancelled) return req;
     req.status = failed ? "failed" : "done";
     if (client) req.client = client;
     req.completedAt = Date.now();
@@ -217,7 +227,8 @@ export class AiActivity {
     const now = Date.now();
     for (const n of names) {
       const r = await readJson<AiRequest>(path.join(reqDir, n));
-      const busy = r && (r.status === "received" || (r.status === "pending" && now - r.createdAt < 60_000));
+      const busy =
+        r && ((r.status === "received" && now - (r.receivedAt ?? r.createdAt) < STALE_REQUEST_MS) || (r.status === "pending" && now - r.createdAt < 60_000));
       if (busy) {
         kept++;
         continue;
@@ -229,11 +240,23 @@ export class AiActivity {
     return { archived, kept };
   }
 
+  /** Bekleyen ya da işlenen isteği iptal eder; tamamlanmış istekler iptal edilemez. */
+  async cancelRequest(id: string, reply: string): Promise<AiRequest> {
+    const req = await this.getRequest(id);
+    if (req.status === "done") return req;
+    req.status = "failed";
+    req.cancelled = true;
+    req.completedAt = Date.now();
+    req.reply = reply;
+    return this.save(req);
+  }
+
   /** Başarısız ya da takılı kalmış bir isteği yeniden işlenmek üzere bekleyen duruma döndürür. */
   async retryRequest(id: string): Promise<AiRequest> {
     const req = await this.getRequest(id);
     if (req.status === "done") throw new NodeError("invalid", "Tamamlanmış istek yeniden denenemez");
     req.status = "pending";
+    delete req.cancelled;
     delete req.reply;
     delete req.completedAt;
     delete req.receivedAt;

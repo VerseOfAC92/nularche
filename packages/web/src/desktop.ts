@@ -114,6 +114,7 @@ export interface DesktopBridge {
   autoRun(requestId: string): Promise<{ ok: boolean; status?: string; error?: string }>;
   /** Başarısız ya da takılı isteği yeniden işler. */
   autoRetry(requestId: string): Promise<{ ok: boolean; status?: string; error?: string }>;
+  autoCancel?(requestId: string, reply: string): Promise<{ ok: boolean; error?: string }>;
   /** AI uygulamasını yeniden başlatır (Claude Desktop: kapat + aç; diğerleri: aç). */
   aiRestart(launcher: LauncherId): Promise<{ ok: boolean; error?: string }>;
   aiOpen(launcher: LauncherId, prompt: string | null): Promise<{ opened: boolean; message?: string }>;

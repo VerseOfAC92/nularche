@@ -19,6 +19,7 @@ export function Dashboard({
   onShadow,
   onToast,
   onChanged,
+  onTag,
 }: {
   nodes: NodeMeta[];
   onOpen: (id: string) => void;
@@ -26,6 +27,7 @@ export function Dashboard({
   onShadow: () => void;
   onToast: (msg: string) => void;
   onChanged: () => void;
+  onTag?: (tag: string) => void;
 }) {
   const [recent] = usePref<string[]>("recent", []);
   const [log] = usePref<Record<string, number>>("writingLog", {});
@@ -42,6 +44,23 @@ export function Dashboard({
   const edited = [...usable].sort((a, b) => b.updatedAt - a.updatedAt).filter((n) => n.id !== last?.id).slice(0, 8);
   const projects = usable.filter((n) => n.layoutMode in PROJECT_ICON).sort((a, b) => b.updatedAt - a.updatedAt);
   const pinned = usable.filter((n) => n.pinned).slice(0, 8);
+  const boards = usable.filter((n) => n.layoutMode === "whiteboard").sort((a, b) => b.updatedAt - a.updatedAt);
+  const openTasks = usable.filter((n) => n.todos > n.done).sort((a, b) => b.updatedAt - a.updatedAt);
+  const shadow = usable.filter((n) => n.archeId === null).sort((a, b) => b.updatedAt - a.updatedAt);
+  const arches = usable.filter((n) => n.parentNodeId === null && n.archeId === n.id);
+  const totalWords = usable.reduce((s, n) => s + (n.words || 0), 0);
+  const tagCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of usable) for (const tg of n.tags) m.set(tg, (m.get(tg) ?? 0) + 1);
+    return [...m].sort((a, b) => b[1] - a[1]).slice(0, 14);
+  }, [usable]);
+  // Yeniden keşfet: 30 günden uzun süredir açılmamış notlardan, her gün bir başkası.
+  const rediscover = useMemo(() => {
+    const old = usable.filter((n) => Date.now() - n.updatedAt > 30 * 86_400_000 && n.excerpt);
+    if (!old.length) return null;
+    const day = Math.floor(Date.now() / 86_400_000);
+    return old[day % old.length];
+  }, [usable]);
   const manuscripts = projects.filter((p) => p.layoutMode === "manuscript");
   const msKey = manuscripts.map((m) => `${m.id}:${m.revision}`).join(",");
 
@@ -150,7 +169,7 @@ export function Dashboard({
                   <span className="dash-project-icon">{p.icon ?? PROJECT_ICON[p.layoutMode]}</span>
                   <span className="grow">
                     <b>{p.title}</b>
-                    <span className="muted small">{t(`ws.kind.${p.layoutMode as "manuscript" | "outline" | "cards" | "wiki"}`)} · {ago(p.updatedAt)}</span>
+                    <span className="muted small">{t(`ws.kind.${p.layoutMode as "manuscript" | "outline" | "cards" | "wiki" | "whiteboard"}`)} · {ago(p.updatedAt)}</span>
                     {p.layoutMode === "manuscript" && <Progress value={msWords[p.id] ?? 0} goal={p.wordGoal} label={t("ws.words", { n: (msWords[p.id] ?? 0).toLocaleString() })} />}
                   </span>
                 </button>
@@ -172,8 +191,110 @@ export function Dashboard({
             <button className="secondary small-btn" onClick={() => runCommand("wiki.new")}>
               📚 {t("ws.newWiki")}
             </button>
+            <button className="secondary small-btn" onClick={() => runCommand("whiteboard.new")} title={`Tabula — ${t("gloss.tabula")}`}>
+              🎨 {t("ws.newWhiteboard")}
+            </button>
           </div>
         </section>
+
+        <section className="dash-card">
+          <h3 title={`Tabula — ${t("gloss.tabula")}`}>🎨 Tabula</h3>
+          {boards.length ? (
+            <div className="dash-boards">
+              {boards.slice(0, 4).map((b) => (
+                <button key={b.id} className="dash-board" onClick={() => onOpen(b.id)}>
+                  <span className="dash-board-icon">{b.icon ?? "🎨"}</span>
+                  <b>{b.title}</b>
+                  <span className="muted small">{ago(b.updatedAt)}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="muted small">{t("gloss.tabula")}</p>
+          )}
+          <div className="row">
+            <button className="secondary small-btn" onClick={() => runCommand("whiteboard.new")}>
+              🎨 {t("ws.newWhiteboard")}
+            </button>
+          </div>
+        </section>
+
+        <section className="dash-card">
+          <h3>☑ {t("ws.openTasks")}</h3>
+          {openTasks.slice(0, 6).map((n) => (
+            <button key={n.id} className="link-row dash-task" onClick={() => onOpen(n.id)}>
+              <span>{n.icon ?? "◇"}</span>
+              <span className="grow">{n.title}</span>
+              <span className="dash-task-bar" title={`${n.done}/${n.todos}`}>
+                <span style={{ width: `${(n.done / n.todos) * 100}%` }} />
+              </span>
+              <span className="muted small">
+                {n.done}/{n.todos}
+              </span>
+            </button>
+          ))}
+          {!openTasks.length && <p className="muted small">{t("ws.noOpenTasks")}</p>}
+        </section>
+
+        <section className="dash-card">
+          <h3 title={t("term.shadow")}>◐ Shadow</h3>
+          <div className="dash-big">{shadow.length}</div>
+          <p className="muted small">{t(shadow.length ? "ws.shadowWaiting" : "ws.shadowEmpty")}</p>
+          {shadow.slice(0, 4).map((n) => (
+            <button key={n.id} className="link-row" onClick={() => onOpen(n.id)}>
+              <span>{n.icon ?? "◇"}</span> {n.title} <span className="muted small">· {ago(n.updatedAt)}</span>
+            </button>
+          ))}
+          {shadow.length > 0 && (
+            <div className="row">
+              <button className="secondary small-btn" onClick={onShadow}>
+                ◐ {t("ws.openShadow")}
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="dash-card">
+          <h3>⊙ Origin</h3>
+          <div className="dash-stats">
+            <span>
+              <b>{usable.length.toLocaleString()}</b>
+              <small>Node</small>
+            </span>
+            <span>
+              <b>{arches.length.toLocaleString()}</b>
+              <small>Arche</small>
+            </span>
+            <span>
+              <b>{totalWords.toLocaleString()}</b>
+              <small>{t("ws.wordsLabel")}</small>
+            </span>
+            <span>
+              <b>{tagCounts.length ? new Set(usable.flatMap((n) => n.tags)).size : 0}</b>
+              <small>{t("ws.tagsLabel")}</small>
+            </span>
+          </div>
+          {tagCounts.length > 0 && (
+            <div className="dash-tags">
+              {tagCounts.map(([tg, c]) => (
+                <button key={tg} className="tag-chip" onClick={() => onTag?.(tg)} title={`${c}`}>
+                  #{tg}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {rediscover && (
+          <section className="dash-card continue" onClick={() => onOpen(rediscover.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onOpen(rediscover.id)}>
+            <h3>✧ {t("ws.rediscover")}</h3>
+            <div className="dash-title">
+              {rediscover.icon ?? "◇"} {rediscover.title}
+            </div>
+            <p className="muted">{rediscover.excerpt.slice(0, 160)}</p>
+            <span className="muted small">{t("ws.lastEdited", { when: ago(rediscover.updatedAt) })}</span>
+          </section>
+        )}
 
         <section className="dash-card">
           <h3>{t("ws.recentlyEdited")}</h3>

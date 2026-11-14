@@ -25,7 +25,7 @@ export function aiActions(): AiAction[] {
 export const PROVIDER_LABEL: Record<string, string> = { claude: "Claude", chatgpt: "ChatGPT", gemini: "Gemini" };
 
 /** AI aracına yapıştırılacak istem: AI, ayrıntıları get_nularche_request ile Nularche'den alır. */
-export function requestPrompt(req: { id: string; label: string; instruction: string; nodeTitle?: string; selection?: string }): string {
+export function requestPrompt(req: { id: string; label: string; instruction: string; nodeTitle?: string; selection?: string; readOnly?: boolean }): string {
   const lines = [
     t("prompt.intro", { id: req.id }),
     t("prompt.step1", { id: req.id }),
@@ -36,5 +36,6 @@ export function requestPrompt(req: { id: string; label: string; instruction: str
   ];
   if (req.nodeTitle) lines.push(t("prompt.node", { title: req.nodeTitle }));
   if (req.selection) lines.push(t("prompt.selection"));
+  if (req.readOnly) lines.push(t("prompt.readOnly"));
   return lines.join("\n");
 }

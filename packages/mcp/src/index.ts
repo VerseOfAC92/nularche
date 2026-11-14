@@ -551,11 +551,15 @@ server.registerTool(
           instruction: req.instruction,
           selection: req.selection ?? null,
           reply_language: req.language ?? "tr",
+          read_only: !!req.readOnly,
           created_at: iso(req.createdAt),
         },
         node,
         next:
-          "İşi read_node/update_node gibi araçlarla yap (update_node'a base_revision ver), sonra complete_nularche_request ile kısa bir cevap yaz. " +
+          (req.readOnly
+            ? "Bu istek yalnızca cevap istiyor: hiçbir Node'u değiştirme, oluşturma ya da taşıma; yalnızca complete_nularche_request ile cevap yaz. "
+            : "Önce isteğin bir değişiklik isteyip istemediğine karar ver: soru, özet, analiz ya da öneri isteniyorsa notlara dokunma, yalnızca cevap yaz. Değişiklik açıkça isteniyorsa işi read_node/update_node gibi araçlarla yap (update_node'a base_revision ver). ") +
+          "Sonra complete_nularche_request ile kısa bir cevap yaz. " +
           `Write the reply in ${REPLY_LANGUAGE_NAME[req.language ?? "tr"]}.`,
       };
     }),
