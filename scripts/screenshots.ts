@@ -129,7 +129,6 @@ try {
   await page.waitForTimeout(400);
   await shot("templates-light");
   await page.keyboard.press("Escape");
-  await page.locator(".dialog .icon-btn").first().click();
   // Nularche AI penceresi ve kısayollar (koyu)
   await page.emulateMedia({ colorScheme: "dark" });
   await page.locator(".tree-row", { hasText: "Project" }).click();
