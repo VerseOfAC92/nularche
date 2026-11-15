@@ -1,4 +1,4 @@
-NULARCHE 2.0.0
+NULARCHE 2.5.0
 Local-first, AI-native notes, databases and templates in plain Markdown.
 https://github.com/VerseOfAC92/nularche   (full documentation with screenshots: README.md)
 
@@ -69,6 +69,16 @@ Windows (PowerShell):
   Side panel                     Shift+Cmd+O      Ctrl+Shift+O
   Add property / Reading view    Cmd+; / Opt+Cmd+E  Ctrl+; / Ctrl+Alt+E
   Insert a math result           Tab              Tab
+
+------------------------------------------------------------------------------
+NEW IN 2.5.0
+------------------------------------------------------------------------------
+  Tabula: a whiteboard with drawing tools, sticky notes, tables, images, over
+  130 diagram shapes and about 4,800 icons, connectors and PNG/SVG export; the
+  board is transparent over your writing background. The sidebar hides
+  completely (Opt+Cmd+B / Ctrl+Alt+B) and appears on hover. A richer Atrium.
+  Nularche AI requests time out instead of hanging, can be cancelled, edit long
+  notes block by block and never change notes unless you ask (Reply only).
 
 ------------------------------------------------------------------------------
 NEW IN 2.0.0

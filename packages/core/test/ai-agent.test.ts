@@ -187,3 +187,99 @@ test("cevap dili isteğin diline göre modele bildirilir; dil verilmemiş eski i
   assert.match(systems[0], /reply to the user in English/);
   assert.match(systems[1], /reply to the user in Turkish/);
 });
+
+test("uzun not numaralı bloklarla gösterilir ve rearrange_node içeriği değiştirmeden gruplar", async () => {
+  const { splitBlocks, rearrangeBlocks } = await import("../src/blocks.ts");
+  const body = "# Prompts\n\nID 1 Image: kedi\n\n```\nkod\n\niç\n```\n\nID 2 Video: deniz\n";
+  const blocks = splitBlocks(body);
+  assert.deepEqual(blocks, ["# Prompts", "ID 1 Image: kedi", "```\nkod\n\niç\n```", "ID 2 Video: deniz"]);
+  const ok = rearrangeBlocks(blocks, [{ block: 0 }, { text: "## Image" }, { block: 1 }, { block: 2 }, { text: "## Video" }, { block: 3 }]);
+  assert.ok("body" in ok);
+  assert.equal(ok.body, "# Prompts\n\n## Image\n\nID 1 Image: kedi\n\n```\nkod\n\niç\n```\n\n## Video\n\nID 2 Video: deniz\n");
+  const missing = rearrangeBlocks(blocks, [{ block: 0 }, { block: 1 }]);
+  assert.ok("error" in missing && /2, 3/.test(missing.error));
+  assert.ok("error" in rearrangeBlocks(blocks, [{ block: 0 }, { block: 0 }, { block: 1 }, { block: 2 }, { block: 3 }]));
+  assert.ok("body" in rearrangeBlocks(blocks, [{ block: 0 }], [1, 2, 3]));
+});
+
+test("yanıt vermeyen Gemini isteği süre sınırında başarısız olarak biter", async () => {
+  const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "x" });
+  const hang = ((_u: string, init: RequestInit) =>
+    new Promise((_r, reject) => init.signal?.addEventListener("abort", () => reject(new Error("aborted"))))) as unknown as typeof fetch;
+  const res = await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["a", "b"], fetchImpl: hang, deadlineMs: 50 });
+  assert.equal(res.request.status, "failed");
+  assert.match(res.request.reply ?? "", /dakika/);
+});
+
+test("uzun notta Gemini rearrange_node ile gruplar; blok metinleri aynen korunur", async () => {
+  const lines = Array.from({ length: 400 }, (_, i) => `Prompt ID ${i} ${i % 2 ? "Video" : "Image"}: ${"x".repeat(60)}`);
+  const node = await store.create({ title: "Prompts", body: lines.join("\n\n"), parentNodeId: null });
+  const req = await ai.createRequest({ provider: "gemini", label: "grupla", instruction: "grupla", nodeId: node.id });
+  let intro = "";
+  let step = 0;
+  const fake = (async (_u: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    if (step++ === 0) {
+      intro = body.contents[0].parts[0].text;
+      const items = [{ text: "## Image" }, ...lines.map((_, i) => i).filter((i) => i % 2 === 0).map((block) => ({ block })), { text: "## Video" }, ...lines.map((_, i) => i).filter((i) => i % 2).map((block) => ({ block }))];
+      return json(200, { candidates: [{ content: { parts: [{ functionCall: { name: "rearrange_node", args: { node: node.id, items } } }] } }] });
+    }
+    return json(200, { candidates: [{ content: { parts: [{ text: "Gruplandı." }] } }] });
+  }) as unknown as typeof fetch;
+  const res = await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["a"], fetchImpl: fake });
+  assert.equal(res.request.status, "done");
+  assert.match(intro, /\[399\]\nPrompt ID 399 Video/);
+  const after = (await store.read(node.id)).body;
+  assert.ok(after.startsWith("## Image\n\nPrompt ID 0 Image"));
+  for (const l of lines) assert.ok(after.includes(l), l);
+  assert.ok(after.indexOf("## Video") > after.indexOf("Prompt ID 398 Image"));
+});
+
+test("iptal edilen istek sonradan gelen cevapla değişmez, sıradaysa hiç işlenmez", async () => {
+  const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "x" });
+  await ai.cancelRequest(req.id, "İptal edildi");
+  let called = false;
+  const fake = (async () => ((called = true), json(200, { candidates: [{ content: { parts: [{ text: "geç cevap" }] } }] }))) as unknown as typeof fetch;
+  const res = await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["a"], fetchImpl: fake });
+  assert.equal(called, false);
+  assert.equal(res.request.reply, "İptal edildi");
+  assert.equal((await ai.completeRequest(req.id, "geç cevap")).reply, "İptal edildi");
+  // Süren istek: iptal Gemini çağrısını keser.
+  const r2 = await ai.createRequest({ provider: "gemini", label: "y", instruction: "y" });
+  const abort = new AbortController();
+  const hang = ((_u: string, init: RequestInit) =>
+    new Promise((_r, reject) => init.signal?.addEventListener("abort", () => reject(new Error("aborted"))))) as unknown as typeof fetch;
+  const run = runGeminiAgent({ store, activity: ai, requestId: r2.id, apiKey: "k", models: ["a"], fetchImpl: hang, signal: abort.signal });
+  await new Promise((r) => setTimeout(r, 20));
+  await ai.cancelRequest(r2.id, "İptal edildi");
+  abort.abort();
+  const done = await run;
+  assert.equal(done.request.status, "failed");
+  assert.equal((await ai.getRequest(r2.id)).reply, "İptal edildi");
+});
+
+test("takılı kalmış (sahipsiz) istek geçmiş temizlenince arşivlenir", async () => {
+  const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "x" });
+  await ai.takeRequest(req.id, "test");
+  assert.equal((await ai.clearHistory()).kept, 1);
+  const stale = await ai.getRequest(req.id);
+  const { writeFile } = await import("node:fs/promises");
+  await writeFile(path.join(ai.dir, "requests", `${req.id}.json`), JSON.stringify({ ...stale, receivedAt: Date.now() - 11 * 60_000 }));
+  assert.deepEqual(await ai.clearHistory(), { archived: 1, kept: 0 });
+});
+
+test("yalnızca cevap isteğinde yazma araçları verilmez ve çağrılsa da not değişmez", async () => {
+  const node = await store.create({ title: "N", body: "eski", parentNodeId: null });
+  const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "özetle", nodeId: node.id, readOnly: true });
+  let tools: string[] = [];
+  let step = 0;
+  const fake = (async (_u: string, init: RequestInit) => {
+    const b = JSON.parse(String(init.body));
+    tools = b.tools[0].functionDeclarations.map((t: { name: string }) => t.name);
+    if (step++ === 0) return json(200, { candidates: [{ content: { parts: [{ functionCall: { name: "update_node", args: { node: node.id, body: "yeni" } } }] } }] });
+    return json(200, { candidates: [{ content: { parts: [{ text: "Özet." }] } }] });
+  }) as unknown as typeof fetch;
+  await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["a"], fetchImpl: fake });
+  assert.ok(!tools.includes("update_node") && tools.includes("read_node"));
+  assert.equal((await store.read(node.id)).body.trim(), "eski");
+});

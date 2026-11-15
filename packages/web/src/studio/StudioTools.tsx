@@ -3,6 +3,7 @@
 // Nularche dilindeki anlamını da gösterir; böylece özellikler menü çubuğunu bilmeden de bulunur.
 
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { runCommand } from "../commands.ts";
 import { t, type StringKey } from "../i18n/index.ts";
 import { usePref } from "../prefs.ts";
@@ -16,6 +17,7 @@ export const PROJECT_KINDS: { cmd: string; icon: string; name: string; meaning: 
   { cmd: "outline.new", icon: "🗂", name: "Axis", meaning: "gloss.axis" },
   { cmd: "cards.new", icon: "🗃", name: "Mosaic", meaning: "gloss.mosaic" },
   { cmd: "wiki.new", icon: "📚", name: "Lore", meaning: "gloss.lore" },
+  { cmd: "whiteboard.new", icon: "🎨", name: "Tabula", meaning: "gloss.tabula" },
 ];
 
 /** Açılır pencere dışına tıklanınca ya da Esc ile kapanır. */
@@ -36,13 +38,14 @@ function useDismiss(ref: RefObject<HTMLElement | null>, onClose: () => void): vo
 }
 
 /** Yeni Codex / Axis / Mosaic / Lore seçtiren açılır menü. */
-export function NewProjectMenu({ onClose, anchor }: { onClose: () => void; anchor?: DOMRect }) {
+export function NewProjectMenu({ onClose, anchor, onMouseEnter, onMouseLeave }: { onClose: () => void; anchor?: DOMRect; onMouseEnter?: () => void; onMouseLeave?: () => void }) {
   // Kenar çubuğu taşanı kırptığı için menü düğmenin yanında sabit konumda açılır.
   const style = anchor ? { position: "fixed" as const, left: anchor.right + 6, top: Math.min(anchor.top, window.innerHeight - 300) } : undefined;
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(ref, onClose);
-  return (
-    <div className="menu-pop project-menu" style={style} ref={ref} role="menu">
+  // Belgenin en üst katmanında açılır: kenar çubuğunun cam efekti ve kaydırma alanı menüyü kırpmaz.
+  const menu = (
+    <div className="menu-pop project-menu" style={style} ref={ref} role="menu" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <div className="menu-title">{t("ws.newProject")}</div>
       {PROJECT_KINDS.map((k) => (
         <button key={k.cmd} role="menuitem" onClick={() => (onClose(), runCommand(k.cmd))}>
@@ -55,6 +58,7 @@ export function NewProjectMenu({ onClose, anchor }: { onClose: () => void; ancho
       ))}
     </div>
   );
+  return anchor ? createPortal(menu, document.body) : menu;
 }
 
 /** Aura: daktilo sesleri ve ortam sesi için küçük pencere. */
@@ -68,7 +72,7 @@ export function AuraMenu({ onClose, anchor }: { onClose: () => void; anchor: DOM
   const [profile, setProfile] = usePref<TypeProfile>("typeProfile", "light");
   const [ambience, setAmbience] = usePref<Ambience>("ambience", "off");
   const [level, setLevel] = usePref<number>("ambienceLevel", 0.5);
-  return (
+  return createPortal(
     <div className="menu-pop aura-menu" ref={ref} style={style}>
       <div className="menu-title">Aura</div>
       <p className="muted small">{t("gloss.aura")}</p>
@@ -97,7 +101,8 @@ export function AuraMenu({ onClose, anchor }: { onClose: () => void; anchor: DOM
           <input type="range" min={0} max={1} step={0.05} value={level} onChange={(e) => setLevel(Number(e.target.value))} />
         </label>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

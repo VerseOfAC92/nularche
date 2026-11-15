@@ -47,13 +47,14 @@ interface CommandContext {
   draw: () => void;
 }
 
-export type ProjectKind = "manuscript" | "outline" | "cards" | "wiki";
+export type ProjectKind = "manuscript" | "outline" | "cards" | "wiki" | "whiteboard";
 /** "/" menüsündeki yazma projeleri: tür, simge, Nularche adı, anlamı ve arama sözcükleri. */
 const STUDIO_ITEMS: [ProjectKind, string, string, StringKey, string][] = [
   ["manuscript", "📕", "Codex", "gloss.codex", "codex manuskript manuscript kitap book roman"],
   ["outline", "🗂", "Axis", "gloss.axis", "axis taslak outline plan"],
   ["cards", "🗃", "Mosaic", "gloss.mosaic", "mosaic kart card pano corkboard sahne"],
   ["wiki", "📚", "Lore", "gloss.lore", "lore wiki karakter mekan story bible"],
+  ["whiteboard", "🎨", "Tabula", "gloss.tabula", "tabula whiteboard beyaz tahta çizim draw diagram şema akış flowchart"],
 ];
 
 const CALLOUT_LABELS: Record<CalloutKind, [StringKey, string]> = {
@@ -306,7 +307,8 @@ interface Trigger {
   kind: "slash" | "link";
   query: string;
   from: number;
-  top: number;
+  top?: number;
+  bottom?: number;
   left: number;
 }
 
@@ -466,7 +468,9 @@ export function Editor(props: EditorProps) {
     const coords = e.view.coordsAtPos(from);
     setTrigger((prev) => {
       if (!prev || prev.query !== m[1] || prev.kind !== kind) setActive(0);
-      return { kind, query: m[1], from, top: Math.min(coords.bottom + 4, window.innerHeight - 350), left: coords.left };
+      // Altta yer yoksa menü satırın üstünde açılır (yazılan satırı örtmez).
+      const roomBelow = window.innerHeight - coords.bottom - 8 >= 340;
+      return { kind, query: m[1], from, ...(roomBelow ? { top: coords.bottom + 4 } : { bottom: window.innerHeight - coords.top + 4 }), left: coords.left };
     });
   }
 
@@ -741,7 +745,7 @@ export function Editor(props: EditorProps) {
         </VaultHostContext.Provider>
       </MediaHostContext.Provider>
       {trigger && items.length > 0 && (
-        <div className="pop suggest" style={{ top: trigger.top, left: trigger.left }} role="listbox">
+        <div className="pop suggest" style={{ top: trigger.top, bottom: trigger.bottom, left: trigger.left }} role="listbox">
           {items.map((c, i) => {
             const header = c.group !== lastGroup ? <div className="group">{c.group}</div> : null;
             lastGroup = c.group;

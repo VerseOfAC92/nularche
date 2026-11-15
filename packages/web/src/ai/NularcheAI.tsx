@@ -3,6 +3,7 @@
 // "nularche" MCP araçlarıyla yapar ve ilerleme, cevap ve geri alma burada görünür.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePref } from "../prefs.ts";
 import { api, type AiRequest } from "../api.ts";
 import { copyText, desktop } from "../desktop.ts";
 import { AiSetup, isProviderConnected, preferredLauncher, useAiStatus } from "./AiSetup.tsx";
@@ -26,7 +27,9 @@ const STATUS_TEXT = (r: AiRequest, ai: string, auto: boolean) =>
       : t("nai.sendInApp", { ai })
     : r.status === "received"
       ? t("nai.working", { ai })
-      : r.status === "failed"
+      : r.cancelled
+        ? t("nai.cancelled")
+        : r.status === "failed"
         ? t("nai.failed")
         : t("nai.done");
 
@@ -53,6 +56,8 @@ export function NularcheAI({
   const [text, setText] = useState("");
   const [useSelection, setUseSelection] = useState(true);
   const [sending, setSending] = useState(false);
+  // Yalnızca cevap: yapay zekâ notları değiştiremez (soru sormak ya da özet istemek için güvenli mod).
+  const [replyOnly, setReplyOnly] = usePref<boolean>("naiReplyOnly", false);
   const listRef = useRef<HTMLDivElement>(null);
   const drag = useDraggable("nlc-nai-pos");
 
@@ -81,7 +86,7 @@ export function NularcheAI({
     if (!instruction.trim() || sending) return;
     setSending(true);
     try {
-      const req = await api.aiRequest({ provider, label, instruction, nodeId: context.nodeId, nodeTitle: context.nodeTitle, selection, language: getLang() });
+      const req = await api.aiRequest({ provider, label, instruction, nodeId: context.nodeId, nodeTitle: context.nodeTitle, selection, language: getLang(), readOnly: replyOnly || undefined });
       setRequests((r) => [req, ...r]);
       setText("");
       const prompt = requestPrompt(req);
@@ -108,6 +113,17 @@ export function NularcheAI({
       onToast((e as Error).message);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function cancel(r: AiRequest) {
+    try {
+      // Masaüstünde süren Gemini çağrısı da kesilir; diğer durumlarda istek iptal olarak işaretlenir.
+      const res = desktop?.autoCancel ? await desktop.autoCancel(r.id, t("nai.cancelled")) : (await api.aiCancel(r.id, t("nai.cancelled")), { ok: true });
+      if (!res.ok && "error" in res && res.error) onToast(res.error);
+      setRequests((await api.aiState()).requests);
+    } catch (e) {
+      onToast((e as Error).message);
     }
   }
 
@@ -177,17 +193,23 @@ export function NularcheAI({
             {ordered.map((r) => (
               <div key={r.id} className="nai-turn">
                 <div className="nai-user">
-                  <div>{r.label === r.instruction ? r.instruction : r.label}</div>
+                  <div className="nai-text">{r.label === r.instruction || r.instruction.startsWith(r.label) ? r.instruction : r.label}</div>
                   {r.nodeTitle && (
                     <button className="nai-chip" onClick={() => r.nodeId && onOpenNode(r.nodeId)}>
                       ◇ {r.nodeTitle}
                     </button>
                   )}
                   {r.selection && <span className="nai-chip">{t("nai.selection")}</span>}
+                  {r.readOnly && <span className="nai-chip">💬 {t("nai.replyOnly")}</span>}
                 </div>
                 <div className={`nai-status ${r.status}`}>
                   {STATUS_TEXT(r, r.provider ? PROVIDER_LABEL[r.provider] : ai, autoOn)}
                   {r.status === "done" && r.client?.startsWith("Gemini ·") && <span className="nai-model"> · {r.client.slice(9)}</span>}
+                  {(r.status === "pending" || r.status === "received") && (
+                    <button className="nai-copy" onClick={() => void cancel(r)} title={t("nai.cancelHint")}>
+                      ✕ {t("nai.cancel")}
+                    </button>
+                  )}
                   {desktop && autoOn && (r.status === "failed" || (r.status !== "done" && Date.now() - r.createdAt > 60_000)) && (
                     <button
                       className="nai-copy"
@@ -247,6 +269,9 @@ export function NularcheAI({
                   {context.selection.trim().length})
                 </label>
               )}
+              <label className={`nai-chip nai-mode ${replyOnly ? "on" : ""}`} title={t("nai.replyOnlyHint")}>
+                <input type="checkbox" checked={replyOnly} onChange={(e) => setReplyOnly(e.target.checked)} /> 💬 {t("nai.replyOnly")}
+              </label>
             </div>
             {context.nodeId && (
               <div className="nai-actions">

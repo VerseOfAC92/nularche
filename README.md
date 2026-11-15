@@ -30,6 +30,75 @@ official Claude, ChatGPT or Gemini app you already use, or for free with a Gemin
 
 The name comes from **Null** (a clean starting point) and **Arche** (first principle, root).
 
+## What's new in 2.5.0
+
+Nularche 2.5 adds **Tabula**, a whiteboard that sits over your writing background, a sidebar that hides completely,
+a richer **Atrium**, and a Nularche AI that can no longer hang and never edits a note unless you ask it to.
+
+<p align="center">
+  <img src="docs/screenshots/atrium-lavender.png" width="860" alt="Atrium over the Lavender Hills background: continue writing, daily goal, quick capture and writing projects as frosted-glass cards" />
+</p>
+
+- **Atrium** (home): where you left off, today's words against your goal with a seven-day chart and streak, quick
+  capture, your writing projects and Tabula boards, open tasks with progress, the Shadow inbox, an Origin summary with
+  your most used tags, a note to rediscover each day, recently edited and pinned notes.
+
+**Tabula (whiteboard)**
+
+<p align="center">
+  <img src="docs/screenshots/tabula-lavender.png" width="49%" alt="A Tabula board over the background: a flowchart, sticky notes, a table, an icon and a pen drawing" />
+  <img src="docs/screenshots/tabula-library.png" width="49%" alt="The Tabula shape library: diagram shapes and icon groups" />
+</p>
+
+- **New Tabula** in *New Writing Project*, the Atrium, the `/` menu and File → New Writing Project. The board is
+  stored in the note as a JSON block; images are files in your Origin.
+- **Drawing:** pen, pencil, marker and highlighter (pressure-sensitive with a stylus), object eraser, any colour and
+  width.
+- **Content:** sticky notes, text boxes, tables (Tab moves between cells), images (insert, paste or drag in), and cards
+  that link to a note.
+- **Shapes:** over 130 diagram shapes in eight groups: basic, arrows, flowchart, process (BPMN), UML and software,
+  network and IT, callouts and symbols. Plus about 4,800 icons in thirteen groups (people, animals and nature, food,
+  places, transport, objects, work, science and health, technology, arts, sports, symbols and interface), in outline
+  or filled style. Search works in English and for common Turkish words.
+- **Connectors:** lines, arrows and elbow connectors with six end styles. Drag from the dots around a selected shape to
+  connect it; connected lines follow when shapes move. Lines can carry a label.
+- **Editing:** move, resize, rotate (Shift snaps to 15°), alignment guides, snap to grid, group, lock, layer order,
+  align and distribute, flip, duplicate (Alt-drag or ⌘D), copy and paste, undo and redo. Fill, stroke, dash, opacity,
+  shadow, font, size, style and alignment for text.
+- **Board:** dots, grid, lines or none; transparent by default so the writing background shows through, or a solid
+  colour. Zoom with pinch or ⌘ + scroll, pan with two fingers, Space-drag or the hand tool. Export to **PNG** or
+  **SVG**.
+- Free text and drawings get a soft outline so they stay readable over busy backgrounds.
+
+- Works at every window size: the toolbar wraps onto a second row in narrow windows and the format panel can be
+  collapsed with ›.
+- Text uses every font available for notes: the six bundled fonts, the system fonts, sans, serif, mono and
+  handwriting.
+
+**Window**
+
+- **Hide the sidebar:** the sidebar button next to the window buttons (or ⌥⌘B / Ctrl+Alt+B) hides the sidebar
+  completely. Hover the button and the sidebar slides in as a panel tinted by your background; move away and it
+  hides again. Click the button to bring it back for good. On Windows and Linux the button sits at the top left of the
+  window while the sidebar is hidden.
+- With a background, the Atrium cards and the cards and lists on other pages are frosted glass too, so nothing looks
+  pasted on. The glass blur now renders in the desktop app (it was missing before).
+- The `/` menu opens above the line when you type near the bottom of the window, so it never covers your text.
+
+<p align="center">
+  <img src="docs/screenshots/sidebar-peek-night.png" width="49%" alt="The hidden sidebar shown as a panel over the Night Sky background while hovering its button" />
+  <img src="docs/screenshots/about-light.png" width="49%" alt="Settings → About: features, support address and the Nularche language" />
+</p>
+
+**Nularche AI**
+- A request that gets no answer from Gemini stops after a time limit with a clear message instead of waiting forever
+  and blocking the requests behind it. **✕ Cancel** stops a request at any time; a request left “working” after a
+  restart can be cleared from the history.
+- Long notes are reorganised block by block, so Gemini moves your text unchanged instead of rewriting the whole note.
+- Nularche AI only changes notes when you ask for a change. Questions, summaries and analysis are answered without
+  editing, and the **💬 Reply only** switch removes every editing tool. Any change can still be undone with ↶ Undo.
+- The full text of your request is shown, and the input box grows as you type.
+
 ## What's new in 2.0.0
 
 Nularche 2.0 adds a **writing studio** for long-form work: novels, theses, scripts and reports. Its parts have their own
@@ -122,15 +191,8 @@ the same way canvas pages do, so they open in any editor and track nicely in Git
   Diptych and Clepsydra.
 - **Focus mode:** Clepsydra and Aura buttons in the top bar.
 - **Settings** are grouped into categories with search (see [Settings](#settings)).
-- **Collapsible sidebar:** the ‹‹ button next to the logo (or ⌥⌘B / Ctrl+Alt+B) shrinks the sidebar to a narrow strip
-  of icons: the logo, every menu item and your Arches with their icons (◈ when an Arche has none). Hover an icon to
-  see its name; ›› opens the full sidebar again, and your choice is remembered.
 - **Settings → About** explains what Nularche is and does, lists its main features and gives the support address.
 
-<p align="center">
-  <img src="docs/screenshots/sidebar-mini-dark.png" width="49%" alt="The collapsed sidebar: the logo, menu icons and Arche icons, with a name on hover" />
-  <img src="docs/screenshots/about-light.png" width="49%" alt="Settings → About: features, support address and the Nularche language" />
-</p>
 
 **A window that matches your background**
 - When a writing background is shown (*Also show the background on normal pages* in the focus-mode background settings, or in focus mode), it
@@ -320,9 +382,9 @@ extra step:
 On first launch Nularche asks where your notes should live (your **Origin** folder) and offers to connect an AI.
 Both can be changed later in **Settings**.
 
-**Updating from 1.x:** install 2.0 over the old version the same way (drag it to Applications on macOS, run the
+**Updating from 1.x or 2.0:** install 2.5 over the old version the same way (drag it to Applications on macOS, run the
 installer on Windows, `sudo apt install ./Nularche-Linux-amd64.deb` on Linux) or run the terminal installer again.
-Your Origin folder, notes and settings stay as they are; 1.x notes open unchanged.
+Your Origin folder, notes and settings stay as they are; older notes open unchanged.
 
 ## Install from the terminal
 
@@ -559,7 +621,7 @@ Press **⌘ /** (macOS) or **Ctrl + /** (Windows, Linux) in the app to see this 
 | Add comment · Create checkpoint | ⌥ ⌘ M · ⌥ ⌘ S | Ctrl + Alt + M · Ctrl + Alt + S |
 | Open a note beside (split view) | ⌥ ⌘ \ | Ctrl + Alt + \ |
 | Writing timer | ⌥ ⌘ P | Ctrl + Alt + P |
-| Collapse / expand the sidebar | ⌥ ⌘ B | Ctrl + Alt + B |
+| Hide / show the sidebar | ⌥ ⌘ B | Ctrl + Alt + B |
 | Outline: new row · indent · outdent · row notes | ↩ · Tab · ⇧ Tab · ⌘ ↩ | Enter · Tab · Shift + Tab · Ctrl + Enter |
 
 Every command's shortcut can be changed in **Settings → Keyboard shortcuts**.
@@ -658,6 +720,11 @@ them only if all the tests pass.
 Contributions are welcome: open an issue or a pull request. Please keep notes as plain Markdown, keep the app
 local-first, and add tests for behaviour changes.
 
+## Third-party artwork
+
+Tabula's icons come from [Tabler Icons](https://tabler.io/icons) (MIT licence, © Paweł Kuna); freehand strokes are
+drawn with [perfect-freehand](https://github.com/steveruizok/perfect-freehand) (MIT licence, © Steve Ruiz).
+
 ## Support
 
 Questions, ideas or bug reports: write to **[verseofac@gmail.com](mailto:verseofac@gmail.com)** or open an
@@ -675,6 +742,22 @@ Questions, ideas or bug reports: write to **[verseofac@gmail.com](mailto:verseof
 bilgi yönetimi uygulamasıdır. Veritabanları (tablo, pano, takvim, galeri, liste, zaman çizelgesi), şablonlar, günlük
 not, Çöp, statik site yayınlama ve Claude / ChatGPT / Gemini entegrasyonu içerir. Arayüz Ayarlar'dan Türkçeye
 alınabilir.
+
+### 2.5.0'daki yenilikler
+
+- **Tabula** (beyaz tahta): kalem, kurşun kalem, keçeli ve fosforlu kalem, silgi; yapışkan notlar, metin, tablo,
+  görsel ve not kartları; akış şeması, BPMN, UML, ağ ve daha fazlası için 130'dan fazla şekil ve 13 grupta yaklaşık
+  4.800 simge; şekilleri bağlayan ve şekiller taşınınca onları izleyen oklar; hizalama kılavuzları, gruplama, kilit,
+  katman sırası, hizala/dağıt, çevir, geri al/yinele; not yazarken kullanılan bütün yazı tipleri. Tahta saydamdır ve
+  seçtiğiniz arka planı gösterir; PNG ve SVG olarak dışa aktarılır. *Yeni yazma projesi* menüsünde, Atrium'da ve “/”
+  menüsünde.
+- **Kenar çubuğu tamamen gizlenir** (pencere düğmelerinin yanındaki düğme ya da ⌥⌘B); düğmenin üzerine gelince arka
+  planın renginde bir panel olarak belirir, fare çekilince kaybolur.
+- **Atrium** zenginleşti: Tabula panoları, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden
+  keşfedilecek bir not. Arka plan seçiliyken Atrium'daki ve diğer sayfalardaki kartlar da buzlu cam olur.
+- **Nularche AI**: yanıt vermeyen istekler süre sınırında açık bir mesajla durur, istekler iptal edilebilir, uzun notlar
+  baştan yazılmadan blok blok düzenlenir. Soru, özet ve analiz isteklerinde notlar değiştirilmez; **💬 Yalnızca cevap**
+  açıkken hiçbir not değişmez.
 
 ### 2.0.0'daki yenilikler
 

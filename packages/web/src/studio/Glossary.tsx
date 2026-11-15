@@ -28,6 +28,7 @@ export const GLOSSARY: { group: StringKey; terms: Term[] }[] = [
       ["Marginalia", "✎", "gloss.marginalia"],
       ["Epoch", "⚑", "gloss.epoch"],
       ["Diptych", "◫", "gloss.diptych"],
+      ["Tabula", "🎨", "gloss.tabula"],
     ],
   },
   {

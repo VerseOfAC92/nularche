@@ -52,10 +52,13 @@ const ABOUT_FEATURES: [string, StringKey, StringKey][] = [
   ["🔗", "about.f.linksTitle", "about.f.links"],
   ["▦", "about.f.dbTitle", "about.f.db"],
   ["📕", "about.f.studioTitle", "about.f.studio"],
+  ["🎨", "about.f.tabulaTitle", "about.f.tabula"],
+  ["🏛", "about.f.atriumTitle", "about.f.atrium"],
   ["🎯", "about.f.focusTitle", "about.f.focus"],
   ["✦", "about.f.aiTitle", "about.f.ai"],
   ["🔒", "about.f.privacyTitle", "about.f.privacy"],
   ["⇩", "about.f.exportTitle", "about.f.export"],
+  ["🖼", "about.f.lookTitle", "about.f.look"],
 ];
 
 /** Bir kategori içindeki başlıklı kart. */
@@ -345,6 +348,9 @@ export function Settings({
               </li>
             ))}
           </ul>
+        </Card>
+        <Card title={t("about.creditsTitle")}>
+          <p className="muted small">{t("about.credits")}</p>
         </Card>
         <Card title={t("about.supportTitle")} hint={t("about.supportHint")}>
           <div className="row about-support">

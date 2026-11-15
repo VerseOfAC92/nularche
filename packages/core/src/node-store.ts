@@ -18,6 +18,7 @@ import { parseNodeFile, revisionOf, serializeNodeFile, slugify, type Frontmatter
 import { bodyFacts, fillTemplate, isLockedBody, plainText, renameTagInBody, tagKey } from "./note-text.ts";
 import { extractWikiLinks, wikiResolver } from "./wikilinks.ts";
 import { canvasFiles, rewriteCanvasFiles } from "./canvas.ts";
+import { rewriteWhiteboardFiles, whiteboardFiles } from "./whiteboard.ts";
 import { findAllMentions, rewriteWritingFiles, writingFiles, writingKindOf } from "./writing.ts";
 export { findAllMentions } from "./writing.ts";
 
@@ -36,16 +37,16 @@ export class NodeError extends Error {
   }
 }
 
-export type LayoutMode = "stream" | "canvas" | "manuscript" | "outline" | "cards" | "wiki";
-export const LAYOUT_MODES: readonly LayoutMode[] = ["stream", "canvas", "manuscript", "outline", "cards", "wiki"];
+export type LayoutMode = "stream" | "canvas" | "manuscript" | "outline" | "cards" | "wiki" | "whiteboard";
+export const LAYOUT_MODES: readonly LayoutMode[] = ["stream", "canvas", "manuscript", "outline", "cards", "wiki", "whiteboard"];
 const isLayout = (v: unknown): v is LayoutMode => typeof v === "string" && (LAYOUT_MODES as readonly string[]).includes(v) && v !== "stream";
 /** Gövdesi serbest metin değil, yapılandırılmış veri olan düzenler (anılış ve wiki bağlantısı aranmaz). */
-const STRUCTURED = new Set<LayoutMode>(["canvas", "manuscript", "outline", "cards"]);
+const STRUCTURED = new Set<LayoutMode>(["canvas", "manuscript", "outline", "cards", "whiteboard"]);
 
 /** Frontmatter'da tutulan, uygulamanın anlamlandırdığı isteğe bağlı Node alanları. */
 export interface PageFields {
   /**
-   * `canvas`: serbest tuval; `manuscript`, `outline`, `cards`: yazma projeleri (bkz. writing.ts); `wiki`: alt sayfaları
+   * `canvas`: serbest tuval; `whiteboard`: Tabula beyaz tahtası; `manuscript`, `outline`, `cards`: yazma projeleri (bkz. writing.ts); `wiki`: alt sayfaları
    * wiki girdileri olan başvuru kitaplığı. Yoksa dikey akış (stream).
    */
   layout?: LayoutMode;
@@ -379,12 +380,14 @@ function toPosix(p: string): string {
 /** Yapılandırılmış düzenlerin (tuval, manuskript, taslak, kartlar) gövdesinde başvurulan Origin yolları. */
 function refFiles(layout: LayoutMode, body: string): string[] {
   if (layout === "canvas") return canvasFiles(body);
+  if (layout === "whiteboard") return whiteboardFiles(body);
   const kind = writingKindOf(layout);
   return kind ? writingFiles(kind, body) : [];
 }
 
 function rewriteRefFiles(layout: LayoutMode, body: string, moved: Map<string, string>): string {
   if (layout === "canvas") return rewriteCanvasFiles(body, moved);
+  if (layout === "whiteboard") return rewriteWhiteboardFiles(body, moved);
   const kind = writingKindOf(layout);
   return kind ? rewriteWritingFiles(kind, body, moved) : body;
 }

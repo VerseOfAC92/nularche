@@ -167,11 +167,16 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
             nodeTitle: str(b.nodeTitle),
             selection: str(b.selection),
             language: isReplyLanguage(b.language) ? b.language : undefined,
+            readOnly: b.readOnly === true,
           }),
         );
       }
       if (method === "POST" && parts[1] === "clear") {
         return send(res, 200, await activity.clearHistory());
+      }
+      if (method === "POST" && parts[1] === "requests" && parts[3] === "cancel") {
+        const b = await readJson(req);
+        return send(res, 200, await activity.cancelRequest(parts[2], str(b.reply) ?? "İptal edildi."));
       }
       if (method === "POST" && parts[1] === "requests" && parts[3] === "undo") {
         return send(res, 200, await activity.undo(store, parts[2]));

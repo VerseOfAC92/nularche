@@ -1,6 +1,6 @@
 // Yerel sunucunun JSON API istemcisi. Tipler core/src/node-store.ts ile aynı sözleşmeyi izler.
 
-export type LayoutMode = "stream" | "canvas" | "manuscript" | "outline" | "cards" | "wiki";
+export type LayoutMode = "stream" | "canvas" | "manuscript" | "outline" | "cards" | "wiki" | "whiteboard";
 
 export interface PageFields {
   layout?: LayoutMode;
@@ -107,6 +107,8 @@ export interface AiRequest {
   reply?: string;
   changes: AiChange[];
   undoneAt?: number;
+  cancelled?: boolean;
+  readOnly?: boolean;
 }
 
 export interface TagCount {
@@ -274,9 +276,10 @@ export const api = {
   wikiTerms: () => request<{ terms: WikiTerm[] }>("GET", "/api/wiki-terms").then((r) => r.terms),
   aiState: () =>
     request<{ clients: { name: string; provider: string | null; firstSeen: number; lastSeen: number }[]; requests: AiRequest[] }>("GET", "/api/ai"),
-  aiRequest: (input: { provider: string | null; label: string; instruction: string; nodeId?: string; nodeTitle?: string; selection?: string; language?: string }) =>
+  aiRequest: (input: { provider: string | null; label: string; instruction: string; nodeId?: string; nodeTitle?: string; selection?: string; language?: string; readOnly?: boolean }) =>
     request<AiRequest>("POST", "/api/ai/requests", input),
   aiClear: () => request<{ archived: number; kept: number }>("POST", "/api/ai/clear"),
+  aiCancel: (id: string, reply: string) => request<AiRequest>("POST", `/api/ai/requests/${enc(id)}/cancel`, { reply }),
   aiUndo: (id: string) => request<{ restored: string[]; skipped: string[] }>("POST", `/api/ai/requests/${enc(id)}/undo`),
   tags: () => request<{ tags: TagCount[] }>("GET", "/api/tags").then((r) => r.tags),
   renameTag: (from: string, to: string) => request<{ changed: number }>("POST", `/api/tags/${enc(from)}/rename`, { to }),

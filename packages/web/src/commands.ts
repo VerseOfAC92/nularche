@@ -37,7 +37,7 @@ export const MENU: Group[] = [
       c("canvas.new", "ob.newCanvas"),
       {
         submenu: "ws.newProject",
-        items: [c("manuscript.new", "ws.newManuscript"), c("outline.new", "ws.newOutline"), c("cards.new", "ws.newCards"), c("wiki.new", "ws.newWiki")],
+        items: [c("manuscript.new", "ws.newManuscript"), c("outline.new", "ws.newOutline"), c("cards.new", "ws.newCards"), c("wiki.new", "ws.newWiki"), "-", c("whiteboard.new", "ws.newWhiteboard")],
       },
       c("note.window", "cmd.openWindow"),
       c("note.slides", "ob.slides"),

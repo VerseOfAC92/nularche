@@ -1,6 +1,7 @@
 // Klavye kısayolları: işletim sistemine göre gösterim (macOS: ⇧⌘D, Windows/Linux: Ctrl+Shift+D) ve kısayol listesi.
 // Kısayolların kendisi her yerde "Mod" (macOS'ta ⌘, diğerlerinde Ctrl) ile tanımlanır.
 
+import { useEscape } from "./useEscape.ts";
 import { t, type StringKey } from "./i18n/index.ts";
 import { ALL_COMMANDS, comboFor } from "./commands.ts";
 
@@ -135,6 +136,7 @@ export function ShortcutList() {
 }
 
 export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
+  useEscape(onClose);
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog shortcuts">
