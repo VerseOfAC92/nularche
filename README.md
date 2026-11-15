@@ -10,7 +10,7 @@ Your notes stay on your computer. Your AI is the one you already pay for.</p>
 <p align="center">
   <a href="https://github.com/VerseOfAC92/nularche/releases/latest"><b>Download</b></a> ·
   <a href="#install-from-the-terminal">Terminal install</a> ·
-  <a href="#whats-new-in-200">What's new in 2.0</a> ·
+  <a href="#whats-new-in-250">What's new in 2.5</a> ·
   <a href="#features">Features</a> ·
   <a href="#ai-claude-chatgpt-gemini">AI</a> ·
   <a href="#keyboard-shortcuts">Shortcuts</a> ·
@@ -533,6 +533,15 @@ Nularche then syncs every 5 minutes and when you click **Sync now** in Settings.
 - Linked notes: `[[wiki links]]`, embeds, properties, LaTeX, Mermaid, footnotes, `%%comments%%`, callouts,
   graph view, canvas, command palette and quick switcher.
 
+### Tabula (whiteboard)
+
+- A whiteboard page you can create from **New Writing Project**, the Atrium or the `/` menu. It is transparent over
+  your writing background, and notes and ink keep a soft halo so they stay readable on any theme.
+- Pen, pencil, marker and highlighter (pressure-sensitive with a stylus), eraser, sticky notes, text boxes in every
+  note font, tables, images and cards that link to notes.
+- Over 130 diagram shapes (flowchart, BPMN, UML, network, callouts…) and about 4,800 icons, plus connectors that stay
+  attached when you move shapes. Export a board as PNG or SVG (see [What's new in 2.5.0](#whats-new-in-250)).
+
 ### Export and publishing
 
 - Export a page as **Markdown (.zip)**, a **self-contained HTML** file, a **PDF**, **Word (.docx)**, **RTF** or
@@ -665,6 +674,7 @@ rm -rf ~/Library/Preferences/io.nularche.app ~/Library/Application\ Support/Nula
 | **Axis** | An outline: the backbone of a work in I., A., 1. levels; a Codex can follow it. |
 | **Mosaic** | A corkboard of scene and idea cards. |
 | **Lore** | A story bible of characters, places and ideas; entry names are marked in your notes. |
+| **Tabula** | A whiteboard page that sits over your writing background: ink, sticky notes, shapes, icons and connectors. |
 | **Marginalia** | Comments left beside a passage without changing the text. |
 | **Epoch** | A named version (checkpoint) you can compare with and restore. |
 | **Diptych** | Two Nodes side by side (split view). |
@@ -874,7 +884,7 @@ yazılmış notlar Nularche'de düzenlenirken bozulmaz.
 - **Destek:** soru, öneri ya da hata bildirimi için **[verseofac@gmail.com](mailto:verseofac@gmail.com)** adresine
   yazın ya da GitHub'da bir [issue](https://github.com/VerseOfAC92/nularche/issues) açın (adres Ayarlar → Hakkında'da da var).
 - **İndirme:** yukarıdaki [Download](#download) tablosundan sisteminize uygun dosyayı seçin.
-- **1.x'ten güncelleme:** 2.0'ı eskisinin üzerine aynı şekilde kurun (macOS'ta Uygulamalar klasörüne sürükleyin,
+- **1.x ya da 2.0'dan güncelleme:** 2.5'i eskisinin üzerine aynı şekilde kurun (macOS'ta Uygulamalar klasörüne sürükleyin,
   Windows'ta kurulumu çalıştırın, Linux'ta `sudo apt install ./Nularche-Linux-amd64.deb`) ya da terminal kurulumunu
   yeniden çalıştırın. Origin klasörünüz, notlarınız ve ayarlarınız olduğu gibi kalır.
 - **Terminalden kurulum (macOS / Linux):**
