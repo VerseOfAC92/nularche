@@ -53,6 +53,7 @@ const ABOUT_FEATURES: [string, StringKey, StringKey][] = [
   ["▦", "about.f.dbTitle", "about.f.db"],
   ["📕", "about.f.studioTitle", "about.f.studio"],
   ["🎨", "about.f.tabulaTitle", "about.f.tabula"],
+  ["✍️", "about.f.fontTitle", "about.f.font"],
   ["🏛", "about.f.atriumTitle", "about.f.atrium"],
   ["🎯", "about.f.focusTitle", "about.f.focus"],
   ["✦", "about.f.aiTitle", "about.f.ai"],

@@ -406,6 +406,11 @@ export const STRINGS_18 = {
     tr: "Beyaz tahta: kalemle çizim, yapışkan notlar, metin, tablo ve görseller; akış şeması, BPMN, UML ve ağ şekilleri ile binlerce simge; şekilleri bağlayan oklar; PNG ve SVG olarak dışa aktarma.",
     en: "A whiteboard: drawing, sticky notes, text, tables and images; flowchart, BPMN, UML and network shapes plus thousands of icons; connectors between shapes; export to PNG and SVG.",
   },
+  "about.f.fontTitle": { tr: "Nularche Font:", en: "Nularche Font:" },
+  "about.f.font": {
+    tr: "Nularche'nin kendine özel el yazısı yazı tipi: bütün notlar, tek bir not ya da Tabula yazıları için seçilebilir.",
+    en: "Nularche's own handwriting typeface: choose it for all notes, a single note or text on a Tabula board.",
+  },
   "about.f.atriumTitle": { tr: "Atrium:", en: "Atrium:" },
   "about.f.atrium": {
     tr: "Kaldığınız yer, günlük hedef, yazma projeleri ve Tabula panoları, akıllı klasörler, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden keşfedilecek bir not.",

@@ -85,6 +85,14 @@ const app = await electron.launch({
 });
 const page: Page = await app.firstWindow();
 await page.setViewportSize({ width: 1440, height: 900 });
+/** Nularche Font tanıtım görüntüsündeki not. */
+const VERSE_NOTE = [
+  "AC evrenine hoşgeldiniz 🤗",
+  "VerseOfAC, analitik bir zihnin, duygusal derinlikle buluştuğu noktadır.",
+  "Bir mühendis olarak hayatı sistemler ve mantık üzerinden okurken; müzik ve felsefe ile bu sistemin içindeki 'insan'ı ve 'anlam'ı arıyorum. Burası sadece şarkıların söylendiği değil; sesin, sözün ve düşüncenin bir bütün olarak yankılandığı bir alan.",
+  "Amacım, teknik dünyanın griliği ile sanatın renkleri arasında bir denge kurmak ve bu yolculukta zihne, ruha ve kulağa aynı anda hitap eden bir frekans yakalamak.",
+  "Film, Dizi, Edebiyat, Müzik, Felsefe ve Psikoloji alanlarında konuları yapıbozuma uğrattığımız, Jung arketipleri, gölge çalışması ve bireyselleşme süreçleri üzerinden anlatının görünmeyen mimarisini deşifre ettiğimiz Video-Essay projemiz “VerseOfAC: Synthesis” kanalımız yayında.",
+].join("\n\n");
 const shot = (name: string) => page.screenshot({ path: path.join(out, `${name}.png`) });
 // Sayfa görüntüsü yerel trafik ışıklarını içermez; macOS penceresi gibi görünsün diye başlık çubuğuna çizilir.
 const lights = `.titlebar::before { content: ""; position: absolute; left: 14px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: 20px 0 #febc2e, 40px 0 #28c840; }`;
@@ -446,8 +454,8 @@ try {
       { id: "l1", type: "line", x: 0, y: 0, w: 0, h: 0, from: { x: 0, y: 0, id: "s1" }, to: { x: 0, y: 0, id: "s2" }, route: "straight", endHead: "triangle", style: { strokeWidth: 2 } },
       { id: "l2", type: "line", x: 0, y: 0, w: 0, h: 0, from: { x: 0, y: 0, id: "s2", side: "right" }, to: { x: 0, y: 0, id: "s3" }, route: "elbow", endHead: "triangle", style: { strokeWidth: 2 }, text: "Yes" },
       { id: "l3", type: "line", x: 0, y: 0, w: 0, h: 0, from: { x: 0, y: 0, id: "s2", side: "bottom" }, to: { x: 0, y: 0, id: "s4" }, route: "straight", endHead: "triangle", style: { strokeWidth: 2 }, text: "No" },
-      { id: "n1", type: "sticky", x: 520, y: -10, w: 200, h: 170, style: { fill: "#fff3a3", fontSize: 18, font: "hand", shadow: true }, text: "Storm scene goes in Act II!" },
-      { id: "n2", type: "sticky", x: 740, y: 20, w: 170, h: 150, style: { fill: "#c6e2ff", fontSize: 17, font: "hand", shadow: true }, text: "Ask Bora about the letter" },
+      { id: "n1", type: "sticky", x: 520, y: -10, w: 200, h: 170, style: { fill: "#fff3a3", fontSize: 21, font: "Nularche Font", shadow: true }, text: "Storm scene goes in Act II!" },
+      { id: "n2", type: "sticky", x: 740, y: 20, w: 170, h: 150, style: { fill: "#c6e2ff", fontSize: 20, font: "Nularche Font", shadow: true }, text: "Ask Bora about the letter" },
       { id: "t1", type: "table", x: 520, y: 220, w: 320, h: 110, style: { fontSize: 13 }, cells: [["Scene", "Status"], ["Arrival", "Done"], ["The Storm", "Draft"]] },
       { id: "i1", type: "shape", shape: "icon:building-lighthouse", x: 320, y: 290, w: 90, h: 90, style: { strokeWidth: 2, fill: "transparent", fontSize: 13, align: "center" }, text: "Lighthouse" },
       { id: "d1", type: "draw", tool: "pen", x: 860, y: 230, w: 160, h: 90, points: [[10, 60, 0.5], [40, 12, 0.6], [80, 70, 0.7], [120, 15, 0.5], [150, 50, 0.4]], style: { stroke: "#a371f7", strokeWidth: 3 } },
@@ -455,6 +463,28 @@ try {
     const res = await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Island map", parentNodeId: parent, body: "```json whiteboard\n" + JSON.stringify({ version: 1, items }) + "\n```\n", fields: { layout: "whiteboard", icon: "🎨" } }) });
     return ((await res.json()) as { id: string }).id;
   }, studio.scenes);
+  // 2.5: akıllı klasörler (Atrium kartı) ve Arche'leri gruplayan Archipelago'lar
+  const groups = await page.evaluate(async () => {
+    const { nodes } = (await (await fetch("/api/nodes")).json()) as { nodes: { id: string; title: string; parentNodeId: string | null; archeId: string | null; template?: boolean }[] };
+    const arches = nodes.filter((n) => n.parentNodeId === null && n.archeId === n.id && !n.template);
+    const writing = arches.filter((a) => /Lighthouse|Novel|Thesis|Script/i.test(a.title)).map((a) => a.id);
+    const rest = arches.filter((a) => !writing.includes(a.id) && !/Journal|Günlük/i.test(a.title)).map((a) => a.id);
+    const { tags } = (await (await fetch("/api/tags")).json()) as { tags: { tag: string; count: number }[] };
+    return { writing, plans: rest.slice(0, 4), life: rest.slice(4, 7), tag: tags[0]?.tag };
+  });
+  await putPrefs({
+    archipelagos: [
+      { id: "ap_writing", name: "Writing", archeIds: groups.writing },
+      { id: "ap_plans", name: "Plans and work", archeIds: groups.plans },
+      ...(groups.life.length ? [{ id: "ap_life", name: "Life", archeIds: groups.life }] : []),
+    ],
+    smartFolders: [
+      { id: "sf_open", name: "Open checklists", icon: "☑", match: "all", checklist: "open" },
+      { id: "sf_week", name: "Edited this week", icon: "🗓", match: "all", editedDays: 7 },
+      ...(groups.tag ? [{ id: "sf_tag", name: `Tagged #${groups.tag}`, icon: "🏷", match: "all", tags: [groups.tag] }] : []),
+      { id: "sf_files", name: "With attachments", icon: "📎", match: "all", attachments: true },
+    ],
+  });
   await putPrefs({ writingBg: { kind: "scene", id: "lavender" }, writingBgEverywhere: true, sidebarMini: false });
   await page.evaluate(() => location.reload());
   await page.locator(".sidebar").waitFor();
@@ -464,6 +494,31 @@ try {
   await page.mouse.move(700, 10);
   await page.waitForTimeout(800);
   await shot("atrium-lavender");
+  await page.locator(".dash-smart").evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await page.waitForTimeout(600);
+  await shot("atrium-smart-lavender");
+  await page.locator(".sidebar").evaluate((el) => {
+    const head = [...el.querySelectorAll(".side-section-head")].find((h) => /Arches/i.test(h.textContent ?? ""));
+    if (head) el.scrollTop = (head as HTMLElement).offsetTop - 12;
+  });
+  await page.waitForTimeout(400);
+  await shot("archipelago-lavender");
+  // Nularche Font: bütün notların yazı tipi olarak bir bölüm
+  await putPrefs({ writingFont: "Nularche Font" });
+  await page.evaluate(() => location.reload());
+  await page.locator(".sidebar").waitFor();
+  const verse = await page.evaluate(async (body) => {
+    const res = await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "VerseOfAC", parentNodeId: "shadow", body }) });
+    return ((await res.json()) as { id: string }).id;
+  }, VERSE_NOTE);
+  await page.evaluate((id) => (location.hash = id), verse);
+  await page.locator(".ProseMirror").first().waitFor();
+  await page.mouse.move(700, 10);
+  await page.waitForTimeout(1200);
+  await shot("nularche-font-lavender");
+  await putPrefs({ writingFont: "" });
+  await page.evaluate(() => location.reload());
+  await page.locator(".sidebar").waitFor();
   await page.evaluate((id) => (location.hash = id), board);
   await page.locator(".wb-svg").waitFor();
   await page.waitForTimeout(1500);
