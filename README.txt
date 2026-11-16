@@ -79,6 +79,8 @@ NEW IN 2.5.0
   completely (Opt+Cmd+B / Ctrl+Alt+B) and appears on hover. A richer Atrium.
   Nularche AI requests time out instead of hanging, can be cancelled, edit long
   notes block by block and never change notes unless you ask (Reply only).
+  Nularche Font, Nularche's own handwriting typeface, can be chosen wherever
+  you pick a font: for all notes, for one note and on Tabula boards.
 
 ------------------------------------------------------------------------------
 NEW IN 2.0.0

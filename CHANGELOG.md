@@ -3,7 +3,12 @@
 ## 2.5.0
 
 Tabula, a whiteboard that sits over your writing background; a sidebar that hides completely; a richer Atrium; and
-Nularche AI requests that can no longer hang, can be cancelled, and never edit notes unless you ask.
+Nularche AI requests that can no longer hang, can be cancelled, and never edit notes unless you ask. Plus
+**Nularche Font**, Nularche's own handwriting typeface.
+
+### Nularche Font
+- Nularche's own handwriting typeface, bundled with the app (WOFF2, works offline) and listed first among the
+  included fonts: choose it as the writing font, as a note's font, or for Tabula text, sticky notes and shapes.
 
 ### Tabula (whiteboard)
 - New page type (`layout: whiteboard`, JSON block in the note; images are Origin files): pen, pencil, marker,

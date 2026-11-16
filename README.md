@@ -34,6 +34,7 @@ The name comes from **Null** (a clean starting point) and **Arche** (first princ
 
 Nularche 2.5 adds **Tabula**, a whiteboard that sits over your writing background, a sidebar that hides completely,
 a richer **Atrium**, and a Nularche AI that can no longer hang and never edits a note unless you ask it to.
+It also brings **Nularche Font**, Nularche's own handwriting typeface.
 
 <p align="center">
   <img src="docs/screenshots/atrium-lavender.png" width="860" alt="Atrium over the Lavender Hills background: continue writing, daily goal, quick capture and writing projects as frosted-glass cards" />
@@ -72,8 +73,14 @@ a richer **Atrium**, and a Nularche AI that can no longer hang and never edits a
 
 - Works at every window size: the toolbar wraps onto a second row in narrow windows and the format panel can be
   collapsed with ›.
-- Text uses every font available for notes: the six bundled fonts, the system fonts, sans, serif, mono and
-  handwriting.
+- Text uses every font available for notes: the seven bundled fonts (including Nularche Font), the system fonts,
+  sans, serif, mono and handwriting.
+
+**Nularche Font**
+
+- Nularche now has its own typeface: **Nularche Font**, a handwriting font made for Nularche. Pick it as the writing
+  font for all notes (Settings), as the font of a single note, or for text, sticky notes and shapes on a Tabula board.
+  It ships with the app and works offline.
 
 **Window**
 
@@ -761,6 +768,9 @@ alınabilir.
   katman sırası, hizala/dağıt, çevir, geri al/yinele; not yazarken kullanılan bütün yazı tipleri. Tahta saydamdır ve
   seçtiğiniz arka planı gösterir; PNG ve SVG olarak dışa aktarılır. *Yeni yazma projesi* menüsünde, Atrium'da ve “/”
   menüsünde.
+- **Nularche Font:** Nularche'nin kendine özel el yazısı yazı tipi eklendi. Ayarlar'da bütün notların yazı tipi,
+  tek bir notun yazı tipi ya da Tabula'daki metin, yapışkan not ve şekil yazıları için seçilebilir; uygulamayla gelir,
+  çevrimdışı çalışır.
 - **Kenar çubuğu tamamen gizlenir** (pencere düğmelerinin yanındaki düğme ya da ⌥⌘B); düğmenin üzerine gelince arka
   planın renginde bir panel olarak belirir, fare çekilince kaybolur.
 - **Atrium** zenginleşti: Tabula panoları, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden
