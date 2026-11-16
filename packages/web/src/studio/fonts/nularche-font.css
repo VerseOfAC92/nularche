@@ -1,0 +1,8 @@
+/* Nularche Font: Nularche'nin kendi el yazısı yazı tipi (tek ağırlık). Uygulamayla gelir, çevrimdışı çalışır. */
+@font-face {
+  font-family: "Nularche Font";
+  src: url("./nularche-font.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

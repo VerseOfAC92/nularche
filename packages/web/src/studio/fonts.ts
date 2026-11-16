@@ -1,4 +1,5 @@
-// Uygulamayla gelen yazı tipleri (2.0): hepsi açık lisanslıdır (SIL OFL 1.1 ya da Apache 2.0) ve çevrimdışı çalışır.
+// Uygulamayla gelen yazı tipleri: Nularche Font (Nularche'nin kendi el yazısı yazı tipi) ve açık lisanslı yazı
+// tipleri (SIL OFL 1.1 ya da Apache 2.0); hepsi çevrimdışı çalışır.
 // Türkçe karakterler için latin-ext alt kümeleri de yüklenir; tarayıcı yalnızca kullanılan karakter aralıklarını indirir.
 
 import "@fontsource/atkinson-hyperlegible/latin-400.css";
@@ -33,15 +34,17 @@ import "@fontsource/crimson-pro/latin-400-italic.css";
 import "@fontsource/crimson-pro/latin-ext-400-italic.css";
 import "@fontsource/special-elite/latin-400.css";
 import "@fontsource/special-elite/latin-ext-400.css";
+import "./fonts/nularche-font.css";
 
 export interface BundledFont {
   family: string;
-  kind: "serif" | "sans" | "mono" | "typewriter";
+  kind: "serif" | "sans" | "mono" | "typewriter" | "script";
   /** Kısa açıklama için i18n anahtarının son parçası. */
-  note: "legible" | "screenplay" | "book" | "classic" | "elegant" | "typewriter";
+  note: "legible" | "screenplay" | "book" | "classic" | "elegant" | "typewriter" | "nularche";
 }
 
 export const BUNDLED_FONTS: BundledFont[] = [
+  { family: "Nularche Font", kind: "script", note: "nularche" },
   { family: "Atkinson Hyperlegible", kind: "sans", note: "legible" },
   { family: "Literata", kind: "serif", note: "book" },
   { family: "Lora", kind: "serif", note: "classic" },
