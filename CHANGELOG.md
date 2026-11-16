@@ -9,7 +9,7 @@ Nularche AI requests that can no longer hang, can be cancelled, and never edit n
 ### Nularche Font
 - Nularche's own handwriting typeface, bundled with the app (WOFF2, works offline) and listed first among the
   included fonts: choose it as the writing font, as a note's font, or for Tabula text, sticky notes and shapes.
-  Every glyph follows the original handwriting; it covers the Turkish alphabet (with â î û), digits and
+  Every glyph is drawn after the author's own handwriting sample; it covers the Turkish alphabet (with â î û), digits and
   – — … “ ” ‘ ’ « » { } < > ^ ~ | ° $ € ₺ • · ×.
 
 ### Tabula (whiteboard)
