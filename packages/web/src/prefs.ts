@@ -42,6 +42,18 @@ export function setPref(key: string, value: unknown): void {
   }, 400);
 }
 
+// Pencere kapanırken ya da yeniden yüklenirken bekleyen değişiklikler kaybolmasın: gecikmeyi beklemeden yazılır.
+// `keepalive` isteği sayfa kapandıktan sonra da tamamlanır.
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    if (!Object.keys(pending).length) return;
+    clearTimeout(timer);
+    const patch = pending;
+    pending = {};
+    void fetch("/api/prefs", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(patch), keepalive: true }).catch(() => undefined);
+  });
+}
+
 /** Tercihi okur ve değişince bileşeni yeniden çizer. */
 export function usePref<T>(key: string, fallback: T): [T, (v: T) => void] {
   const value = useSyncExternalStore(

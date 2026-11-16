@@ -380,6 +380,7 @@ export function App() {
         const n = await api.create(t("common.untitled"), parent);
         await refresh();
         navigate({ kind: "node", id: n.id });
+        return n.id;
       } catch (e) {
         setError((e as Error).message);
       }
@@ -859,7 +860,7 @@ export function App() {
         )}
         {route.kind === "home" &&
           (nodes.length ? (
-            <Dashboard nodes={nodes} onOpen={openNode} onCreate={create} onShadow={() => navigate({ kind: "shadow" })} onToast={showToast} onChanged={refresh} onTag={(tag) => navigate({ kind: "tag", tag })} />
+            <Dashboard nodes={nodes} onOpen={openNode} onCreate={create} onShadow={() => navigate({ kind: "shadow" })} onToast={showToast} onChanged={refresh} onTag={(tag) => navigate({ kind: "tag", tag })} smartFolders={smartFolders} onSmart={(id) => navigate({ kind: "smart", id })} onNewSmart={() => setSmartEdit({})} />
           ) : (
             <Welcome onCreate={create} onShadow={() => navigate({ kind: "shadow" })} />
           ))}

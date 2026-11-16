@@ -4,7 +4,7 @@
 
 Tabula, a whiteboard that sits over your writing background; a sidebar that hides completely; a richer Atrium; and
 Nularche AI requests that can no longer hang, can be cancelled, and never edit notes unless you ask. Plus
-**Nularche Font**, Nularche's own handwriting typeface.
+**Nularche Font**, Nularche's own handwriting typeface, Archipelagos that group Arches, and smart folders in the Atrium.
 
 ### Nularche Font
 - Nularche's own handwriting typeface, bundled with the app (WOFF2, works offline) and listed first among the
@@ -29,10 +29,15 @@ Nularche AI requests that can no longer hang, can be cancelled, and never edit n
 ### Window and Atrium
 - The sidebar hides completely (button next to the window buttons, or ⌥⌘B); hovering the button shows it as a panel
   tinted by the background, which hides again when the pointer leaves. Menus opened from it stay fully visible.
-- Atrium: Tabula boards, open tasks with progress, the Shadow inbox, an Origin summary with your most used tags, and a
+- Archipelago: group Arches in the sidebar (⁂ next to *Arches*). Add Arches from their ⁂ menu or by dragging,
+  reorder inside a group, collapse, rename or remove a group (its Arches stay); **+** creates an Arche in the group.
+  Groups are stored in the Origin's settings and never move files. A Node dragged onto a group becomes an Arche in it.
+- Atrium: a Smart folders card with note counts and a New smart folder button; Tabula boards, open tasks with progress, the Shadow inbox, an Origin summary with your most used tags, and a
   note to rediscover each day.
 - With a background, the Atrium cards and the cards and lists on other pages are frosted glass too.
 - Fixed: the frosted-glass blur never rendered in the desktop app (the CSS build kept only `-webkit-backdrop-filter`).
+- Fixed: settings changed just before quitting or reloading (such as a renamed group or a collapsed section) could be
+  lost; pending settings are now written when the window closes.
 - Fixed: the `/` menu covered the line being typed near the bottom of the window; it now opens above the line.
 
 ### Nularche AI

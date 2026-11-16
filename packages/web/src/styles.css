@@ -99,6 +99,21 @@ kbd { font: 11px var(--nlc-mono); color: var(--nlc-text-secondary); border: 1px 
 .row-actions button { width: 22px; border-radius: 4px; color: var(--nlc-text-secondary); font-size: 13px; }
 .row-actions button:hover { background: var(--nlc-hover); color: var(--nlc-text-primary); }
 .empty { color: var(--nlc-text-shadow); font-size: 13px; padding: 6px 12px; }
+/* Archipelago: Arche grupları */
+.side-head-btns { display: flex; gap: 2px; }
+.arch-row { color: var(--nlc-text-primary); font-weight: 600; margin-top: 2px; }
+.arch-row .tree-icon { color: var(--nlc-accent-primary); }
+.arch-count { font-size: 11px; font-weight: 500; color: var(--nlc-text-shadow); padding: 0 6px; flex-shrink: 0; }
+.arch-row:hover .arch-count { display: none; }
+.arch-group { position: relative; }
+.arch-group > div:not(.arch-row) { position: relative; }
+.arch-group > div:not(.arch-row)::before { content: ""; position: absolute; left: 16px; top: 0; bottom: 0; width: 1px; background: var(--nlc-border-subtle); pointer-events: none; }
+.arch-empty { padding: 2px 12px 6px 34px; font-size: 12px; }
+.arch-menu { width: 250px; z-index: 40; }
+.arch-menu > button { display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arch-menu > button.on { color: var(--nlc-accent-primary); }
+.arch-check { width: 16px; flex-shrink: 0; text-align: center; }
+.arch-menu .menu-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-foot { border-top: 1px solid var(--nlc-border-subtle); padding-top: 6px; margin-top: 8px; }
 
 /* Ana alan */
@@ -1541,6 +1556,9 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .dash-board b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
 .dash-board-icon { font-size: 22px; }
 .dash-task { display: flex; align-items: center; gap: 8px; }
+.dash-smart .link-row { display: flex; align-items: center; gap: 8px; }
+.dash-smart .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dash-count { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--nlc-text-secondary); background: var(--nlc-hover); border-radius: 10px; padding: 0 8px; flex: none; }
 .dash-task .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .dash-task-bar { width: 54px; height: 5px; border-radius: 3px; background: var(--nlc-hover); overflow: hidden; flex: none; }
 .dash-task-bar span { display: block; height: 100%; background: var(--nlc-accent-primary); }

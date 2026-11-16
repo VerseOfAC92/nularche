@@ -81,6 +81,8 @@ NEW IN 2.5.0
   notes block by block and never change notes unless you ask (Reply only).
   Nularche Font, Nularche's own handwriting typeface, can be chosen wherever
   you pick a font: for all notes, for one note and on Tabula boards.
+  Archipelagos group your Arches in the sidebar (layout only, no files move),
+  and the Atrium shows your smart folders with their note counts.
 
 ------------------------------------------------------------------------------
 NEW IN 2.0.0

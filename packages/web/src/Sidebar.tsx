@@ -1,15 +1,19 @@
 // Kenar çubuğu: Origin başlığı, Shadow, favoriler ve Arche ağacı.
 // Node'lar sürüklenerek başka bir Node'un altına, kardeşlerin arasına, köke (Arche) ya da Shadow'a bırakılabilir.
+// Arche'ler Archipelago'larda gruplanabilir (yalnızca görünüm; bkz. notes/archipelago.ts).
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { createPortal } from "react-dom";
 import { api, SHADOW, type NodeMeta, type ParentTarget, type TagCount } from "./api.ts";
 import type { SmartFolder } from "./notes/smart.ts";
-import { usePref } from "./prefs.ts";
+import { getPref, usePref } from "./prefs.ts";
+import { askText } from "./ask.tsx";
+import { assignArche, groupOf, newArchipelagoId, resolveArchipelagos, type Archipelago } from "./notes/archipelago.ts";
 import type { Route } from "./App.tsx";
 import { t } from "./i18n/index.ts";
 import { keys } from "./shortcuts.tsx";
 import { runCommand } from "./commands.ts";
-import { NewProjectMenu, termTip } from "./studio/StudioTools.tsx";
+import { NewProjectMenu, termTip, useDismiss } from "./studio/StudioTools.tsx";
 import { SidebarToggle } from "./SidebarToggle.tsx";
 import { peekEnter, peekLeave, usePeek } from "./sidebarPeek.ts";
 
@@ -24,7 +28,8 @@ export interface SidebarProps {
   shadowCount: number;
   trashCount: number;
   onNavigate: (route: Route) => void;
-  onCreate: (parent: ParentTarget) => void;
+  /** Yeni Node oluşturur; oluşturulan Node'un kimliğini döndürebilir. */
+  onCreate: (parent: ParentTarget) => void | Promise<string | void>;
   onTrash: (node: NodeMeta) => void;
   onChanged: () => void;
   onError: (msg: string) => void;
@@ -48,18 +53,24 @@ export function Sidebar(props: SidebarProps) {
   const [dropTarget, setDropTarget] = useState<"shadow" | "root" | null>(null);
   const [collapsed, setCollapsed] = usePref<Record<string, boolean>>("sidebarCollapsed", {});
   const [projectMenu, setProjectMenu] = useState<DOMRect | null>(null);
+  const [groups, setGroups] = usePref<Archipelago[]>("archipelagos", []);
+  const [archMenu, setArchMenu] = useState<{ arche: NodeMeta; anchor: DOMRect } | null>(null);
+  const [groupDrop, setGroupDrop] = useState<string | null>(null);
   // Gizli kenar çubuğu yerinde yer kaplamaz; küçültme düğmesinin üzerine gelince açılır panel olarak belirir.
   const [hidden] = usePref<boolean>("sidebarMini", false);
   const peek = usePeek();
   const asideRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (hidden && !peek) setProjectMenu(null);
+    if (hidden && !peek) {
+      setProjectMenu(null);
+      setArchMenu(null);
+    }
   }, [hidden, peek]);
   // Menü (seçimle ya da dışarı tıklanınca) kapandığında fare panelde değilse panel de kapanır: menü kalkınca
   // tarayıcı "fare ayrıldı" olayı göndermez.
   useEffect(() => {
-    if (hidden && !projectMenu && !asideRef.current?.matches(":hover")) peekLeave();
-  }, [hidden, projectMenu]);
+    if (hidden && !projectMenu && !archMenu && !asideRef.current?.matches(":hover")) peekLeave();
+  }, [hidden, projectMenu, archMenu]);
   const toggleSection = (k: string) => setCollapsed({ ...collapsed, [k]: !collapsed[k] });
 
   const children = useMemo(() => {
@@ -100,6 +111,41 @@ export function Sidebar(props: SidebarProps) {
     }
   }
 
+  const isArche = (n: NodeMeta | undefined) => !!n && n.parentNodeId === null && n.archeId === n.id;
+  // Tercih, sorulan pencereler ve sunucu çağrıları sırasında değişebilir; her değişiklik en güncel listeye uygulanır.
+  const saveGroups = (fn: (g: Archipelago[]) => Archipelago[]) => setGroups(fn(getPref<Archipelago[]>("archipelagos", [])));
+
+  async function newGroup(withArche?: string) {
+    const name = (await askText(t("arch.newPrompt"), "", t("arch.placeholder")))?.trim();
+    if (!name) return;
+    const g: Archipelago = { id: newArchipelagoId(), name, archeIds: [] };
+    saveGroups((gs) => (withArche ? assignArche([...gs, g], withArche, g.id) : [...gs, g]));
+  }
+
+  async function renameGroup(g: Archipelago) {
+    const name = (await askText(t("arch.renamePrompt"), g.name))?.trim();
+    if (name && name !== g.name) saveGroups((gs) => gs.map((x) => (x.id === g.id ? { ...x, name } : x)));
+  }
+
+  /** Node'u bir Archipelago'ya (null: gruptan çıkar) koyar; Arche değilse önce köke taşınıp Arche olur. */
+  async function placeInGroup(id: string, groupId: string | null, near?: { id: string; after: boolean }) {
+    if (!isArche(nodes.find((n) => n.id === id))) {
+      try {
+        await api.move(id, null);
+      } catch (err) {
+        props.onError((err as Error).message);
+        return props.onChanged();
+      }
+    }
+    saveGroups((gs) => assignArche(gs, id, groupId, near));
+    props.onChanged();
+  }
+
+  async function newArcheIn(groupId: string) {
+    const id = await props.onCreate(null);
+    if (typeof id === "string") saveGroups((gs) => assignArche(gs, id, groupId));
+  }
+
   function onDragStart(e: DragEvent, n: NodeMeta) {
     e.dataTransfer.setData(DRAG_TYPE, n.id);
     e.dataTransfer.effectAllowed = "move";
@@ -121,6 +167,10 @@ export function Sidebar(props: SidebarProps) {
       setExpanded((s) => new Set(s).add(target.id));
       return void run(() => api.move(id, target.id));
     }
+    // Bir Archipelago'daki Arche'nin önüne/arkasına bırakılan Node o gruba, o sıraya girer.
+    const group = isArche(target) ? groupOf(groups, target.id) : undefined;
+    if (group) return void placeInGroup(id, group.id, { id: target.id, after: zone === "after" });
+    if (isArche(target)) saveGroups((gs) => assignArche(gs, id, null));
     const siblings = (children.get(target.parentNodeId) ?? []).map((n) => n.id).filter((x) => x !== id);
     const at = siblings.indexOf(target.id) + (zone === "after" ? 1 : 0);
     siblings.splice(at, 0, id);
@@ -138,7 +188,9 @@ export function Sidebar(props: SidebarProps) {
       e.preventDefault();
       setDropTarget(null);
       const id = e.dataTransfer.getData(DRAG_TYPE);
-      if (id) void run(() => api.move(id, kind === "shadow" ? SHADOW : null));
+      if (!id) return;
+      saveGroups((gs) => assignArche(gs, id, null));
+      void run(() => api.move(id, kind === "shadow" ? SHADOW : null));
     },
   });
 
@@ -186,6 +238,19 @@ export function Sidebar(props: SidebarProps) {
           <span className="tree-title">{n.title}</span>
           {inTree && (
             <span className="row-actions">
+              {isArche(n) && (
+                <button
+                  data-menu-trigger
+                  title={t("arch.moveTo")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const anchor = e.currentTarget.getBoundingClientRect();
+                    setArchMenu((m) => (m?.arche.id === n.id ? null : { arche: n, anchor }));
+                  }}
+                >
+                  ⁂
+                </button>
+              )}
               <button
                 title={t("list.openList")}
                 onClick={(e) => {
@@ -223,6 +288,73 @@ export function Sidebar(props: SidebarProps) {
   }
 
   const arches = children.get(null) ?? [];
+  const archipelagos = resolveArchipelagos(groups, arches);
+
+  function renderGroup({ group: g, arches: members }: (typeof archipelagos.groups)[number]) {
+    const closed = !!collapsed[`arch:${g.id}`];
+    return (
+      <div key={`g-${g.id}`} className="arch-group">
+        <div
+          className={`tree-row arch-row ${groupDrop === g.id ? "drop-inside" : ""}`}
+          style={{ paddingLeft: 6 }}
+          onClick={() => toggleSection(`arch:${g.id}`)}
+          title={termTip("Archipelago", "gloss.archipelago")}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+            e.preventDefault();
+            if (groupDrop !== g.id) setGroupDrop(g.id);
+          }}
+          onDragLeave={() => setGroupDrop((d) => (d === g.id ? null : d))}
+          onDrop={(e) => {
+            e.preventDefault();
+            setGroupDrop(null);
+            const id = e.dataTransfer.getData(DRAG_TYPE);
+            if (id) void placeInGroup(id, g.id);
+          }}
+        >
+          <span className="twisty" aria-hidden>
+            {closed ? "▸" : "▾"}
+          </span>
+          <span className="tree-icon">{g.icon ?? "⁂"}</span>
+          <span className="tree-title">{g.name}</span>
+          <span className="arch-count" title={t("arch.count", { n: members.length })}>
+            {members.length}
+          </span>
+          <span className="row-actions">
+            <button
+              title={t("arch.newArche")}
+              onClick={(e) => {
+                e.stopPropagation();
+                void newArcheIn(g.id);
+              }}
+            >
+              +
+            </button>
+            <button
+              title={t("arch.rename")}
+              onClick={(e) => {
+                e.stopPropagation();
+                void renameGroup(g);
+              }}
+            >
+              ✎
+            </button>
+            <button
+              title={t("arch.remove")}
+              onClick={(e) => {
+                e.stopPropagation();
+                saveGroups((gs) => gs.filter((x) => x.id !== g.id));
+              }}
+            >
+              ✕
+            </button>
+          </span>
+        </div>
+        {!closed && members.map((a) => renderRow(a, 1, true))}
+        {!closed && !members.length && <p className="empty arch-empty">{t("arch.empty")}</p>}
+      </div>
+    );
+  }
 
   return (
     <aside
@@ -349,11 +481,17 @@ export function Sidebar(props: SidebarProps) {
       <div className="side-section tree">
         <div className={`side-section-head ${dropTarget === "root" ? "drop-target" : ""}`} {...dropHandlers("root")}>
           <span>{t("sidebar.arches")}</span>
-          <button title={t("common.newArche")} onClick={() => props.onCreate(null)}>
-            +
-          </button>
+          <span className="side-head-btns">
+            <button title={termTip(t("arch.new"), "gloss.archipelago")} onClick={() => void newGroup()}>
+              ⁂
+            </button>
+            <button title={t("common.newArche")} onClick={() => props.onCreate(null)}>
+              +
+            </button>
+          </span>
         </div>
-        {arches.map((n) => renderRow(n, 0, true))}
+        {archipelagos.groups.map(renderGroup)}
+        {archipelagos.loose.map((n) => renderRow(n, 0, true))}
         {arches.length === 0 && <p className="empty">{t("sidebar.noArches")}</p>}
       </div>
 
@@ -362,6 +500,19 @@ export function Sidebar(props: SidebarProps) {
           <div className="side-section-head">{t("tpl.mine")}</div>
           {templates.map((n) => renderRow(n, 0, false))}
         </div>
+      )}
+
+      {archMenu && (
+        <ArchipelagoMenu
+          arche={archMenu.arche}
+          anchor={archMenu.anchor}
+          groups={groups}
+          onClose={() => setArchMenu(null)}
+          onPick={(groupId) => void placeInGroup(archMenu.arche.id, groupId)}
+          onNew={() => void newGroup(archMenu.arche.id)}
+          onMouseEnter={hidden ? peekEnter : undefined}
+          onMouseLeave={hidden ? peekLeave : undefined}
+        />
       )}
 
       <div className="sidebar-foot">
@@ -380,5 +531,48 @@ export function Sidebar(props: SidebarProps) {
         </button>
       </div>
     </aside>
+  );
+}
+
+/** Bir Arche'nin Archipelago'sunu seçme menüsü; kenar çubuğu kırpmasın diye belgenin üst katmanında açılır. */
+function ArchipelagoMenu(p: {
+  arche: NodeMeta;
+  anchor: DOMRect;
+  groups: Archipelago[];
+  onClose: () => void;
+  onPick: (groupId: string | null) => void;
+  onNew: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(ref, p.onClose);
+  const current = groupOf(p.groups, p.arche.id)?.id ?? null;
+  const top = Math.max(8, Math.min(p.anchor.top, window.innerHeight - 60 - 34 * (p.groups.length + 2)));
+  const pick = (fn: () => void) => () => {
+    p.onClose();
+    fn();
+  };
+  return createPortal(
+    <div className="menu-pop arch-menu" ref={ref} role="menu" style={{ position: "fixed", left: p.anchor.right + 6, top, right: "auto" }} onMouseEnter={p.onMouseEnter} onMouseLeave={p.onMouseLeave}>
+      <div className="menu-title">
+        {t("arch.moveTo")} · {p.arche.title}
+      </div>
+      {p.groups.map((g) => (
+        <button key={g.id} role="menuitemradio" aria-checked={g.id === current} className={g.id === current ? "on" : ""} onClick={pick(() => p.onPick(g.id))}>
+          <span className="arch-check">{g.id === current ? "✓" : ""}</span> {g.icon ?? "⁂"} {g.name}
+        </button>
+      ))}
+      {p.groups.length > 0 && <hr />}
+      <button role="menuitem" onClick={pick(p.onNew)}>
+        <span className="arch-check">＋</span> {t("arch.new")}
+      </button>
+      {current && (
+        <button role="menuitem" onClick={pick(() => p.onPick(null))}>
+          <span className="arch-check">↩</span> {t("arch.leave")}
+        </button>
+      )}
+    </div>,
+    document.body,
   );
 }

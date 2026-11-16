@@ -387,7 +387,7 @@ export const STRINGS_18 = {
   },
   "about.featuresTitle": { tr: "Neler yapabilirsiniz", en: "What you can do" },
   "about.f.filesTitle": { tr: "Düz dosyalar:", en: "Plain files:" },
-  "about.f.files": { tr: "Arche'ler ve Node'lar Origin klasörünüzde .md dosyasıdır; başka bir editörde açabilir, Git ya da iCloud ile yedekleyebilirsiniz.", en: "Arches and Nodes are .md files in your Origin folder; open them in any editor and back them up with Git or iCloud." },
+  "about.f.files": { tr: "Arche'ler ve Node'lar Origin klasörünüzde .md dosyasıdır; başka bir editörde açabilir, Git ya da iCloud ile yedekleyebilirsiniz. Arche'leri kenar çubuğunda Archipelago'larda gruplayabilirsiniz.", en: "Arches and Nodes are .md files in your Origin folder; open them in any editor and back them up with Git or iCloud. Group Arches into Archipelagos in the sidebar." },
   "about.f.linksTitle": { tr: "Bağlantılı notlar:", en: "Linked notes:" },
   "about.f.links": { tr: "[[wiki]] bağlantıları, geri bağlantılar, grafik görünümü, tuval, etiketler ve akıllı klasörler.", en: "[[wiki]] links, backlinks, a graph view, canvas, tags and smart folders." },
   "about.f.dbTitle": { tr: "Veritabanları:", en: "Databases:" },
@@ -408,8 +408,8 @@ export const STRINGS_18 = {
   },
   "about.f.atriumTitle": { tr: "Atrium:", en: "Atrium:" },
   "about.f.atrium": {
-    tr: "Kaldığınız yer, günlük hedef, yazma projeleri ve Tabula panoları, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden keşfedilecek bir not.",
-    en: "Where you left off, your daily goal, writing projects and Tabula boards, open tasks, the Shadow inbox, an Origin summary and a note to rediscover each day.",
+    tr: "Kaldığınız yer, günlük hedef, yazma projeleri ve Tabula panoları, akıllı klasörler, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden keşfedilecek bir not.",
+    en: "Where you left off, your daily goal, writing projects and Tabula boards, smart folders, open tasks, the Shadow inbox, an Origin summary and a note to rediscover each day.",
   },
   "about.f.lookTitle": { tr: "Görünüm:", en: "Look:" },
   "about.f.look": {
@@ -429,4 +429,22 @@ export const STRINGS_18 = {
   "about.supportHint": { tr: "Soru, öneri ya da hata bildirimi için bize yazın.", en: "Write to us with questions, ideas or bug reports." },
   "about.copy": { tr: "Kopyala", en: "Copy" },
   "about.copied": { tr: "E-posta adresi kopyalandı", en: "Email address copied" },
+  // Archipelago (Arche grupları) ve Atrium'daki akıllı klasörler
+  "arch.new": { tr: "Yeni Archipelago (Arche grubu)", en: "New Archipelago (group of Arches)" },
+  "arch.newPrompt": { tr: "Archipelago adı: Arche'leri bir arada tutan grup", en: "Archipelago name: a group that keeps Arches together" },
+  "arch.placeholder": { tr: "Örn. İş, Okul, Yazı", en: "e.g. Work, School, Writing" },
+  "arch.rename": { tr: "Yeniden adlandır", en: "Rename" },
+  "arch.renamePrompt": { tr: "Archipelago'nun yeni adı", en: "New name for the Archipelago" },
+  "arch.remove": { tr: "Archipelago'yu kaldır (Arche'ler silinmez)", en: "Remove the Archipelago (Arches are kept)" },
+  "arch.newArche": { tr: "Bu Archipelago'da yeni Arche", en: "New Arche in this Archipelago" },
+  "arch.moveTo": { tr: "Archipelago'ya taşı", en: "Move to Archipelago" },
+  "arch.leave": { tr: "Archipelago'dan çıkar", en: "Remove from Archipelago" },
+  "arch.empty": { tr: "Arche'leri buraya sürükleyin ya da ⁂ düğmesiyle ekleyin.", en: "Drag Arches here or add them with the ⁂ button." },
+  "arch.count": { tr: "{n} Arche", en: "{n} {n:Arche|Arches}" },
+  "gloss.archipelago": {
+    tr: "Arche'leri kenar çubuğunda bir arada tutan grup; Arche'ler adalarsa Archipelago onların takımadasıdır. Yalnızca düzeni değiştirir, dosyalar taşınmaz.",
+    en: "A group that keeps Arches together in the sidebar; if Arches are islands, an Archipelago is their island chain. It only changes the layout; no files are moved.",
+  },
+  "ws.smartEmpty": { tr: "Akıllı klasörler notları etikete, tarihe, yapılacaklara ve eklere göre kendiliğinden toplar.", en: "Smart folders gather notes by tag, date, checklists and attachments on their own." },
+  "ws.smartNotes": { tr: "{n} not", en: "{n} {n:note|notes}" },
 };
