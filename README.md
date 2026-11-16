@@ -46,6 +46,10 @@ your smart folders in the Atrium.
   your most used tags, a note to rediscover each day, recently edited and pinned notes. A **Smart folders** card lists
   each smart folder with its note count and creates new ones.
 
+<p align="center">
+  <img src="docs/screenshots/atrium-smart-lavender.png" width="860" alt="Atrium over Lavender Hills with the Smart folders card listing each folder and its note count, next to Tabula, open tasks and Shadow" />
+</p>
+
 **Tabula (whiteboard)**
 
 <p align="center">
@@ -84,12 +88,21 @@ your smart folders in the Atrium.
   font for all notes (Settings), as the font of a single note, or for text, sticky notes and shapes on a Tabula board.
   It ships with the app and works offline.
 
+<p align="center">
+  <img src="docs/screenshots/nularche-font-lavender.png" width="860" alt="A chapter of a novel written in Nularche Font, Nularche's own handwriting typeface" />
+</p>
+
 **Window**
 
 - **Archipelago (group your Arches):** press **⁂** next to *Arches* in the sidebar to create a group such as Work or
   School. Add an Arche with its own **⁂** button or by dragging it onto the group; drag inside a group to reorder.
   A group can be collapsed, renamed or removed (its Arches stay), and its **+** creates a new Arche inside it. Groups
   only arrange the sidebar: no files move.
+
+<p align="center">
+  <img src="docs/screenshots/archipelago-lavender.png" width="860" alt="The sidebar with Arches grouped into the Archipelagos Writing, Plans and work, and Life" />
+</p>
+
 - **Hide the sidebar:** the sidebar button next to the window buttons (or ⌥⌘B / Ctrl+Alt+B) hides the sidebar
   completely. Hover the button and the sidebar slides in as a panel tinted by your background; move away and it
   hides again. Click the button to bring it back for good. On Windows and Linux the button sits at the top left of the
