@@ -241,6 +241,7 @@ export const STRINGS_18 = {
   "ws.font.elegant": { tr: "zarif", en: "elegant" },
   "ws.font.screenplay": { tr: "senaryo", en: "screenplay" },
   "ws.font.typewriter": { tr: "daktilo", en: "typewriter" },
+  "ws.font.nularche": { tr: "Nularche'nin kendi el yazısı", en: "Nularche's own handwriting" },
   "ws.wikiMentionsSetting": { tr: "Lore girdilerinin adlarını notlarda işaretle", en: "Mark Lore entry names in notes" },
   "ws.soundTitle": { tr: "Aura (sesler)", en: "Aura (sound and ambience)" },
   "ws.soundHint": { tr: "Bütün sesler bilgisayarınızda anında üretilir; hiçbir şey indirilmez.", en: "Every sound is made on your computer as you type; nothing is downloaded." },
@@ -417,8 +418,8 @@ export const STRINGS_18 = {
   },
   "about.creditsTitle": { tr: "Açık kaynak bileşenler", en: "Open-source components" },
   "about.credits": {
-    tr: "Tabula simgeleri: Tabler Icons (MIT, © Paweł Kuna). Serbest çizim: perfect-freehand (MIT, © Steve Ruiz). Yazı tipleri: Atkinson Hyperlegible, Literata, Lora, Crimson Pro, Courier Prime ve Special Elite (SIL OFL 1.1 / Apache 2.0).",
-    en: "Tabula icons: Tabler Icons (MIT, © Paweł Kuna). Freehand drawing: perfect-freehand (MIT, © Steve Ruiz). Fonts: Atkinson Hyperlegible, Literata, Lora, Crimson Pro, Courier Prime and Special Elite (SIL OFL 1.1 / Apache 2.0).",
+    tr: "Tabula simgeleri: Tabler Icons (MIT, © Paweł Kuna). Serbest çizim: perfect-freehand (MIT, © Steve Ruiz). Yazı tipleri: Nularche Font (Nularche'nin kendi yazı tipi), Atkinson Hyperlegible, Literata, Lora, Crimson Pro, Courier Prime ve Special Elite (SIL OFL 1.1 / Apache 2.0).",
+    en: "Tabula icons: Tabler Icons (MIT, © Paweł Kuna). Freehand drawing: perfect-freehand (MIT, © Steve Ruiz). Fonts: Nularche Font (Nularche's own typeface), Atkinson Hyperlegible, Literata, Lora, Crimson Pro, Courier Prime and Special Elite (SIL OFL 1.1 / Apache 2.0).",
   },
   "about.f.privacyTitle": { tr: "Gizlilik:", en: "Privacy:" },
   "about.f.privacy": { tr: "Parolalı notlar bilgisayarınızda şifrelenir; Ark ile Origin'in tamamı seçtiğiniz klasöre yedeklenir.", en: "Password-locked notes are encrypted on your computer; the Ark backs up your whole Origin to a folder you choose." },
