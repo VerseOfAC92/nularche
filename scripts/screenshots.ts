@@ -85,6 +85,14 @@ const app = await electron.launch({
 });
 const page: Page = await app.firstWindow();
 await page.setViewportSize({ width: 1440, height: 900 });
+/** Nularche Font tanıtım görüntüsündeki not. */
+const VERSE_NOTE = [
+  "AC evrenine hoşgeldiniz 🤗",
+  "VerseOfAC, analitik bir zihnin, duygusal derinlikle buluştuğu noktadır.",
+  "Bir mühendis olarak hayatı sistemler ve mantık üzerinden okurken; müzik ve felsefe ile bu sistemin içindeki 'insan'ı ve 'anlam'ı arıyorum. Burası sadece şarkıların söylendiği değil; sesin, sözün ve düşüncenin bir bütün olarak yankılandığı bir alan.",
+  "Amacım, teknik dünyanın griliği ile sanatın renkleri arasında bir denge kurmak ve bu yolculukta zihne, ruha ve kulağa aynı anda hitap eden bir frekans yakalamak.",
+  "Film, Dizi, Edebiyat, Müzik, Felsefe ve Psikoloji alanlarında konuları yapıbozuma uğrattığımız, Jung arketipleri, gölge çalışması ve bireyselleşme süreçleri üzerinden anlatının görünmeyen mimarisini deşifre ettiğimiz Video-Essay projemiz “VerseOfAC: Synthesis” kanalımız yayında.",
+].join("\n\n");
 const shot = (name: string) => page.screenshot({ path: path.join(out, `${name}.png`) });
 // Sayfa görüntüsü yerel trafik ışıklarını içermez; macOS penceresi gibi görünsün diye başlık çubuğuna çizilir.
 const lights = `.titlebar::before { content: ""; position: absolute; left: 14px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: 20px 0 #febc2e, 40px 0 #28c840; }`;
@@ -499,7 +507,11 @@ try {
   await putPrefs({ writingFont: "Nularche Font" });
   await page.evaluate(() => location.reload());
   await page.locator(".sidebar").waitFor();
-  await page.evaluate((id) => (location.hash = id), studio.arrival);
+  const verse = await page.evaluate(async (body) => {
+    const res = await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "VerseOfAC", parentNodeId: "shadow", body }) });
+    return ((await res.json()) as { id: string }).id;
+  }, VERSE_NOTE);
+  await page.evaluate((id) => (location.hash = id), verse);
   await page.locator(".ProseMirror").first().waitFor();
   await page.mouse.move(700, 10);
   await page.waitForTimeout(1200);
