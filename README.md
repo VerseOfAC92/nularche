@@ -86,10 +86,11 @@ your smart folders in the Atrium.
 
 - Nularche now has its own typeface: **Nularche Font**, a handwriting font made for Nularche. Pick it as the writing
   font for all notes (Settings), as the font of a single note, or for text, sticky notes and shapes on a Tabula board.
-  It ships with the app and works offline.
+  It covers the Turkish alphabet, digits and common punctuation and symbols (– — … “ ” « » ₺ € $), ships with the
+  app and works offline.
 
 <p align="center">
-  <img src="docs/screenshots/nularche-font-lavender.png" width="860" alt="A chapter of a novel written in Nularche Font, Nularche's own handwriting typeface" />
+  <img src="docs/screenshots/nularche-font-lavender.png" width="860" alt="The VerseOfAC welcome note written in Nularche Font, Nularche's own handwriting typeface" />
 </p>
 
 **Window**
