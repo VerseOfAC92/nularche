@@ -34,7 +34,8 @@ The name comes from **Null** (a clean starting point) and **Arche** (first princ
 
 Nularche 2.5 adds **Tabula**, a whiteboard that sits over your writing background, a sidebar that hides completely,
 a richer **Atrium**, and a Nularche AI that can no longer hang and never edits a note unless you ask it to.
-It also brings **Nularche Font**, Nularche's own handwriting typeface.
+It also brings **Nularche Font**, Nularche's own handwriting typeface, **Archipelagos** that group your Arches, and
+your smart folders in the Atrium.
 
 <p align="center">
   <img src="docs/screenshots/atrium-lavender.png" width="860" alt="Atrium over the Lavender Hills background: continue writing, daily goal, quick capture and writing projects as frosted-glass cards" />
@@ -42,7 +43,8 @@ It also brings **Nularche Font**, Nularche's own handwriting typeface.
 
 - **Atrium** (home): where you left off, today's words against your goal with a seven-day chart and streak, quick
   capture, your writing projects and Tabula boards, open tasks with progress, the Shadow inbox, an Origin summary with
-  your most used tags, a note to rediscover each day, recently edited and pinned notes.
+  your most used tags, a note to rediscover each day, recently edited and pinned notes. A **Smart folders** card lists
+  each smart folder with its note count and creates new ones.
 
 **Tabula (whiteboard)**
 
@@ -84,6 +86,10 @@ It also brings **Nularche Font**, Nularche's own handwriting typeface.
 
 **Window**
 
+- **Archipelago (group your Arches):** press **⁂** next to *Arches* in the sidebar to create a group such as Work or
+  School. Add an Arche with its own **⁂** button or by dragging it onto the group; drag inside a group to reorder.
+  A group can be collapsed, renamed or removed (its Arches stay), and its **+** creates a new Arche inside it. Groups
+  only arrange the sidebar: no files move.
 - **Hide the sidebar:** the sidebar button next to the window buttons (or ⌥⌘B / Ctrl+Alt+B) hides the sidebar
   completely. Hover the button and the sidebar slides in as a panel tinted by your background; move away and it
   hides again. Click the button to bring it back for good. On Windows and Linux the button sits at the top left of the
@@ -676,7 +682,8 @@ rm -rf ~/Library/Preferences/io.nularche.app ~/Library/Application\ Support/Nula
 | **Node** | A page. |
 | **Shard** | A block inside a page (text, table, image…). |
 | **Shadow** | The inbox for quick, not-yet-filed notes. |
-| **Atrium** | The home page: where you left off, daily goal and streak, projects, quick capture. |
+| **Archipelago** | A group of Arches in the sidebar; it arranges the view without moving any files. |
+| **Atrium** | The home page: where you left off, daily goal and streak, projects, smart folders, quick capture. |
 | **Codex** | A manuscript: Nodes in ordered sections, read, counted and exported as one work. |
 | **Axis** | An outline: the backbone of a work in I., A., 1. levels; a Codex can follow it. |
 | **Mosaic** | A corkboard of scene and idea cards. |
@@ -773,7 +780,10 @@ alınabilir.
   çevrimdışı çalışır.
 - **Kenar çubuğu tamamen gizlenir** (pencere düğmelerinin yanındaki düğme ya da ⌥⌘B); düğmenin üzerine gelince arka
   planın renginde bir panel olarak belirir, fare çekilince kaybolur.
-- **Atrium** zenginleşti: Tabula panoları, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden
+- **Archipelago:** Arche'ler kenar çubuğunda gruplanabilir (İş, Okul gibi). “Arche'ler” başlığının yanındaki **⁂** ile
+  grup oluşturun; Arche'yi kendi **⁂** düğmesiyle ya da sürükleyerek ekleyin. Gruplar daraltılır, yeniden adlandırılır,
+  kaldırılır (Arche'ler silinmez); dosyalar taşınmaz.
+- **Atrium** zenginleşti: akıllı klasörler (not sayılarıyla), Tabula panoları, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden
   keşfedilecek bir not. Arka plan seçiliyken Atrium'daki ve diğer sayfalardaki kartlar da buzlu cam olur.
 - **Nularche AI**: yanıt vermeyen istekler süre sınırında açık bir mesajla durur, istekler iptal edilebilir, uzun notlar
   baştan yazılmadan blok blok düzenlenir. Soru, özet ve analiz isteklerinde notlar değiştirilmez; **💬 Yalnızca cevap**
