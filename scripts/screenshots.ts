@@ -92,7 +92,7 @@ const VERSE_NOTE = [
   "Bir mühendis olarak hayatı sistemler ve mantık üzerinden okurken; müzik ve felsefe ile bu sistemin içindeki 'insan'ı ve 'anlam'ı arıyorum. Burası sadece şarkıların söylendiği değil; sesin, sözün ve düşüncenin bir bütün olarak yankılandığı bir alan.",
   "Amacım, teknik dünyanın griliği ile sanatın renkleri arasında bir denge kurmak ve bu yolculukta zihne, ruha ve kulağa aynı anda hitap eden bir frekans yakalamak.",
   "Film, Dizi, Edebiyat, Müzik, Felsefe ve Psikoloji alanlarında konuları yapıbozuma uğrattığımız, Jung arketipleri, gölge çalışması ve bireyselleşme süreçleri üzerinden anlatının görünmeyen mimarisini deşifre ettiğimiz Video-Essay projemiz “VerseOfAC: Synthesis” kanalımız yayında.",
-].join("\n\n");
+].join("\n\n&nbsp;\n\n");
 const shot = (name: string) => page.screenshot({ path: path.join(out, `${name}.png`) });
 // Sayfa görüntüsü yerel trafik ışıklarını içermez; macOS penceresi gibi görünsün diye başlık çubuğuna çizilir.
 const lights = `.titlebar::before { content: ""; position: absolute; left: 14px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: 20px 0 #febc2e, 40px 0 #28c840; }`;
@@ -504,7 +504,10 @@ try {
   await page.waitForTimeout(400);
   await shot("archipelago-lavender");
   // Nularche Font: bütün notların yazı tipi olarak bir bölüm
-  await putPrefs({ writingFont: "Nularche Font" });
+  // Gece arka planı, koyu tema ve büyütme: el yazısı ince kalem izi Retina ekrandaki gibi net görünsün
+  await putPrefs({ writingFont: "Nularche Font", writingBg: { kind: "scene", id: "night" } });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(1.25));
   await page.evaluate(() => location.reload());
   await page.locator(".sidebar").waitFor();
   const verse = await page.evaluate(async (body) => {
@@ -516,7 +519,9 @@ try {
   await page.mouse.move(700, 10);
   await page.waitForTimeout(1200);
   await shot("nularche-font-lavender");
-  await putPrefs({ writingFont: "" });
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(1));
+  await page.emulateMedia({ colorScheme: "light" });
+  await putPrefs({ writingFont: "", writingBg: { kind: "scene", id: "lavender" } });
   await page.evaluate(() => location.reload());
   await page.locator(".sidebar").waitFor();
   await page.evaluate((id) => (location.hash = id), board);
