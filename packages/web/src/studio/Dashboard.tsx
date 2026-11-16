@@ -9,6 +9,7 @@ import { keys } from "../shortcuts.tsx";
 import { runCommand } from "../commands.ts";
 import { useSessionWords, writingStats } from "./goals.ts";
 import { Progress } from "./ui.tsx";
+import { smartMatches, type SmartFolder } from "../notes/smart.ts";
 
 const PROJECT_ICON: Record<string, string> = { manuscript: "📕", outline: "🗂", cards: "🗃", wiki: "📚" };
 
@@ -20,6 +21,9 @@ export function Dashboard({
   onToast,
   onChanged,
   onTag,
+  smartFolders = [],
+  onSmart,
+  onNewSmart,
 }: {
   nodes: NodeMeta[];
   onOpen: (id: string) => void;
@@ -28,6 +32,9 @@ export function Dashboard({
   onToast: (msg: string) => void;
   onChanged: () => void;
   onTag?: (tag: string) => void;
+  smartFolders?: SmartFolder[];
+  onSmart?: (id: string) => void;
+  onNewSmart?: () => void;
 }) {
   const [recent] = usePref<string[]>("recent", []);
   const [log] = usePref<Record<string, number>>("writingLog", {});
@@ -61,6 +68,7 @@ export function Dashboard({
     const day = Math.floor(Date.now() / 86_400_000);
     return old[day % old.length];
   }, [usable]);
+  const smart = useMemo(() => smartFolders.map((f) => ({ f, count: smartMatches(f, usable).length })), [smartFolders, usable]);
   const manuscripts = projects.filter((p) => p.layoutMode === "manuscript");
   const msKey = manuscripts.map((m) => `${m.id}:${m.revision}`).join(",");
 
@@ -215,6 +223,26 @@ export function Dashboard({
           <div className="row">
             <button className="secondary small-btn" onClick={() => runCommand("whiteboard.new")}>
               🎨 {t("ws.newWhiteboard")}
+            </button>
+          </div>
+        </section>
+
+        <section className="dash-card dash-smart">
+          <h3>⚙︎ {t("smart.title")}</h3>
+          {smart.length ? (
+            smart.slice(0, 8).map(({ f, count }) => (
+              <button key={f.id} className="link-row" onClick={() => onSmart?.(f.id)} title={t("ws.smartNotes", { n: count })}>
+                <span>{f.icon ?? "⚙︎"}</span>
+                <span className="grow">{f.name}</span>
+                <span className="dash-count">{count}</span>
+              </button>
+            ))
+          ) : (
+            <p className="muted small">{t("ws.smartEmpty")}</p>
+          )}
+          <div className="row">
+            <button className="secondary small-btn" onClick={() => onNewSmart?.()}>
+              ＋ {t("smart.new")}
             </button>
           </div>
         </section>

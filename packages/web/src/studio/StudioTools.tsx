@@ -21,7 +21,7 @@ export const PROJECT_KINDS: { cmd: string; icon: string; name: string; meaning: 
 ];
 
 /** Açılır pencere dışına tıklanınca ya da Esc ile kapanır. */
-function useDismiss(ref: RefObject<HTMLElement | null>, onClose: () => void): void {
+export function useDismiss(ref: RefObject<HTMLElement | null>, onClose: () => void): void {
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const el = ref.current;

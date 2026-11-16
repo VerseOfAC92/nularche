@@ -12,6 +12,7 @@ export const GLOSSARY: { group: StringKey; terms: Term[] }[] = [
     terms: [
       ["Origin", "⊙", "term.origin"],
       ["Arche", "◈", "term.arche"],
+      ["Archipelago", "⁂", "gloss.archipelago"],
       ["Node", "◇", "term.node"],
       ["Shard", "▱", "term.shard"],
       ["Shadow", "◐", "term.shadow"],
