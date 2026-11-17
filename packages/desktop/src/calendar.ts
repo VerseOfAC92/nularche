@@ -1,5 +1,7 @@
 // Masaüstü takvim eşitleme: Google / Apple hesap bağlantısı, kimlik bilgilerinin işletim sisteminin anahtar
-// zinciriyle (safeStorage) şifreli saklanması, veritabanı ↔ takvim bağlantıları ve arka planda eşitleme.
+// zinciriyle (safeStorage) şifreli saklanması, takvim bağlantıları (görüntüleme ya da isteğe bağlı veritabanı) ve
+// arka planda eşitleme. Görüntüleme bağlantılarının etkinlikleri ve yerel takvim not oluşturmaz: Origin'deki
+// `.nularche/calendar-events.json` önbelleğinde tutulur; Takvim ekranındaki değişiklikler doğrudan sağlayıcıya yazılır.
 // Eşitleme kuralları core/calendar.ts'te, sağlayıcı istemcileri core/calendar-providers.ts'tedir.
 // Kimlik bilgileri bu bilgisayardaki ayar klasöründe kalır; Origin'e yalnızca eşleme durumu yazılır.
 
@@ -9,10 +11,18 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { ipcMain, safeStorage, shell, type BrowserWindow } from "electron";
+import { randomUUID } from "node:crypto";
 import {
   addLink,
   CalendarError,
+  fetchViewEvents,
   isCalendarProvider,
+  isDbLink,
+  readEventCache,
+  toCached,
+  writeEventCache,
+  type CachedEvent,
+  type EventTime,
   readCalendarState,
   removeLink,
   syncLink,
@@ -70,6 +80,20 @@ const failure = (e: unknown): { ok: false; code: CalendarErrorCode | "unknown"; 
 
 const base64url = (b: Buffer) => b.toString("base64url");
 
+/** Yerel takvimin önbellekteki anahtarı: hesap gerektirmez, Origin'de kalır. */
+const LOCAL = "local";
+
+function parseEventTime(raw: unknown): EventTime | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const day = /^\d{4}-\d{2}-\d{2}$/;
+  if (r.allDay === true && typeof r.start === "string" && typeof r.end === "string" && day.test(r.start) && day.test(r.end) && r.end > r.start)
+    return { allDay: true, start: r.start, end: r.end };
+  if (r.allDay === false && typeof r.start === "number" && typeof r.end === "number" && Number.isFinite(r.start) && r.end > r.start)
+    return { allDay: false, start: r.start, end: r.end };
+  return null;
+}
+
 export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: () => void } {
   const credFile = (p: CalendarProviderId) => path.join(ctx.configDir(), `calendar-${p}.bin`);
   const canEncrypt = () => dryRun || safeStorage.isEncryptionAvailable();
@@ -101,6 +125,14 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     return acc ? providerFor(p, acc) : null;
   }
 
+  // --- Etkinlik önbelleği: okuma-değiştirme-yazma tek sırada ------------------------------------------
+  let cacheQueue: Promise<unknown> = Promise.resolve();
+  function withCache<T>(root: string, change: (cache: Record<string, CachedEvent[]>) => Record<string, CachedEvent[]> | Promise<Record<string, CachedEvent[]>>): Promise<void> {
+    const run = cacheQueue.catch(() => undefined).then(async () => writeEventCache(root, await change(await readEventCache(root))));
+    cacheQueue = run;
+    return run;
+  }
+
   // --- Eşitleme: bağlantılar sırayla, aynı anda tek eşitleme --------------------------------------
   let running: Promise<unknown> | null = null;
   let timer: NodeJS.Timeout | null = null;
@@ -116,6 +148,7 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     const state = await readCalendarState(root);
     const gone: string[] = [];
     for (const l of state.links) {
+      if (!l.dbId) continue;
       try {
         const n = await store.read(l.dbId);
         if (!n.database) gone.push(l.id);
@@ -142,7 +175,17 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
       const prov = providers.get(link.provider);
       let next: CalendarLink;
       if (!prov) next = { ...link, lastError: { code: "auth", message: d("cal.notConnected") } };
-      else {
+      else if (!isDbLink(link)) {
+        try {
+          const events = await fetchViewEvents(prov, link);
+          await withCache(root, (cache) => ({ ...cache, [link.id]: events }));
+          next = { ...link, lastSync: Date.now(), lastError: null };
+        } catch (e) {
+          const f = failure(e);
+          next = { ...link, lastError: { code: f.code, message: f.error } };
+          errors.push(f.error);
+        }
+      } else {
         try {
           const report = await syncLink(store, prov, link, { untitled: d("cal.untitled") });
           next = report.link;
@@ -239,11 +282,12 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     }
     if (root) await pruneMissing(root);
     const links = root ? (await readCalendarState(root)).links : [];
+    const cache = root ? await readEventCache(root) : {};
     return {
       encryption: canEncrypt(),
       accounts,
       syncing: !!running,
-      links: links.map(({ items, ...l }) => ({ ...l, count: Object.keys(items).length })),
+      links: links.map(({ items, ...l }) => ({ ...l, count: l.dbId ? Object.keys(items).length : (cache[l.id]?.length ?? 0) })),
     };
   });
 
@@ -297,16 +341,16 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     const root = ctx.originRoot();
     const i = (input ?? {}) as Record<string, unknown>;
     const s = (v: unknown) => (typeof v === "string" && v ? v : null);
+    // Veritabanı isteğe bağlıdır: yoksa takvim yalnızca Takvim ekranında görüntülenir (not oluşturulmaz).
     const dbId = s(i.dbId);
     const calendarId = s(i.calendarId);
     const dateProp = s(i.dateProp);
-    if (!root || !dbId || !calendarId || !dateProp || !isCalendarProvider(i.provider)) return { ok: false, code: "invalid", error: "input" };
+    if (!root || !calendarId || !!dbId !== !!dateProp || !isCalendarProvider(i.provider)) return { ok: false, code: "invalid", error: "input" };
     const { state, link } = addLink(await readCalendarState(root), {
-      dbId,
+      ...(dbId && dateProp ? { dbId, dateProp } : {}),
       provider: i.provider,
       calendarId,
       calendarName: s(i.calendarName) ?? calendarId,
-      dateProp,
     });
     await writeCalendarState(root, state);
     const res = await queueSync((l) => l.id === link.id);
@@ -318,7 +362,74 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     if (!root || typeof linkId !== "string") return;
     await running?.catch(() => undefined);
     await writeCalendarState(root, removeLink(await readCalendarState(root), linkId));
+    await withCache(root, ({ [linkId]: _gone, ...rest }) => rest);
     announce();
+  });
+
+  // --- Takvim ekranı: görüntüleme bağlantılarının ve yerel takvimin etkinlikleri ----------------------
+  ipcMain.handle("nularche:calendar-events", async () => {
+    const root = ctx.originRoot();
+    if (!root) return { calendars: [] };
+    const links = (await readCalendarState(root)).links.filter((l) => !l.dbId);
+    const cache = await readEventCache(root);
+    return {
+      calendars: [
+        { id: LOCAL, provider: "local", name: d("cal.localCalendar"), events: cache[LOCAL] ?? [] },
+        ...links.map((l) => ({ id: l.id, provider: l.provider, name: l.calendarName, events: cache[l.id] ?? [] })),
+      ],
+    };
+  });
+
+  /** Etkinlik oluşturur ya da günceller: yerel takvimde önbelleğe, bağlı takvimde sağlayıcıya yazar. */
+  ipcMain.handle("nularche:calendar-event-save", async (_e, linkId: unknown, eventId: unknown, input: unknown) => {
+    const root = ctx.originRoot();
+    const i = (input ?? {}) as Record<string, unknown>;
+    const when = parseEventTime(i.when);
+    if (!root || typeof linkId !== "string" || typeof i.title !== "string" || !when) return { ok: false, code: "invalid", error: "input" };
+    const id = typeof eventId === "string" && eventId ? eventId : null;
+    const title = i.title.trim() || d("cal.untitled");
+    try {
+      if (linkId === LOCAL) {
+        const ev: CachedEvent = { id: id ?? randomUUID(), title, when };
+        await withCache(root, (c) => ({ ...c, [LOCAL]: [...(c[LOCAL] ?? []).filter((x) => x.id !== ev.id), ev] }));
+        announce();
+        return { ok: true, event: ev };
+      }
+      const link = (await readCalendarState(root)).links.find((l) => l.id === linkId && !l.dbId);
+      const prov = link ? await provider(link.provider) : null;
+      if (!link || !prov) return { ok: false, code: "auth", error: d("cal.notConnected") };
+      let saved;
+      if (id) {
+        const current = await prov.getEvent(link.calendarId, id);
+        if (!current) return { ok: false, code: "not_found", error: d("cal.eventGone") };
+        saved = await prov.updateEvent(link.calendarId, current, { title, when });
+      } else saved = await prov.createEvent(link.calendarId, { title, when });
+      const ev = toCached(saved);
+      await withCache(root, (c) => ({ ...c, [link.id]: [...(c[link.id] ?? []).filter((x) => x.id !== ev.id), ev] }));
+      announce();
+      return { ok: true, event: ev };
+    } catch (e) {
+      return failure(e);
+    }
+  });
+
+  ipcMain.handle("nularche:calendar-event-delete", async (_e, linkId: unknown, eventId: unknown) => {
+    const root = ctx.originRoot();
+    if (!root || typeof linkId !== "string" || typeof eventId !== "string") return { ok: false, code: "invalid", error: "input" };
+    try {
+      if (linkId !== LOCAL) {
+        const link = (await readCalendarState(root)).links.find((l) => l.id === linkId && !l.dbId);
+        const prov = link ? await provider(link.provider) : null;
+        if (!link || !prov) return { ok: false, code: "auth", error: d("cal.notConnected") };
+        const current = await prov.getEvent(link.calendarId, eventId);
+        if (current) await prov.deleteEvent(link.calendarId, current);
+      }
+      await withCache(root, (c) => ({ ...c, [linkId]: (c[linkId] ?? []).filter((x) => x.id !== eventId) }));
+      announce();
+      return { ok: true };
+    } catch (e) {
+      return failure(e);
+    }
   });
 
   ipcMain.handle("nularche:calendar-sync", async () => {

@@ -21,9 +21,11 @@ import {
   parseMultistatus,
   patchIcs,
   readCalendarState,
+  readEventCache,
   syncLink,
   toEventTime,
   writeCalendarState,
+  writeEventCache,
   zonedTimeToMs,
   type CalendarEvent,
   type CalendarLink,
@@ -333,6 +335,25 @@ test("eşleme durumu Origin'de saklanır; aynı veritabanı + takvim tekrar bağ
   await writeCalendarState(store.root, { ...state, links: [{ ...state.links[0], items: { r: { eventId: "e", key: "k" }, bad: { key: 1 } as never } }] });
   const back = await readCalendarState(store.root);
   assert.deepEqual(back.links[0].items, { r: { eventId: "e", key: "k" } });
+});
+
+test("görüntüleme bağlantısı veritabanı gerektirmez; etkinlikleri önbellekte tutulur ve satır işareti yazılmaz", async () => {
+  const { store } = await setup();
+  const { state, link } = addLink(await readCalendarState(store.root), { provider: "google", calendarId: "work", calendarName: "Work" });
+  assert.equal(addLink(state, { provider: "google", calendarId: "work", calendarName: "Work" }).state.links.length, 1, "aynı takvim tekrar açılınca yinelenmez");
+  await writeCalendarState(store.root, state);
+  const back = await readCalendarState(store.root);
+  assert.equal(back.links.length, 1);
+  assert.equal(back.links[0].dbId, undefined);
+  await assert.rejects(syncLink(store, new MemoryCalendar(), back.links[0], opts), /veritabanı/);
+  await writeCalendarState(store.root, { ...state, links: [{ ...link, dbId: "x" } as CalendarLink] });
+  assert.equal((await readCalendarState(store.root)).links.length, 0, "tarih özelliği olmayan veritabanı bağlantısı geçersizdir");
+
+  await writeEventCache(store.root, { [link.id]: [{ id: "e", title: "T", when: { allDay: true, start: "2026-01-01", end: "2026-01-02" } }, { id: "bad" } as never] });
+  assert.deepEqual(await readEventCache(store.root), { [link.id]: [{ id: "e", title: "T", when: { allDay: true, start: "2026-01-01", end: "2026-01-02" } }] });
+  assert.ok(!buildIcs("u", { title: "T", when: { allDay: true, start: "2026-01-01", end: "2026-01-02" } }).includes("X-NULARCHE-ROW"));
+  const raw = buildIcs("u", { title: "T", when: { allDay: true, start: "2026-01-01", end: "2026-01-02" }, rowId: "r1" });
+  assert.ok(patchIcs(raw, { title: "U", when: { allDay: true, start: "2026-01-01", end: "2026-01-02" } }).includes("X-NULARCHE-ROW:r1"), "görüntülemeden düzenleme var olan işareti korur");
 });
 
 // --- Sağlayıcılar: gerçek HTTP üzerinden sahte sunucular -------------------------------------------

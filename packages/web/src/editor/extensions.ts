@@ -33,6 +33,7 @@ import { StudioMarks } from "../studio/editor-plugins.ts";
 
 export const lowlight = createLowlight(common);
 
+
 export function buildExtensions(options: { placeholder?: string } = {}): Extensions {
   return [
     StarterKit.configure({
@@ -79,6 +80,9 @@ export function buildExtensions(options: { placeholder?: string } = {}): Extensi
     Focus.configure({ className: "has-focus", mode: "shallowest" }),
     Placeholder.configure({
       includeChildren: true,
+      // Yazı yönergesi yalnızca tamamen boş notta görünür (styles.css: kökün tek boş paragrafı); tablo hücreleri ve
+      // yazarken açılan yeni satırlarda gösterilmez. Eklenti, karar verirken belgenin önceki hâlini gördüğü için
+      // görünürlük burada değil CSS'te belirlenir.
       placeholder: ({ node }) => (node.type.name === "detailsSummary" ? t("ed.summaryPlaceholder") : (options.placeholder ?? "")),
     }),
     Markdown.configure({ markedOptions: { gfm: true } }),

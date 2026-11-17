@@ -248,7 +248,7 @@ export class GoogleCalendar implements CalendarProvider {
   async createEvent(calendarId: string, input: EventInput): Promise<CalendarEvent> {
     const res = await this.call(this.cal(calendarId), {
       method: "POST",
-      body: JSON.stringify({ ...this.body(input), extendedProperties: { private: { [ROW_PROP]: input.rowId } } }),
+      body: JSON.stringify({ ...this.body(input), ...(input.rowId ? { extendedProperties: { private: { [ROW_PROP]: input.rowId } } } : {}) }),
     });
     return fromGoogleEvent((await res.json()) as GoogleEvent)!;
   }
@@ -457,7 +457,7 @@ export function buildIcs(uid: string, input: EventInput, now = Date.now()): stri
     `LAST-MODIFIED:${icsUtc(now)}`,
     ...timeLines(input.when),
     `SUMMARY:${escapeIcs(input.title)}`,
-    `${ROW_ICS}:${input.rowId}`,
+    ...(input.rowId ? [`${ROW_ICS}:${input.rowId}`] : []),
     "END:VEVENT",
     "END:VCALENDAR",
   ];
@@ -466,7 +466,8 @@ export function buildIcs(uid: string, input: EventInput, now = Date.now()): stri
 
 /** Var olan iCalendar metninde yalnızca başlık ve zamanı değiştirir; diğer her şey (açıklama, alarmlar, katılımcılar) korunur. */
 export function patchIcs(raw: string, input: EventInput, now = Date.now()): string {
-  const replaced = new Set(["SUMMARY", "DTSTART", "DTEND", "DURATION", "DTSTAMP", "LAST-MODIFIED", "SEQUENCE", ROW_ICS]);
+  // Satır işareti yalnızca veritabanı bağlantısında yazılır; görüntüleme bağlantısı var olanı korur.
+  const replaced = new Set(["SUMMARY", "DTSTART", "DTEND", "DURATION", "DTSTAMP", "LAST-MODIFIED", "SEQUENCE", ...(input.rowId ? [ROW_ICS] : [])]);
   const physical = raw
     .replace(/\r?\n[ \t]/g, "")
     .split(/\r?\n/)
@@ -492,7 +493,7 @@ export function patchIcs(raw: string, input: EventInput, now = Date.now()): stri
           `DTSTAMP:${icsUtc(now)}`,
           `LAST-MODIFIED:${icsUtc(now)}`,
           `SEQUENCE:${sequence + 1}`,
-          `${ROW_ICS}:${input.rowId}`,
+          ...(input.rowId ? [`${ROW_ICS}:${input.rowId}`] : []),
         );
       }
       depth--;

@@ -87,6 +87,8 @@ const STRINGS = {
   "export.siteButton": { tr: "Siteyi buraya oluştur", en: "Create site here" },
   "start.failed": { tr: "Nularche başlatılamadı", en: "Nularche couldn't start" },
   "cal.untitled": { tr: "Adsız etkinlik", en: "Untitled event" },
+  "cal.localCalendar": { tr: "Nularche", en: "Nularche" },
+  "cal.eventGone": { tr: "Etkinlik takvimde artık yok.", en: "The event is no longer in the calendar." },
   "cal.notConnected": { tr: "Takvim hesabı bu bilgisayarda bağlı değil.", en: "The calendar account isn't connected on this computer." },
   "cal.missingClient": { tr: "İstemci kimliği ve istemci gizli anahtarını girin.", en: "Enter the client ID and client secret." },
   "cal.missingApple": { tr: "Apple Kimliği ve uygulamaya özel parolayı girin.", en: "Enter your Apple ID and app-specific password." },

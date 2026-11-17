@@ -1,6 +1,6 @@
 // Takvim ekranı modeli: kaynaklar (bağlı takvim / tarihli veritabanı), etkinlikler, hafta yerleşimi, yeni etkinlik değeri.
 import { describe, expect, test } from "vitest";
-import { addDays, calendarEvents, calendarSources, dayStart, eventValue, eventsOn, layoutDay, weekStart, type CalNode } from "../src/calendar/calendar-model.ts";
+import { addDays, calendarEvents, calendarSources, dayStart, eventTime, eventValue, eventsOn, layoutDay, weekStart, type CalNode } from "../src/calendar/calendar-model.ts";
 
 const db = (id: string, title: string, date = true): CalNode => ({
   id,
@@ -60,5 +60,33 @@ describe("tarih yardımcıları", () => {
     expect(eventValue({ date: "2026-11-20", allDay: true, start: "09:00" })).toEqual({ start: "2026-11-20" });
     expect(eventValue({ date: "2026-11-20", allDay: false, start: "09:00", end: "10:30" })).toEqual({ start: "2026-11-20T09:00", end: "2026-11-20T10:30" });
     expect(eventValue({ date: "2026-11-20", allDay: false, start: "09:00", end: "08:00" })).toEqual({ start: "2026-11-20T09:00" });
+  });
+});
+
+describe("not dışı takvimler", () => {
+  const views = [
+    { id: "local", provider: "local" as const, name: "Nularche", events: [{ id: "e1", title: "Yerel", when: { allDay: true as const, start: "2026-11-20", end: "2026-11-21" } }] },
+    { id: "g1", provider: "google" as const, name: "Work", events: [{ id: "e2", title: "Toplantı", when: { allDay: false as const, start: new Date(2026, 10, 20, 9).getTime(), end: new Date(2026, 10, 20, 10).getTime() } }] },
+  ];
+  test("takvimler veritabanı gerektirmeden kaynak olur ve etkinlikleri gösterilir", () => {
+    const sources = calendarSources([], [], views);
+    expect(sources.map((s) => [s.key, s.type, s.kind])).toEqual([
+      ["view:local", "view", "local"],
+      ["view:g1", "view", "google"],
+    ]);
+    const ev = calendarEvents([], sources, views);
+    expect(ev.map((e) => e.title)).toEqual(["Yerel", "Toplantı"]);
+    const day = new Date(2026, 10, 20).getTime();
+    expect(eventsOn(ev, day).length).toBe(2);
+    expect(eventsOn(ev, addDays(day, 1)).length).toBe(0);
+    expect(ev[1].view?.id).toBe("e2");
+  });
+  test("görüntüleme bağlantısı (dbId yok) veritabanı kaynağı oluşturmaz", () => {
+    expect(calendarSources([db("a", "Work")], [{ id: "v", provider: "google", calendarName: "G" }]).map((s) => s.key)).toEqual(["db:a"]);
+  });
+  test("eventTime: tüm günde bitiş ertesi gün; geçersiz bitiş bir saat", () => {
+    expect(eventTime({ date: "2026-11-30", allDay: true })).toEqual({ allDay: true, start: "2026-11-30", end: "2026-12-01" });
+    const w = eventTime({ date: "2026-11-20", allDay: false, start: "09:00", end: "08:00" });
+    expect(w.allDay === false && w.end - w.start).toBe(3_600_000);
   });
 });

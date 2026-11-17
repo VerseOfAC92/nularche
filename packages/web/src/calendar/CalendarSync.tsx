@@ -5,13 +5,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { desktop, type CalendarErrorCode, type CalendarLinkStatus, type CalendarProviderId, type CalendarStatus } from "../desktop.ts";
 import { locale, t, type StringKey } from "../i18n/index.ts";
-import { newView, serializeDatabase, type Database, type Property, type View } from "../database/model.ts";
-import { api } from "../api.ts";
+import type { Database, View } from "../database/model.ts";
+import { api, type NodeMeta } from "../api.ts";
 import { Icon } from "../ui/Icon.tsx";
 
 const PROVIDERS: CalendarProviderId[] = ["google", "apple"];
 const providerName = (p: CalendarProviderId) => t(`cal.provider.${p}` as StringKey);
-const errorText = (code: CalendarErrorCode, detail?: string) => {
+export const errorText = (code: CalendarErrorCode, detail?: string) => {
   const known = ["auth", "network", "conflict", "not_found", "invalid"].includes(code);
   return known ? t(`cal.err.${code}` as StringKey) : (detail ?? t("cal.err.unknown"));
 };
@@ -131,15 +131,8 @@ function AppleConnect({ onDone }: { onDone: (account: string) => void }) {
   );
 }
 
-/** Bir takvimin etkinliklerini tutan veritabanı şeması: yalnızca tarih özelliği ve takvim/tablo görünümleri. */
-export function calendarDatabase(): Record<string, unknown> {
-  const properties: Property[] = [{ id: "date", name: t("cal.dateProp"), type: "date" }];
-  const cal = newView("calendar", t("db.view.calendar"), properties);
-  return serializeDatabase({ properties, views: [cal, newView("table", t("db.view.table"), properties, [cal.id])] });
-}
-
-/** Hesaptaki takvimler: her biri tek anahtarla Nularche Takvim'de gösterilir ve iki yönlü eşitlenir. Açılınca
- *  "Takvimler" Arche'si altında o takvimin veritabanı oluşturulur ve bağlanır; kapatınca bağlantı kalkar, notlar kalır. */
+/** Hesaptaki takvimler: her biri tek anahtarla Nularche Takvim ekranında gösterilir; ekranda yapılan değişiklikler
+ *  takvime yazılır. Notlarla ilişkilendirilmez (veritabanı eşitlemesi isteğe bağlı olarak veritabanı araç çubuğundadır). */
 function AccountCalendars({ provider, status, refresh, onToast }: { provider: CalendarProviderId; status: CalendarStatus; refresh: () => Promise<void>; onToast: (m: string) => void }) {
   const [calendars, setCalendars] = useState<{ id: string; name: string; color?: string }[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -147,17 +140,15 @@ function AccountCalendars({ provider, status, refresh, onToast }: { provider: Ca
   useEffect(() => {
     void desktop!.calendarCalendars(provider).then((res) => (res.ok ? setCalendars(res.calendars) : setError(errorText(res.code, res.error))));
   }, [provider]);
-  const linkOf = (id: string) => status.links.find((l) => l.provider === provider && l.calendarId === id);
+  const linkOf = (id: string) => status.links.find((l) => !l.dbId && l.provider === provider && l.calendarId === id);
   const toggle = async (c: { id: string; name: string }) => {
     setBusy(c.id);
     const link = linkOf(c.id);
     if (link) {
       await desktop!.calendarUnlink(link.id);
     } else {
-      const roots = (await api.list()).filter((n) => n.parentNodeId === null && n.archeId === n.id);
-      const folder = roots.find((n) => n.title === t("cal.archeName")) ?? (await api.create(t("cal.archeName"), null, ""));
-      const db = await api.create(c.name, folder.id, "", { database: calendarDatabase() });
-      const res = await desktop!.calendarLink({ dbId: db.id, provider, calendarId: c.id, calendarName: c.name, dateProp: "date" });
+      // Görüntüleme bağlantısı: etkinlikler Takvim ekranında gösterilir, not ya da veritabanı oluşturulmaz.
+      const res = await desktop!.calendarLink({ provider, calendarId: c.id, calendarName: c.name });
       if (!res.ok) setError(errorText(res.code, res.error));
       else onToast(res.errors.length ? t("cal.syncedWithErrors", { count: res.errors.length }) : t("cal.calendarOn", { calendar: c.name }));
     }
@@ -238,11 +229,11 @@ export function CalendarAccounts({ onToast, titleOf }: { onToast: (msg: string) 
           </div>
         );
       })}
-      {status.links.length > 0 && (
+      {status.links.some((l) => l.dbId) && (
         <>
           <p className="muted small">{t("cal.linkedDatabases")}</p>
           <ul className="cal-links">
-            {status.links.map((l) => (
+            {status.links.filter((l): l is CalendarLinkStatus & { dbId: string } => !!l.dbId).map((l) => (
               <li key={l.id}>
                 <b>{titleOf(l.dbId) ?? t("cal.missingDatabase")}</b> → {providerName(l.provider)} · {l.calendarName}
                 <div className={`small ${l.lastError ? "warn" : "muted"}`}>{lastSyncText(l)}</div>
@@ -294,7 +285,7 @@ export function DatabaseCalendarSync({ dbId, db, view, onToast }: { dbId: string
       {links.map((l) => (
         <div key={l.id} className="cal-link pad">
           <div>
-            {providerName(l.provider)} · <b>{l.calendarName}</b> · {propName(l.dateProp)}
+            {providerName(l.provider)} · <b>{l.calendarName}</b> · {propName(l.dateProp ?? "")}
           </div>
           <div className={`small ${l.lastError ? "warn" : "muted"}`}>{lastSyncText(l)}</div>
           <button
@@ -375,4 +366,31 @@ export function DatabaseCalendarSync({ dbId, db, view, onToast }: { dbId: string
       {error && <p className="warn small pad">{error}</p>}
     </div>
   );
+}
+
+/**
+ * Önceki sürüm, Ayarlar'da açılan her takvim için otomatik bir "Takvimler"/"Calendars" Arche'si altında bir veritabanı
+ * oluşturuyordu. Bu bağlantıları not dışı görüntüleme bağlantılarına çevirir ve o Arche yalnızca bu takvim
+ * veritabanlarını içeriyorsa çöpe taşır (Çöp'ten geri getirilebilir). Kullanıcının kendi veritabanı bağlantılarına dokunmaz.
+ */
+export async function migrateCalendarArche(nodes: NodeMeta[]): Promise<boolean> {
+  if (!desktop) return false;
+  const status = await desktop.calendarStatus();
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const names = new Set(["Takvimler", "Calendars"]);
+  const folders = new Map<string, Set<string>>();
+  for (const l of status.links) {
+    const db = l.dbId ? byId.get(l.dbId) : undefined;
+    const parent = db?.parentNodeId ? byId.get(db.parentNodeId) : undefined;
+    if (!db || !parent || parent.parentNodeId !== null || !names.has(parent.title)) continue;
+    const res = await desktop.calendarLink({ provider: l.provider, calendarId: l.calendarId, calendarName: l.calendarName });
+    if (!res.ok) continue;
+    await desktop.calendarUnlink(l.id);
+    folders.set(parent.id, (folders.get(parent.id) ?? new Set()).add(db.id));
+  }
+  for (const [id, dbs] of folders) {
+    const children = nodes.filter((n) => n.parentNodeId === id);
+    if (children.every((c) => dbs.has(c.id)) && !(await api.read(id)).body.trim()) await api.trash(id);
+  }
+  return folders.size > 0;
 }

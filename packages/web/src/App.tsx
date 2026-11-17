@@ -46,6 +46,7 @@ import { writingBody } from "../../core/src/writing.ts";
 import { Icon } from "./ui/Icon.tsx";
 import { nodeIconName } from "./ui/node-icon.ts";
 import { CalendarPage } from "./calendar/CalendarPage.tsx";
+import { migrateCalendarArche } from "./calendar/CalendarSync.tsx";
 
 export type Route =
   | { kind: "home" }
@@ -232,6 +233,14 @@ export function App() {
     const active = i < tabs.active ? tabs.active - 1 : Math.min(tabs.active, hashes.length - 1);
     selectTab(active, { hashes, active });
   };
+
+  // Önceki sürümün takvim için otomatik oluşturduğu Arche'yi not dışı görüntüleme bağlantılarına çevir (bir kez).
+  const migrated = useRef(false);
+  useEffect(() => {
+    if (migrated.current || !nodes.length) return;
+    migrated.current = true;
+    void migrateCalendarArche(nodes).then((changed) => void (changed && refresh()), () => undefined);
+  }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
     try {
@@ -572,7 +581,7 @@ export function App() {
         setSplit(main);
       }),
       registerCommand("split.focus", () => {
-        const panes = [...document.querySelectorAll<HTMLElement>(".main .ProseMirror")];
+        const panes = [...document.querySelectorAll<HTMLElement>(".main .editor .ProseMirror")];
         const i = panes.findIndex((p) => p.contains(document.activeElement));
         panes[(i + 1) % panes.length]?.focus();
       }),

@@ -9,6 +9,7 @@ import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import { api, type NodeMeta } from "../api.ts";
 import { t, type StringKey } from "../i18n/index.ts";
 import { keys } from "../shortcuts.tsx";
+import { TEXT_COLORS } from "./text-colors.ts";
 import { buildExtensions } from "./extensions.ts";
 import { CALLOUT_KINDS, type CalloutKind } from "./markdown-extensions.ts";
 import { fileUrl, fromEditorMarkdown, toEditorMarkdown, vaultPathFromUrl } from "./paths.ts";
@@ -316,17 +317,6 @@ interface Trigger {
 
 type Item = { key: string; label: string; hint: string; icon: string; group: string; run: (e: TiptapEditor) => void | Promise<void> };
 
-const TEXT_COLORS: [StringKey, string][] = [
-  ["ed.color.default", ""],
-  ["ed.color.gray", "#8b949e"],
-  ["ed.color.cyan", "#00a8b5"],
-  ["ed.color.blue", "#2f81f7"],
-  ["ed.color.green", "#3fb950"],
-  ["ed.color.yellow", "#d29922"],
-  ["ed.color.orange", "#f0883e"],
-  ["ed.color.red", "#f85149"],
-  ["ed.color.purple", "#a371f7"],
-] as const;
 
 export interface EditorProps {
   /** Node id'si + sunucu sürümü; değişince içerik baştan yüklenir. */
@@ -382,6 +372,8 @@ export function Editor(props: EditorProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [find, setFindOpen] = useState<{ replace: boolean; tick: number } | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
+  // Sağ tık menüsü açıkken (aynı biçim komutlarını zaten sunar) seçim araç çubuğu gizlenir; sonraki tık/tuşa kadar.
+  const ctxHidesBar = useRef(false);
   const [recording, setRecording] = useState(false);
   const [drawing, setDrawing] = useState<{ src: string | null; resolve: (p: string | null) => void } | null>(null);
 
@@ -673,7 +665,11 @@ export function Editor(props: EditorProps) {
 
   let lastGroup = "";
   return (
-    <div className="editor">
+    <div
+      className="editor"
+      onMouseDownCapture={() => (ctxHidesBar.current = false)}
+      onKeyDownCapture={() => (ctxHidesBar.current = false)}
+    >
       <input ref={fileInput} type="file" hidden />
       {editor && find && <FindBar key={find.tick} editor={editor} replace={find.replace} onClose={() => setFindOpen(null)} onToast={props.onToast} />}
       {editor && linkOpen && <LinkDialog editor={editor} onClose={() => setLinkOpen(false)} />}
@@ -705,7 +701,7 @@ export function Editor(props: EditorProps) {
             editor={editor}
             pluginKey="format"
             shouldShow={({ editor: e, state }) =>
-              !state.selection.empty && !e.isActive("image") && !e.isActive("codeBlock") && !e.isActive("youtube") && !e.isActive("inlineDatabase")
+              !ctxHidesBar.current && !state.selection.empty && !e.isActive("image") && !e.isActive("codeBlock") && !e.isActive("youtube") && !e.isActive("inlineDatabase")
             }
           >
             <FormatBar editor={editor} onLink={() => setLinkOpen(true)} />
@@ -748,6 +744,8 @@ export function Editor(props: EditorProps) {
             onContextMenu={() => {
               if (!editor) return;
               const hasSel = !editor.state.selection.empty;
+              ctxHidesBar.current = true;
+              editor.view.dispatch(editor.state.tr.setMeta("format", "hide"));
               const fmt = (cmd: string, key: StringKey, mark: string) => ({ label: t(key), checked: editor.isActive(mark), enabled: hasSel, run: () => runCommand(cmd) });
               addContextItems([
                 ...(hasSel

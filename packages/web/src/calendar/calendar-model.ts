@@ -1,6 +1,8 @@
-// Takvim ekranının veri modeli: hangi kaynaktan (bağlı Google/Apple takvimi ya da tarih özelliği olan bir Nularche
-// veritabanı) hangi etkinliklerin geldiği. Etkinlikler veritabanı satırlarıdır; eşitlemenin sahibi masaüstü
-// sürecidir (desktop/src/calendar.ts), bu modül yalnızca okur ve takvim görünümleri için düzenler.
+// Takvim ekranının veri modeli: hangi kaynaktan hangi etkinliklerin geldiği. İki tür kaynak vardır:
+//  - takvimler (not dışı): yerel Nularche takvimi ve Ayarlar'da açılan Google/Apple takvimleri; etkinlikleri masaüstü
+//    sürecinin önbelleğindedir (desktop/src/calendar.ts) ve ekrandan düzenlenir;
+//  - tarih özelliği olan Nularche veritabanları: etkinlikler satırlardır (isteğe bağlı olarak bir takvimle eşitlenir).
+// Bu modül yalnızca okur ve takvim görünümleri için düzenler.
 
 import { dateMs, parseDatabase, parseDateValue } from "../../../core/src/database.ts";
 
@@ -14,22 +16,33 @@ export interface CalNode {
   props?: Record<string, unknown>;
 }
 
+/** Veritabanı ↔ takvim bağlantısı (görüntüleme bağlantılarında dbId yoktur; onlar `ViewCal` olarak gelir). */
 export interface CalLink {
   id: string;
-  dbId: string;
+  dbId?: string;
   provider: "google" | "apple";
   calendarName: string;
-  dateProp: string;
+  dateProp?: string;
 }
 
-export interface CalSource {
-  key: string;
-  name: string;
-  kind: "google" | "apple" | "local";
-  dbId: string;
-  dateProp: string;
-  color: string;
+export type EventTime = { allDay: true; start: string; end: string } | { allDay: false; start: number; end: number };
+export interface ViewEvent {
+  id: string;
+  title: string;
+  when: EventTime;
+  recurring?: boolean;
 }
+/** Not dışı takvim: yerel Nularche takvimi (`id: "local"`) ya da görüntülenen hesap takvimi. */
+export interface ViewCal {
+  id: string;
+  provider: "google" | "apple" | "local";
+  name: string;
+  events: ViewEvent[];
+}
+
+export type CalSource =
+  | { key: string; name: string; kind: "google" | "apple" | "local"; type: "view"; viewId: string; color: string }
+  | { key: string; name: string; kind: "google" | "apple" | "local"; type: "db"; dbId: string; dateProp: string; color: string };
 
 export interface CalEvent {
   id: string;
@@ -39,43 +52,46 @@ export interface CalEvent {
   /** Başlangıç ve bitiş (ms, yerel saat; tüm gün etkinliklerde bitiş günün sonudur). */
   start: number;
   end: number;
-  /** Tarih değerinin kaynak dizesi (gösterim için). */
-  startText: string;
   source: CalSource;
+  /** Not dışı takvimin etkinliği (ekranda düzenlenir); yoksa etkinlik bir veritabanı satırıdır (`id` Node id'si). */
+  view?: ViewEvent;
 }
 
 export const SOURCE_COLORS = ["#2f81f7", "#3fb950", "#a371f7", "#d29922", "#f47067", "#00a8b5", "#db61a2", "#8b949e"];
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
 
-/** Kaynaklar: önce bağlı takvimler, sonra tarih özelliği olan diğer veritabanları. Her veritabanı bir kez görünür. */
-export function calendarSources(nodes: CalNode[], links: CalLink[]): CalSource[] {
+/** Kaynaklar: önce not dışı takvimler (yerel Nularche takvimi ilk), sonra tarih özelliği olan veritabanları (bir
+ *  takvimle eşitlenen veritabanı o takvimin adıyla). Her veritabanı bir kez görünür. */
+export function calendarSources(nodes: CalNode[], links: CalLink[], views: ViewCal[] = []): CalSource[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const out: CalSource[] = [];
+  for (const v of views) out.push({ key: `view:${v.id}`, name: v.name, kind: v.provider, type: "view", viewId: v.id, color: "" });
   const seen = new Set<string>();
   for (const l of links) {
-    if (seen.has(l.dbId) || !byId.get(l.dbId)?.database) continue;
+    if (!l.dbId || !l.dateProp || seen.has(l.dbId) || !byId.get(l.dbId)?.database) continue;
     seen.add(l.dbId);
-    out.push({ key: `link:${l.id}`, name: l.calendarName, kind: l.provider, dbId: l.dbId, dateProp: l.dateProp, color: "" });
+    out.push({ key: `link:${l.id}`, name: l.calendarName, kind: l.provider, type: "db", dbId: l.dbId, dateProp: l.dateProp, color: "" });
   }
   for (const n of nodes) {
     if (!n.database || seen.has(n.id) || n.template) continue;
     const date = parseDatabase(n.database).properties.find((p) => p.type === "date");
     if (!date) continue;
     seen.add(n.id);
-    out.push({ key: `db:${n.id}`, name: n.title, kind: "local", dbId: n.id, dateProp: date.id, color: "" });
+    out.push({ key: `db:${n.id}`, name: n.title, kind: "local", type: "db", dbId: n.id, dateProp: date.id, color: "" });
   }
   return out.map((s, i) => ({ ...s, color: SOURCE_COLORS[i % SOURCE_COLORS.length] }));
 }
 
-/** Görünen kaynakların tarihli satırları; başlangıca göre sıralı. */
-export function calendarEvents(nodes: CalNode[], sources: CalSource[]): CalEvent[] {
-  const bySource = new Map(sources.map((s) => [s.dbId, s]));
+/** Görünen kaynakların etkinlikleri (veritabanı satırları ve not dışı takvimler); başlangıca göre sıralı. */
+export function calendarEvents(nodes: CalNode[], sources: CalSource[], views: ViewCal[] = []): CalEvent[] {
+  const bySource = new Map<string, CalSource>();
+  for (const s of sources) if (s.type === "db") bySource.set(s.dbId, s);
   const out: CalEvent[] = [];
   for (const n of nodes) {
     if (n.template || !n.parentNodeId) continue;
     const source = bySource.get(n.parentNodeId);
-    if (!source) continue;
+    if (!source || source.type !== "db") continue;
     const v = parseDateValue(n.props?.[source.dateProp]);
     if (!v) continue;
     const allDay = v.start.length <= 10;
@@ -84,9 +100,28 @@ export function calendarEvents(nodes: CalNode[], sources: CalSource[]): CalEvent
     let end = v.end ? dateMs(v.end) : NaN;
     if (allDay) end = (Number.isNaN(end) ? start : end) + DAY - 1;
     else if (Number.isNaN(end) || end <= start) end = start + HOUR;
-    out.push({ id: n.id, title: n.title, icon: n.icon, allDay, start, end, startText: v.start, source });
+    out.push({ id: n.id, title: n.title, icon: n.icon, allDay, start, end, source });
+  }
+  for (const s of sources) {
+    if (s.type !== "view") continue;
+    for (const ev of views.find((v) => v.id === s.viewId)?.events ?? []) {
+      const w = ev.when;
+      const start = w.allDay ? dateMs(w.start) : w.start;
+      // Tüm gün bitişi hariç tutulan gündür (iCalendar/Google kuralı): görünümde bir önceki günün sonu.
+      const end = w.allDay ? Math.max(start + DAY - 1, dateMs(w.end) - 1) : Math.max(w.end, w.start + 1);
+      if (Number.isNaN(start) || Number.isNaN(end)) continue;
+      out.push({ id: `${s.viewId}:${ev.id}`, title: ev.title, allDay: w.allDay, start, end, source: s, view: ev });
+    }
   }
   return out.sort((a, b) => a.start - b.start || Number(b.allDay) - Number(a.allDay) || a.title.localeCompare(b.title));
+}
+
+/** Formdaki değerden takvim etkinliği zamanı: tüm günde bitiş ertesi gündür; saatli etkinlikte geçersiz bitiş bir saat. */
+export function eventTime(input: { date: string; allDay: boolean; start?: string; end?: string }): EventTime {
+  if (input.allDay || !input.start) return { allDay: true, start: input.date, end: isoDay(addDays(dateMs(input.date), 1)) };
+  const start = new Date(`${input.date}T${input.start}`).getTime();
+  const endMs = input.end ? new Date(`${input.date}T${input.end}`).getTime() : NaN;
+  return { allDay: false, start, end: endMs > start ? endMs : start + HOUR };
 }
 
 /** Günün başı (yerel saat). */
@@ -153,3 +188,4 @@ export function isoDay(ms: number): string {
   const p = (x: number) => String(x).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+

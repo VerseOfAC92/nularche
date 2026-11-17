@@ -202,7 +202,7 @@ try {
   await shot("list-light");
   await page.evaluate((id) => (location.hash = id), noteId);
   await page.waitForTimeout(700);
-  await page.locator(".ProseMirror").click();
+  await page.locator(".editor .ProseMirror").click();
   await page.keyboard.press("Meta+Shift+F");
   await page.waitForTimeout(800);
   await page.mouse.move(400, 300);
@@ -436,7 +436,7 @@ try {
     await page.locator(".sidebar").waitFor();
     await page.emulateMedia({ colorScheme: scheme });
     await page.evaluate((id) => (location.hash = id), studio.arrival);
-    await page.locator(".ProseMirror").first().waitFor();
+    await page.locator(".editor .ProseMirror").first().waitFor();
     await page.mouse.move(700, 10);
     await page.waitForTimeout(900);
     await shot(name);
@@ -515,7 +515,7 @@ try {
     return ((await res.json()) as { id: string }).id;
   }, VERSE_NOTE);
   await page.evaluate((id) => (location.hash = id), verse);
-  await page.locator(".ProseMirror").first().waitFor();
+  await page.locator(".editor .ProseMirror").first().waitFor();
   await page.mouse.move(700, 10);
   await page.waitForTimeout(1200);
   await shot("nularche-font-lavender");

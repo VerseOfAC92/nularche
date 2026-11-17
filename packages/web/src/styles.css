@@ -1833,3 +1833,12 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .cal-list-row:hover { background: var(--nlc-hover); }
 .app.wrap-bg > .main :is(.cal-month, .cal-week, .cal-agenda-row, .cal-source) { background: var(--nlc-bg-surface); -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2); }
 @media (max-width: 900px) { .cal-month { grid-auto-rows: minmax(84px, 1fr); } .cal-chip .cal-time { display: none; } }
+
+/* Yazı yönergesi yalnızca boş notta (kökte tek boş paragraf); tablo hücrelerinde ve yeni satırlarda gösterilmez. */
+.editor .ProseMirror p.is-empty::before { content: none; }
+.editor .ProseMirror > p.is-empty:only-child::before { content: attr(data-placeholder); }
+/* Biçimli başlık editörü */
+.title-input .ProseMirror { min-height: 0; font-size: inherit; line-height: inherit; tab-size: initial; }
+.title-input .ProseMirror p { margin: 0; }
+.title-input .ProseMirror .is-empty::before { color: var(--nlc-text-shadow); }
+.page:has(.title-input:focus-within) .page-meta-actions { opacity: 1; }

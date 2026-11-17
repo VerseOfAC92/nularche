@@ -1,18 +1,18 @@
-// Takvim ekranı: bağlı Google/Apple takvimleri ve tarih özelliği olan Nularche veritabanlarının etkinlikleri
-// Ay, Hafta ve Ajanda görünümlerinde. Etkinliğe tıklamak satırı açar; boş güne/saate tıklamak yeni etkinlik oluşturur.
-// Bağlı bir takvime eklenen etkinlik masaüstü eşitlemesiyle Google/Apple'a gider.
+// Takvim ekranı: yerel Nularche takvimi, Ayarlar'da açılan Google/Apple takvimleri ve tarih özelliği olan Nularche
+// veritabanlarının etkinlikleri Ay, Hafta ve Ajanda görünümlerinde. Takvim etkinlikleri not oluşturmaz: tıklayınca
+// düzenleme penceresi açılır ve değişiklik doğrudan takvime yazılır. Veritabanı satırına tıklamak satırı açar.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type NodeMeta } from "../api.ts";
-import { desktop } from "../desktop.ts";
+import { desktop, type ViewCalendar } from "../desktop.ts";
 import { locale, t } from "../i18n/index.ts";
 import { setPref, usePref } from "../prefs.ts";
 import { runCommand } from "../commands.ts";
 import { Icon } from "../ui/Icon.tsx";
 import { EmptyState } from "../ui/EmptyState.tsx";
 import { useEscape } from "../useEscape.ts";
-import { useCalendarStatus, calendarDatabase } from "./CalendarSync.tsx";
-import { addDays, calendarEvents, calendarSources, dayStart, eventsOn, eventValue, isoDay, layoutDay, weekStart, type CalEvent, type CalSource } from "./calendar-model.ts";
+import { errorText, useCalendarStatus } from "./CalendarSync.tsx";
+import { addDays, calendarEvents, calendarSources, dayStart, eventsOn, eventTime, eventValue, isoDay, layoutDay, weekStart, type CalEvent, type CalSource } from "./calendar-model.ts";
 
 type ViewMode = "month" | "week" | "agenda";
 const HOUR_PX = 44;
@@ -24,12 +24,27 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
   const [view, setView] = usePref<ViewMode>("calendarView", "month");
   const [hidden, setHidden] = usePref<string[]>("calendarHidden", []);
   const [cursor, setCursor] = useState(() => dayStart(Date.now()));
-  const [draft, setDraft] = useState<{ date: string; allDay: boolean; start?: string; end?: string } | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [syncing, setSyncing] = useState(false);
+  // Not dışı takvimler (yerel Nularche takvimi ve görüntülenen hesap takvimleri); masaüstü uygulamasında.
+  const [views, setViews] = useState<ViewCalendar[]>([]);
+  useEffect(() => {
+    if (!desktop) return;
+    const load = () => void desktop!.calendarEvents().then((r) => setViews(r.calendars), () => undefined);
+    load();
+    return desktop.onCalendarSynced(load);
+  }, []);
 
-  const sources = useMemo(() => calendarSources(nodes, status?.links ?? []), [nodes, status]);
+  const sources = useMemo(() => calendarSources(nodes, status?.links ?? [], views), [nodes, status, views]);
   const visible = useMemo(() => sources.filter((s) => !hidden.includes(s.key)), [sources, hidden]);
-  const events = useMemo(() => calendarEvents(nodes, visible), [nodes, visible]);
+  const events = useMemo(() => calendarEvents(nodes, visible, views), [nodes, visible, views]);
+  const pick = (e: CalEvent) => {
+    if (!e.view) return onOpen(e.id);
+    const d = new Date(e.start);
+    const hm = (ms: number) => new Date(ms).toTimeString().slice(0, 5);
+    setDraft({ date: isoDay(e.start), allDay: e.allDay, start: e.allDay ? undefined : hm(e.start), end: e.allDay ? undefined : hm(e.end), edit: { event: e, title: e.title } });
+    void d;
+  };
   const today = dayStart(Date.now());
 
   const step = (dir: number) => {
@@ -107,27 +122,34 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
 
       {!sources.length && <EmptyState icon="calendar" text={t("cal.noSources")} action={<button className="secondary" onClick={openSettings}>{t("cal.settings")}</button>} />}
 
-      {sources.length > 0 && view === "month" && <MonthView cursor={cursor} today={today} events={events} onOpen={onOpen} onNew={(day) => setDraft({ date: isoDay(day), allDay: true })} onMore={(day) => (setCursor(day), setView("week"))} />}
-      {sources.length > 0 && view === "week" && <WeekView cursor={cursor} today={today} events={events} onOpen={onOpen} onNew={(day, hour) => setDraft({ date: isoDay(day), allDay: hour === null, start: hour === null ? undefined : `${String(hour).padStart(2, "0")}:00`, end: hour === null ? undefined : `${String(Math.min(23, hour + 1)).padStart(2, "0")}:00` })} />}
-      {sources.length > 0 && view === "agenda" && <AgendaView from={today} events={events} onOpen={onOpen} />}
+      {sources.length > 0 && view === "month" && <MonthView cursor={cursor} today={today} events={events} onOpen={pick} onNew={(day) => setDraft({ date: isoDay(day), allDay: true })} onMore={(day) => (setCursor(day), setView("week"))} />}
+      {sources.length > 0 && view === "week" && <WeekView cursor={cursor} today={today} events={events} onOpen={pick} onNew={(day, hour) => setDraft({ date: isoDay(day), allDay: hour === null, start: hour === null ? undefined : `${String(hour).padStart(2, "0")}:00`, end: hour === null ? undefined : `${String(Math.min(23, hour + 1)).padStart(2, "0")}:00` })} />}
+      {sources.length > 0 && view === "agenda" && <AgendaView from={today} events={events} onOpen={pick} />}
 
       {draft && (
         <EventDialog
           initial={draft}
           sources={sources}
           onClose={() => setDraft(null)}
-          onCreate={async (title, value, source) => {
-            let target = source;
-            if (!target) {
-              // Hiç kaynak yoksa yerel bir takvim veritabanı oluşturulur.
-              const db = await api.create(t("cal.localName"), null, "", { database: calendarDatabase() });
-              target = { key: `db:${db.id}`, name: db.title, kind: "local", dbId: db.id, dateProp: "date", color: "" };
-            }
-            await api.create(title || t("cal.untitledEvent"), target.dbId, "", { props: { [target.dateProp]: value } });
-            await onChanged();
+          onDelete={async (e) => {
+            const view = e.source.type === "view" ? e.source.viewId : null;
+            if (!desktop || !view || !e.view) return;
+            const res = await desktop.calendarEventDelete(view, e.view.id);
+            if (!res.ok) return onToast(errorText(res.code, res.error));
             setDraft(null);
-            if (desktop && target.kind !== "local") void desktop.calendarSync().then(() => refreshStatus());
-            onToast(t("cal.created", { calendar: target.name }));
+            onToast(t("cal.deleted"));
+          }}
+          onSave={async (form, source, existing) => {
+            if (source?.type === "view" && desktop) {
+              const res = await desktop.calendarEventSave(source.viewId, existing?.view?.id ?? null, { title: form.title || t("cal.untitledEvent"), when: eventTime(form) });
+              if (!res.ok) return onToast(errorText(res.code, res.error));
+            } else if (source?.type === "db") {
+              await api.create(form.title || t("cal.untitledEvent"), source.dbId, "", { props: { [source.dateProp]: eventValue(form) } });
+              await onChanged();
+              if (desktop && source.kind !== "local") void desktop.calendarSync().then(() => refreshStatus());
+            } else return;
+            setDraft(null);
+            onToast(existing ? t("cal.saved") : t("cal.created", { calendar: source.name }));
           }}
         />
       )}
@@ -135,16 +157,16 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
   );
 }
 
-function Chip({ e, onOpen, showTime = true }: { e: CalEvent; onOpen: (id: string) => void; showTime?: boolean }) {
+function Chip({ e, onOpen, showTime = true }: { e: CalEvent; onOpen: (e: CalEvent) => void; showTime?: boolean }) {
   return (
-    <button className={`cal-chip ${e.allDay ? "all-day" : ""}`} style={{ "--c": e.source.color } as React.CSSProperties} onClick={(ev) => (ev.stopPropagation(), onOpen(e.id))} title={`${e.title} · ${e.source.name}`}>
+    <button className={`cal-chip ${e.allDay ? "all-day" : ""}`} style={{ "--c": e.source.color } as React.CSSProperties} onClick={(ev) => (ev.stopPropagation(), onOpen(e))} title={`${e.title} · ${e.source.name}`}>
       {!e.allDay && showTime && <span className="cal-time">{time(e.start)}</span>}
       <span className="cal-chip-title">{e.title}</span>
     </button>
   );
 }
 
-function MonthView({ cursor, today, events, onOpen, onNew, onMore }: { cursor: number; today: number; events: CalEvent[]; onOpen: (id: string) => void; onNew: (day: number) => void; onMore: (day: number) => void }) {
+function MonthView({ cursor, today, events, onOpen, onNew, onMore }: { cursor: number; today: number; events: CalEvent[]; onOpen: (e: CalEvent) => void; onNew: (day: number) => void; onMore: (day: number) => void }) {
   const first = new Date(cursor);
   first.setDate(1);
   const start = weekStart(first.getTime());
@@ -184,7 +206,7 @@ function MonthView({ cursor, today, events, onOpen, onNew, onMore }: { cursor: n
   );
 }
 
-function WeekView({ cursor, today, events, onOpen, onNew }: { cursor: number; today: number; events: CalEvent[]; onOpen: (id: string) => void; onNew: (day: number, hour: number | null) => void }) {
+function WeekView({ cursor, today, events, onOpen, onNew }: { cursor: number; today: number; events: CalEvent[]; onOpen: (e: CalEvent) => void; onNew: (day: number, hour: number | null) => void }) {
   const start = weekStart(cursor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   const scroller = useRef<HTMLDivElement>(null);
@@ -237,7 +259,7 @@ function WeekView({ cursor, today, events, onOpen, onNew }: { cursor: number; to
               const top = ((s - d) / 3_600_000) * HOUR_PX;
               const height = Math.max(20, ((en - s) / 3_600_000) * HOUR_PX - 2);
               return (
-                <button key={event.id} className="cal-block" style={{ top, height, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)`, "--c": event.source.color } as React.CSSProperties} onClick={() => onOpen(event.id)} title={`${event.title} · ${event.source.name}`}>
+                <button key={event.id} className="cal-block" style={{ top, height, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)`, "--c": event.source.color } as React.CSSProperties} onClick={() => onOpen(event)} title={`${event.title} · ${event.source.name}`}>
                   <b>{event.title}</b>
                   <span>
                     {time(event.start)} – {time(event.end)}
@@ -253,7 +275,7 @@ function WeekView({ cursor, today, events, onOpen, onNew }: { cursor: number; to
   );
 }
 
-function AgendaView({ from, events, onOpen }: { from: number; events: CalEvent[]; onOpen: (id: string) => void }) {
+function AgendaView({ from, events, onOpen }: { from: number; events: CalEvent[]; onOpen: (e: CalEvent) => void }) {
   const days = Array.from({ length: 60 }, (_, i) => addDays(from, i))
     .map((d) => ({ d, list: eventsOn(events, d) }))
     .filter((x) => x.list.length);
@@ -264,7 +286,7 @@ function AgendaView({ from, events, onOpen }: { from: number; events: CalEvent[]
         <section key={d}>
           <h3>{new Date(d).toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" })}</h3>
           {list.map((e) => (
-            <button key={e.id} className="cal-agenda-row" onClick={() => onOpen(e.id)}>
+            <button key={e.id} className="cal-agenda-row" onClick={() => onOpen(e)}>
               <span className="cal-dot" style={{ background: e.source.color }} />
               <span className="cal-agenda-time">{e.allDay ? t("cal.allDay") : `${time(e.start)} – ${time(e.end)}`}</span>
               <span className="grow">{e.title}</span>
@@ -277,74 +299,105 @@ function AgendaView({ from, events, onOpen }: { from: number; events: CalEvent[]
   );
 }
 
-function EventDialog({ initial, sources, onClose, onCreate }: { initial: { date: string; allDay: boolean; start?: string; end?: string }; sources: CalSource[]; onClose: () => void; onCreate: (title: string, value: { start: string; end?: string }, source: CalSource | null) => Promise<void> }) {
+type Draft = { date: string; allDay: boolean; start?: string; end?: string; edit?: { event: CalEvent; title: string } };
+type Form = { title: string; date: string; allDay: boolean; start?: string; end?: string };
+
+/** Yeni etkinlik ya da takvim etkinliğini düzenleme. Yinelenen etkinlikler yalnızca görüntülenir (takvim uygulamasında
+ *  düzenlenir); veritabanı satırları not olarak açılır, burada düzenlenmez. */
+function EventDialog({
+  initial,
+  sources,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  initial: Draft;
+  sources: CalSource[];
+  onClose: () => void;
+  onSave: (form: Form, source: CalSource | null, existing: CalEvent | undefined) => Promise<void>;
+  onDelete: (e: CalEvent) => Promise<void>;
+}) {
   useEscape(onClose);
-  const [title, setTitle] = useState("");
+  const existing = initial.edit?.event;
+  const readOnly = !!existing?.view?.recurring;
+  const [title, setTitle] = useState(initial.edit?.title ?? "");
   const [date, setDate] = useState(initial.date);
   const [allDay, setAllDay] = useState(initial.allDay);
   const [start, setStart] = useState(initial.start ?? "09:00");
   const [end, setEnd] = useState(initial.end ?? "10:00");
   const [lastSource, setLastSource] = usePref<string>("calendarDefault", "");
-  const [sourceKey, setSourceKey] = useState(() => (sources.some((s) => s.key === lastSource) ? lastSource : (sources.find((s) => s.kind !== "local")?.key ?? sources[0]?.key ?? "")));
+  // Yeni etkinlik: önce son kullanılan, sonra bir hesap takvimi, sonra yerel Nularche takvimi.
+  const targets = existing ? sources.filter((s) => s.key === existing.source.key) : sources;
+  const [sourceKey, setSourceKey] = useState(() =>
+    existing ? existing.source.key : targets.some((s) => s.key === lastSource) ? lastSource : (targets.find((s) => s.type === "view" && s.kind !== "local")?.key ?? targets[0]?.key ?? ""),
+  );
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     setBusy(true);
-    setLastSource(sourceKey);
-    await onCreate(title.trim(), eventValue({ date, allDay, start, end }), sources.find((s) => s.key === sourceKey) ?? null);
+    if (!existing) setLastSource(sourceKey);
+    await onSave({ title: title.trim(), date, allDay, start, end }, sources.find((s) => s.key === sourceKey) ?? null, existing);
     setBusy(false);
   };
   return (
     <div className="overlay" onMouseDown={onClose}>
       <form className="dialog small-dialog cal-dialog" onMouseDown={(e) => e.stopPropagation()} onSubmit={(e) => (e.preventDefault(), void submit())}>
         <h2 className="dialog-title">
-          <Icon name="calendar-event" size={20} /> {t("cal.newEvent")}
+          <Icon name="calendar-event" size={20} /> {existing ? t("cal.editEvent") : t("cal.newEvent")}
         </h2>
         <label className="field">
           <span>{t("cal.eventTitle")}</span>
-          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("cal.untitledEvent")} />
+          <input autoFocus value={title} disabled={readOnly} onChange={(e) => setTitle(e.target.value)} placeholder={t("cal.untitledEvent")} />
         </label>
         <div className="cal-dialog-row">
           <label className="field">
             <span>{t("cal.date")}</span>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            <input type="date" value={date} disabled={readOnly} onChange={(e) => setDate(e.target.value)} required />
           </label>
           {!allDay && (
             <>
               <label className="field">
                 <span>{t("cal.start")}</span>
-                <input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+                <input type="time" value={start} disabled={readOnly} onChange={(e) => setStart(e.target.value)} />
               </label>
               <label className="field">
                 <span>{t("cal.end")}</span>
-                <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+                <input type="time" value={end} disabled={readOnly} onChange={(e) => setEnd(e.target.value)} />
               </label>
             </>
           )}
         </div>
         <label className="check">
-          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> {t("cal.allDay")}
+          <input type="checkbox" checked={allDay} disabled={readOnly} onChange={(e) => setAllDay(e.target.checked)} /> {t("cal.allDay")}
         </label>
-        {sources.length > 0 && (
+        {targets.length > 0 && (
           <label className="field">
             <span>{t("cal.saveTo")}</span>
-            <select value={sourceKey} onChange={(e) => setSourceKey(e.target.value)}>
-              {sources.map((s) => (
+            <select value={sourceKey} disabled={!!existing} onChange={(e) => setSourceKey(e.target.value)}>
+              {targets.map((s) => (
                 <option key={s.key} value={s.key}>
                   {s.name}
-                  {s.kind !== "local" ? ` · ${t(`cal.provider.${s.kind}`)}` : ""}
+                  {s.kind !== "local" ? ` · ${t(`cal.provider.${s.kind}`)}` : s.type === "db" ? ` · ${t("cal.table")}` : ""}
                 </option>
               ))}
             </select>
           </label>
         )}
+        {readOnly && <p className="muted small">{t("cal.recurringReadOnly")}</p>}
         <div className="dialog-actions">
+          {existing && !readOnly && (
+            <button type="button" className="danger" disabled={busy} onClick={() => (setBusy(true), void onDelete(existing).finally(() => setBusy(false)))}>
+              <Icon name="trash" size={15} /> {t("cal.delete")}
+            </button>
+          )}
           <span className="grow" />
           <button type="button" className="secondary" onClick={onClose}>
             {t("common.cancel")}
           </button>
-          <button type="submit" className="primary" disabled={busy || !date}>
-            {t("cal.create")}
-          </button>
+          {!readOnly && (
+            <button type="submit" className="primary" disabled={busy || !date}>
+              {existing ? t("cal.save") : t("cal.create")}
+            </button>
+          )}
         </div>
       </form>
     </div>

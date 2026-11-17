@@ -58,6 +58,9 @@ contextBridge.exposeInMainWorld("nularche", {
   calendarLink: (input: unknown) => invoke("calendar-link", input),
   calendarUnlink: (linkId: string) => invoke("calendar-unlink", linkId),
   calendarSync: () => invoke("calendar-sync"),
+  calendarEvents: () => invoke("calendar-events"),
+  calendarEventSave: (linkId: string, eventId: string | null, input: unknown) => invoke("calendar-event-save", linkId, eventId, input),
+  calendarEventDelete: (linkId: string, eventId: string) => invoke("calendar-event-delete", linkId, eventId),
   calendarHelp: (which: string) => invoke("calendar-help", which),
   onCalendarSynced: (cb: () => void) => {
     const listener = () => cb();

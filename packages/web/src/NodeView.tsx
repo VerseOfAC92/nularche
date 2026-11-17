@@ -1,10 +1,11 @@
 // Tek bir Node'un görünümü: kapak, ikon, başlık, Stream editörü ve geri bağlantılar.
 // Otomatik kaydetme ve çakışma (ör. Claude aynı anda düzenlediğinde) burada yönetilir.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, SHADOW, type NodeDoc, type NodeMeta, type PageFieldPatch } from "./api.ts";
 import { desktop } from "./desktop.ts";
 import { Editor } from "./editor/Editor.tsx";
+import { TitleEditor, type TitleEditorHandle } from "./editor/TitleEditor.tsx";
 import { NularcheMark } from "./ai/NularcheMark.tsx";
 import { locale, t, type StringKey } from "./i18n/index.ts";
 import { fileUrl, resolveRelative } from "./editor/paths.ts";
@@ -127,13 +128,13 @@ export function NodeView(props: NodeViewProps) {
   const [templatePick, setTemplatePick] = useState(false);
 
   const revision = useRef<string | null>(null);
-  const pending = useRef<{ body?: string; title?: string }>({});
+  const pending = useRef<{ body?: string; title?: string; titleRich?: string | null }>({});
   const timer = useRef<number | undefined>(undefined);
   const statusRef = useRef<Status>("saved");
   statusRef.current = status;
   const propsRef = useRef(props);
   propsRef.current = props;
-  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const titleRef = useRef<TitleEditorHandle>(null);
   const focusedNew = useRef(false);
   /** Not kilitli mi (kayıtlar şifrelenerek yazılır). */
   const lockedRef = useRef(false);
@@ -152,7 +153,7 @@ export function NodeView(props: NodeViewProps) {
   const flush = useCallback(async () => {
     clearTimeout(timer.current);
     const patch = pending.current;
-    if (patch.body === undefined && patch.title === undefined) return;
+    if (patch.body === undefined && patch.title === undefined && patch.titleRich === undefined) return;
     pending.current = {};
     setStatus("saving");
     try {
@@ -161,10 +162,11 @@ export function NodeView(props: NodeViewProps) {
         if (sealed === null) throw new Error(t("lock.locked"));
         patch.body = sealed;
       }
-      const saved = await api.update(id, { ...patch, baseRevision: revision.current ?? undefined });
+      const { titleRich, ...text } = patch;
+      const saved = await api.update(id, { ...text, ...(titleRich !== undefined ? { fields: { titleRich } } : {}), baseRevision: revision.current ?? undefined });
       revision.current = saved.revision;
-      setDoc((d) => (d ? { ...d, path: saved.path, title: saved.title } : d));
-      setStatus(pending.current.body !== undefined || pending.current.title !== undefined ? "dirty" : "saved");
+      setDoc((d) => (d ? { ...d, path: saved.path, title: saved.title, titleRich: saved.titleRich } : d));
+      setStatus(pending.current.body !== undefined || pending.current.title !== undefined || pending.current.titleRich !== undefined ? "dirty" : "saved");
       if (patch.title !== undefined) propsRef.current.onChanged();
     } catch (e) {
       pending.current = { ...patch, ...pending.current };
@@ -177,7 +179,7 @@ export function NodeView(props: NodeViewProps) {
   }, [id]);
 
   const schedule = useCallback(
-    (patch: { body?: string; title?: string }) => {
+    (patch: { body?: string; title?: string; titleRich?: string | null }) => {
       pending.current = { ...pending.current, ...patch };
       if (statusRef.current === "conflict") return;
       setStatus("dirty");
@@ -306,32 +308,12 @@ export function NodeView(props: NodeViewProps) {
   const docKey = doc ? `${doc.id}:${version}` : "";
   useEffect(() => () => forgetDoc(docKey), [docKey]);
 
-  // Uzun başlıklar kesilmesin: başlık alanı içeriğe göre satır kaydırır ve yüksekliği büyür.
-  useLayoutEffect(() => {
-    const el = titleRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [title, doc?.id]);
-  useEffect(() => {
-    const onResize = () => {
-      const el = titleRef.current;
-      if (el) {
-        el.style.height = "auto";
-        el.style.height = `${el.scrollHeight}px`;
-      }
-    };
-    addEventListener("resize", onResize);
-    return () => removeEventListener("resize", onResize);
-  }, []);
-
   // Yeni oluşturulmuş (adsız) Node açıldığında başlık seçili gelsin.
   useEffect(() => {
     if (!doc || focusedNew.current) return;
     focusedNew.current = true;
     if (["Adsız", "Untitled"].includes(doc.title) && doc.body.trim() === "" && Date.now() - doc.createdAt < 15_000) {
-      titleRef.current?.focus();
-      titleRef.current?.select();
+      titleRef.current?.selectAll();
     }
   }, [doc]);
 
@@ -461,7 +443,7 @@ export function NodeView(props: NodeViewProps) {
       registerCommand("note.export.html", () => void exportAs("html")),
       registerCommand("speech.start", () => {
         const sel = getSelection()?.toString().trim();
-        const text = sel || document.querySelector(".page .ProseMirror")?.textContent || "";
+        const text = sel || document.querySelector(".page .editor .ProseMirror")?.textContent || "";
         if (!text) return;
         speak(text);
         setSpeaking(true);
@@ -739,7 +721,7 @@ export function NodeView(props: NodeViewProps) {
                       speechSynthesis.cancel();
                       setSpeaking(false);
                     } else {
-                      const text = document.querySelector(".page .ProseMirror")?.textContent ?? "";
+                      const text = document.querySelector(".page .editor .ProseMirror")?.textContent ?? "";
                       if (text) (speak(text), setSpeaking(true));
                     }
                   }}
@@ -948,24 +930,17 @@ export function NodeView(props: NodeViewProps) {
             )}
           </div>
         )}
-        <textarea
+        <TitleEditor
           ref={titleRef}
-          className="title-input"
-          rows={1}
-          value={title}
-          placeholder={t("common.untitled")}
-          onChange={(e) => {
-            // Başlık tek satırlık bir metindir; yapıştırılan satır sonları boşluğa çevrilir.
-            const value = e.target.value.replace(/\s*\n\s*/g, " ");
+          docId={doc.id}
+          title={title}
+          rich={doc.titleRich}
+          readOnly={reading}
+          onChange={(value, rich) => {
             setTitle(value);
-            if (value.trim()) schedule({ title: value });
+            if (value.trim()) schedule({ title: value, titleRich: rich });
           }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              document.querySelector<HTMLElement>(".ProseMirror")?.focus();
-            }
-          }}
+          onEnter={() => document.querySelector<HTMLElement>(".page .editor .ProseMirror")?.focus()}
         />
         {reading && (
           <button className="status-pill reading-pill" onClick={() => setReading(false)} title={t("ob.readingView")}>
