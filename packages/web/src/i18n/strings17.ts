@@ -1,12 +1,12 @@
 // Takvim eşitleme arayüz metinleri (Google Takvim ve Apple iCloud). strings.ts sözlüğüne katılır; her iki dili de yazın.
 
 export const STRINGS_17 = {
-  "cal.title": { tr: "Takvim eşitleme", en: "Calendar sync" },
+  "cal.title": { tr: "Takvimler", en: "Calendars" },
   "cal.provider.google": { tr: "Google Takvim", en: "Google Calendar" },
   "cal.provider.apple": { tr: "Apple Takvim (iCloud)", en: "Apple Calendar (iCloud)" },
   "cal.intro": {
-    tr: "Bir veritabanının tarihli satırlarını Google Takvim'inizle, Apple (iCloud) takviminizle ya da ikisiyle birden iki yönlü eşitleyin. Başlık ve tarih iki yönde de güncellenir.",
-    en: "Sync a database's dated rows both ways with your Google Calendar, your Apple (iCloud) calendar or both. Titles and dates update in both directions.",
+    tr: "Google ve Apple (iCloud) hesabınızı bağlayın, görmek istediğiniz takvimleri açın: etkinlikler tüm ayrıntılarıyla Takvim ekranında görünür, not oluşturulmaz ve ekranda yaptığınız değişiklikler takvime yazılır. İsterseniz bir veritabanını da veritabanının Takvim düğmesinden bir takvimle eşitleyebilirsiniz.",
+    en: "Connect your Google and Apple (iCloud) accounts and turn on the calendars you want to see: events appear with all their details on the Calendar page, no notes are created, and changes made there are written to the calendar. You can also sync a database with a calendar from the database's Calendar button.",
   },
   "cal.browserOnly": { tr: "Takvim eşitleme masaüstü uygulamasında kullanılabilir.", en: "Calendar sync is available in the desktop app." },
   "cal.noEncryption": {
@@ -68,7 +68,7 @@ export const STRINGS_17 = {
     tr: "“{calendar}” ile eşitleme durdurulsun mu? Etkinlikler ve satırlar silinmez.",
     en: "Stop syncing with “{calendar}”? Events and rows aren't deleted.",
   },
-  "cal.connectFirst": { tr: "Önce Ayarlar → Takvim eşitleme bölümünden bir hesap bağlayın.", en: "First connect an account in Settings → Calendar sync." },
+  "cal.connectFirst": { tr: "Önce Ayarlar → Takvim bölümünden bir hesap bağlayın.", en: "First connect an account in Settings → Calendar." },
   "cal.needDateProp": { tr: "Eşitlemek için veritabanına bir tarih özelliği ekleyin.", en: "Add a date property to the database to sync it." },
   "cal.dbHint": {
     tr: "Tarihli satırlar etkinlik, takvimdeki etkinlikler satır olur. Bir taraf silinirse diğeri de kaldırılır; satırlar çöpe taşınır. Yinelenen etkinlikler ve kilitli notlar eşitlenmez.",

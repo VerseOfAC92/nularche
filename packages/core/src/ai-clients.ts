@@ -1,4 +1,4 @@
-// Yapay zeka bağlantıları: "nularche" MCP sunucusunu, kullanıcının kendi üyeliğiyle oturum açtığı
+// Yapay zekâ bağlantıları: "nularche" MCP sunucusunu, kullanıcının kendi üyeliğiyle oturum açtığı
 // resmi AI araçlarına kaydeder. Nularche hiçbir AI kimlik bilgisine (oturum, token, API anahtarı) dokunmaz;
 // yalnızca her aracın kendi MCP yapılandırma dosyasına bir girdi ekler.
 //

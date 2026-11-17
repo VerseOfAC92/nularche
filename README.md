@@ -35,7 +35,8 @@ The name comes from **Null** (a clean starting point) and **Arche** (first princ
 Nularche 2.5 adds **Tabula**, a whiteboard that sits over your writing background, a sidebar that hides completely,
 a richer **Atrium**, and a Nularche AI that can no longer hang and never edits a note unless you ask it to.
 It also brings **Nularche Font**, Nularche's own handwriting typeface, **Archipelagos** that group your Arches, and
-your smart folders in the Atrium.
+your smart folders in the Atrium. A new **Calendar** page shows your Google and Apple calendars with every detail
+without turning events into notes, titles take formatting, and the whole interface got a careful visual pass.
 
 <p align="center">
   <img src="docs/screenshots/atrium-lavender.png" width="860" alt="Atrium over the Lavender Hills background: continue writing, daily goal, quick capture and writing projects as frosted-glass cards" />
@@ -49,6 +50,43 @@ your smart folders in the Atrium.
 <p align="center">
   <img src="docs/screenshots/atrium-smart-lavender.png" width="860" alt="Atrium over Lavender Hills with the Smart folders card listing each folder and its note count, next to Tabula, open tasks and Shadow" />
 </p>
+
+**Calendar**
+
+<p align="center">
+  <img src="docs/screenshots/calendar-page-dark.png" width="49%" alt="The Calendar page: a month with events from the Nularche calendar, an iCloud calendar and dated databases" />
+  <img src="docs/screenshots/calendar-event-dark.png" width="49%" alt="An invitation opened on the Calendar page: time, alert, location, meeting link, attendees with their replies and notes" />
+</p>
+
+- **Calendar page** (sidebar or ⇧⌘K): month, week (hour grid with a now line) and agenda views. It shows the local
+  **Nularche** calendar, the Google and Apple (iCloud) calendars you turn on, and every database with a date property.
+  Each calendar has a chip to show or hide it.
+- **No notes from calendars:** turning a calendar on in **Settings → Calendar** only shows it. Its events are kept in
+  `.nularche/calendar-events.json`, not as notes or an Arche. Changes made on the Calendar page go straight to Google
+  or iCloud. Syncing a database with a calendar is still available from the database's **Calendar** button.
+- **Full event details:** click an event to see its time, alert, location, meeting link (Teams, Zoom, Meet or Webex,
+  with an **Open** button), the organiser and every attendee with their reply, and the notes with clickable links.
+- **New events with details:** title, date and time or all day, location, link, alert and notes, saved to the calendar
+  you pick. Editing an invitation changes only the fields you touched, so attendees and other details stay intact.
+  Recurring events are view-only.
+
+**Writing and editing**
+
+- **Formatted titles:** select part of a title for bold, italic, underline, strike, highlight and colour (from the
+  selection bar or the right-click menu). The plain title still names the file.
+- **Right-click** shows Nularche's own options (formatting, links, Marginalia; shape options on Tabula; open, add and
+  move in the sidebar) together with the system's (spelling suggestions, Look Up, cut, copy, paste, Share).
+- **Tab** indents in notes (and nests list items); Shift-Tab outdents. In tables Tab still moves between cells.
+- **Default text size** in Settings → Writing, next to the default writing font.
+- **Table column widths** you set by dragging are saved with the note and come back when you open it.
+- The writing hint only shows in an empty note.
+
+**Look**
+
+- Every menu, toolbar, panel and dialog uses one set of line icons instead of emoji and symbols; icons you give your
+  own notes stay as they are.
+- Menus and dialogs over a background use solid frosted glass so text stays readable; spacing, alignment and focus
+  states were tidied across the app, including Tabula's shape library and format panel.
 
 **Tabula (whiteboard)**
 
@@ -95,8 +133,8 @@ your smart folders in the Atrium.
 
 **Window**
 
-- **Archipelago (group your Arches):** press **⁂** next to *Arches* in the sidebar to create a group such as Work or
-  School. Add an Arche with its own **⁂** button or by dragging it onto the group; drag inside a group to reorder.
+- **Archipelago (group your Arches):** press the group button (stacked layers) next to *Arches* in the sidebar to
+  create a group such as Work or School. Add an Arche with its own group button or by dragging it onto the group; drag inside a group to reorder.
   A group can be collapsed, renamed or removed (its Arches stay), and its **+** creates a new Arche inside it. Groups
   only arrange the sidebar: no files move.
 
@@ -119,11 +157,11 @@ your smart folders in the Atrium.
 
 **Nularche AI**
 - A request that gets no answer from Gemini stops after a time limit with a clear message instead of waiting forever
-  and blocking the requests behind it. **✕ Cancel** stops a request at any time; a request left “working” after a
+  and blocking the requests behind it. **Cancel** stops a request at any time; a request left “working” after a
   restart can be cleared from the history.
 - Long notes are reorganised block by block, so Gemini moves your text unchanged instead of rewriting the whole note.
 - Nularche AI only changes notes when you ask for a change. Questions, summaries and analysis are answered without
-  editing, and the **💬 Reply only** switch removes every editing tool. Any change can still be undone with ↶ Undo.
+  editing, and the **Reply only** switch removes every editing tool. Any change can still be undone with **Undo**.
 - The full text of your request is shown, and the input box grows as you type.
 
 ## What's new in 2.0.0
@@ -318,11 +356,12 @@ callouts and footnotes written in other Markdown apps keep their syntax when you
 **Calendar sync (Google and Apple)**
 - Sync a database's dated rows both ways with **Google Calendar**, **Apple Calendar (iCloud)** or both: rows with a
   date become events, events become rows, and titles and dates follow changes in either direction. See
-  [Calendar sync](#calendar-sync-google-and-apple).
+  [Calendar sync](#calendar-sync-google-and-apple). Since 2.5 calendars can also be shown on the Calendar page without
+  a database.
 
 <p align="center">
   <img src="docs/screenshots/calendar-sync-dark.png" width="49%" alt="A database in calendar view, synced with a Google calendar and an iCloud calendar" />
-  <img src="docs/screenshots/calendar-settings-light.png" width="49%" alt="Settings: connected Google and Apple accounts and the synced databases" />
+  <img src="docs/screenshots/calendar-settings-light.png" width="49%" alt="Settings → Calendar: connected Google and Apple accounts and the calendars shown on the Calendar page" />
 </p>
 
 **Linked notes**
@@ -504,10 +543,18 @@ They run `npm ci` and the test suite, build the installer for your machine into 
 
 ### Calendar sync (Google and Apple)
 
-<p align="center"><img src="docs/screenshots/calendar-sync-dark.png" width="860" alt="The Calendar panel of a database: synced with Google Calendar (Work) and Apple Calendar (Home)" /></p>
+<p align="center"><img src="docs/screenshots/calendar-page-dark.png" width="860" alt="The Calendar page with the Nularche calendar, an iCloud calendar and dated databases" /></p>
 
-Keep a database and a calendar in step: rows with a date become events, events become rows, and titles and dates
-follow changes in either direction. One database can sync with a Google calendar, an Apple (iCloud) calendar or both.
+There are two ways to use your Google and Apple calendars:
+
+- **Show a calendar** on the Calendar page (Settings → Calendar → tick it under the account). Its events appear with
+  all their details, nothing is turned into notes, and what you create, edit or delete on the Calendar page is written
+  to the calendar. Nularche reads events from one year ago to two years ahead and refreshes them every 5 minutes.
+- **Sync a database** with a calendar: rows with a date become events, events become rows, and titles and dates
+  follow changes in either direction. One database can sync with a Google calendar, an Apple (iCloud) calendar or
+  both.
+
+<p align="center"><img src="docs/screenshots/calendar-sync-dark.png" width="860" alt="The Calendar panel of a database: synced with Google Calendar (Work) and Apple Calendar (Home)" /></p>
 
 1. **Settings → Calendar** → connect an account:
    - **Google Calendar:** in [Google Cloud](https://console.cloud.google.com/apis/credentials) enable the *Google
@@ -516,12 +563,15 @@ follow changes in either direction. One database can sync with a Google calendar
    - **Apple Calendar (iCloud):** create an
      [app-specific password](https://support.apple.com/102654) (Apple Account → Sign-In and Security → App-Specific
      Passwords) and enter it with your Apple ID.
-2. Open a database, click **🗓 Calendar** in its toolbar, choose the calendar (and the date property if there are
-   several) and click **Start syncing**.
+2. To show calendars, tick them under the account in **Settings → Calendar**. To sync a database, open it, click
+   **Calendar** in its toolbar, choose the calendar (and the date property if there are several) and click
+   **Start syncing**.
 
 Nularche then syncs every 5 minutes and when you click **Sync now** in Settings.
 
-<p align="center"><img src="docs/screenshots/calendar-settings-light.png" width="860" alt="Settings → Calendar with both accounts connected" /></p>
+<p align="center"><img src="docs/screenshots/calendar-settings-light.png" width="860" alt="Settings → Calendar with both accounts connected and an iCloud calendar shown on the Calendar page" /></p>
+
+For synced databases:
 
 - A date without a time becomes an all-day event; a time without an end becomes a one-hour event. Date ranges stay
   ranges.
@@ -535,7 +585,8 @@ Nularche then syncs every 5 minutes and when you click **Sync now** in Settings.
 - **Stop syncing** keeps both the rows and the events.
 - Account details are encrypted with the system credential store (Keychain, DPAPI or libsecret) and stay on this
   computer; disconnect them in **Settings → Calendar**. The sync map lives with your notes in
-  `.nularche/calendar.json`, so moving the Origin to another computer doesn't duplicate events.
+  `.nularche/calendar.json`, so moving the Origin to another computer doesn't duplicate events. Events of shown
+  calendars are cached in `.nularche/calendar-events.json`.
 
 ### Templates
 
@@ -776,13 +827,33 @@ Questions, ideas or bug reports: write to **[verseofac@gmail.com](mailto:verseof
 
 ## Türkçe
 
-**Nularche**, notlarınızı kendi bilgisayarınızda düz Markdown dosyaları olarak tutan, yapay zeka destekli bir not ve
+**Nularche**, notlarınızı kendi bilgisayarınızda düz Markdown dosyaları olarak tutan, yapay zekâ destekli bir not ve
 bilgi yönetimi uygulamasıdır. Veritabanları (tablo, pano, takvim, galeri, liste, zaman çizelgesi), şablonlar, günlük
 not, Çöp, statik site yayınlama ve Claude / ChatGPT / Gemini entegrasyonu içerir. Arayüz Ayarlar'dan Türkçeye
 alınabilir.
 
 ### 2.5.0'daki yenilikler
 
+- **Takvim ekranı** (kenar çubuğu ya da ⇧⌘K): ay, hafta ve ajanda görünümleri. Yerel **Nularche** takvimi, Ayarlar →
+  Takvim'de açtığınız Google ve Apple (iCloud) takvimleri ve tarih özelliği olan bütün veritabanları bir arada; her
+  takvim bir düğmeyle gizlenip gösterilir. Takvimler **not ya da Arche oluşturmaz**: etkinlikler
+  `.nularche/calendar-events.json` içinde tutulur, Takvim ekranında yaptığınız değişiklikler doğrudan Google'a ya da
+  iCloud'a yazılır. Bir etkinliğe tıklayınca saat, hatırlatma, konum, toplantı bağlantısı (**Aç** düğmesiyle),
+  düzenleyen, katılımcılar ve yanıtları ve notlar görünür. Yeni etkinlik konum, bağlantı, hatırlatma ve notlarıyla
+  oluşturulur. Yinelenen etkinlikler yalnızca görüntülenir. Veritabanını takvimle eşitleme veritabanının **Takvim**
+  düğmesinde durur.
+- **Biçimli başlıklar:** başlığın bir kısmını seçip kalın, italik, altı çizili, üstü çizili, vurgulu ya da renkli
+  yapın (seçim çubuğundan ya da sağ tıkla). Dosya adı düz başlık olarak kalır.
+- **Sağ tık** menüsünde Nularche'nin seçenekleri (biçim, bağlantı, Marginalia; Tabula'da şekil seçenekleri; kenar
+  çubuğunda aç, ekle, taşı) ile sistemin seçenekleri (yazım önerileri, Sözlükte Ara, kes, kopyala, yapıştır, Paylaş)
+  birlikte gelir.
+- Notlarda **Tab** girinti yapar (liste öğelerini iç içe alır), ⇧Tab geri alır; tablolarda Tab yine hücreler arasında
+  gezer. Ayarlar → Yazma'da **varsayılan yazı boyutu** seçilir. Sürükleyerek ayarlanan **tablo sütun genişlikleri**
+  notla birlikte kaydedilir. Yazma yönergesi yalnızca boş notta görünür.
+- **Görünüm:** menüler, araç çubukları, paneller ve pencereler emoji ve semboller yerine tek bir çizgi simge setiyle
+  çizilir (notlarınıza verdiğiniz simgeler olduğu gibi kalır). Arka plan seçiliyken menüler ve pencereler okunaklı
+  buzlu cam kullanır; boşluklar, hizalar ve odak durumları uygulamanın her yerinde, Tabula'nın şekil kitaplığı ve
+  biçim paneli dahil, elden geçirildi.
 - **Tabula** (beyaz tahta): kalem, kurşun kalem, keçeli ve fosforlu kalem, silgi; yapışkan notlar, metin, tablo,
   görsel ve not kartları; akış şeması, BPMN, UML, ağ ve daha fazlası için 130'dan fazla şekil ve 13 grupta yaklaşık
   4.800 simge; şekilleri bağlayan ve şekiller taşınınca onları izleyen oklar; hizalama kılavuzları, gruplama, kilit,
@@ -794,13 +865,13 @@ alınabilir.
   çevrimdışı çalışır.
 - **Kenar çubuğu tamamen gizlenir** (pencere düğmelerinin yanındaki düğme ya da ⌥⌘B); düğmenin üzerine gelince arka
   planın renginde bir panel olarak belirir, fare çekilince kaybolur.
-- **Archipelago:** Arche'ler kenar çubuğunda gruplanabilir (İş, Okul gibi). “Arche'ler” başlığının yanındaki **⁂** ile
-  grup oluşturun; Arche'yi kendi **⁂** düğmesiyle ya da sürükleyerek ekleyin. Gruplar daraltılır, yeniden adlandırılır,
+- **Archipelago:** Arche'ler kenar çubuğunda gruplanabilir (İş, Okul gibi). “Arche'ler” başlığının yanındaki grup
+  düğmesiyle (üst üste katmanlar) grup oluşturun; Arche'yi kendi grup düğmesiyle ya da sürükleyerek ekleyin. Gruplar daraltılır, yeniden adlandırılır,
   kaldırılır (Arche'ler silinmez); dosyalar taşınmaz.
 - **Atrium** zenginleşti: akıllı klasörler (not sayılarıyla), Tabula panoları, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden
   keşfedilecek bir not. Arka plan seçiliyken Atrium'daki ve diğer sayfalardaki kartlar da buzlu cam olur.
 - **Nularche AI**: yanıt vermeyen istekler süre sınırında açık bir mesajla durur, istekler iptal edilebilir, uzun notlar
-  baştan yazılmadan blok blok düzenlenir. Soru, özet ve analiz isteklerinde notlar değiştirilmez; **💬 Yalnızca cevap**
+  baştan yazılmadan blok blok düzenlenir. Soru, özet ve analiz isteklerinde notlar değiştirilmez; **Yalnızca cevap**
   açıkken hiçbir not değişmez.
 
 ### 2.0.0'daki yenilikler
@@ -857,7 +928,7 @@ adımında ve uygulamadaki **Nularche dili** penceresinde (⇧⌘P → “Nularc
   simgelerden oluşan dar bir şeride indirir: logo, tüm menü öğeleri ve Arche'ler simgeleriyle (simgesi olmayan Arche
   ◈ ile) görünür. Üzerine gelince adı çıkar; ›› ile geri açılır ve seçim hatırlanır.
 - **Yeni Ayarlar penceresi:** solda aranabilir kategoriler (Görünüm, Yazma, Aura ve Odak, Otomasyon, Notlar ve Origin,
-  Kısayollar, Yayınlama, Takvim, Yapay zeka, Hakkında), sağda kartlar halinde ayarlar.
+  Kısayollar, Yayınlama, Takvim, Yapay zekâ, Hakkında), sağda kartlar halinde ayarlar.
 - **MCP sunucusu:** 7 yeni araç (`get_manuscript`, `add_to_writing_project`, `list_wiki_entries`, `get_wiki_mentions`,
   `list_comments`, `add_comment`, `create_checkpoint`).
 
@@ -883,7 +954,7 @@ yazılmış notlar Nularche'de düzenlenirken bozulmaz.
 - **Takvim eşitleme:** bir veritabanının tarihli satırlarını **Google Takvim**, **Apple Takvim (iCloud)** ya da ikisiyle
   birden iki yönlü eşitleyin; tarihli satırlar etkinlik, etkinlikler satır olur, başlık ve tarih iki yönde güncellenir.
   **Ayarlar → Takvim** bölümünden hesabı bağlayın (Google için Google Cloud'da oluşturduğunuz "Masaüstü
-  uygulaması" OAuth istemcisi, Apple için uygulamaya özel parola), sonra veritabanı araç çubuğundaki **🗓 Takvim**
+  uygulaması" OAuth istemcisi, Apple için uygulamaya özel parola), sonra veritabanı araç çubuğundaki **Takvim**
   düğmesinden takvimi seçin. Silinen etkinliğin satırı çöpe taşınır; yinelenen etkinlikler ve kilitli notlar eşitlenmez.
   Ayrıntılar ve kurulum adımları: [Calendar sync](#calendar-sync-google-and-apple).
 - **İçe aktarma** (Markdown, metin, HTML, RTF; Apple Notlar dışa aktarımları dahil), **Markdown olarak

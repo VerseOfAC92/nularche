@@ -275,8 +275,8 @@ try {
   await page.waitForTimeout(800);
   await shot("canvas-light");
 
-  // Takvim eşitleme: bir etkinlik veritabanı Google "Work" ve iCloud "Home" takvimleriyle eşitlenir (koyu),
-  // sonra Ayarlar'daki hesaplar (açık).
+  // Takvim: bir etkinlik veritabanı Google "Work" ve iCloud "Home" takvimleriyle eşitlenir (koyu), Ayarlar'da iCloud
+  // "Family" takvimi görüntülenmek üzere açılır (açık), sonra Takvim ekranı ve bir davetin ayrıntıları (koyu).
   const now = new Date();
   const day = (d: number, time?: string) => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}${time ? `T${time}` : ""}`;
   const icsDay = (d: number) => day(d).replace(/-/g, "");
@@ -326,13 +326,48 @@ try {
   await page.emulateMedia({ colorScheme: "light" });
   await page.locator(".side-btn", { hasText: "Settings" }).click();
   await page.getByRole("tab", { name: "Calendar" }).click();
-  await page.getByRole("heading", { name: "Calendar sync" }).waitFor();
+  await page.getByRole("heading", { name: "Calendars" }).waitFor();
+  // 2.5: iCloud "Family" takvimi notlara bağlanmadan Takvim ekranında görüntülenir (ayrıntılı bir davetle).
+  const at = (d: number, h: number, m = 0) => new Date(now.getFullYear(), now.getMonth(), d, h, m).toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+  calFiles.set("/caldav/1/calendars/family/interview.ics", {
+    etag: '"i"',
+    ics: [
+      "BEGIN:VCALENDAR",
+      "BEGIN:VEVENT",
+      "UID:interview",
+      "SUMMARY:Product interview",
+      `DTSTART:${at(19, 10)}`,
+      `DTEND:${at(19, 10, 45)}`,
+      "LOCATION:Studio B\\, 3rd floor",
+      "DESCRIPTION:Agenda\\n- Portfolio walkthrough\\n- Questions\\n\\nJoin online: https://meet.google.com/abc-defg-hij",
+      'ORGANIZER;CN="Sam Rivera":mailto:sam@example.com',
+      "ATTENDEE;CN=Sam Rivera;PARTSTAT=ACCEPTED:mailto:sam@example.com",
+      "ATTENDEE;CN=Alex Kim;PARTSTAT=NEEDS-ACTION:mailto:alex@icloud.com",
+      "ATTENDEE;CN=Jordan Lee;PARTSTAT=TENTATIVE:mailto:jordan@example.com",
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:Reminder",
+      "TRIGGER:-PT30M",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR",
+      "",
+    ].join("\r\n"),
+  });
+  calFiles.set("/caldav/1/calendars/family/recital.ics", {
+    etag: '"p"',
+    ics: `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:recital\r\nSUMMARY:Piano recital\r\nDTSTART:${at(15, 17)}\r\nDTEND:${at(15, 18, 30)}\r\nLOCATION:City Hall\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`,
+  });
+  await page.locator("[data-testid=cal-apple] .cal-list-row", { hasText: "Family" }).locator("input").click();
+  await page.locator(".toast", { hasText: "Family" }).waitFor({ timeout: 15_000 });
+  await page.locator(".toast").waitFor({ state: "detached", timeout: 15_000 });
   await page.getByRole("button", { name: /Sync now/ }).click();
   await page.locator(".toast", { hasText: "Calendars synced" }).waitFor({ timeout: 10_000 });
   await page.locator(".toast").waitFor({ state: "detached", timeout: 15_000 });
-  await page.locator(".cal-settings").evaluate((el) => {
-    el.previousElementSibling?.scrollIntoView({ block: "start" });
-    el.closest(".settings-body")?.scrollBy(0, -24);
+  // İki hesap ve açık takvimler (Apple'da "Family") birlikte görünsün.
+  await page.locator("[data-testid=cal-apple]").evaluate((el) => {
+    el.scrollIntoView({ block: "end" });
+    el.closest(".settings-body")?.scrollBy(0, 24);
   });
   await page.waitForTimeout(400);
   await shot("calendar-settings-light");
@@ -343,6 +378,18 @@ try {
   await page.mouse.move(10, 10);
   await page.waitForTimeout(400);
   await shot("calendar-sync-dark");
+  await page.keyboard.press("Escape");
+  // Takvim ekranı: tüm takvimler ve tarihli veritabanları bir arada; davet tüm ayrıntılarıyla açılır.
+  await page.locator(".side-btn", { hasText: "Calendar" }).click();
+  await page.locator(".cal-month").waitFor();
+  await page.locator(".cal-chip", { hasText: "Product interview" }).waitFor({ timeout: 10_000 });
+  await page.mouse.move(10, 10);
+  await page.waitForTimeout(400);
+  await shot("calendar-page-dark");
+  await page.locator(".cal-chip", { hasText: "Product interview" }).click();
+  await page.locator(".cal-detail").waitFor();
+  await page.waitForTimeout(300);
+  await shot("calendar-event-dark");
   await page.keyboard.press("Escape");
   // 2.0: yazma stüdyosu — Atrium, Codex, Mosaic, Lore, Marginalia, Ayarlar ve Nularche dili.
   const studio = await page.evaluate(async () => {
@@ -529,7 +576,8 @@ try {
   await page.waitForTimeout(1500);
   await shot("tabula-lavender");
   await page.locator(".wb-tool[aria-expanded]").click();
-  await page.locator(".wb-chip.pic").nth(1).click();
+  await page.locator(".wb-lib-head .segmented button", { hasText: "Pictures" }).click();
+  await page.locator(".wb-cats .wb-chip").nth(1).click();
   await page.waitForTimeout(1500);
   await shot("tabula-library");
   await page.keyboard.press("Escape");

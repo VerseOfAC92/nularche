@@ -40,7 +40,7 @@ const STRINGS = {
     en: "This Mac has an Apple Silicon chip, but the Intel version of Nularche is installed. Install the Apple Silicon version so it runs faster and keeps opening on future macOS versions.",
   },
   "warn.translocated": {
-    tr: "Nularche disk görüntüsünden ya da karantinadaki bir konumdan çalışıyor. Yapay zeka bağlantısının kalıcı olması için önce uygulamayı Uygulamalar klasörüne taşıyıp oradan açın.",
+    tr: "Nularche disk görüntüsünden ya da karantinadaki bir konumdan çalışıyor. Yapay zekâ bağlantısının kalıcı olması için önce uygulamayı Uygulamalar klasörüne taşıyıp oradan açın.",
     en: "Nularche is running from a disk image or a quarantined location. For the AI connection to last, first move the app to the Applications folder and open it from there.",
   },
   "origin.useDefault": { tr: "Varsayılan Origin'i kullan", en: "Use Default Origin" },
@@ -117,7 +117,7 @@ const STRINGS = {
   "ai.noEncryption": { tr: "Bu sistemde güvenli anahtar saklama kullanılamıyor.", en: "Secure key storage isn't available on this system." },
   "ai.noOrigin": { tr: "Origin açık değil.", en: "No Origin is open." },
   "ai.keyMissingReply": {
-    tr: "Gemini anahtarı bulunamadı. Ayarlar → Yapay zeka → Otomatik mod bölümünden anahtarı yeniden girin.",
+    tr: "Gemini anahtarı bulunamadı. Ayarlar → Yapay zekâ → Otomatik mod bölümünden anahtarı yeniden girin.",
     en: "The Gemini key wasn't found. Enter it again under Settings → AI → Automatic mode.",
   },
   "ai.noKey": { tr: "Gemini anahtarı yok.", en: "No Gemini key." },

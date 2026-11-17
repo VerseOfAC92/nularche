@@ -900,7 +900,7 @@ export function NodeView(props: NodeViewProps) {
         />
       )}
       {dialog === "font" && <FontDialog font={doc.font} size={doc.fontSize} fallbackSize={writingSize || undefined} onChange={(font, size) => void setFields({ font, fontSize: size })} onClose={() => setDialog(null)} />}
-      <article className={`page ${reading ? "reading" : ""} ${doc.layoutMode === "canvas" ? "page-canvas" : ""} ${doc.layoutMode === "whiteboard" ? "page-whiteboard" : ""} ${cover ? "has-cover" : ""} ${doc.lightBg ? "page-light" : ""} ${pageFont || pageSize ? "page-typed" : ""} ${["manuscript", "outline", "cards", "wiki"].includes(doc.layoutMode) ? `page-studio page-${doc.layoutMode}` : ""}`} style={pageStyle}>
+      <article className={`page ${reading ? "reading" : ""} ${doc.layoutMode === "canvas" ? "page-canvas" : ""} ${doc.layoutMode === "whiteboard" ? "page-whiteboard" : ""} ${doc.database ? "page-db" : ""} ${cover ? "has-cover" : ""} ${doc.lightBg ? "page-light" : ""} ${pageFont || pageSize ? "page-typed" : ""} ${["manuscript", "outline", "cards", "wiki"].includes(doc.layoutMode) ? `page-studio page-${doc.layoutMode}` : ""}`} style={pageStyle}>
         {doc.icon && (
           <div className="rel">
             <span className="page-icon" onClick={() => setMenu(menu === "icon" ? null : "icon")} title={t("node.changeIcon")}>

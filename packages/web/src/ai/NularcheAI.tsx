@@ -57,7 +57,7 @@ export function NularcheAI({
   const [text, setText] = useState("");
   const [useSelection, setUseSelection] = useState(true);
   const [sending, setSending] = useState(false);
-  // Yalnızca cevap: yapay zeka notları değiştiremez (soru sormak ya da özet istemek için güvenli mod).
+  // Yalnızca cevap: yapay zekâ notları değiştiremez (soru sormak ya da özet istemek için güvenli mod).
   const [replyOnly, setReplyOnly] = usePref<boolean>("naiReplyOnly", false);
   const listRef = useRef<HTMLDivElement>(null);
   const drag = useDraggable("nlc-nai-pos");

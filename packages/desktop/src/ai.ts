@@ -1,4 +1,4 @@
-// Masaüstü yapay zeka entegrasyonu: seçilen AI aracını bulur, Nularche MCP bağlantısını kurar,
+// Masaüstü yapay zekâ entegrasyonu: seçilen AI aracını bulur, Nularche MCP bağlantısını kurar,
 // aracın resmi uygulamasını açar ve araç Nularche'ye ilk bağlandığında uygulamayı öne getirir.
 // Kullanıcı AI aracına kendi hesabıyla, aracın kendi arayüzünde giriş yapar; Nularche hiçbir
 // oturum/kimlik bilgisine dokunmaz.

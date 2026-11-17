@@ -171,7 +171,7 @@ try {
   await page.locator(".nai-panel .icon-btn").click(); // küçült
   await page.locator(".sidebar-foot .side-btn").last().click(); // Ayarlar
   // 2.0: ayarlar kategorilere ayrıldı.
-  await page.getByRole("tab", { name: "Yapay zeka" }).click();
+  await page.getByRole("tab", { name: "Yapay zekâ" }).click();
   await page.getByPlaceholder(/Anahtarı buraya yapıştırın/).fill("AIza-test-anahtari");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
   await page.getByText("Otomatik mod açık").waitFor({ timeout: 10_000 });
@@ -238,7 +238,7 @@ try {
   const reset = (await page.locator(".nai-panel").boundingBox())!;
   assert.ok(Math.abs(reset.x - before.x) < 2 && Math.abs(reset.y - before.y) < 2, "çift tıklama konumu sıfırlamadı");
 
-  // Dil: Ayarlar → English; arayüz, kayıtlı ayar ve yapay zeka cevap dili İngilizceye geçer.
+  // Dil: Ayarlar → English; arayüz, kayıtlı ayar ve yapay zekâ cevap dili İngilizceye geçer.
   await page.locator(".sidebar-foot .side-btn").last().click();
   await page.getByRole("tab", { name: "Görünüm" }).click();
   await page.getByRole("button", { name: "English", exact: true }).click();

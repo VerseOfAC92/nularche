@@ -1,5 +1,5 @@
 // Nularche AI etkinlik kaydı: kullanıcının Nularche AI penceresinden verdiği istekler, bağlanan
-// yapay zeka araçları ve yapay zekanın yaptığı değişikliklerin geri alınabilir anlık kopyaları.
+// yapay zekâ araçları ve yapay zekânın yaptığı değişikliklerin geri alınabilir anlık kopyaları.
 // Veriler Origin içindeki gizli `.nularche/ai/` klasöründe tutulur (Node taramasına girmez) ve
 // hem uygulama sunucusu hem de AI aracının başlattığı MCP sunucusu tarafından okunup yazılır.
 
@@ -65,7 +65,7 @@ export interface AiRequest {
   undoneAt?: number;
   /** Kullanıcı iptal etti (durum "failed" olarak kalır; sonradan gelen cevap yazılmaz). */
   cancelled?: boolean;
-  /** Yalnızca cevap: yapay zeka hiçbir notu değiştiremez. */
+  /** Yalnızca cevap: yapay zekâ hiçbir notu değiştiremez. */
   readOnly?: boolean;
 }
 
@@ -301,8 +301,8 @@ export class AiActivity {
    */
   async editWithSnapshot(store: NodeStore, ref: string, edit: (before: NodeDoc) => Promise<NodeDoc>, requestId?: string): Promise<NodeDoc> {
     const before = await store.read(ref);
-    // Kilitli notun şifreli içeriği yapay zeka tarafından değiştirilemez (kilit kullanıcının parolasıyla açılır).
-    if (before.locked) throw new NodeError("invalid", "Bu not kilitli; yapay zeka kilitli notları okuyamaz ve değiştiremez.");
+    // Kilitli notun şifreli içeriği yapay zekâ tarafından değiştirilemez (kilit kullanıcının parolasıyla açılır).
+    if (before.locked) throw new NodeError("invalid", "Bu not kilitli; yapay zekâ kilitli notları okuyamaz ve değiştiremez.");
     const snapshot = await this.snapshot(before.id, (await store.readRaw(before.path)).toString("utf8"));
     const after = await edit(before);
     if (after.revision !== before.revision) {
