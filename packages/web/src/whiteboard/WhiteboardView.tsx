@@ -1067,7 +1067,11 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
         }}
         onKeyDown={(e) => {
           e.stopPropagation();
-          if (e.key === "Escape" || (e.key === "Enter" && (e.metaKey || e.ctrlKey))) e.currentTarget.blur();
+          // Esc ya da ⌘↵: yazma biter ve seçim kalkar; biçim paneli tek seferde kapanır.
+          if (e.key === "Escape" || (e.key === "Enter" && (e.metaKey || e.ctrlKey))) {
+            e.currentTarget.blur();
+            setSelected([]);
+          }
           if (e.key === "Tab" && it.type === "table" && editing.cell && it.cells) {
             e.preventDefault();
             commit(e.currentTarget.value);
@@ -1204,6 +1208,8 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
             <button className={`wb-chip ${first0.strike ? "on" : ""}`} onClick={() => patchStyle({ strike: !first0.strike })}>
               <s>S</s>
             </button>
+            </div>
+          <div className="wb-row">
             {(["left", "center", "right"] as const).map((a) => (
               <button key={a} className={`wb-chip ${(first0.align ?? "left") === a ? "on" : ""}`} onClick={() => patchStyle({ align: a })} title={a}>
                 <Icon name={a === "left" ? "align-left" : a === "center" ? "align-center" : "align-right"} />

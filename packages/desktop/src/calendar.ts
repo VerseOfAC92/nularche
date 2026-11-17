@@ -109,9 +109,29 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     ctx.window()?.webContents.send("nularche:calendar-synced");
   }
 
+  /** Veritabanı silinmiş (ya da çöpe atılmış) bağlantılar kaldırılır: hata olarak gösterilmez, takvim yeniden açılınca
+   *  yeni bir veritabanıyla bağlanır. Okunamayan başka durumlar (izin, bozuk dosya) bağlantıyı korur. */
+  async function pruneMissing(root: string): Promise<void> {
+    const store = new NodeStore(root);
+    const state = await readCalendarState(root);
+    const gone: string[] = [];
+    for (const l of state.links) {
+      try {
+        const n = await store.read(l.dbId);
+        if (!n.database) gone.push(l.id);
+      } catch (e) {
+        if (e instanceof NodeError && e.code === "not_found") gone.push(l.id);
+      }
+    }
+    if (!gone.length) return;
+    const current = await readCalendarState(root);
+    await writeCalendarState(root, { ...current, links: current.links.filter((l) => !gone.includes(l.id)) });
+  }
+
   async function syncAll(only?: (l: CalendarLink) => boolean): Promise<{ ok: boolean; errors: string[] }> {
     const root = ctx.originRoot();
     if (!root) return { ok: true, errors: [] };
+    await pruneMissing(root);
     const store = new NodeStore(root);
     const errors: string[] = [];
     const providers = new Map<CalendarProviderId, CalendarProvider | null>();
@@ -217,6 +237,7 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
       const acc = await readAccount(p);
       if (acc) accounts[p] = acc.account;
     }
+    if (root) await pruneMissing(root);
     const links = root ? (await readCalendarState(root)).links : [];
     return {
       encryption: canEncrypt(),

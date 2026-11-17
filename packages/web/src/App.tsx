@@ -45,6 +45,7 @@ import type { CustomCommand } from "./studio/StudioSettings.tsx";
 import { writingBody } from "../../core/src/writing.ts";
 import { Icon } from "./ui/Icon.tsx";
 import { nodeIconName } from "./ui/node-icon.ts";
+import { CalendarPage } from "./calendar/CalendarPage.tsx";
 
 export type Route =
   | { kind: "home" }
@@ -55,6 +56,7 @@ export type Route =
   | { kind: "recent" }
   | { kind: "attachments" }
   | { kind: "graph" }
+  | { kind: "calendar" }
   | { kind: "tag"; tag: string }
   | { kind: "smart"; id: string }
   | { kind: "list"; id: string };
@@ -62,7 +64,7 @@ export type Route =
 function parseHash(): Route {
   const h = decodeURIComponent(location.hash.slice(1));
   if (!h) return { kind: "home" };
-  if (h === "shadow" || h === "trash" || h === "notes" || h === "recent" || h === "attachments" || h === "graph") return { kind: h };
+  if (h === "shadow" || h === "trash" || h === "notes" || h === "recent" || h === "attachments" || h === "graph" || h === "calendar") return { kind: h };
   const m = /^(tag|smart|list):(.+)$/.exec(h);
   if (m) return m[1] === "tag" ? { kind: "tag", tag: m[2] } : { kind: m[1] as "smart" | "list", id: m[2] };
   return { kind: "node", id: h };
@@ -557,6 +559,7 @@ export function App() {
       registerCommand("whiteboard.new", () => void createTitled(t("ws.untitledWhiteboard"), { body: WHITEBOARD_BODY, fields: { layout: "whiteboard" } })),
       registerCommand("wiki.new", () => void createTitled(t("ws.untitledWiki"), { body: "", fields: { layout: "wiki" } })),
       registerCommand("view.dashboard", () => navigate({ kind: "home" })),
+      registerCommand("view.calendar", () => navigate({ kind: "calendar" })),
       registerCommand("help.glossary", () => setGlossaryOpen(true)),
       registerCommand("view.sidebar", () => setPref("sidebarMini", !getPref("sidebarMini", false))),
       registerCommand("view.comments", () => setPanel("comments")),
@@ -773,6 +776,7 @@ export function App() {
           />
         )}
         {route.kind === "graph" && <GraphView changeTick={changeTick} onOpen={openNode} />}
+        {route.kind === "calendar" && <CalendarPage nodes={nodes} onOpen={openNode} onChanged={refresh} onToast={showToast} />}
         {route.kind === "notes" && <NoteList listKey="all" icon={<Icon name="notes" size={26} />} title={t("list.allNotes")} notes={listable} nodes={nodes} onOpen={openNode} onTag={(tag) => navigate({ kind: "tag", tag })} />}
         {route.kind === "recent" && (
           <NoteList

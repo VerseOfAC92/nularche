@@ -615,7 +615,7 @@ export function resolveProperty(db: Database, ref: string): Property | typeof TI
 }
 
 /**
- * Kullanıcı ya da yapay zekâ tarafından verilen (insan okunur) değeri saklanacak ham değere çevirir.
+ * Kullanıcı ya da yapay zeka tarafından verilen (insan okunur) değeri saklanacak ham değere çevirir.
  * Seçim adları seçenek kimliğine çevrilir; yeni adlar şemaya seçenek olarak eklenir.
  */
 export function inputToStored(db: Database, prop: Property, input: unknown): { db: Database; value: unknown } {

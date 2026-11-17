@@ -369,7 +369,7 @@ export const STRINGS_18 = {
   "settings.catPublishHint": { tr: "İşaretlediğiniz sayfalardan statik web sitesi.", en: "A static website from the pages you mark." },
   "settings.catCalendar": { tr: "Takvim", en: "Calendar" },
   "settings.catCalendarHint": { tr: "Veritabanlarını Google ve Apple takvimiyle eşitleyin.", en: "Sync databases with Google and Apple calendars." },
-  "settings.catAi": { tr: "Yapay zekâ", en: "AI" },
+  "settings.catAi": { tr: "Yapay zeka", en: "AI" },
   "settings.catAiHint": { tr: "Claude, ChatGPT ya da Gemini bağlantısı.", en: "Connect Claude, ChatGPT or Gemini." },
   "settings.catAbout": { tr: "Hakkında", en: "About" },
   "settings.catAboutHint": { tr: "Nularche nedir, neler yapabilir, sürüm, destek ve Nularche dili.", en: "What Nularche is and does, version, support and the Nularche vocabulary." },
@@ -384,7 +384,7 @@ export const STRINGS_18 = {
   "ws.expandSidebar": { tr: "Kenar çubuğunu aç", en: "Expand sidebar" },
   // Ayarlar → Hakkında
   "about.intro": {
-    tr: "Nularche, notlarınızı, veritabanlarınızı ve uzun metinlerinizi kendi bilgisayarınızda düz Markdown dosyaları olarak tutan, yapay zekâ destekli, açık kaynak bir not ve yazma uygulamasıdır. Hesap, bulut ya da abonelik gerekmez; notlarınız her zaman size aittir.",
+    tr: "Nularche, notlarınızı, veritabanlarınızı ve uzun metinlerinizi kendi bilgisayarınızda düz Markdown dosyaları olarak tutan, yapay zeka destekli, açık kaynak bir not ve yazma uygulamasıdır. Hesap, bulut ya da abonelik gerekmez; notlarınız her zaman size aittir.",
     en: "Nularche is an open-source, AI-native notes and writing app that keeps your notes, databases and long-form writing as plain Markdown files on your own computer. No account, no cloud and no subscription: your notes always stay yours.",
   },
   "about.featuresTitle": { tr: "Neler yapabilirsiniz", en: "What you can do" },
@@ -398,7 +398,7 @@ export const STRINGS_18 = {
   "about.f.studio": { tr: "Codex, Axis, Mosaic ve Lore ile kitap, tez ya da senaryo planlayıp yazın; Marginalia ile yorum, Epoch ile sürüm.", en: "Plan and write books, theses or scripts with Codex, Axis, Mosaic and Lore; comment with Marginalia, keep versions with Epochs." },
   "about.f.focusTitle": { tr: "Odaklı yazma:", en: "Focused writing:" },
   "about.f.focus": { tr: "Odak modu, Atrium'da günlük hedef ve seri, Clepsydra zamanlayıcısı, Aura sesleri ve uygulamayla gelen yazı tipleri.", en: "Focus mode, a daily goal and streak in the Atrium, the Clepsydra timer, Aura sounds and bundled writing fonts." },
-  "about.f.aiTitle": { tr: "Yapay zekâ:", en: "AI:" },
+  "about.f.aiTitle": { tr: "Yapay zeka:", en: "AI:" },
   "about.f.ai": {
     tr: "Claude, ChatGPT ya da Gemini üyeliğinizle ya da ücretsiz bir Gemini anahtarıyla; ek API ücreti olmadan. Sorulara notlarınızı değiştirmeden cevap verir, “Yalnızca cevap” ile hiçbir not değişmez; istekleri iptal edebilir, her değişikliği geri alabilirsiniz.",
     en: "Use your Claude, ChatGPT or Gemini subscription, or a free Gemini key, with no extra API fees. Questions are answered without touching your notes, “Reply only” guarantees that nothing changes, requests can be cancelled and every change can be undone.",

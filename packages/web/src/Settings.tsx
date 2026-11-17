@@ -1,5 +1,5 @@
 // Ayarlar: solda kategoriler (arama ile süzülür), sağda seçili kategorinin ayarları kartlar halinde.
-// Görünüm, Yazma, Aura ve Odak, Otomasyon, Notlar ve Origin, Kısayollar, Yayınlama, Takvim, Yapay zekâ, Hakkında.
+// Görünüm, Yazma, Aura ve Odak, Otomasyon, Notlar ve Origin, Kısayollar, Yayınlama, Takvim, Yapay zeka, Hakkında.
 // Son açılan kategori hatırlanır.
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -40,7 +40,7 @@ const CATEGORIES: Category[] = [
   { id: "keys", icon: "keyboard", label: "settings.catKeys", hint: "settings.catKeysHint", keywords: "kısayol shortcut hotkey klavye keyboard" },
   { id: "publish", icon: "world", label: "settings.catPublish", hint: "settings.catPublishHint", keywords: "yayınla publish site web" },
   { id: "calendar", icon: "calendar", label: "settings.catCalendar", hint: "settings.catCalendarHint", keywords: "takvim calendar google apple icloud" },
-  { id: "ai", icon: "sparkles", label: "settings.catAi", hint: "settings.catAiHint", keywords: "ai yapay zekâ claude chatgpt gemini mcp" },
+  { id: "ai", icon: "sparkles", label: "settings.catAi", hint: "settings.catAiHint", keywords: "ai yapay zeka claude chatgpt gemini mcp" },
   { id: "about", icon: "info-circle", label: "settings.catAbout", hint: "settings.catAboutHint", keywords: "hakkında about sürüm version lisans license sözlük glossary destek support e-posta email iletişim contact" },
 ];
 

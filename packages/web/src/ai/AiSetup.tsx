@@ -1,6 +1,6 @@
-// Yapay zekâ seçimi ve bağlantı adımları: Ayarlar'da, ilk açılış sihirbazında ve Nularche AI
+// Yapay zeka seçimi ve bağlantı adımları: Ayarlar'da, ilk açılış sihirbazında ve Nularche AI
 // penceresinde (henüz bağlı değilken) aynı bileşen kullanılır.
-//   1. Yapay zekânızı seçin (Claude / ChatGPT / Gemini)
+//   1. Yapay zekanızı seçin (Claude / ChatGPT / Gemini)
 //   2. Resmi uygulamayı açın ve kendi hesabınızla giriş yapın
 //   3. Nularche'yi bağlayın (MCP kaydı)
 //   4. Bağlantı doğrulandı: AI aracı Nularche'ye ilk bağlandığında otomatik algılanır
@@ -62,7 +62,7 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
   const provider = status.provider;
   const p = status.providers.find((x) => x.id === provider);
 
-  /** Yapay zekâ seçilince resmi uygulamasına yönlendir: kuruluysa açılır, değilse indirme sayfası açılır. */
+  /** Yapay zeka seçilince resmi uygulamasına yönlendir: kuruluysa açılır, değilse indirme sayfası açılır. */
   async function choose(id: ProviderId) {
     await desktop!.aiSet({ provider: id });
     setMessage(null);
@@ -280,7 +280,7 @@ const APPS = [
   ["Gemini", "howto.appsGemini"],
 ] as const;
 
-/** Yapay zekânın nasıl bağlanıp kullanılacağını anlatan adım adım rehber. */
+/** Yapay zekanın nasıl bağlanıp kullanılacağını anlatan adım adım rehber. */
 function AiHowTo({ connected, compact }: { connected: boolean; compact: boolean }) {
   return (
     <details className="ai-howto" open={!connected && !compact}>

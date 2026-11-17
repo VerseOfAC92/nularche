@@ -27,6 +27,7 @@ function label(hash: string, nodes: NodeMeta[]): { icon: ReactNode; text: string
     attachments: ["paperclip", t("att.title")],
     shadow: ["circle-half-2", "Shadow"],
     trash: ["trash", t("trash.title")],
+    calendar: ["calendar", t("cal.page")],
   };
   if (named[h]) return { icon: <Icon name={named[h][0]} size={14} />, text: named[h][1] };
   if (h.startsWith("tag:")) return { icon: <Icon name="hash" size={14} />, text: h.slice(4) };

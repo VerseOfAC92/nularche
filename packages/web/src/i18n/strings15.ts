@@ -204,7 +204,7 @@ export const STRINGS_15 = {
   // Kilit
   "lock.title": { tr: "Notu kilitle", en: "Lock note" },
   "lock.explain": {
-    tr: "Not içeriği bu parola ile şifrelenir (AES-256). Kilitli notlar aramada, yapay zekâda ve dışa aktarmada görünmez. Parolayı unutursanız içerik kurtarılamaz.",
+    tr: "Not içeriği bu parola ile şifrelenir (AES-256). Kilitli notlar aramada, yapay zekada ve dışa aktarmada görünmez. Parolayı unutursanız içerik kurtarılamaz.",
     en: "The note's content is encrypted with this password (AES-256). Locked notes are hidden from search, AI and export. If you forget the password the content cannot be recovered.",
   },
   "lock.password": { tr: "Parola", en: "Password" },
@@ -232,7 +232,7 @@ export const STRINGS_15 = {
   "media.summarize": { tr: "Özetle", en: "Summarize" },
   "media.editDrawing": { tr: "Çizimi düzenle", en: "Edit drawing" },
   "media.needAuto": {
-    tr: "Ses kayıtlarını yazıya dökmek için Ayarlar → Yapay zekâ bölümünden Otomatik modu (ücretsiz Gemini anahtarı) açın. Ses yalnızca sizin anahtarınızla Google'a gönderilir.",
+    tr: "Ses kayıtlarını yazıya dökmek için Ayarlar → Yapay zeka bölümünden Otomatik modu (ücretsiz Gemini anahtarı) açın. Ses yalnızca sizin anahtarınızla Google'a gönderilir.",
     en: "To transcribe recordings, turn on Automatic mode (free Gemini key) in Settings → AI. The audio is sent to Google only with your own key.",
   },
   "media.desktopOnly": { tr: "Bu özellik masaüstü uygulamasında çalışır.", en: "This works in the desktop app." },

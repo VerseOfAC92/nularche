@@ -418,6 +418,9 @@ export function Sidebar(props: SidebarProps) {
       <button className="side-btn" onClick={props.onDaily}>
         <Icon name="calendar-event" /> {t("daily.today")} <kbd>{keys("Mod+Shift+D")}</kbd>
       </button>
+      <button className={`side-btn ${route.kind === "calendar" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "calendar" })}>
+        <Icon name="calendar" /> {t("cal.page")}
+      </button>
       <button className="side-btn" onClick={props.onOpenTemplates}>
         <Icon name="template" /> {t("tpl.title")}
       </button>

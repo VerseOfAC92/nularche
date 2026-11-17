@@ -58,7 +58,7 @@ async function call(fetchImpl: Fetch, apiKey: string, path: string, body?: unkno
   if (res.ok) return data;
   const msg: string = data?.error?.message ?? res.statusText;
   if (res.status === 400 && /api key/i.test(msg))
-    throw new AgentError("auth", "Gemini API anahtarı geçersiz. Ayarlar → Yapay zekâ bölümünden yeni bir anahtar girin.");
+    throw new AgentError("auth", "Gemini API anahtarı geçersiz. Ayarlar → Yapay zeka bölümünden yeni bir anahtar girin.");
   if (res.status === 401 || res.status === 403)
     throw new AgentError(
       "auth",

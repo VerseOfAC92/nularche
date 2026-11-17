@@ -79,7 +79,7 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
   }
 }
 
-// Hangi yapay zekâ aracının bağlandığını kaydet (Nularche "✓ Bağlandı" bilgisini buradan gösterir).
+// Hangi yapay zeka aracının bağlandığını kaydet (Nularche "✓ Bağlandı" bilgisini buradan gösterir).
 server.server.oninitialized = () => {
   const info = server.server.getClientVersion();
   clientName = info?.name ?? "bilinmeyen";

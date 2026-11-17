@@ -5,7 +5,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { desktop, type CalendarErrorCode, type CalendarLinkStatus, type CalendarProviderId, type CalendarStatus } from "../desktop.ts";
 import { locale, t, type StringKey } from "../i18n/index.ts";
-import type { Database, View } from "../database/model.ts";
+import { newView, serializeDatabase, type Database, type Property, type View } from "../database/model.ts";
+import { api } from "../api.ts";
 import { Icon } from "../ui/Icon.tsx";
 
 const PROVIDERS: CalendarProviderId[] = ["google", "apple"];
@@ -47,7 +48,7 @@ function SyncNow({ status, refresh, onToast }: { status: CalendarStatus; refresh
         onToast(res.ok ? t("cal.synced") : t("cal.syncedWithErrors", { count: res.errors.length }));
       }}
     >
-      ⟳ {busy || status.syncing ? t("cal.syncing") : t("cal.syncNow")}
+      <Icon name="refresh" size={15} /> {busy || status.syncing ? t("cal.syncing") : t("cal.syncNow")}
     </button>
   );
 }
@@ -130,7 +131,60 @@ function AppleConnect({ onDone }: { onDone: (account: string) => void }) {
   );
 }
 
-/** Ayarlar bölümü: hesaplar, bağlı veritabanları, şimdi eşitle. */
+/** Bir takvimin etkinliklerini tutan veritabanı şeması: yalnızca tarih özelliği ve takvim/tablo görünümleri. */
+export function calendarDatabase(): Record<string, unknown> {
+  const properties: Property[] = [{ id: "date", name: t("cal.dateProp"), type: "date" }];
+  const cal = newView("calendar", t("db.view.calendar"), properties);
+  return serializeDatabase({ properties, views: [cal, newView("table", t("db.view.table"), properties, [cal.id])] });
+}
+
+/** Hesaptaki takvimler: her biri tek anahtarla Nularche Takvim'de gösterilir ve iki yönlü eşitlenir. Açılınca
+ *  "Takvimler" Arche'si altında o takvimin veritabanı oluşturulur ve bağlanır; kapatınca bağlantı kalkar, notlar kalır. */
+function AccountCalendars({ provider, status, refresh, onToast }: { provider: CalendarProviderId; status: CalendarStatus; refresh: () => Promise<void>; onToast: (m: string) => void }) {
+  const [calendars, setCalendars] = useState<{ id: string; name: string; color?: string }[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => {
+    void desktop!.calendarCalendars(provider).then((res) => (res.ok ? setCalendars(res.calendars) : setError(errorText(res.code, res.error))));
+  }, [provider]);
+  const linkOf = (id: string) => status.links.find((l) => l.provider === provider && l.calendarId === id);
+  const toggle = async (c: { id: string; name: string }) => {
+    setBusy(c.id);
+    const link = linkOf(c.id);
+    if (link) {
+      await desktop!.calendarUnlink(link.id);
+    } else {
+      const roots = (await api.list()).filter((n) => n.parentNodeId === null && n.archeId === n.id);
+      const folder = roots.find((n) => n.title === t("cal.archeName")) ?? (await api.create(t("cal.archeName"), null, ""));
+      const db = await api.create(c.name, folder.id, "", { database: calendarDatabase() });
+      const res = await desktop!.calendarLink({ dbId: db.id, provider, calendarId: c.id, calendarName: c.name, dateProp: "date" });
+      if (!res.ok) setError(errorText(res.code, res.error));
+      else onToast(res.errors.length ? t("cal.syncedWithErrors", { count: res.errors.length }) : t("cal.calendarOn", { calendar: c.name }));
+    }
+    setBusy(null);
+    await refresh();
+  };
+  if (error) return <p className="warn small">{error}</p>;
+  if (!calendars) return <p className="muted small">{t("cal.loading")}</p>;
+  return (
+    <div className="cal-list">
+      <p className="muted small">{t("cal.showInApp")}</p>
+      {calendars.map((c) => {
+        const link = linkOf(c.id);
+        return (
+          <label key={c.id} className="cal-list-row">
+            <input type="checkbox" checked={!!link} disabled={busy === c.id} onChange={() => void toggle(c)} />
+            <span className="cal-dot" style={{ background: c.color ?? "var(--nlc-accent-primary)" }} />
+            <span className="grow">{c.name}</span>
+            {link && <span className={`small ${link.lastError ? "warn" : "muted"}`}>{busy === c.id ? t("cal.syncing") : lastSyncText(link)}</span>}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Ayarlar bölümü: hesaplar, takvimler, bağlı veritabanları, şimdi eşitle. */
 export function CalendarAccounts({ onToast, titleOf }: { onToast: (msg: string) => void; titleOf: (nodeId: string) => string | undefined }) {
   const [status, refresh] = useCalendarStatus();
   const [open, setOpen] = useState<CalendarProviderId | null>(null);
@@ -165,6 +219,9 @@ export function CalendarAccounts({ onToast, titleOf }: { onToast: (msg: string) 
                   {t("cal.disconnect")}
                 </button>
               </div>
+            ) : null}
+            {account ? (
+              <AccountCalendars provider={p} status={status} refresh={refresh} onToast={onToast} />
             ) : open === p ? (
               p === "google" ? (
                 <GoogleConnect onDone={(a) => (setOpen(null), onToast(t("cal.connected", { account: a })), void refresh())} />

@@ -1,5 +1,5 @@
-// İlk açılış sihirbazı: Hoş geldiniz → Yapay zekâ seçimi ve bağlantı → Hazır.
-// Her adım atlanabilir; daha sonra Ayarlar → Yapay zekâ bölümünden tamamlanabilir.
+// İlk açılış sihirbazı: Hoş geldiniz → Yapay zeka seçimi ve bağlantı → Hazır.
+// Her adım atlanabilir; daha sonra Ayarlar → Yapay zeka bölümünden tamamlanabilir.
 
 import { useState } from "react";
 import { desktop } from "../desktop.ts";
