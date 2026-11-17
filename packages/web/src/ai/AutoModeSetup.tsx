@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { desktop } from "../desktop.ts";
 import { t } from "../i18n/index.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 export const GEMINI_KEY_URL = "https://aistudio.google.com/app/apikey";
 
@@ -55,7 +56,7 @@ export function AutoModeSetup({ onToast, onChanged }: { onToast: (msg: string) =
     return (
       <div className="auto-box on">
         <div className="auto-head">
-          <span className="ok">✓ {status.enabled ? t("auto.on") : t("auto.off")}</span>
+          <span className="ok"><Icon name="check" size={14} /> {status.enabled ? t("auto.on") : t("auto.off")}</span>
           <span className="pill">Gemini · {status.model}</span>
         </div>
         <p className="muted small">{t("auto.onText")}</p>

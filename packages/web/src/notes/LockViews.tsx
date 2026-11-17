@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "../i18n/index.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 export function LockDialog({ onLock, onClose }: { onLock: (password: string, hint: string) => Promise<void>; onClose: () => void }) {
   const [pw, setPw] = useState("");
@@ -25,7 +26,7 @@ export function LockDialog({ onLock, onClose }: { onLock: (password: string, hin
     <div className="overlay" onMouseDown={onClose}>
       <form className="dialog small-dialog" onMouseDown={(e) => e.stopPropagation()} onSubmit={(e) => (e.preventDefault(), void submit())} onKeyDown={(e) => e.key === "Escape" && onClose()}>
         <header>
-          <h2>🔒 {t("lock.title")}</h2>
+          <h2><Icon name="lock" /> {t("lock.title")}</h2>
         </header>
         <p className="muted small">{t("lock.explain")}</p>
         <label className="field">
@@ -78,7 +79,7 @@ export function LockScreen({ title, hint, onUnlock }: { title: string; hint?: st
         }
       }}
     >
-      <div className="lock-icon">🔒</div>
+      <div className="lock-icon"><Icon name="lock" /></div>
       <h2>{t("lock.locked")}</h2>
       <p className="muted">{title}</p>
       <p className="muted small">{t("lock.enter")}</p>

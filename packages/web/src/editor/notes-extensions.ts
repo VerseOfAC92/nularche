@@ -115,6 +115,22 @@ export const BlockStyle = Extension.create({
       "Mod-Shift-j": () => this.editor.commands.setTextAlign("justify"),
       "Mod-]": () => this.editor.commands.indentBlock(),
       "Mod-[": () => this.editor.commands.outdentBlock(),
+      // Tab yazı alanında kalır (odak başka düğmeye geçmez): listede iç içe alır, satır başında girintiler,
+      // satır içinde ve kod bloğunda sekme boşluğu ekler. Tablolarda hücreler arası geçiş tabloya bırakılır.
+      Tab: () => {
+        const ed = this.editor;
+        if (ed.isActive("table")) return false;
+        if (ed.isActive("codeBlock")) return ed.commands.insertContent("\t");
+        if (ed.isActive("listItem") || ed.isActive("taskItem")) return ed.commands.indentBlock(), true;
+        const { $from, empty } = ed.state.selection;
+        if (empty && $from.parentOffset > 0) return ed.commands.insertContent("\t");
+        return ed.commands.indentBlock(), true;
+      },
+      "Shift-Tab": () => {
+        const ed = this.editor;
+        if (ed.isActive("table")) return false;
+        return ed.commands.outdentBlock(), true;
+      },
     };
   },
 
@@ -593,6 +609,8 @@ function suggestion(state: EditorState, comma: boolean): { pos: number; text: st
 
 export const MathResults = Extension.create<Record<string, never>, { mode: MathMode; comma: boolean }>({
   name: "mathResults",
+  // Tab, hesap önerisi görünürken önce öneriyi kabul eder; girinti (BlockStyle) ondan sonra gelir.
+  priority: 1000,
   addStorage: () => ({ mode: "suggest" as MathMode, comma: false }),
   addProseMirrorPlugins() {
     const storage = this.storage;

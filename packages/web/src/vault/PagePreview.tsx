@@ -57,7 +57,7 @@ export function PagePreview({ nodes }: { nodes: NodeMeta[] }) {
         if (!n || over.current !== target.anchor) return;
         const d = await api.read(n.id).catch(() => null);
         if (!d || over.current !== target.anchor) return;
-        const body = d.locked ? `🔒 ${t("ob.embedLocked")}` : target.heading ? (headingSection(d.body, target.heading) ?? d.body) : d.body;
+        const body = d.locked ? t("ob.embedLocked") : target.heading ? (headingSection(d.body, target.heading) ?? d.body) : d.body;
         const r = target.anchor.getBoundingClientRect();
         const x = Math.max(8, Math.min(r.left, innerWidth - 440));
         const y = r.bottom + 360 > innerHeight ? Math.max(8, r.top - 368) : r.bottom + 6;

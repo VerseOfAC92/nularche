@@ -6,6 +6,7 @@ import { desktop } from "../desktop.ts";
 import { AiSetup } from "./AiSetup.tsx";
 import { t } from "../i18n/index.ts";
 import { Glossary } from "../studio/Glossary.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 export function Onboarding({ aiTick, onToast, onDone }: { aiTick: number; onToast: (msg: string) => void; onDone: () => void }) {
   const [step, setStep] = useState(0);
@@ -21,7 +22,7 @@ export function Onboarding({ aiTick, onToast, onDone }: { aiTick: number; onToas
         <div className="wizard-steps">
           {[t("onb.stepWelcome"), t("gloss.step"), t("onb.stepAi"), t("onb.stepReady")].map((label, i) => (
             <span key={label} className={i === step ? "on" : i < step ? "done" : ""}>
-              {i < step ? "✓" : i + 1} {label}
+              {i < step ? <Icon name="check" size={13} /> : i + 1} {label}
             </span>
           ))}
         </div>

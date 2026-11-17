@@ -16,6 +16,7 @@ import {
   type SelectOption,
 } from "./model.ts";
 import { Popover } from "./Popover.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 const READ_ONLY = new Set(["formula", "rollup", "created_time", "updated_time"]);
 
@@ -67,7 +68,7 @@ export function CellDisplay({ model, prop, value, onOpenRow }: { model: Database
         </span>
       );
     case "checkbox":
-      return <span className="db-check">{value ? "☑" : "☐"}</span>;
+      return <span className="db-check"><Icon name={value ? "checkbox" : "square"} /></span>;
     case "date": {
       const d = value as { start: string; end?: string };
       return <span>{d.end ? `${fmtDate(d.start)} → ${fmtDate(d.end)}` : fmtDate(d.start)}</span>;
@@ -109,7 +110,7 @@ export function CellDisplay({ model, prop, value, onOpenRow }: { model: Database
     case "number":
       return <span className="db-num">{typeof value === "number" ? value.toLocaleString(locale()) : String(value)}</span>;
     default:
-      if (typeof value === "boolean") return <span className="db-check">{value ? "☑" : "☐"}</span>;
+      if (typeof value === "boolean") return <span className="db-check"><Icon name={value ? "checkbox" : "square"} /></span>;
       if (typeof value === "number") return <span className="db-num">{value.toLocaleString(locale())}</span>;
       return <span className="db-text">{String(value)}</span>;
   }
@@ -284,7 +285,7 @@ function OptionEditor({
         {filtered.map((o) => (
           <button key={o.id} className={selected.includes(o.id) ? "on" : ""} onClick={() => pick(o.id)}>
             <OptionChip option={o} />
-            {selected.includes(o.id) && <span className="check">✓</span>}
+            {selected.includes(o.id) && <span className="check"><Icon name="check" /></span>}
           </button>
         ))}
         {q.trim() && !exact && (
@@ -351,9 +352,9 @@ function RelationEditor({ model, actions, prop, row, stored }: { model: Database
         {list.map((n) => (
           <button key={n.id} className={stored.includes(n.id) ? "on" : ""} onClick={() => toggle(n.id)}>
             <span>
-              {n.icon ?? "◇"} {n.title}
+              {n.icon ?? <Icon name="file" size={15} />} {n.title}
             </span>
-            {stored.includes(n.id) && <span className="check">✓</span>}
+            {stored.includes(n.id) && <span className="check"><Icon name="check" /></span>}
           </button>
         ))}
         {list.length === 0 && <p className="muted small pad">{t("db.noRows")}</p>}

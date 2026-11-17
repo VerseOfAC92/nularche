@@ -2,6 +2,7 @@
 // Bulanık eşleşme: sorgunun harfleri sırayla geçmeli; ardışık ve kelime başı eşleşmeler daha yüksek puan alır.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Glyph } from "../ui/Icon.tsx";
 
 export interface PickItem {
   id: string;
@@ -100,7 +101,7 @@ export function Picker({
         <div className="results" ref={list}>
           {shown.map((it, i) => (
             <button key={it.id} className={i === active ? "active" : ""} onMouseEnter={() => setActive(i)} onClick={(e) => pick(it, e)}>
-              {it.icon !== undefined && <span className="pick-icon">{it.icon}</span>}
+              {it.icon !== undefined && <span className="pick-icon"><Glyph icon={it.icon} size={15} /></span>}
               <span className="grow">
                 <strong>{it.label}</strong>
                 {it.detail && <small>{it.detail}</small>}

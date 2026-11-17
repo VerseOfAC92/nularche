@@ -29,8 +29,9 @@ import { Popover } from "./Popover.tsx";
 import { DatabaseCalendarSync } from "../calendar/CalendarSync.tsx";
 import { TYPE_ICON } from "./PropertyMenu.tsx";
 import { BoardView, CalendarView, GalleryView, ListView, TableView, TimelineView, type ViewProps } from "./Views.tsx";
+import { Icon, type IconName } from "../ui/Icon.tsx";
 
-export const VIEW_ICON: Record<ViewType, string> = { table: "▦", board: "▥", list: "☰", gallery: "▣", calendar: "▤", timeline: "▬" };
+export const VIEW_ICON: Record<ViewType, IconName> = { table: "table", board: "layout-kanban", list: "list", gallery: "layout-grid", calendar: "calendar", timeline: "timeline" };
 export const viewLabel = (type: ViewType) => t(`db.view.${type}` as StringKey);
 
 const VIEW_KEY = (id: string) => `nlc-db-view:${id}`;
@@ -165,7 +166,7 @@ function ViewOptions({ db, view, saveView, onDelete, onDuplicate, canDelete }: {
         <div className="layout-grid">
           {VIEW_TYPES.map((ty) => (
             <button key={ty} className={view.type === ty ? "on" : ""} onClick={() => saveView({ type: ty, ...newViewDefaults(db, ty, view) })}>
-              {VIEW_ICON[ty]} {viewLabel(ty)}
+              <Icon name={VIEW_ICON[ty]} /> {viewLabel(ty)}
             </button>
           ))}
         </div>
@@ -209,15 +210,15 @@ function ViewOptions({ db, view, saveView, onDelete, onDuplicate, canDelete }: {
               checked={!view.hidden.includes(p.id)}
               onChange={(e) => saveView({ hidden: e.target.checked ? view.hidden.filter((h) => h !== p.id) : [...view.hidden, p.id] })}
             />
-            <span className="type-icon">{TYPE_ICON[p.type]}</span> {p.name}
+            <span className="type-icon"><Icon name={TYPE_ICON[p.type]} size={14} /></span> {p.name}
           </label>
         ))}
       </div>
       <hr />
-      <button onClick={onDuplicate}>⧉ {t("db.duplicateView")}</button>
+      <button onClick={onDuplicate}><Icon name="copy" /> {t("db.duplicateView")}</button>
       {canDelete && (
         <button className="danger" onClick={onDelete}>
-          🗑 {t("db.deleteView")}
+          <Icon name="trash" /> {t("db.deleteView")}
         </button>
       )}
     </div>
@@ -363,14 +364,14 @@ export function DatabaseView(props: DatabaseViewProps) {
     <div className={`db ${props.inline ? "inline" : ""}`} onKeyDown={(e) => e.stopPropagation()}>
       {props.inline && (
         <div className="db-inline-title" onClick={() => props.onNavigate(dbNode.id)}>
-          {dbNode.icon ?? "▦"} {dbNode.title}
+          {dbNode.icon ?? <Icon name="table" size={15} />} {dbNode.title}
         </div>
       )}
       <div className="db-toolbar">
         <div className="db-tabs">
           {db.views.map((v) => (
             <button key={v.id} className={`db-tab ${v.id === view.id ? "on" : ""}`} onClick={() => selectView(v.id)}>
-              {VIEW_ICON[v.type]} {v.name}
+              <Icon name={VIEW_ICON[v.type]} /> {v.name}
             </button>
           ))}
           {!props.viewId && (
@@ -382,11 +383,11 @@ export function DatabaseView(props: DatabaseViewProps) {
         <div className="db-tools">
           <input className="db-search" placeholder={t("db.search")} value={query} onChange={(e) => setQuery(e.target.value)} />
           <button className={`db-tool ${view.filters.length ? "on" : ""}`} onClick={(e) => setPop({ kind: "filter", anchor: e.currentTarget })}>
-            ⏷ {t("db.filter")}
+            <Icon name="filter" /> {t("db.filter")}
             {view.filters.length ? ` ${view.filters.length}` : ""}
           </button>
           <button className={`db-tool ${view.sorts.length ? "on" : ""}`} onClick={(e) => setPop({ kind: "sort", anchor: e.currentTarget })}>
-            ⇅ {t("db.sort")}
+            <Icon name="arrows-sort" /> {t("db.sort")}
             {view.sorts.length ? ` ${view.sorts.length}` : ""}
           </button>
           <button className="db-tool" onClick={(e) => setPop({ kind: "options", anchor: e.currentTarget })} title={t("db.viewOptions")}>
@@ -394,18 +395,18 @@ export function DatabaseView(props: DatabaseViewProps) {
           </button>
           {desktop && (
             <button className="db-tool" onClick={(e) => setPop({ kind: "calendar", anchor: e.currentTarget })} title={t("cal.dbTitle")}>
-              🗓 {t("cal.button")}
+              <Icon name="calendar" /> {t("cal.button")}
             </button>
           )}
           <button className="db-tool" onClick={exportCsv} title={t("db.exportCsv")}>
-            ⇩ CSV
+            <Icon name="download" /> CSV
           </button>
           <span className="split-btn">
             <button className="primary small" onClick={() => actions.createRow(t("common.untitled")).then((n) => n && props.onNavigate(n.id))}>
               {t("db.new")}
             </button>
             <button className="primary small caret" onClick={(e) => setPop({ kind: "new", anchor: e.currentTarget })} title={t("tpl.rowTemplates")}>
-              ▾
+              <Icon name="chevron-down" />
             </button>
           </span>
         </div>
@@ -461,7 +462,7 @@ export function DatabaseView(props: DatabaseViewProps) {
                       }
                     }}
                   >
-                    {n.icon ?? "📄"} {n.title}
+                    {n.icon ?? <Icon name="file" size={15} />} {n.title}
                   </button>
                 ))}
               <hr />
@@ -481,7 +482,7 @@ export function DatabaseView(props: DatabaseViewProps) {
             <div className="prop-menu">
               {VIEW_TYPES.map((ty) => (
                 <button key={ty} onClick={() => addView(ty)}>
-                  {VIEW_ICON[ty]} {viewLabel(ty)}
+                  <Icon name={VIEW_ICON[ty]} /> {viewLabel(ty)}
                 </button>
               ))}
             </div>

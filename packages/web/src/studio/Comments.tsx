@@ -8,6 +8,7 @@ import { getActiveEditor } from "../commands.ts";
 import { ago, t } from "../i18n/index.ts";
 import { locateAnchor } from "../../../core/src/writing.ts";
 import { plainIndex, setStudioData } from "./editor-plugins.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 export const COMMENTS_EVENT = "nl-comments";
 export const COMMENT_FOCUS_EVENT = "nl-comment-focus";
@@ -110,7 +111,7 @@ export function CommentsPanel({ nodeId, onToast }: { nodeId: string; onToast: (m
         return (
           <div key={c.id} data-cid={c.id} className={`comment ${active === c.id ? "active" : ""} ${c.resolved ? "resolved" : ""}`} onClick={() => reveal(c)}>
             <blockquote title={orphan ? t("ws.orphan") : undefined}>
-              {orphan && "⚠︎ "}
+              {orphan && <Icon name="alert-triangle" size={14} />}
               {c.anchor.text.length > 140 ? `${c.anchor.text.slice(0, 140)}…` : c.anchor.text}
             </blockquote>
             {editing === c.id ? (
@@ -152,13 +153,13 @@ export function CommentsPanel({ nodeId, onToast }: { nodeId: string; onToast: (m
                 }}
               />
               <button className="icon-btn" title={c.resolved ? t("ws.reopen") : t("ws.resolve")} onClick={() => void act(() => api.updateComment(nodeId, c.id, { resolved: !c.resolved }))}>
-                {c.resolved ? "↺" : "✓"}
+                <Icon name={c.resolved ? "restore" : "check"} />
               </button>
               <button className="icon-btn" title={t("ws.editComment")} onClick={() => (setEditing(c.id), setDraft(c.body))}>
-                ✎
+                <Icon name="pencil" />
               </button>
               <button className="icon-btn" title={t("common.remove")} onClick={() => confirm(t("ws.deleteCommentConfirm")) && void act(() => api.deleteComment(nodeId, c.id))}>
-                🗑
+                <Icon name="trash" />
               </button>
             </div>
           </div>

@@ -40,6 +40,8 @@ import {
 import { ToolIcon } from "./icons.tsx";
 import { ICON_GROUPS, iconFilled, iconNodes, iconsInGroup, iconTitle, isIconShape, searchIcons, useIconData, type IconNode } from "./icons-lib.ts";
 import { CATEGORIES, SHAPE_BY_ID, SHAPES, type ShapeCategory } from "./shapes.ts";
+import { Icon } from "../ui/Icon.tsx";
+import { addContextItems, type ContextEntry } from "../contextMenu.ts";
 
 type Tool = "select" | "hand" | DrawTool | "eraser" | "text" | "sticky" | "shape" | "line" | "arrow" | "connector" | "table";
 type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -613,6 +615,41 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
     patch(selected, { group: g });
   };
   const ungroup = () => patch(selected, { group: undefined });
+  // Sağ tık menüsündeki işlemler menü kapandıktan sonra çalışır; en güncel seçimi görsünler diye bir ref üzerinden çağrılır.
+  const act = useRef({ copy, paste, removeSelected, arrange, group, ungroup, lock: (on: boolean) => patch(selected, { locked: on }) });
+  act.current = { copy, paste, removeSelected, arrange, group, ungroup, lock: (on: boolean) => patch(selected, { locked: on }) };
+  const onContext = (e: { clientX: number; clientY: number }) => {
+    const hit = itemAt(e.clientX, e.clientY);
+    if (!hit) {
+      addContextItems([
+        { label: L("Yapıştır", "Paste"), enabled: clipboard.current.length > 0, run: () => act.current.paste() },
+        { label: L("Tümünü seç", "Select All"), enabled: items.length > 0, run: () => setSelected(items.map((i) => i.id)) },
+        { label: L("Sığdır", "Zoom to Fit"), enabled: items.length > 0, run: () => fit() },
+      ]);
+      return;
+    }
+    const ids = selected.includes(hit.id) ? selected : [hit.id];
+    if (!selected.includes(hit.id)) setSelected(ids);
+    const picked = ids.map((id) => byId.get(id)).filter((i): i is Item => !!i);
+    const locked = picked.every((i) => i.locked);
+    const editable = ids.length === 1 && (hit.type === "shape" || hit.type === "sticky" || hit.type === "text" || hit.type === "line");
+    const entries: (ContextEntry | false)[] = [
+      editable && { label: L("Yazıyı düzenle", "Edit Text"), run: () => setEditing({ id: hit.id }) },
+      editable && "separator",
+      { label: L("Kopyala", "Copy"), run: () => act.current.copy() },
+      { label: L("Yapıştır", "Paste"), enabled: clipboard.current.length > 0, run: () => act.current.paste() },
+      { label: L("Çoğalt", "Duplicate"), run: () => (act.current.copy(), act.current.paste(16)) },
+      "separator",
+      { label: L("En öne getir", "Bring to Front"), run: () => act.current.arrange("front") },
+      { label: L("En arkaya gönder", "Send to Back"), run: () => act.current.arrange("back") },
+      ids.length > 1 && { label: L("Grupla", "Group"), run: () => act.current.group() },
+      picked.some((i) => i.group) && { label: L("Grubu çöz", "Ungroup"), run: () => act.current.ungroup() },
+      { label: locked ? L("Kilidi aç", "Unlock") : L("Kilitle", "Lock"), run: () => act.current.lock(!locked) },
+      "separator",
+      { label: L("Sil", "Delete"), run: () => act.current.removeSelected() },
+    ];
+    addContextItems(entries.filter((x): x is ContextEntry => !!x));
+  };
   const align = (how: "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom") => {
     const bb = union(sel.map(bounds));
     if (!bb || sel.length < 2) return;
@@ -777,7 +814,7 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
     fontStyle: i.style.italic ? "italic" : "normal",
     textDecoration: [i.style.underline && "underline", i.style.strike && "line-through"].filter(Boolean).join(" ") || "none",
     textAlign: i.style.align ?? (i.type === "shape" || i.type === "line" ? "center" : "left"),
-    color: i.style.textColor ?? (i.type === "sticky" ? "#2b2a27" : "var(--wb-ink)"),
+    color: i.style.textColor ?? (i.type === "sticky" ? "#2b2a27" : inkOn(i.style.fill) ?? "var(--wb-ink)"),
     justifyContent: { top: "flex-start", middle: "center", bottom: "flex-end" }[i.style.valign ?? (i.type === "shape" || i.type === "line" ? "middle" : "top")],
   });
   const textEl = (i: Item, r: Rect) =>
@@ -868,7 +905,7 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
             <rect x={i.x} y={i.y} width={i.w} height={i.h} rx={10} fill={s.fill ?? "var(--wb-card)"} stroke={s.stroke ?? "var(--wb-line-soft)"} strokeWidth={1} />
             <foreignObject x={i.x} y={i.y} width={i.w} height={i.h}>
               <div className="wb-link">
-                <span className="wb-link-icon">{n?.icon ?? (i.url ? "🔗" : "◇")}</span>
+                <span className="wb-link-icon">{n?.icon ?? <Icon name={i.url ? "link" : "file"} size={18} />}</span>
                 <span>
                   <b>{n?.title ?? i.text ?? i.url ?? L("Silinmiş not", "Deleted note")}</b>
                   <small>{i.url ? i.url.replace(/^https?:\/\//, "") : n ? n.path.replace(/\.md$/, "") : ""}</small>
@@ -964,9 +1001,9 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
           </>
         )}
         {single?.locked && (
-          <text x={bb.x + bb.w} y={bb.y - 6 / view.k} fontSize={14 / view.k} textAnchor="end">
-            🔒
-          </text>
+          <g transform={`translate(${bb.x + bb.w - 16 / view.k} ${bb.y - 20 / view.k}) scale(${1 / view.k})`} className="wb-lock-mark">
+            <Icon name="lock" size={16} />
+          </g>
         )}
       </g>
     );
@@ -987,6 +1024,12 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
       value = it.cells[rr]?.[cc] ?? "";
     }
     const st = textStyle(it);
+    // Yazı düzenlenirken de şekildeki dikey hizasında kalsın (textarea dikey ortalamayı kendisi yapmaz).
+    const boxH = Math.max(28, r.h * view.k);
+    const lineH = (st.fontSize as number) * view.k * 1.3;
+    const textH = Math.max(1, value.split("\n").length) * lineH;
+    const vAlign = st.justifyContent === "center" ? 0.5 : st.justifyContent === "flex-end" ? 1 : 0;
+    const padTop = it.type === "table" && editing.cell ? undefined : Math.max(0, (boxH - textH) * vAlign);
     const commit = (v: string) => {
       if (it.type === "table" && editing.cell) {
         const [rr, cc] = editing.cell;
@@ -1003,13 +1046,14 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
           left: r.x * view.k + view.x,
           top: r.y * view.k + view.y,
           width: Math.max(80, r.w * view.k),
-          height: Math.max(28, r.h * view.k),
+          height: boxH,
+          paddingTop: padTop,
           fontSize: (st.fontSize as number) * view.k,
           fontFamily: st.fontFamily,
           fontWeight: st.fontWeight,
           fontStyle: st.fontStyle,
           textAlign: st.textAlign,
-          color: it.type === "sticky" ? "#2b2a27" : undefined,
+          color: st.color,
           transform: it.rot ? `rotate(${it.rot}deg)` : undefined,
         }}
         onFocus={(e) => e.currentTarget.select()}
@@ -1101,20 +1145,22 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
           <div className="wb-row">
             {(["straight", "elbow", "curve"] as Route[]).map((r) => (
               <button key={r} className={`wb-chip ${(single?.route ?? "straight") === r ? "on" : ""}`} onClick={() => patch(selected, { route: r })}>
-                {r === "straight" ? "╱" : r === "elbow" ? "┘" : "∿"} {r === "straight" ? L("Düz", "Straight") : r === "elbow" ? L("Dirsek", "Elbow") : L("Eğri", "Curved")}
+                {r === "straight" ? L("Düz", "Straight") : r === "elbow" ? L("Dirsek", "Elbow") : L("Eğri", "Curved")}
               </button>
             ))}
           </div>
           <div className="wb-row">
             {(["startHead", "endHead"] as const).map((k) => (
-              <select key={k} value={single?.[k] ?? "none"} onChange={(e) => patch(selected, { [k]: e.target.value as ArrowHead })} aria-label={k === "startHead" ? L("Başlangıç ucu", "Start") : L("Bitiş ucu", "End")}>
+              <label key={k} className="wb-field">
+                <span>{k === "startHead" ? L("Başlangıç", "Start") : L("Bitiş", "End")}</span>
+              <select value={single?.[k] ?? "none"} onChange={(e) => patch(selected, { [k]: e.target.value as ArrowHead })} aria-label={k === "startHead" ? L("Başlangıç ucu", "Start") : L("Bitiş ucu", "End")}>
                 {(["none", "arrow", "triangle", "circle", "diamond", "bar"] as ArrowHead[]).map((h) => (
                   <option key={h} value={h}>
-                    {k === "startHead" ? "◀ " : "▶ "}
                     {{ none: L("Yok", "None"), arrow: L("Ok", "Arrow"), triangle: L("Üçgen", "Triangle"), circle: L("Daire", "Circle"), diamond: L("Baklava", "Diamond"), bar: L("Çubuk", "Bar") }[h]}
                   </option>
                 ))}
               </select>
+              </label>
             ))}
           </div>
         </section>
@@ -1160,12 +1206,12 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
             </button>
             {(["left", "center", "right"] as const).map((a) => (
               <button key={a} className={`wb-chip ${(first0.align ?? "left") === a ? "on" : ""}`} onClick={() => patchStyle({ align: a })} title={a}>
-                {a === "left" ? "⇤" : a === "center" ? "↔" : "⇥"}
+                <Icon name={a === "left" ? "align-left" : a === "center" ? "align-center" : "align-right"} />
               </button>
             ))}
             {(["top", "middle", "bottom"] as const).map((a) => (
               <button key={a} className={`wb-chip ${(first0.valign ?? "top") === a ? "on" : ""}`} onClick={() => patchStyle({ valign: a })} title={a}>
-                {a === "top" ? "⤒" : a === "middle" ? "⇕" : "⤓"}
+                <Icon name={a === "top" ? "layout-align-top" : a === "middle" ? "layout-align-middle" : "layout-align-bottom"} />
               </button>
             ))}
           </div>
@@ -1226,33 +1272,33 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
       <section>
         <h5>{L("Düzenle", "Arrange")}</h5>
         <div className="wb-row">
-          <button className="wb-chip" title={L("En öne getir (⇧⌘])", "Bring to front (⇧⌘])")} onClick={() => arrange("front")}>⤒</button>
-          <button className="wb-chip" title={L("Öne getir (⌘])", "Bring forward (⌘])")} onClick={() => arrange("forward")}>↑</button>
-          <button className="wb-chip" title={L("Geri gönder (⌘[)", "Send backward (⌘[)")} onClick={() => arrange("backward")}>↓</button>
-          <button className="wb-chip" title={L("En arkaya gönder (⇧⌘[)", "Send to back (⇧⌘[)")} onClick={() => arrange("back")}>⤓</button>
-          <button className="wb-chip" title={L("Yatay çevir", "Flip horizontal")} onClick={() => flip("x")}>⇋</button>
-          <button className="wb-chip" title={L("Dikey çevir", "Flip vertical")} onClick={() => flip("y")}>⇵</button>
+          <button className="wb-chip" title={L("En öne getir (⇧⌘])", "Bring to front (⇧⌘])")} onClick={() => arrange("front")}><Icon name="arrow-bar-to-up" /></button>
+          <button className="wb-chip" title={L("Öne getir (⌘])", "Bring forward (⌘])")} onClick={() => arrange("forward")}><Icon name="arrow-up" /></button>
+          <button className="wb-chip" title={L("Geri gönder (⌘[)", "Send backward (⌘[)")} onClick={() => arrange("backward")}><Icon name="arrow-down" /></button>
+          <button className="wb-chip" title={L("En arkaya gönder (⇧⌘[)", "Send to back (⇧⌘[)")} onClick={() => arrange("back")}><Icon name="arrow-bar-to-down" /></button>
+          <button className="wb-chip" title={L("Yatay çevir", "Flip horizontal")} onClick={() => flip("x")}><Icon name="flip-vertical" /></button>
+          <button className="wb-chip" title={L("Dikey çevir", "Flip vertical")} onClick={() => flip("y")}><Icon name="flip-horizontal" /></button>
         </div>
         {sel.length > 1 && (
           <div className="wb-row">
-            <button className="wb-chip" title={L("Sola hizala", "Align left")} onClick={() => align("left")}>⫷</button>
-            <button className="wb-chip" title={L("Ortala", "Align centre")} onClick={() => align("hcenter")}>⫼</button>
-            <button className="wb-chip" title={L("Sağa hizala", "Align right")} onClick={() => align("right")}>⫸</button>
-            <button className="wb-chip" title={L("Üste hizala", "Align top")} onClick={() => align("top")}>⊤</button>
-            <button className="wb-chip" title={L("Ortaya hizala", "Align middle")} onClick={() => align("vcenter")}>⊝</button>
-            <button className="wb-chip" title={L("Alta hizala", "Align bottom")} onClick={() => align("bottom")}>⊥</button>
-            <button className="wb-chip" disabled={sel.length < 3} title={L("Yatay dağıt", "Distribute horizontally")} onClick={() => distribute("h")}>⇹</button>
-            <button className="wb-chip" disabled={sel.length < 3} title={L("Dikey dağıt", "Distribute vertically")} onClick={() => distribute("v")}>⇳</button>
+            <button className="wb-chip" title={L("Sola hizala", "Align left")} onClick={() => align("left")}><Icon name="layout-align-left" /></button>
+            <button className="wb-chip" title={L("Ortala", "Align centre")} onClick={() => align("hcenter")}><Icon name="layout-align-center" /></button>
+            <button className="wb-chip" title={L("Sağa hizala", "Align right")} onClick={() => align("right")}><Icon name="layout-align-right" /></button>
+            <button className="wb-chip" title={L("Üste hizala", "Align top")} onClick={() => align("top")}><Icon name="layout-align-top" /></button>
+            <button className="wb-chip" title={L("Ortaya hizala", "Align middle")} onClick={() => align("vcenter")}><Icon name="layout-align-middle" /></button>
+            <button className="wb-chip" title={L("Alta hizala", "Align bottom")} onClick={() => align("bottom")}><Icon name="layout-align-bottom" /></button>
+            <button className="wb-chip" disabled={sel.length < 3} title={L("Yatay dağıt", "Distribute horizontally")} onClick={() => distribute("h")}><Icon name="layout-distribute-vertical" /></button>
+            <button className="wb-chip" disabled={sel.length < 3} title={L("Dikey dağıt", "Distribute vertically")} onClick={() => distribute("v")}><Icon name="layout-distribute-horizontal" /></button>
           </div>
         )}
         <div className="wb-row">
-          {sel.length > 1 && !sel.every((i) => i.group && i.group === sel[0].group) && <button className="wb-chip" onClick={group}>▣ {L("Grupla", "Group")}</button>}
-          {sel.some((i) => i.group) && <button className="wb-chip" onClick={ungroup}>▢ {L("Grubu çöz", "Ungroup")}</button>}
+          {sel.length > 1 && !sel.every((i) => i.group && i.group === sel[0].group) && <button className="wb-chip" onClick={group}><Icon name="box-multiple" /> {L("Grupla", "Group")}</button>}
+          {sel.some((i) => i.group) && <button className="wb-chip" onClick={ungroup}><Icon name="box-off" /> {L("Grubu çöz", "Ungroup")}</button>}
           <button className="wb-chip" onClick={() => patch(selected, (i) => ({ locked: !sel.every((x) => x.locked) || !i.locked ? !sel.every((x) => x.locked) : false }))}>
-            {sel.every((i) => i.locked) ? `🔓 ${L("Kilidi aç", "Unlock")}` : `🔒 ${L("Kilitle", "Lock")}`}
+            {sel.every((i) => i.locked) ? <><Icon name="lock-open" /> {L("Kilidi aç", "Unlock")}</> : <><Icon name="lock" /> {L("Kilitle", "Lock")}</>}
           </button>
-          <button className="wb-chip" onClick={() => (copy(), paste(16))}>⧉ {L("Çoğalt", "Duplicate")}</button>
-          <button className="wb-chip danger" onClick={removeSelected}>🗑 {L("Sil", "Delete")}</button>
+          <button className="wb-chip" onClick={() => (copy(), paste(16))}><Icon name="copy" /> {L("Çoğalt", "Duplicate")}</button>
+          <button className="wb-chip danger" onClick={removeSelected}><Icon name="trash" /> {L("Sil", "Delete")}</button>
         </div>
       </section>
       </>
@@ -1283,7 +1329,7 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
         {tb("sticky", <ToolIcon name="sticky" />, L("Yapışkan not", "Sticky note"), "S")}
         <button className={`wb-tool ${tool === "shape" ? "on" : ""}`} title={L("Şekiller (R, O, D)", "Shapes (R, O, D)")} aria-expanded={library} onClick={() => setLibrary(!library)}>
           <ShapeIcon id={shapeId} />
-          <span className="wb-caret">▾</span>
+          <span className="wb-caret"><Icon name="chevron-down" size={10} /></span>
         </button>
         {tb("line", <ToolIcon name="line" />, L("Çizgi", "Line"), "L")}
         {tb("arrow", <ToolIcon name="arrow" />, L("Ok", "Arrow"), "A")}
@@ -1353,7 +1399,7 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onDoubleClick={onDoubleClick}
-        onContextMenu={(e) => e.preventDefault()}
+        onContextMenu={onContext}
       >
         <defs>
           <pattern id="wb-dots" width={gs} height={gs} patternUnits="userSpaceOnUse" x={view.x % gs} y={view.y % gs}>
@@ -1385,16 +1431,16 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
       {!items.length && !drag && (
         <div className="wb-empty">
           <b>Tabula</b>
-          <span>{L("Çizmek için kalemi seç, şekil eklemek için ◇ şekiller düğmesini kullan ya da boşluğa çift tıklayıp yaz.", "Pick the pen to draw, add shapes from the shapes button, or double-click anywhere to type.")}</span>
+          <span>{L("Çizmek için kalemi seç, şekil eklemek için Şekiller düğmesini kullan ya da boşluğa çift tıklayıp yaz.", "Pick the pen to draw, add shapes from the shapes button, or double-click anywhere to type.")}</span>
         </div>
       )}
       <div className="wb-zoom" onPointerDown={(e) => e.stopPropagation()}>
-        <button onClick={() => zoomAt(1 / 1.2)} title={L("Uzaklaş (⌘−)", "Zoom out (⌘−)")}>−</button>
+        <button onClick={() => zoomAt(1 / 1.2)} title={L("Uzaklaş (⌘−)", "Zoom out (⌘−)")}><Icon name="minus" size={14} /></button>
         <button onClick={() => setView((v) => ({ ...v, k: 1 }))} title={L("%100 (⌘0)", "100% (⌘0)")}>
           {Math.round(view.k * 100)}%
         </button>
-        <button onClick={() => zoomAt(1.2)} title={L("Yakınlaş (⌘+)", "Zoom in (⌘+)")}>+</button>
-        <button onClick={() => fit(sel.length ? sel : undefined)} title={L("Sığdır (⌘1)", "Fit (⌘1)")}>⤢</button>
+        <button onClick={() => zoomAt(1.2)} title={L("Yakınlaş (⌘+)", "Zoom in (⌘+)")}><Icon name="plus" size={14} /></button>
+        <button onClick={() => fit(sel.length ? sel : undefined)} title={L("Sığdır (⌘1)", "Fit (⌘1)")}><Icon name="maximize" size={14} /></button>
       </div>
       {picker && (
         <NotePicker
@@ -1449,6 +1495,16 @@ function ShapeIcon({ id, size = 20 }: { id: string; size?: number }) {
   );
 }
 
+/** Dolgu rengine göre okunaklı yazı rengi; dolgu yoksa ya da ara tondaysa tema rengi kullanılır. */
+function inkOn(fill: string | undefined): string | undefined {
+  const m = fill && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(fill.trim());
+  if (!m) return undefined;
+  const h = m[1].length === 3 ? [...m[1]].map((c) => c + c).join("") : m[1];
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return lum > 0.4 ? "#1f2328" : lum < 0.15 ? "#f7f8fa" : undefined;
+}
+
 function ShapeLibrary({ current, onPick }: { current: string; onPick: (id: string) => void }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("all");
@@ -1466,26 +1522,40 @@ function ShapeLibrary({ current, onPick }: { current: string; onPick: (id: strin
     <div className="wb-library" onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <div className="wb-row">
         <input autoFocus type="search" placeholder={L("Şekil ya da simge ara… (ör. kedi, sunucu, akış)", "Search shapes and icons… (e.g. cat, server, flow)")} value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1 }} />
-        <button className={`wb-chip ${filled ? "on" : ""}`} onClick={() => setFilled(!filled)} title={L("Simgeleri dolu ekle", "Insert icons filled")}>
-          ● {L("Dolu", "Filled")}
-        </button>
       </div>
-      <div className="wb-cats">
-        <button className={`wb-chip ${cat === "all" ? "on" : ""}`} onClick={() => setCat("all")}>
-          {L("Diyagram şekilleri", "Diagram shapes")}
-        </button>
-        {CATEGORIES.map((c) => (
-          <button key={c.id} className={`wb-chip ${cat === c.id ? "on" : ""}`} onClick={() => setCat(c.id)}>
-            {c.name[lang]}
+      <div className="wb-lib-head">
+        <div className="segmented small">
+          <button className={!isIconCat ? "on" : ""} onClick={() => setCat("all")}>
+            {L("Diyagram şekilleri", "Diagram shapes")}
           </button>
-        ))}
+          <button className={isIconCat ? "on" : ""} onClick={() => !isIconCat && setCat(`pic:${ICON_GROUPS[0].id}`)}>
+            {L("Resimli şekiller", "Pictures")}
+          </button>
+        </div>
+        {isIconCat && (
+          <label className="check small">
+            <input type="checkbox" checked={filled} onChange={(e) => setFilled(e.target.checked)} /> {L("Dolu", "Filled")}
+          </label>
+        )}
       </div>
-      <div className="wb-cats">
-        {ICON_GROUPS.map((g) => (
-          <button key={g.id} className={`wb-chip pic ${cat === `pic:${g.id}` ? "on" : ""}`} onClick={() => setCat(`pic:${g.id}`)}>
-            {g.name[lang]}
+      <div className="wb-cats" role="tablist">
+        {!isIconCat && (
+          <button className={`wb-chip ${cat === "all" ? "on" : ""}`} onClick={() => setCat("all")}>
+            {L("Tümü", "All")}
           </button>
-        ))}
+        )}
+        {!isIconCat &&
+          CATEGORIES.map((c) => (
+            <button key={c.id} className={`wb-chip ${cat === c.id ? "on" : ""}`} onClick={() => setCat(c.id)}>
+              {c.name[lang]}
+            </button>
+          ))}
+        {isIconCat &&
+          ICON_GROUPS.map((g) => (
+            <button key={g.id} className={`wb-chip ${cat === `pic:${g.id}` ? "on" : ""}`} onClick={() => setCat(`pic:${g.id}`)}>
+              {g.name[lang]}
+            </button>
+          ))}
       </div>
       <div className="wb-shape-grid">
         {diagramSections.map((c) => {
@@ -1523,7 +1593,6 @@ function ShapeLibrary({ current, onPick }: { current: string; onPick: (id: strin
           </section>
         )}
         {!list.length && !iconNames.length && query && icons && <p className="muted small">{L("Sonuç bulunamadı.", "No results.")}</p>}
-        <p className="wb-credit muted small">{L("Simgeler: Tabler Icons (MIT lisansı)", "Icons: Tabler Icons (MIT licence)")}</p>
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import { askText } from "../ask.tsx";
 import { newWritingId, parseWriting, planFromOutline, serializeWriting, writingBody, type OutlineData } from "../../../core/src/writing.ts";
 import { colorOf, moveItem, useWriting } from "./useWriting.ts";
 import { ColorDots, Progress } from "./ui.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 type Drag = { section: number; index: number } | null;
 
@@ -97,7 +98,7 @@ export function ManuscriptView({
     }
     const me = nodes.find((n) => n.id === id);
     await onFlush();
-    const o = await api.create(t("ws.outlineOf", { title: me?.title ?? "" }), me?.parentNodeId ?? (me?.archeId === null ? "shadow" : null), writingBody("outline", { version: 1, rows }), { layout: "outline", icon: "🗂" });
+    const o = await api.create(t("ws.outlineOf", { title: me?.title ?? "" }), me?.parentNodeId ?? (me?.archeId === null ? "shadow" : null), writingBody("outline", { version: 1, rows }), { layout: "outline" });
     update((d) => ({ ...d, outline: o.path }));
     onChanged();
     onToast(t("ws.outlineCreated"));
@@ -138,16 +139,16 @@ export function ManuscriptView({
       <span className="grow" />
       {reading ? (
         <button className="secondary" onClick={() => setReading(null)}>
-          ✎ {t("ws.backToPlan")}
+          <Icon name="pencil" /> {t("ws.backToPlan")}
         </button>
       ) : (
         <button className="secondary" onClick={async () => (await onFlush(), setReading(await api.manuscript(id)))}>
-          📖 {t("ws.read")}
+          <Icon name="book" /> {t("ws.read")}
         </button>
       )}
       <div className="rel">
         <button className="secondary" onClick={() => setExportMenu((v) => !v)}>
-          ⇩ {t("ws.export")}
+          <Icon name="download" /> {t("ws.export")}
         </button>
         {exportMenu && (
           <div className="menu-pop" onMouseLeave={() => setExportMenu(false)}>
@@ -160,7 +161,7 @@ export function ManuscriptView({
         )}
       </div>
       <button className={`secondary ${options ? "on" : ""}`} onClick={() => setOptions((v) => !v)} title={t("ws.options")}>
-        ⚙︎
+        <Icon name="settings" />
       </button>
     </div>
   );
@@ -195,7 +196,7 @@ export function ManuscriptView({
             {outlineNode ? (
               <>
                 <span className="muted small">
-                  {t("ws.following")} <a onClick={() => onOpen(outlineNode.id)}>🗂 {outlineNode.title}</a>
+                  {t("ws.following")} <a onClick={() => onOpen(outlineNode.id)}><Icon name="list-tree" /> {outlineNode.title}</a>
                 </span>
                 <button className="secondary small-btn" onClick={() => update((d) => ({ ...d, outline: undefined }))}>
                   {t("ws.stopFollowing")}
@@ -204,7 +205,7 @@ export function ManuscriptView({
             ) : (
               <>
                 <button className="secondary small-btn" onClick={() => setOutlinePick(true)}>
-                  🗂 {t("ws.followOutline")}
+                  <Icon name="list-tree" /> {t("ws.followOutline")}
                 </button>
                 <button className="secondary small-btn" onClick={() => void createOutline()}>
                   ＋ {t("ws.createOutline")}
@@ -239,10 +240,10 @@ export function ManuscriptView({
                 )}
               </div>
               <button className="icon-btn" disabled={si === 0} title={t("ws.moveUp")} onClick={() => update((d) => ({ ...d, sections: moveItem(d.sections, si, si - 1) }))}>
-                ↑
+                <Icon name="arrow-up" />
               </button>
               <button className="icon-btn" disabled={si === data.sections.length - 1} title={t("ws.moveDown")} onClick={() => update((d) => ({ ...d, sections: moveItem(d.sections, si, si + 1) }))}>
-                ↓
+                <Icon name="arrow-down" />
               </button>
               {data.sections.length > 1 && (
                 <button
@@ -258,7 +259,7 @@ export function ManuscriptView({
                     });
                   }}
                 >
-                  ✕
+                  <Icon name="x" />
                 </button>
               )}
             </header>
@@ -278,7 +279,7 @@ export function ManuscriptView({
                     <span className="drag-handle" aria-hidden>
                       ⋮⋮
                     </span>
-                    <span className="ms-icon">{n?.icon ?? "📄"}</span>
+                    <span className="ms-icon">{n?.icon ?? <Icon name="file" size={15} />}</span>
                     {n ? (
                       <a className="ms-title" onClick={() => onOpen(n.id)} data-path={n.path}>
                         {n.title}
@@ -290,7 +291,7 @@ export function ManuscriptView({
                     )}
                     <span className="muted small">{n ? t("ws.words", { n: n.words.toLocaleString() }) : ""}</span>
                     <button className="icon-btn" title={t("ws.removeFromManuscript")} onClick={() => update((d) => (d.sections[si].items.splice(ii, 1), d))}>
-                      ✕
+                      <Icon name="x" />
                     </button>
                   </li>
                 );
@@ -302,7 +303,7 @@ export function ManuscriptView({
                 ＋ {t("ws.addExisting")}
               </button>
               <button className="secondary small-btn" onClick={() => void newChapter(si)}>
-                ✎ {t("ws.newChapter")}
+                <Icon name="pencil" /> {t("ws.newChapter")}
               </button>
             </div>
           </section>
@@ -333,7 +334,7 @@ export function ManuscriptView({
                 )}
               </div>
               <button className="secondary small-btn" onClick={() => void newChapter(data.sections.length - 1, p.row.text || t("ws.untitledChapter"), p.row.id)}>
-                ✎ {t("ws.writeIt")}
+                <Icon name="pencil" /> {t("ws.writeIt")}
               </button>
             </div>
           ))}

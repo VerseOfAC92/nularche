@@ -43,6 +43,8 @@ import { setStudioData, setStudioHandlers, type TextShortcut } from "./studio/ed
 import { AMBIENCES, bell, setAmbience, typeSound, type Ambience, type TypeProfile } from "./studio/sounds.ts";
 import type { CustomCommand } from "./studio/StudioSettings.tsx";
 import { writingBody } from "../../core/src/writing.ts";
+import { Icon } from "./ui/Icon.tsx";
+import { nodeIconName } from "./ui/node-icon.ts";
 
 export type Route =
   | { kind: "home" }
@@ -393,7 +395,7 @@ export function App() {
     try {
       const names = ["Günlük", "Journal"];
       let arche = nodes.find((n) => n.archeId === n.id && names.includes(n.title));
-      if (!arche) arche = await api.create(t("daily.arche"), null, "", { icon: "📔" });
+      if (!arche) arche = await api.create(t("daily.arche"), null, "");
       const today = todayIso();
       let page = nodes.find((n) => n.parentNodeId === arche!.id && n.title === today);
       if (!page) {
@@ -548,12 +550,12 @@ export function App() {
         const p = (x: number) => String(x).padStart(2, "0");
         void createTitled(`${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`);
       }),
-      registerCommand("canvas.new", () => void createTitled(t("ob.untitledCanvas"), { body: '```json canvas\n{\n  "nodes": [],\n  "edges": []\n}\n```\n', fields: { layout: "canvas", icon: "🧩" } })),
-      registerCommand("manuscript.new", () => void createTitled(t("ws.untitledManuscript"), { body: writingBody("manuscript"), fields: { layout: "manuscript", icon: "📕" } })),
-      registerCommand("outline.new", () => void createTitled(t("ws.untitledOutline"), { body: writingBody("outline"), fields: { layout: "outline", icon: "🗂" } })),
-      registerCommand("cards.new", () => void createTitled(t("ws.untitledCards"), { body: writingBody("cards"), fields: { layout: "cards", icon: "🗃" } })),
-      registerCommand("whiteboard.new", () => void createTitled(t("ws.untitledWhiteboard"), { body: WHITEBOARD_BODY, fields: { layout: "whiteboard", icon: "🎨" } })),
-      registerCommand("wiki.new", () => void createTitled(t("ws.untitledWiki"), { body: "", fields: { layout: "wiki", icon: "📚" } })),
+      registerCommand("canvas.new", () => void createTitled(t("ob.untitledCanvas"), { body: '```json canvas\n{\n  "nodes": [],\n  "edges": []\n}\n```\n', fields: { layout: "canvas" } })),
+      registerCommand("manuscript.new", () => void createTitled(t("ws.untitledManuscript"), { body: writingBody("manuscript"), fields: { layout: "manuscript" } })),
+      registerCommand("outline.new", () => void createTitled(t("ws.untitledOutline"), { body: writingBody("outline"), fields: { layout: "outline" } })),
+      registerCommand("cards.new", () => void createTitled(t("ws.untitledCards"), { body: writingBody("cards"), fields: { layout: "cards" } })),
+      registerCommand("whiteboard.new", () => void createTitled(t("ws.untitledWhiteboard"), { body: WHITEBOARD_BODY, fields: { layout: "whiteboard" } })),
+      registerCommand("wiki.new", () => void createTitled(t("ws.untitledWiki"), { body: "", fields: { layout: "wiki" } })),
       registerCommand("view.dashboard", () => navigate({ kind: "home" })),
       registerCommand("help.glossary", () => setGlossaryOpen(true)),
       registerCommand("view.sidebar", () => setPref("sidebarMini", !getPref("sidebarMini", false))),
@@ -771,11 +773,11 @@ export function App() {
           />
         )}
         {route.kind === "graph" && <GraphView changeTick={changeTick} onOpen={openNode} />}
-        {route.kind === "notes" && <NoteList listKey="all" icon="🗒" title={t("list.allNotes")} notes={listable} nodes={nodes} onOpen={openNode} onTag={(tag) => navigate({ kind: "tag", tag })} />}
+        {route.kind === "notes" && <NoteList listKey="all" icon={<Icon name="notes" size={26} />} title={t("list.allNotes")} notes={listable} nodes={nodes} onOpen={openNode} onTag={(tag) => navigate({ kind: "tag", tag })} />}
         {route.kind === "recent" && (
           <NoteList
             listKey="recent"
-            icon="🕘"
+            icon={<Icon name="clock" size={26} />}
             title={t("list.recent")}
             fixedOrder
             notes={recent.map((id) => listable.find((n) => n.id === id)).filter((n): n is NodeMeta => !!n)}
@@ -788,7 +790,7 @@ export function App() {
         {route.kind === "tag" && (
           <NoteList
             listKey={`tag:${route.tag.toLocaleLowerCase("tr")}`}
-            icon="#"
+            icon={<Icon name="hash" size={26} />}
             title={route.tag}
             notes={listable.filter((n) => n.tags.some((x) => x.toLocaleLowerCase("tr") === route.tag.toLocaleLowerCase("tr") || x.toLocaleLowerCase("tr").startsWith(`${route.tag.toLocaleLowerCase("tr")}/`)))}
             nodes={nodes}
@@ -797,10 +799,10 @@ export function App() {
             actions={
               <>
                 <button className="secondary" onClick={() => renameTag(route.tag)}>
-                  ✎ {t("tags.rename")}
+                  <Icon name="pencil" /> {t("tags.rename")}
                 </button>
                 <button className="secondary" onClick={() => setSmartEdit({ name: `#${route.tag}`, tags: [route.tag], match: "all" })}>
-                  ⚙︎ {t("tags.smartFromTag")}
+                  <Icon name="folder-cog" /> {t("tags.smartFromTag")}
                 </button>
               </>
             }
@@ -813,7 +815,7 @@ export function App() {
             return (
               <NoteList
                 listKey={`smart:${f.id}`}
-                icon={f.icon ?? "⚙︎"}
+                icon={f.icon ?? <Icon name="folder-cog" size={26} />}
                 title={f.name}
                 notes={smartMatches(f, listable)}
                 nodes={nodes}
@@ -821,7 +823,7 @@ export function App() {
                 onTag={(tag) => navigate({ kind: "tag", tag })}
                 actions={
                   <button className="secondary" onClick={() => setSmartEdit(f)}>
-                    ✎ {t("smart.edit")}
+                    <Icon name="pencil" /> {t("smart.edit")}
                   </button>
                 }
               />
@@ -835,7 +837,7 @@ export function App() {
             return (
               <NoteList
                 listKey={`list:${root.id}`}
-                icon={root.icon ?? "◈"}
+                icon={root.icon ?? <Icon name="diamond" size={26} />}
                 title={t("list.notesIn", { title: root.title })}
                 notes={listable.filter((n) => n.id === root.id || below.has(n.id))}
                 nodes={nodes}
@@ -844,7 +846,7 @@ export function App() {
                 actions={
                   root.archeId === root.id ? (
                     <button className="secondary" onClick={() => void convertToSmart(root)}>
-                      ⚙︎ {t("smart.convertArche")}
+                      <Icon name="folder-cog" /> {t("smart.convertArche")}
                     </button>
                   ) : undefined
                 }
@@ -912,7 +914,7 @@ export function App() {
         <Picker
           items={nodes
             .filter((n) => !n.template && !(route.kind === "node" && n.id === route.id))
-            .map((n) => ({ id: n.id, label: n.title, aliases: [...n.aliases, n.path], detail: n.path.replace(/\.md$/, ""), icon: n.icon ?? "◇" }))}
+            .map((n) => ({ id: n.id, label: n.title, aliases: [...n.aliases, n.path], detail: n.path.replace(/\.md$/, ""), icon: n.icon ?? nodeIconName(n) }))}
           placeholder={t("ws.splitPick")}
           onClose={() => setSplitPick(false)}
           onPick={(it) => (setSplitPick(false), setSplit(it.id))}
@@ -930,7 +932,7 @@ export function App() {
       <PagePreview nodes={nodes} />
       {workspacePick && (
         <Picker
-          items={Object.keys(workspaces).map((name) => ({ id: name, label: name, icon: "▤", detail: t("ob.workspaceTabs", { n: workspaces[name].hashes.length }) }))}
+          items={Object.keys(workspaces).map((name) => ({ id: name, label: name, icon: "layout-columns", detail: t("ob.workspaceTabs", { n: workspaces[name].hashes.length }) }))}
           placeholder={t("ob.workspacePlaceholder")}
           empty={t("ob.noWorkspaces")}
           onClose={() => setWorkspacePick(false)}
@@ -982,7 +984,7 @@ export function App() {
         onOpenNode={(id) => navigate({ kind: "node", id })}
         onOpenSettings={() => setSettingsOpen(true)}
       />
-      {onboarding && <Onboarding aiTick={aiTick} onToast={showToast} onDone={() => (setOnboarding(false), setAiOpen(true))} />}
+      {onboarding && <Onboarding aiTick={aiTick} onToast={showToast} onDone={() => setOnboarding(false)} />}
       {searchOpen && (
         <SearchDialog nodes={nodes} onClose={() => setSearchOpen(false)} onPick={(id) => (setSearchOpen(false), navigate({ kind: "node", id }))} />
       )}
@@ -1001,13 +1003,13 @@ function Welcome({ onCreate, onShadow }: { onCreate: (p: ParentTarget) => void; 
       <Glossary compact />
       <div className="row" style={{ display: "flex", gap: 8 }}>
         <button className="primary" onClick={() => onCreate(null)}>
-          ◈ {t("common.newArche")}
+          <Icon name="diamond" /> {t("common.newArche")}
         </button>
         <button className="secondary" onClick={() => onCreate(SHADOW)}>
-          ＋ {t("common.quickNote")}
+          <Icon name="plus" /> {t("common.quickNote")}
         </button>
         <button className="secondary" onClick={onShadow}>
-          ◐ {t("welcome.openShadow")}
+          <Icon name="circle-half-2" /> {t("welcome.openShadow")}
         </button>
       </div>
     </div>

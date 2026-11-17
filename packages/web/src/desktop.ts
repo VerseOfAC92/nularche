@@ -91,6 +91,8 @@ export interface DesktopBridge {
   /** Yerel çerçevenin koyu/açık görünümü seçilen arka plana uysun; null kullanıcının temasına döner. */
   setChrome?(mode: "dark" | "light" | null): Promise<void>;
   onFullScreen?(cb: (on: boolean) => void): () => void;
+  contextItems?(items: unknown): unknown;
+  onContextRun?(cb: (id: string) => void): () => void;
   setLanguage(lang: "tr" | "en"): Promise<void>;
   rendererReady(): Promise<string | null>;
   info(): Promise<{ version: string; platform: string; originDir: string; warning: string | null }>;

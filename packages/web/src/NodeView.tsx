@@ -6,7 +6,7 @@ import { api, ApiError, SHADOW, type NodeDoc, type NodeMeta, type PageFieldPatch
 import { desktop } from "./desktop.ts";
 import { Editor } from "./editor/Editor.tsx";
 import { NularcheMark } from "./ai/NularcheMark.tsx";
-import { t, type StringKey } from "./i18n/index.ts";
+import { locale, t, type StringKey } from "./i18n/index.ts";
 import { fileUrl, resolveRelative } from "./editor/paths.ts";
 import { DatabaseView } from "./database/DatabaseView.tsx";
 import { exportNode, type ExportKind } from "./exporting.ts";
@@ -44,6 +44,7 @@ import { forgetDoc, trackWords } from "./studio/goals.ts";
 import { Progress } from "./studio/ui.tsx";
 import { StudioToolbar } from "./studio/StudioTools.tsx";
 import { writingBody } from "../../core/src/writing.ts";
+import { Icon, type IconName } from "./ui/Icon.tsx";
 
 type Status = "saved" | "dirty" | "saving" | "conflict" | "error";
 const SAVE_DELAY_MS = 800;
@@ -117,6 +118,7 @@ export function NodeView(props: NodeViewProps) {
   const [defaultView] = usePref<"edit" | "read">("defaultView", "edit");
   const [propsInDoc] = usePref<"visible" | "hidden">("propertiesInDoc", "visible");
   const [writingFont] = usePref<string>("writingFont", "");
+  const [writingSize] = usePref<number>("writingFontSize", 0);
   /** Okuma görünümü (⌘E): editör salt okunur. */
   const [reading, setReading] = useState(defaultView === "read");
   const [propTick, setPropTick] = useState(0);
@@ -411,7 +413,7 @@ export function NodeView(props: NodeViewProps) {
         }
       }),
       registerCommand("note.checkpoint", async () => {
-        const label = (await askText(t("ws.checkpointName"), new Date().toLocaleString()))?.trim();
+        const label = (await askText(t("ws.checkpointName"), new Date().toLocaleString(locale(), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })))?.trim();
         if (!label) return;
         await flush();
         try {
@@ -549,10 +551,10 @@ export function NodeView(props: NodeViewProps) {
   /** "/" menüsünden bu sayfanın altında yeni Codex, Axis, Mosaic ya da Lore. */
   async function createProject(kind: "manuscript" | "outline" | "cards" | "wiki" | "whiteboard") {
     await flush();
-    const meta = { manuscript: ["ws.untitledManuscript", "📕"], outline: ["ws.untitledOutline", "🗂"], cards: ["ws.untitledCards", "🗃"], wiki: ["ws.untitledWiki", "📚"], whiteboard: ["ws.untitledWhiteboard", "🎨"] } as const;
+    const meta = { manuscript: "ws.untitledManuscript", outline: "ws.untitledOutline", cards: "ws.untitledCards", wiki: "ws.untitledWiki", whiteboard: "ws.untitledWhiteboard" } as const;
     try {
       const body = kind === "wiki" ? "" : kind === "whiteboard" ? WHITEBOARD_BODY : writingBody(kind);
-      const n = await api.create(t(meta[kind][0]), id, body, { layout: kind, icon: meta[kind][1] });
+      const n = await api.create(t(meta[kind]), id, body, { layout: kind });
       propsRef.current.onChanged();
       return n;
     } catch (e) {
@@ -593,9 +595,11 @@ export function NodeView(props: NodeViewProps) {
   const locked = !!doc.locked || isLockedBody(doc.body);
   lockedRef.current = locked;
   const pageFont = doc.font ?? (writingFont || undefined);
+  // Notun kendi boyutu yoksa Ayarlar → Yazım'daki varsayılan boyut kullanılır.
+  const pageSize = doc.fontSize ?? (writingSize || undefined);
   const pageStyle = {
     ...(pageFont ? { "--page-font": fontStack(pageFont) } : {}),
-    ...(doc.fontSize ? { "--page-font-size": `${doc.fontSize}px` } : {}),
+    ...(pageSize ? { "--page-font-size": `${pageSize}px` } : {}),
   } as React.CSSProperties;
 
   const isShadow = byId.get(id)?.archeId === null;
@@ -630,18 +634,18 @@ export function NodeView(props: NodeViewProps) {
         <div className="topbar-right">
           {locked && plain !== null && (
             <button className="status-pill" title={t("lock.close")} onClick={() => void flush().then(() => (forgetNote(id), setPlain(null)))}>
-              🔓 {t("lock.badge")}
+              <Icon name="lock-open" size={14} /> {t("lock.badge")}
             </button>
           )}
-          {doc.pinned && <span className="status-pill">📌 {t("node.pinned")}</span>}
+          {doc.pinned && <span className="status-pill"><Icon name="pin" size={14} /> {t("node.pinned")}</span>}
           {props.onSwapSplit && (
             <button className="icon-btn" title={t("ws.splitSwap")} onClick={props.onSwapSplit}>
-              ⇄
+              <Icon name="arrows-exchange" />
             </button>
           )}
           {props.onCloseSplit && (
             <button className="icon-btn" title={t("ws.splitClose")} onClick={props.onCloseSplit}>
-              ✕
+              <Icon name="x" />
             </button>
           )}
           {!props.secondary && !props.focus && (
@@ -656,11 +660,11 @@ export function NodeView(props: NodeViewProps) {
             title={doc.favorite ? t("node.unfavorite") : t("node.favorite")}
             onClick={() => setFields({ favorite: doc.favorite ? null : true })}
           >
-            {doc.favorite ? "★" : "☆"}
+            <Icon name="star" filled={!!doc.favorite} />
           </button>
           <div className="rel">
             <button className="icon-btn" title={t("node.more")} onClick={() => setMenu(menu === "more" ? null : "more")}>
-              ⋯
+              <Icon name="dots" />
             </button>
             {menu === "more" && (
               <div className="menu-pop" onMouseLeave={() => setMenu(null)}>
@@ -673,7 +677,7 @@ export function NodeView(props: NodeViewProps) {
                       props.onChanged();
                     }}
                   >
-                    ◐ {t("node.moveToShadow")}
+                    <Icon name="circle-half-2" /> {t("node.moveToShadow")}
                   </button>
                 )}
                 {isShadow && (
@@ -686,14 +690,14 @@ export function NodeView(props: NodeViewProps) {
                       props.onToast(t("node.nowArche"));
                     }}
                   >
-                    ◈ {t("node.makeArche")}
+                    <Icon name="diamond" /> {t("node.makeArche")}
                   </button>
                 )}
-                <button onClick={() => (setMenu(null), void setFields({ pinned: doc.pinned ? null : true }))}>📌 {doc.pinned ? t("cmd.unpin") : t("cmd.pin")}</button>
+                <button onClick={() => (setMenu(null), void setFields({ pinned: doc.pinned ? null : true }))}><Icon name="pin" /> {doc.pinned ? t("cmd.unpin") : t("cmd.pin")}</button>
                 <button onClick={() => (setMenu(null), locked ? void removeLock() : setDialog("lock"))} disabled={locked && plain === null}>
-                  🔒 {locked ? t("lock.remove") : t("cmd.lock")}
+                  <Icon name={locked ? "lock-open" : "lock"} /> {locked ? t("lock.remove") : t("cmd.lock")}
                 </button>
-                <button onClick={() => (setMenu(null), setDialog("font"))}>Aa {t("cmd.fontPanel")}</button>
+                <button onClick={() => (setMenu(null), setDialog("font"))}><Icon name="typography" /> {t("cmd.fontPanel")}</button>
                 <button
                   onClick={async () => {
                     setMenu(null);
@@ -703,12 +707,12 @@ export function NodeView(props: NodeViewProps) {
                     void setFields({ wordGoal: n > 0 ? Math.min(n, 10_000_000) : null });
                   }}
                 >
-                  🎯 {t("ws.setGoal")} {doc.wordGoal ? `· ${doc.wordGoal.toLocaleString()}` : ""}
+                  <Icon name="target" /> {t("ws.setGoal")} {doc.wordGoal ? <span className="menu-meta">{doc.wordGoal.toLocaleString()}</span> : null}
                 </button>
                 <button
                   onClick={async () => {
                     setMenu(null);
-                    const label = (await askText(t("ws.checkpointName"), new Date().toLocaleString()))?.trim();
+                    const label = (await askText(t("ws.checkpointName"), new Date().toLocaleString(locale(), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })))?.trim();
                     if (!label) return;
                     await flush();
                     try {
@@ -719,14 +723,14 @@ export function NodeView(props: NodeViewProps) {
                     }
                   }}
                 >
-                  ⚑ {t("ws.checkpoint")}
+                  <Icon name="flag" /> {t("ws.checkpoint")}
                 </button>
-                {doc.cover && <button onClick={() => (setMenu(null), void setFields({ cover: null }))}>▭ {t("node.removeCover")}</button>}
+                {doc.cover && <button onClick={() => (setMenu(null), void setFields({ cover: null }))}><Icon name="photo" /> {t("node.removeCover")}</button>}
                 <button onClick={() => (setMenu(null), void setFields({ lightBg: doc.lightBg ? null : true }))}>
-                  ☀ {t("cmd.lightBg")} {doc.lightBg ? "✓" : ""}
+                  <Icon name="sun" /> {t("cmd.lightBg")} {doc.lightBg ? <Icon name="check" className="menu-check" /> : null}
                 </button>
                 <button onClick={() => (setMenu(null), void setFields({ sortChecked: doc.sortChecked ? null : true }))}>
-                  ☑ {t("cmd.autoSortChecked")} {doc.sortChecked ? "✓" : ""}
+                  <Icon name="list-check" /> {t("cmd.autoSortChecked")} {doc.sortChecked ? <Icon name="check" className="menu-check" /> : null}
                 </button>
                 <button
                   onClick={() => {
@@ -740,10 +744,10 @@ export function NodeView(props: NodeViewProps) {
                     }
                   }}
                 >
-                  🔊 {speaking ? t("node.stopSpeak") : t("node.speak")}
+                  <Icon name="volume" /> {speaking ? t("node.stopSpeak") : t("node.speak")}
                 </button>
                 {desktop && (
-                  <button onClick={() => (setMenu(null), void flush().then(() => desktop!.openWindow(id)))}>⧉ {t("cmd.openWindow")}</button>
+                  <button onClick={() => (setMenu(null), void flush().then(() => desktop!.openWindow(id)))}><Icon name="app-window" /> {t("cmd.openWindow")}</button>
                 )}
                 <hr />
                 <button
@@ -755,7 +759,7 @@ export function NodeView(props: NodeViewProps) {
                     props.onNavigate(copy.id);
                   }}
                 >
-                  ⧉ {t("node.duplicate")}
+                  <Icon name="copy" /> {t("node.duplicate")}
                 </button>
                 <button
                   onClick={async () => {
@@ -764,7 +768,7 @@ export function NodeView(props: NodeViewProps) {
                     props.onToast(doc.template ? t("tpl.unmarked") : t("tpl.marked"));
                   }}
                 >
-                  📋 {doc.template ? t("tpl.unmark") : t("tpl.mark")}
+                  <Icon name="template" /> {doc.template ? t("tpl.unmark") : t("tpl.mark")}
                 </button>
                 {!doc.database && (
                   <button
@@ -774,18 +778,18 @@ export function NodeView(props: NodeViewProps) {
                       props.onToast(t("db.turnedInto"));
                     }}
                   >
-                    ▦ {t("db.turnInto")}
+                    <Icon name="table" /> {t("db.turnInto")}
                   </button>
                 )}
                 <hr />
                 {(
                   [
-                    ["docx", "⇩", t("cmd.exportDocx")],
-                    ["rtf", "⇩", t("cmd.exportRtf")],
-                    ["txt", "⇩", t("cmd.exportTxt")],
-                    ["md", "⇩", t("export.md")],
-                    ["html", "⇩", t("export.html")],
-                  ] as [ExportKind, string, string][]
+                    ["docx", "file-text", t("cmd.exportDocx")],
+                    ["rtf", "file-text", t("cmd.exportRtf")],
+                    ["txt", "file-text", t("cmd.exportTxt")],
+                    ["md", "download", t("export.md")],
+                    ["html", "download", t("export.html")],
+                  ] as [ExportKind, IconName, string][]
                 ).map(([kind, icon, label]) => (
                   <button
                     key={kind}
@@ -800,7 +804,7 @@ export function NodeView(props: NodeViewProps) {
                       }
                     }}
                   >
-                    {icon} {label}
+                    <Icon name={icon} /> {label}
                   </button>
                 ))}
                 <button
@@ -810,7 +814,7 @@ export function NodeView(props: NodeViewProps) {
                     props.onToast(doc.publish ? t("export.unpublished") : t("export.published"));
                   }}
                 >
-                  🌐 {doc.publish ? t("export.unpublish") : t("export.publish")}
+                  <Icon name="world" /> {doc.publish ? t("export.unpublish") : t("export.publish")}
                 </button>
                 {desktop && (
                   <button
@@ -821,10 +825,10 @@ export function NodeView(props: NodeViewProps) {
                       if (out) props.onToast(t("node.pdfSaved", { path: out }));
                     }}
                   >
-                    ⎙ {t("node.savePdf")}
+                    <Icon name="file-type-pdf" /> {t("node.savePdf")}
                   </button>
                 )}
-                <button onClick={() => (setMenu(null), void flush().then(() => (desktop ? desktop.print() : window.print())))}>⎙ {t("cmd.print")}</button>
+                <button onClick={() => (setMenu(null), void flush().then(() => (desktop ? desktop.print() : window.print())))}><Icon name="printer" /> {t("cmd.print")}</button>
                 {desktop && (
                   <button
                     onClick={async () => {
@@ -834,7 +838,7 @@ export function NodeView(props: NodeViewProps) {
                       if (out) props.onToast(t("node.exported", { path: out }));
                     }}
                   >
-                    ⇪ {t("node.exportNlc")}
+                    <Icon name="package-export" /> {t("node.exportNlc")}
                   </button>
                 )}
                 <hr />
@@ -846,7 +850,7 @@ export function NodeView(props: NodeViewProps) {
                     if (meta) props.onTrash(meta);
                   }}
                 >
-                  🗑 {t("common.moveToTrash")}
+                  <Icon name="trash" /> {t("common.moveToTrash")}
                 </button>
               </div>
             )}
@@ -854,7 +858,7 @@ export function NodeView(props: NodeViewProps) {
         </div>
       </div>
 
-      {doc.template && <div className="banner template-banner">📋 {parentDb?.database ? t("tpl.rowBanner") : t("tpl.banner")}</div>}
+      {doc.template && <div className="banner template-banner"><Icon name="template" /> {parentDb?.database ? t("tpl.rowBanner") : t("tpl.banner")}</div>}
       {status === "conflict" && (
         <div className="banner conflict">
           {t("node.conflictBanner")}
@@ -913,8 +917,8 @@ export function NodeView(props: NodeViewProps) {
           }}
         />
       )}
-      {dialog === "font" && <FontDialog font={doc.font} size={doc.fontSize} onChange={(font, size) => void setFields({ font, fontSize: size })} onClose={() => setDialog(null)} />}
-      <article className={`page ${reading ? "reading" : ""} ${doc.layoutMode === "canvas" ? "page-canvas" : ""} ${doc.layoutMode === "whiteboard" ? "page-whiteboard" : ""} ${cover ? "has-cover" : ""} ${doc.lightBg ? "page-light" : ""} ${pageFont || doc.fontSize ? "page-typed" : ""} ${["manuscript", "outline", "cards", "wiki"].includes(doc.layoutMode) ? `page-studio page-${doc.layoutMode}` : ""}`} style={pageStyle}>
+      {dialog === "font" && <FontDialog font={doc.font} size={doc.fontSize} fallbackSize={writingSize || undefined} onChange={(font, size) => void setFields({ font, fontSize: size })} onClose={() => setDialog(null)} />}
+      <article className={`page ${reading ? "reading" : ""} ${doc.layoutMode === "canvas" ? "page-canvas" : ""} ${doc.layoutMode === "whiteboard" ? "page-whiteboard" : ""} ${cover ? "has-cover" : ""} ${doc.lightBg ? "page-light" : ""} ${pageFont || pageSize ? "page-typed" : ""} ${["manuscript", "outline", "cards", "wiki"].includes(doc.layoutMode) ? `page-studio page-${doc.layoutMode}` : ""}`} style={pageStyle}>
         {doc.icon && (
           <div className="rel">
             <span className="page-icon" onClick={() => setMenu(menu === "icon" ? null : "icon")} title={t("node.changeIcon")}>
@@ -923,8 +927,8 @@ export function NodeView(props: NodeViewProps) {
           </div>
         )}
         <div className="page-meta-actions">
-          {!doc.icon && <button onClick={() => setMenu("icon")}>☺ {t("node.addIcon")}</button>}
-          {!cover && <button onClick={() => setFields({ cover: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)] })}>▭ {t("node.addCover")}</button>}
+          {!doc.icon && <button onClick={() => setMenu("icon")}><Icon name="mood-smile" size={14} /> {t("node.addIcon")}</button>}
+          {!cover && <button onClick={() => setFields({ cover: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)] })}><Icon name="photo" size={14} /> {t("node.addCover")}</button>}
         </div>
         {menu === "icon" && (
           <div className="pop anchored" style={{ top: doc.icon ? 80 : 70 }} onMouseLeave={() => setMenu(null)}>
@@ -965,7 +969,7 @@ export function NodeView(props: NodeViewProps) {
         />
         {reading && (
           <button className="status-pill reading-pill" onClick={() => setReading(false)} title={t("ob.readingView")}>
-            📖 {t("ob.readingOn")}
+            <Icon name="book" size={14} /> {t("ob.readingOn")}
           </button>
         )}
         {(propsInDoc !== "hidden" || propTick > 0) && !(locked && plain === null) && (

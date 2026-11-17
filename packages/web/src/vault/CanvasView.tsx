@@ -11,6 +11,7 @@ import { fileUrl } from "../editor/paths.ts";
 import { t } from "../i18n/index.ts";
 import { anchor, autoSides, colorValue, newId, parseCanvas, serializeCanvas, type CanvasData, type CanvasNode } from "./canvas-model.ts";
 import { NotePicker } from "./Palettes.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
 
@@ -183,7 +184,7 @@ export function CanvasView({ body, nodes, onChange, onOpen }: { body: string; no
     if (n.type === "link")
       return (
         <a href={n.url} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => (e.preventDefault(), n.url && (desktop ? desktop.openExternal(n.url) : window.open(n.url, "_blank", "noopener")))}>
-          🔗 {n.url}
+          <Icon name="link" size={14} /> {n.url}
         </a>
       );
     return null;

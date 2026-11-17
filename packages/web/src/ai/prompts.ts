@@ -9,11 +9,11 @@ export interface AiAction {
 }
 
 const ACTIONS = [
-  ["fix", "✓"],
-  ["summarize", "≡"],
-  ["expand", "↕"],
-  ["todos", "☑"],
-  ["link", "↗"],
+  ["fix", "check"],
+  ["summarize", "list"],
+  ["expand", "arrows-vertical"],
+  ["todos", "checkbox"],
+  ["link", "link"],
   ["toEnglish", "EN"],
   ["toTurkish", "TR"],
 ] as const;

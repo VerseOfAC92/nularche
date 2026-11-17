@@ -15,23 +15,24 @@ import {
   type Property,
   type PropertyType,
 } from "./model.ts";
+import { Icon, type IconName } from "../ui/Icon.tsx";
 
-export const TYPE_ICON: Record<PropertyType, string> = {
-  text: "≡",
-  number: "#",
-  select: "◉",
-  multi_select: "☰",
-  status: "◐",
-  date: "▦",
-  checkbox: "☑",
-  url: "🔗",
-  email: "@",
-  phone: "☎",
-  relation: "↗",
-  rollup: "Σ",
-  formula: "ƒ",
-  created_time: "⏱",
-  updated_time: "⟳",
+export const TYPE_ICON: Record<PropertyType, IconName> = {
+  text: "letter-t",
+  number: "numbers",
+  select: "selector",
+  multi_select: "tags",
+  status: "progress",
+  date: "calendar",
+  checkbox: "checkbox",
+  url: "link",
+  email: "mail",
+  phone: "phone",
+  relation: "arrow-up-right",
+  rollup: "sum",
+  formula: "math-function",
+  created_time: "clock-hour-4",
+  updated_time: "clock-edit",
 };
 
 export const typeLabel = (type: PropertyType) => t(`db.type.${type}` as StringKey);
@@ -76,7 +77,7 @@ export function PropertyMenu({
         <select value={prop.type} onChange={(e) => update({ type: e.target.value as PropertyType, ...(["select", "multi_select", "status"].includes(e.target.value) && !prop.options ? { options: [] } : {}) })}>
           {PROPERTY_TYPES.map((ty) => (
             <option key={ty} value={ty}>
-              {TYPE_ICON[ty]} {typeLabel(ty)}
+              <Icon name={TYPE_ICON[ty]} /> {typeLabel(ty)}
             </option>
           ))}
         </select>
@@ -153,7 +154,7 @@ export function PropertyMenu({
             <option value="">—</option>
             {databases.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.icon ?? "▦"} {d.title}
+                {d.icon ?? <Icon name="table" size={15} />} {d.title}
               </option>
             ))}
           </select>
@@ -198,9 +199,9 @@ export function PropertyMenu({
       )}
 
       <hr />
-      <button onClick={() => (onSort("asc"), onClose())}>↑ {t("db.sortAsc")}</button>
-      <button onClick={() => (onSort("desc"), onClose())}>↓ {t("db.sortDesc")}</button>
-      <button onClick={() => (onHide(), onClose())}>◌ {t("db.hide")}</button>
+      <button onClick={() => (onSort("asc"), onClose())}><Icon name="arrow-up" /> {t("db.sortAsc")}</button>
+      <button onClick={() => (onSort("desc"), onClose())}><Icon name="arrow-down" /> {t("db.sortDesc")}</button>
+      <button onClick={() => (onHide(), onClose())}><Icon name="eye-off" /> {t("db.hide")}</button>
       <button
         className="danger"
         onClick={() => {
@@ -209,7 +210,7 @@ export function PropertyMenu({
           onClose();
         }}
       >
-        🗑 {t("db.deleteProp")}
+        <Icon name="trash" /> {t("db.deleteProp")}
       </button>
     </div>
   );

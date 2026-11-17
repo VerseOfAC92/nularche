@@ -8,16 +8,17 @@ import { runCommand } from "../commands.ts";
 import { t, type StringKey } from "../i18n/index.ts";
 import { usePref } from "../prefs.ts";
 import { AMBIENCES, typeSound, type Ambience, type TypeProfile } from "./sounds.ts";
+import { Icon, type IconName } from "../ui/Icon.tsx";
 
 /** "Ad — anlamı" biçiminde ipucu. */
 export const termTip = (name: string, meaning: StringKey, key?: string) => `${name}${key ? ` (${key})` : ""} — ${t(meaning)}`;
 
-export const PROJECT_KINDS: { cmd: string; icon: string; name: string; meaning: StringKey }[] = [
-  { cmd: "manuscript.new", icon: "📕", name: "Codex", meaning: "gloss.codex" },
-  { cmd: "outline.new", icon: "🗂", name: "Axis", meaning: "gloss.axis" },
-  { cmd: "cards.new", icon: "🗃", name: "Mosaic", meaning: "gloss.mosaic" },
-  { cmd: "wiki.new", icon: "📚", name: "Lore", meaning: "gloss.lore" },
-  { cmd: "whiteboard.new", icon: "🎨", name: "Tabula", meaning: "gloss.tabula" },
+export const PROJECT_KINDS: { cmd: string; icon: IconName; name: string; meaning: StringKey }[] = [
+  { cmd: "manuscript.new", icon: "book", name: "Codex", meaning: "gloss.codex" },
+  { cmd: "outline.new", icon: "list-tree", name: "Axis", meaning: "gloss.axis" },
+  { cmd: "cards.new", icon: "layout-grid", name: "Mosaic", meaning: "gloss.mosaic" },
+  { cmd: "wiki.new", icon: "books", name: "Lore", meaning: "gloss.lore" },
+  { cmd: "whiteboard.new", icon: "chalkboard", name: "Tabula", meaning: "gloss.tabula" },
 ];
 
 /** Açılır pencere dışına tıklanınca ya da Esc ile kapanır. */
@@ -49,7 +50,7 @@ export function NewProjectMenu({ onClose, anchor, onMouseEnter, onMouseLeave }: 
       <div className="menu-title">{t("ws.newProject")}</div>
       {PROJECT_KINDS.map((k) => (
         <button key={k.cmd} role="menuitem" onClick={() => (onClose(), runCommand(k.cmd))}>
-          <span className="pm-icon">{k.icon}</span>
+          <span className="pm-icon"><Icon name={k.icon} size={18} /></span>
           <span>
             <b>{k.name}</b>
             <small>{t(k.meaning)}</small>
@@ -91,7 +92,7 @@ export function AuraMenu({ onClose, anchor }: { onClose: () => void; anchor: DOM
       <div className="aura-list">
         {AMBIENCES.map((a) => (
           <button key={a} className={ambience === a ? "on" : ""} onClick={() => setAmbience(a)}>
-            {AMBIENCE_ICON[a]} {t(`ws.amb.${a}`)}
+            <Icon name={AMBIENCE_ICON[a]} /> {t(`ws.amb.${a}`)}
           </button>
         ))}
       </div>
@@ -106,7 +107,7 @@ export function AuraMenu({ onClose, anchor }: { onClose: () => void; anchor: DOM
   );
 }
 
-const AMBIENCE_ICON: Record<Ambience, string> = { off: "🔇", rain: "🌧", clock: "🕰", night: "🌙", fire: "🔥" };
+const AMBIENCE_ICON: Record<Ambience, IconName> = { off: "volume-off", rain: "cloud-rain", clock: "clock", night: "moon", fire: "flame" };
 
 /** Not sayfasının üst çubuğundaki stüdyo düğmeleri. */
 export function StudioToolbar({ comments, onComments, onHistory }: { comments: number; onComments: () => void; onHistory: () => void }) {
@@ -118,20 +119,20 @@ export function StudioToolbar({ comments, onComments, onHistory }: { comments: n
   return (
     <div className="studio-toolbar" role="toolbar" aria-label={t("ws.studio")}>
       <button className="icon-btn" title={termTip("Marginalia", "gloss.marginalia", "⌥⌘M")} onClick={onComments}>
-        ✎{comments > 0 && <span className="tb-badge">{comments}</span>}
+        <Icon name="message-circle" />{comments > 0 && <span className="tb-badge">{comments}</span>}
       </button>
       <button className="icon-btn" title={termTip("Epoch", "gloss.epoch", "⌥⌘S")} onClick={() => (runCommand("note.checkpoint"), onHistory())}>
-        ⚑
+        <Icon name="flag" />
       </button>
       <button className="icon-btn" title={termTip("Diptych", "gloss.diptych")} onClick={() => runCommand("split.open")}>
-        ◫
+        <Icon name="layout-columns" />
       </button>
       <button className={`icon-btn ${timerOpen ? "on" : ""}`} title={termTip("Clepsydra", "gloss.clepsydra", "⌥⌘P")} onClick={() => runCommand("timer.toggle")}>
-        ⧗
+        <Icon name="hourglass" />
       </button>
       <div className="rel">
         <button data-menu-trigger className={`icon-btn ${auraOn ? "on" : ""}`} title={termTip("Aura", "gloss.aura")} onClick={(e) => setAura(aura ? null : e.currentTarget.getBoundingClientRect())}>
-          ♪
+          <Icon name="music" />
         </button>
         {aura && <AuraMenu anchor={aura} onClose={() => setAura(null)} />}
       </div>

@@ -122,7 +122,7 @@ function NoteEmbed({ note, heading }: { note: NodeMeta; heading: string | null }
     api.read(note.id).then(
       (d) => {
         if (!live) return;
-        if (d.locked) return setHtml(`<p>🔒 ${t("ob.embedLocked")}</p>`);
+        if (d.locked) return setHtml(`<p class="embed-locked">${t("ob.embedLocked")}</p>`);
         const body = heading ? (headingSection(d.body, heading) ?? "") : d.body;
         setHtml(safeHtml(toEditorMarkdown(body, d.path)));
       },

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { t } from "../i18n/index.ts";
 import { findKey, replaceMatches, setFind } from "./notes-extensions.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 export function FindBar({ editor, replace: showReplace, onClose, onToast }: { editor: Editor; replace: boolean; onClose: () => void; onToast?: (m: string) => void }) {
   const initial = findKey.getState(editor.state);
@@ -68,7 +69,7 @@ export function FindBar({ editor, replace: showReplace, onClose, onToast }: { ed
     <div className="find-bar" onKeyDown={(e) => e.key === "Escape" && (e.preventDefault(), close())}>
       <div className="find-row">
         <button className="icon-btn" onClick={() => setReplaceOpen((v) => !v)} title={t("cmd.findReplace")}>
-          {replaceOpen ? "▾" : "▸"}
+          <Icon name={replaceOpen ? "chevron-down" : "chevron-right"} size={13} />
         </button>
         <input
           ref={input}
@@ -84,10 +85,10 @@ export function FindBar({ editor, replace: showReplace, onClose, onToast }: { ed
         />
         <span className="find-count">{query ? (state.matches.length ? t("find.count", { i: state.index + 1, n: state.matches.length }) : t("find.none")) : ""}</span>
         <button className="icon-btn" onClick={() => go(-1)} title={t("cmd.findPrev")} disabled={!state.matches.length}>
-          ↑
+          <Icon name="arrow-up" />
         </button>
         <button className="icon-btn" onClick={() => go(1)} title={t("cmd.findNext")} disabled={!state.matches.length}>
-          ↓
+          <Icon name="arrow-down" />
         </button>
         <button className={`icon-btn ${caseSensitive ? "on" : ""}`} onClick={() => setCase((v) => !v)} title={t("find.case")}>
           Aa
@@ -96,7 +97,7 @@ export function FindBar({ editor, replace: showReplace, onClose, onToast }: { ed
           ç=c
         </button>
         <button className="icon-btn" onClick={close} title={t("find.close")}>
-          ✕
+          <Icon name="x" />
         </button>
       </div>
       {replaceOpen && (

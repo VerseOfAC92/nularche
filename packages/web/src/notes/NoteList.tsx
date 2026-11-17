@@ -7,6 +7,8 @@ import { registerCommand } from "../commands.ts";
 import { fileUrl } from "../editor/paths.ts";
 import { getLang, locale, t } from "../i18n/index.ts";
 import { usePref } from "../prefs.ts";
+import { Icon } from "../ui/Icon.tsx";
+import { EmptyState } from "../ui/EmptyState.tsx";
 
 export type SortKey = "edited" | "created" | "title";
 
@@ -59,7 +61,7 @@ export interface NoteListProps {
   /** Görünüm ayarlarının saklandığı anahtar (ör. "all", "tag:iş"). */
   listKey: string;
   title: ReactNode;
-  icon?: string;
+  icon?: ReactNode;
   notes: NodeMeta[];
   nodes: NodeMeta[];
   actions?: ReactNode;
@@ -112,7 +114,7 @@ export function NoteList(props: NoteListProps) {
       <span className="note-meta">
         <span>{date}</span>
         {where(n) && <span className="note-where">{where(n)}</span>}
-        {n.todos > 0 && <span>☑ {t("list.todos", { done: n.done, n: n.todos })}</span>}
+        {n.todos > 0 && <span className="meta-icon"><Icon name="checkbox" size={13} /> {t("list.todos", { done: n.done, n: n.todos })}</span>}
       </span>
     );
     const tags = n.tags.length > 0 && (
@@ -133,8 +135,8 @@ export function NoteList(props: NoteListProps) {
     );
     const title = (
       <span className="note-title">
-        {n.pinned && <span title={t("list.pinned")}>📌 </span>}
-        {n.locked && <span title={t("list.locked")}>🔒 </span>}
+        {n.pinned && <span className="meta-icon" title={t("list.pinned")}><Icon name="pin" size={13} /></span>}
+        {n.locked && <span className="meta-icon" title={t("list.locked")}><Icon name="lock" size={13} /></span>}
         {n.icon ? `${n.icon} ` : ""}
         {n.title}
       </span>
@@ -143,7 +145,7 @@ export function NoteList(props: NoteListProps) {
       return (
         <button key={n.id} className="note-card" onClick={() => props.onOpen(n.id)}>
           <span className="note-thumb">
-            {n.image ? <img src={fileUrl(n.image)} alt="" loading="lazy" /> : <span className="note-thumb-text">{n.locked ? "🔒" : n.excerpt.slice(0, 140)}</span>}
+            {n.image ? <img src={fileUrl(n.image)} alt="" loading="lazy" /> : <span className="note-thumb-text">{n.locked ? <Icon name="lock" size={22} /> : n.excerpt.slice(0, 140)}</span>}
           </span>
           {title}
           {meta}
@@ -184,10 +186,10 @@ export function NoteList(props: NoteListProps) {
           {props.actions}
           <div className="segmented small">
             <button className={view.mode === "list" ? "on" : ""} onClick={() => setView({ mode: "list" })} title={t("list.asList")}>
-              ☰
+              <Icon name="list" />
             </button>
             <button className={view.mode === "gallery" ? "on" : ""} onClick={() => setView({ mode: "gallery" })} title={t("list.asGallery")}>
-              ▦
+              <Icon name="layout-grid" />
             </button>
           </div>
           {!props.fixedOrder && (
@@ -209,15 +211,15 @@ export function NoteList(props: NoteListProps) {
           )}
           {!props.fixedOrder && view.sort !== "title" && (
             <button className={`secondary ${view.group ? "on" : ""}`} onClick={() => setView({ group: !view.group })} title={t("list.groupByDate")}>
-              🗓
+              <Icon name="calendar" />
             </button>
           )}
           <button className={`secondary ${showCount ? "on" : ""}`} onClick={() => setShowCount(!showCount)} title={t("list.showCount")}>
-            #
+            <Icon name="hash" />
           </button>
         </div>
       </div>
-      {props.notes.length === 0 && <p className="muted empty-list">{props.empty ?? t("list.empty")}</p>}
+      {props.notes.length === 0 && <EmptyState icon="notes" text={props.empty ?? t("list.empty")} />}
       {section(t("list.pinned"), pinned)}
       {groups.map((g) => section(g.label, g.notes))}
     </div>

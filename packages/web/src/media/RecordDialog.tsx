@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.ts";
 import { t } from "../i18n/index.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 type Phase = "idle" | "recording" | "paused" | "saving" | "error";
 
@@ -116,7 +117,7 @@ export function RecordDialog({ onDone }: { onDone: (path: string | null) => void
     <div className="overlay" onMouseDown={phase === "idle" || phase === "error" ? cancel : undefined}>
       <div className="dialog small-dialog record-dialog" onMouseDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === "Escape" && cancel()}>
         <header>
-          <h2>🎙 {t("rec.title")}</h2>
+          <h2 className="dialog-title"><Icon name="microphone" size={20} /> {t("rec.title")}</h2>
         </header>
         <div className={`rec-meter ${phase}`}>
           <span className="rec-dot" style={{ transform: `scale(${1 + level * 1.6})` }} />

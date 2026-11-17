@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { desktop, type CalendarErrorCode, type CalendarLinkStatus, type CalendarProviderId, type CalendarStatus } from "../desktop.ts";
 import { locale, t, type StringKey } from "../i18n/index.ts";
 import type { Database, View } from "../database/model.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 const PROVIDERS: CalendarProviderId[] = ["google", "apple"];
 const providerName = (p: CalendarProviderId) => t(`cal.provider.${p}` as StringKey);
@@ -146,7 +147,7 @@ export function CalendarAccounts({ onToast, titleOf }: { onToast: (msg: string) 
           <div key={p} className={`auto-box ${account ? "on" : ""}`} data-testid={`cal-${p}`}>
             <div className="auto-head">
               <span className={account ? "ok" : ""}>
-                {account ? "✓ " : ""}
+                {account ? <Icon name="check" size={14} /> : null}
                 {providerName(p)}
               </span>
               {account && <span className="pill">{account}</span>}

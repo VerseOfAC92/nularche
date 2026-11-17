@@ -157,10 +157,12 @@ try {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NULARCHE_ORIGIN: origin } as Record<string, string>,
     }),
   );
-  await page.getByText("✓ ChatGPT bağlandı").first().waitFor({ timeout: 10_000 });
+  await page.getByText("ChatGPT bağlandı").first().waitFor({ timeout: 10_000 });
   await shot("4-baglandi");
   await page.getByRole("button", { name: "İleri" }).click();
   await page.getByRole("button", { name: "Başla" }).click();
+  // Sihirbaz bitince AI paneli kendiliğinden açılmaz (karşılama ekranını kapatmaz); sağ alttaki düğmeyle açılır.
+  await page.locator(".nai-fab").click();
   await page.locator(".nai-panel").waitFor();
   await shot("5-nularche-ai");
   await client.close();
@@ -172,7 +174,7 @@ try {
   await page.getByRole("tab", { name: "Yapay zekâ" }).click();
   await page.getByPlaceholder(/Anahtarı buraya yapıştırın/).fill("AIza-test-anahtari");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
-  await page.getByText("✓ Otomatik mod açık").waitFor({ timeout: 10_000 });
+  await page.getByText("Otomatik mod açık").waitFor({ timeout: 10_000 });
   await shot("6-otomatik-mod");
   await page.keyboard.press("Escape");
   await page
@@ -291,14 +293,14 @@ try {
   // Çöp: veritabanını sil, Çöp'te gör, geri getir. (Nularche AI penceresi menüyü örtmesin diye küçültülür.)
   if (await page.locator(".nai-panel").count()) await page.locator(".nai-panel .icon-btn").last().click();
   page.once("dialog", (d) => void d.accept());
-  await page.locator(".topbar .icon-btn", { hasText: "⋯" }).click();
+  await page.locator(".topbar .icon-btn[title=\"More\"], .topbar .icon-btn[title=\"Diğer\"]").click();
   await page.locator(".menu-pop button.danger").click();
   await page.locator(".side-btn", { hasText: "Trash" }).click();
   await page.locator(".trash-row", { hasText: "Task board" }).waitFor({ timeout: 5_000 });
   assert.match((await page.locator(".trash-row", { hasText: "Task board" }).textContent()) ?? "", /subpages/);
   await shot("14-cop");
   await page.locator(".trash-row", { hasText: "Task board" }).getByRole("button", { name: /Restore/ }).click();
-  await page.locator(".trash-none").waitFor({ timeout: 5_000 });
+  await page.locator(".trash-page .empty-state").waitFor({ timeout: 5_000 });
   const restored = await page.evaluate(async () => (await (await fetch("/api/nodes")).json()).nodes.filter((n: { title: string }) => n.title === "Task board" || n.title === "E2E satırı").map((n: { path: string }) => n.path));
   assert.equal(restored.length, 2, `geri gelenler: ${restored}`);
 

@@ -5,6 +5,7 @@ import { mergeAttributes, Node, type MarkdownToken } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import { createContext, useContext, useState } from "react";
 import { t } from "../i18n/index.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 export interface MediaHost {
   /** Ses dosyasını yazıya döker ya da özetler; Markdown metni döndürür (vazgeçilir ya da yapılamazsa null). */
@@ -44,7 +45,7 @@ function AudioView({ node, editor, getPos, selected }: NodeViewProps) {
   return (
     <NodeViewWrapper className={`media-block audio-block ${selected ? "selected" : ""}`} contentEditable={false} data-drag-handle="">
       <div className="media-head">
-        <span>🎙 {name}</span>
+        <span><Icon name="microphone" size={14} /> {name}</span>
         {host && (
           <span className="media-actions">
             <button disabled={!!busy} onClick={() => run("transcript")}>
@@ -73,7 +74,7 @@ function DrawingView({ node, updateAttributes, selected }: NodeViewProps) {
       <img src={src} alt="" onDoubleClick={edit} draggable={false} />
       {host && (
         <button className="drawing-edit" onClick={edit}>
-          ✎ {t("media.editDrawing")}
+          <Icon name="pencil" size={14} /> {t("media.editDrawing")}
         </button>
       )}
     </NodeViewWrapper>

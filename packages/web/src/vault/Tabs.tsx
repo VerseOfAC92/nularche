@@ -2,9 +2,12 @@
 // gezinme etkin sekmenin adresini değiştirir. Sekmeler ve kaydedilen çalışma alanları Origin tercihlerinde tutulur.
 // Ctrl+Tab / Ctrl+Shift+Tab sekmeler arasında dolaşır.
 
+import type { ReactNode } from "react";
 import { useEffect } from "react";
 import type { NodeMeta } from "../api.ts";
 import { t } from "../i18n/index.ts";
+import { Icon, type IconName } from "../ui/Icon.tsx";
+import { nodeIconName } from "../ui/node-icon.ts";
 
 export interface TabState {
   hashes: string[];
@@ -14,21 +17,21 @@ export interface TabState {
 export const EMPTY_TABS: TabState = { hashes: [""], active: 0 };
 
 /** Sekme başlığı: notun adı ya da görünümün adı. */
-function label(hash: string, nodes: NodeMeta[]): { icon: string; text: string } {
+function label(hash: string, nodes: NodeMeta[]): { icon: ReactNode; text: string } {
   const h = decodeURIComponent(hash.replace(/^#/, ""));
-  if (!h) return { icon: "⌂", text: "Nularche" };
-  const named: Record<string, [string, string]> = {
-    graph: ["🕸", t("ob.graph")],
-    notes: ["🗒", t("list.allNotes")],
-    recent: ["🕘", t("list.recent")],
-    attachments: ["📎", t("att.title")],
-    shadow: ["◐", "Shadow"],
-    trash: ["🗑", t("trash.title")],
+  if (!h) return { icon: <Icon name="building-bank" size={14} />, text: "Atrium" };
+  const named: Record<string, [IconName, string]> = {
+    graph: ["graph", t("ob.graph")],
+    notes: ["notes", t("list.allNotes")],
+    recent: ["clock", t("list.recent")],
+    attachments: ["paperclip", t("att.title")],
+    shadow: ["circle-half-2", "Shadow"],
+    trash: ["trash", t("trash.title")],
   };
-  if (named[h]) return { icon: named[h][0], text: named[h][1] };
-  if (h.startsWith("tag:")) return { icon: "#", text: h.slice(4) };
+  if (named[h]) return { icon: <Icon name={named[h][0]} size={14} />, text: named[h][1] };
+  if (h.startsWith("tag:")) return { icon: <Icon name="hash" size={14} />, text: h.slice(4) };
   const n = nodes.find((x) => x.id === h);
-  return n ? { icon: n.icon ?? (n.layoutMode === "canvas" ? "🧩" : "◇"), text: n.title } : { icon: "◇", text: "…" };
+  return n ? { icon: n.icon ?? <Icon name={nodeIconName(n)} size={14} />, text: n.title } : { icon: <Icon name="file" size={14} />, text: "…" };
 }
 
 export function TabBar({ tabs, nodes, onSelect, onClose, onNew }: { tabs: TabState; nodes: NodeMeta[]; onSelect: (i: number) => void; onClose: (i: number) => void; onNew: () => void }) {

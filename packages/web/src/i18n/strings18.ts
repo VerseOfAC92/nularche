@@ -241,6 +241,8 @@ export const STRINGS_18 = {
   "ws.font.elegant": { tr: "zarif", en: "elegant" },
   "ws.font.screenplay": { tr: "senaryo", en: "screenplay" },
   "ws.font.typewriter": { tr: "daktilo", en: "typewriter" },
+  "ws.writingSize": { tr: "Varsayılan yazı boyutu", en: "Default text size" },
+  "ws.resetSize": { tr: "Varsayılana dön", en: "Reset" },
   "ws.font.nularche": { tr: "Nularche'nin kendi el yazısı", en: "Nularche's own handwriting" },
   "ws.wikiMentionsSetting": { tr: "Lore girdilerinin adlarını notlarda işaretle", en: "Mark Lore entry names in notes" },
   "ws.soundTitle": { tr: "Aura (sesler)", en: "Aura (sound and ambience)" },

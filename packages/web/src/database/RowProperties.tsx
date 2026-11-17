@@ -7,6 +7,7 @@ import { Cell } from "./Cell.tsx";
 import { addProperty, PROPERTY_TYPES, toRow, useDatabaseModel, writeSchema, type Database, type DatabaseActions } from "./model.ts";
 import { Popover } from "./Popover.tsx";
 import { PropertyMenu, TYPE_ICON, typeLabel } from "./PropertyMenu.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 export function RowProperties({
   row,
@@ -62,7 +63,7 @@ export function RowProperties({
       {model.db.properties.map((p) => (
         <div key={p.id} className="row-prop">
           <button className="row-prop-name" onClick={(e) => setMenu({ id: p.id, anchor: e.currentTarget })}>
-            <span className="type-icon">{TYPE_ICON[p.type]}</span> {p.name}
+            <span className="type-icon"><Icon name={TYPE_ICON[p.type]} size={14} /></span> {p.name}
           </button>
           <Cell model={model} actions={actions} prop={p} row={r} className="row-prop-value" />
         </div>
@@ -87,7 +88,7 @@ export function RowProperties({
                       setMenu(null);
                     }}
                   >
-                    <span className="type-icon">{TYPE_ICON[ty]}</span> {typeLabel(ty)}
+                    <span className="type-icon"><Icon name={TYPE_ICON[ty]} size={14} /></span> {typeLabel(ty)}
                   </button>
                 ))}
               </div>

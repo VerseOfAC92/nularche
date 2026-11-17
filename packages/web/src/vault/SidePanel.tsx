@@ -6,11 +6,12 @@ import type { Editor as TiptapEditor } from "@tiptap/react";
 import { api, type MentionHit, type NodeMeta } from "../api.ts";
 import { getActiveEditor } from "../commands.ts";
 import { headings } from "../editor/notes-extensions.ts";
-import { t, ago } from "../i18n/index.ts";
+import { t, ago, locale } from "../i18n/index.ts";
 import { GraphView } from "./GraphView.tsx";
 import { CommentsPanel } from "../studio/Comments.tsx";
 import { DiffView } from "../studio/DiffView.tsx";
 import { askText } from "../ask.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 export type PanelTab = "outline" | "links" | "graph" | "history" | "comments";
 
@@ -52,7 +53,7 @@ export function SidePanel({
         ))}
         <span className="grow" />
         <button className="icon-btn" onClick={onClose} title={t("common.close")}>
-          ✕
+          <Icon name="x" />
         </button>
       </div>
       <div className="side-panel-body">
@@ -220,7 +221,7 @@ function History({ id, changeTick, onToast }: { id: string; changeTick: number; 
     <div className="history-panel">
       <div className="row">
         <button className="secondary small-btn" onClick={() => void checkpoint()}>
-          ⚑ {t("ws.checkpoint")}
+          <Icon name="flag" /> {t("ws.checkpoint")}
         </button>
         <span className="muted small">{t("ws.checkpointCount", { n: checkpoints, max: 30 })}</span>
       </div>
@@ -234,7 +235,7 @@ function History({ id, changeTick, onToast }: { id: string; changeTick: number; 
               setPreview({ at: e.at, body: await api.historyBody(id, e.at) });
             }}
           >
-            {e.label ? `⚑ ${e.label}` : "🕘"} <span className="muted small">{e.label ? `· ${new Date(e.at).toLocaleString()}` : `${new Date(e.at).toLocaleString()} · ${ago(e.at)}`}</span>
+            <Icon name={e.label ? "flag" : "clock"} size={14} /> {e.label ?? ""} <span className="muted small">{e.label ? `· ${new Date(e.at).toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" })}` : `${new Date(e.at).toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" })} · ${ago(e.at)}`}</span>
           </button>
           {e.label && (
             <button
@@ -247,7 +248,7 @@ function History({ id, changeTick, onToast }: { id: string; changeTick: number; 
                 setTick((x) => x + 1);
               }}
             >
-              ✕
+              <Icon name="x" />
             </button>
           )}
         </div>
@@ -259,7 +260,7 @@ function History({ id, changeTick, onToast }: { id: string; changeTick: number; 
               {t("ws.previewVersion")}
             </button>
             <button className={`secondary small-btn ${current !== null ? "on" : ""}`} onClick={async () => setCurrent((await api.read(id)).body)}>
-              ⇄ {t("ws.compareCurrent")}
+              <Icon name="arrows-diff" /> {t("ws.compareCurrent")}
             </button>
           </div>
           {current !== null ? <DiffView before={preview.body} after={current} /> : <pre>{preview.body}</pre>}

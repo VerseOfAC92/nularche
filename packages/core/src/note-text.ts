@@ -78,6 +78,7 @@ export function plainText(body: string): string {
   if (isLockedBody(body)) return "";
   // Bağlantılı not sözdizimi önce sadeleşir: yorumlar atılır, [[wiki]] bağlantıları görünen adlarına iner.
   return exportableMarkdown(body)
+    .replace(/^(```|~~~)json[ \t]+(whiteboard|canvas|manuscript|outline|cards|database)[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, "")
     .replace(/^(```|~~~)[^\n]*\n([\s\S]*?)^\1[ \t]*$/gm, "$2")
     .replace(/^@\[(youtube|database|audio|drawing)\]\([^)]*\)[ \t]*$/gm, "")
     .replace(/<\/?(details|summary|div|span|sup|sub|u|mark|br)\b[^>]*>/gi, " ")

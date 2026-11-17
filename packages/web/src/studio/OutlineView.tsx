@@ -10,6 +10,7 @@ import { NotePicker } from "../vault/Palettes.tsx";
 import { MAX_OUTLINE_DEPTH, newWritingId, type OutlineRow } from "../../../core/src/writing.ts";
 import { colorOf, useWriting } from "./useWriting.ts";
 import { ColorDots } from "./ui.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX"];
 const alpha = (n: number, upper: boolean) => {
@@ -164,7 +165,7 @@ export function OutlineView({
           {t("cmd.unfoldAll")}
         </button>
         <button className="secondary" onClick={() => void copyMarkdown()}>
-          ⧉ {t("ws.copyMarkdown")}
+          <Icon name="copy" /> {t("ws.copyMarkdown")}
         </button>
       </div>
       <p className="muted small ws-hint">{t("ws.outlineHint")}</p>
@@ -176,7 +177,7 @@ export function OutlineView({
           return (
             <div key={r.id} className={`outline-row depth-${Math.min(r.depth, 5)} ${r.done ? "done" : ""}`} style={{ paddingLeft: 8 + r.depth * 26, borderLeftColor: colorOf(r.color) ?? "transparent" }}>
               <button className="fold-btn" style={{ visibility: hasKids ? "visible" : "hidden" }} onClick={() => setCollapsed((s) => (s.has(r.id) ? (s.delete(r.id), new Set(s)) : new Set(s.add(r.id))))}>
-                {collapsed.has(r.id) ? "▸" : "▾"}
+                <Icon name={collapsed.has(r.id) ? "chevron-right" : "chevron-down"} size={13} />
               </button>
               {numbers && <span className="outline-num">{nums[i]}</span>}
               <input type="checkbox" className="outline-done" checked={!!r.done} onChange={(e) => patch(r.id, { done: e.target.checked || undefined })} title={t("ws.markDone")} />
@@ -206,7 +207,7 @@ export function OutlineView({
               </div>
               {linked && (
                 <a className="outline-link" onClick={() => onOpen(linked.id)} data-path={linked.path} title={t("ws.openLinked")}>
-                  {linked.icon ?? "📄"} {linked.title}
+                  {linked.icon ?? <Icon name="file" size={15} />} {linked.title}
                 </a>
               )}
               <div className="outline-actions">
@@ -227,10 +228,10 @@ export function OutlineView({
                 ) : (
                   <>
                     <button className="icon-btn" title={t("ws.linkNote")} onClick={() => setLinkFor(r.id)}>
-                      🔗
+                      <Icon name="link" />
                     </button>
                     <button className="icon-btn" title={t("ws.createNoteFromRow")} onClick={() => void createNote(r)}>
-                      ✎
+                      <Icon name="pencil" />
                     </button>
                   </>
                 )}
@@ -238,7 +239,7 @@ export function OutlineView({
                   ¶
                 </button>
                 <button className="icon-btn" title={t("common.remove")} onClick={() => remove(i)}>
-                  ✕
+                  <Icon name="x" />
                 </button>
               </div>
             </div>

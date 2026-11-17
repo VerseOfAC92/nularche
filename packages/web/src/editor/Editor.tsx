@@ -26,6 +26,8 @@ import { foldKey, headings, setFind, findKey, setFolded, type MathMode } from ".
 import { copyAsMarkdown, pasteAsMarkdown } from "./text-tools.ts";
 import { RecordDialog } from "../media/RecordDialog.tsx";
 import { DrawingDialog } from "../media/DrawingDialog.tsx";
+import { Glyph, Icon, type IconName } from "../ui/Icon.tsx";
+import { addContextItems } from "../contextMenu.ts";
 
 interface Command {
   label: string;
@@ -50,19 +52,19 @@ interface CommandContext {
 export type ProjectKind = "manuscript" | "outline" | "cards" | "wiki" | "whiteboard";
 /** "/" menüsündeki yazma projeleri: tür, simge, Nularche adı, anlamı ve arama sözcükleri. */
 const STUDIO_ITEMS: [ProjectKind, string, string, StringKey, string][] = [
-  ["manuscript", "📕", "Codex", "gloss.codex", "codex manuskript manuscript kitap book roman"],
-  ["outline", "🗂", "Axis", "gloss.axis", "axis taslak outline plan"],
-  ["cards", "🗃", "Mosaic", "gloss.mosaic", "mosaic kart card pano corkboard sahne"],
-  ["wiki", "📚", "Lore", "gloss.lore", "lore wiki karakter mekan story bible"],
-  ["whiteboard", "🎨", "Tabula", "gloss.tabula", "tabula whiteboard beyaz tahta çizim draw diagram şema akış flowchart"],
+  ["manuscript", "book", "Codex", "gloss.codex", "codex manuskript manuscript kitap book roman"],
+  ["outline", "list-tree", "Axis", "gloss.axis", "axis taslak outline plan"],
+  ["cards", "layout-grid", "Mosaic", "gloss.mosaic", "mosaic kart card pano corkboard sahne"],
+  ["wiki", "books", "Lore", "gloss.lore", "lore wiki karakter mekan story bible"],
+  ["whiteboard", "chalkboard", "Tabula", "gloss.tabula", "tabula whiteboard beyaz tahta çizim draw diagram şema akış flowchart"],
 ];
 
 const CALLOUT_LABELS: Record<CalloutKind, [StringKey, string]> = {
-  note: ["ed.callout.note", "ℹ️"],
-  tip: ["ed.callout.tip", "💡"],
-  important: ["ed.callout.important", "❗"],
-  warning: ["ed.callout.warning", "⚠️"],
-  caution: ["ed.callout.caution", "⛔"],
+  note: ["ed.callout.note", "info-circle"],
+  tip: ["ed.callout.tip", "bulb"],
+  important: ["ed.callout.important", "alert-circle"],
+  warning: ["ed.callout.warning", "alert-triangle"],
+  caution: ["ed.callout.caution", "alert-octagon"],
 };
 
 const commands = (): Command[] => [
@@ -118,7 +120,7 @@ const commands = (): Command[] => [
     group: t("ed.g.basic"),
     label: t("ed.c.todo"),
     hint: t("ed.c.todoHint"),
-    icon: "☑",
+    icon: "checkbox",
     keywords: "todo yapilacak gorev task checkbox",
     run: (e) => void e.chain().focus().toggleTaskList().run(),
   },
@@ -142,7 +144,7 @@ const commands = (): Command[] => [
     group: t("ed.g.basic"),
     label: t("ed.c.quote"),
     hint: t("ed.c.quoteHint"),
-    icon: "❝",
+    icon: "quote",
     keywords: "quote alinti",
     run: (e) => void e.chain().focus().toggleBlockquote().run(),
   },
@@ -223,7 +225,7 @@ const commands = (): Command[] => [
     group: t("ws.studio"),
     label: "Epoch",
     hint: t("gloss.epoch"),
-    icon: "⚑",
+    icon: "flag",
     keywords: "epoch checkpoint kontrol noktasi surum version gecmis",
     run: () => void runCommand("note.checkpoint"),
   },
@@ -247,7 +249,7 @@ const commands = (): Command[] => [
     group: t("ed.g.media"),
     label: t("ed.c.image"),
     hint: t("ed.c.imageHint"),
-    icon: "🖼",
+    icon: "photo",
     keywords: "image resim gorsel foto",
     run: async (e, ctx) => {
       const f = await ctx.pickFile("image/*");
@@ -258,7 +260,7 @@ const commands = (): Command[] => [
     group: t("ed.g.media"),
     label: t("ed.c.file"),
     hint: t("ed.c.fileHint"),
-    icon: "📎",
+    icon: "paperclip",
     keywords: "file dosya ek pdf",
     run: async (e, ctx) => {
       const f = await ctx.pickFile("*/*");
@@ -269,7 +271,7 @@ const commands = (): Command[] => [
     group: t("ed.g.media"),
     label: t("cmd.recordAudio"),
     hint: t("rec.title"),
-    icon: "🎙",
+    icon: "microphone",
     keywords: "ses kayit audio record mikrofon voice",
     run: (_e, ctx) => ctx.record(),
   },
@@ -277,7 +279,7 @@ const commands = (): Command[] => [
     group: t("ed.g.media"),
     label: t("cmd.drawing"),
     hint: t("draw.title"),
-    icon: "✎",
+    icon: "brush",
     keywords: "cizim drawing sketch ciz kalem",
     run: (_e, ctx) => ctx.draw(),
   },
@@ -398,7 +400,7 @@ export function Editor(props: EditorProps) {
           const { path } = await api.upload(file);
           const content = file.type.startsWith("image/")
             ? { type: "image", attrs: { src: fileUrl(path), alt: file.name } }
-            : { type: "paragraph", content: [{ type: "text", text: `📎 ${file.name}`, marks: [{ type: "link", attrs: { href: fileUrl(path) } }] }] };
+            : { type: "paragraph", content: [{ type: "text", text: file.name, marks: [{ type: "link", attrs: { href: fileUrl(path) } }] }] };
           if (pos !== undefined) e.chain().focus().insertContentAt(pos, content).run();
           else e.chain().focus().insertContent(content).run();
         } catch (err) {
@@ -741,7 +743,21 @@ export function Editor(props: EditorProps) {
       )}
       <MediaHostContext.Provider value={mediaHost}>
         <VaultHostContext.Provider value={vaultHost}>
-          <EditorContent editor={editor} />
+          <EditorContent
+            editor={editor}
+            onContextMenu={() => {
+              if (!editor) return;
+              const hasSel = !editor.state.selection.empty;
+              const fmt = (cmd: string, key: StringKey, mark: string) => ({ label: t(key), checked: editor.isActive(mark), enabled: hasSel, run: () => runCommand(cmd) });
+              addContextItems([
+                ...(hasSel
+                  ? [fmt("fmt.bold", "keys.bold", "bold"), fmt("fmt.italic", "keys.italic", "italic"), fmt("fmt.underline", "keys.underline", "underline"), fmt("fmt.strike", "ed.strike", "strike"), fmt("fmt.highlight", "ed.highlight", "highlight"), "separator" as const]
+                  : []),
+                { label: t("cmd.link"), run: () => runCommand("link.edit") },
+                { label: `Marginalia — ${t("ws.addComment")}`, enabled: hasSel, run: () => runCommand("comment.add") },
+              ]);
+            }}
+          />
         </VaultHostContext.Provider>
       </MediaHostContext.Provider>
       {trigger && items.length > 0 && (
@@ -760,7 +776,7 @@ export function Editor(props: EditorProps) {
                   }}
                   onMouseEnter={() => setActive(i)}
                 >
-                  <span className="ico">{c.icon}</span>
+                  <span className="ico"><Glyph icon={c.icon} /></span>
                   <span>
                     {c.label}
                     <small>{c.hint}</small>
@@ -783,11 +799,11 @@ const STYLES: [StringKey, string, (e: TiptapEditor) => void, (e: TiptapEditor) =
   ["cmd.styleMono", "M", (e) => e.chain().focus().toggleCodeBlock().run(), (e) => e.isActive("codeBlock")],
 ];
 
-const ALIGNS: ["left" | "center" | "right" | "justify", StringKey, string][] = [
-  ["left", "cmd.alignLeft", "⇤"],
-  ["center", "cmd.alignCenter", "↔"],
-  ["right", "cmd.alignRight", "⇥"],
-  ["justify", "cmd.alignJustify", "☰"],
+const ALIGNS: ["left" | "center" | "right" | "justify", StringKey, IconName][] = [
+  ["left", "cmd.alignLeft", "align-left"],
+  ["center", "cmd.alignCenter", "align-center"],
+  ["right", "cmd.alignRight", "align-right"],
+  ["justify", "cmd.alignJustify", "align-justified"],
 ];
 
 function FormatBar({ editor, onLink }: { editor: TiptapEditor; onLink: () => void }) {
@@ -813,7 +829,7 @@ function FormatBar({ editor, onLink }: { editor: TiptapEditor; onLink: () => voi
             }}
           />
         ))}
-        <button onClick={() => setPanel(null)}>✕</button>
+        <button onClick={() => setPanel(null)}><Icon name="x" size={14} /></button>
       </div>
     );
   }
@@ -825,7 +841,7 @@ function FormatBar({ editor, onLink }: { editor: TiptapEditor; onLink: () => voi
             <b>{icon}</b> {t(label)}
           </button>
         ))}
-        <button onClick={() => setPanel(null)}>✕</button>
+        <button onClick={() => setPanel(null)}><Icon name="x" size={14} /></button>
       </div>
     );
   }
@@ -835,7 +851,7 @@ function FormatBar({ editor, onLink }: { editor: TiptapEditor; onLink: () => voi
       <div className="bubble">
         {ALIGNS.map(([value, label, icon]) => (
           <button key={value} className={current === value ? "on" : ""} title={t(label)} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign(value).run()}>
-            {icon}
+            <Icon name={icon} size={15} />
           </button>
         ))}
         <span className="sep" />
@@ -848,7 +864,7 @@ function FormatBar({ editor, onLink }: { editor: TiptapEditor; onLink: () => voi
         <button title={t("cmd.dirRtl")} onMouseDown={(e) => e.preventDefault()} onClick={() => editor.chain().focus().setTextDirection(editor.getAttributes("paragraph").dir === "rtl" ? "ltr" : "rtl").run()}>
           ⇄
         </button>
-        <button onClick={() => setPanel(null)}>✕</button>
+        <button onClick={() => setPanel(null)}><Icon name="x" size={14} /></button>
       </div>
     );
   }
@@ -876,7 +892,7 @@ function FormatBar({ editor, onLink }: { editor: TiptapEditor; onLink: () => voi
       {mark("link", t("ed.g.link"), `${t("cmd.link")} (${keys("Mod+L")})`, onLink)}
       <span className="sep" />
       <button title={`Marginalia (${keys("Mod+Alt+M")}) — ${t("gloss.marginalia")}`} onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("comment.add")}>
-        ✎ Marginalia
+        <Icon name="message-circle" size={14} /> Marginalia
       </button>
     </div>
   );

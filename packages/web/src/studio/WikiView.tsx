@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, type NodeMeta, type WikiEntry, type WikiMention } from "../api.ts";
 import { askText } from "../ask.tsx";
 import { t } from "../i18n/index.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 export function WikiView({
   id,
@@ -51,7 +52,7 @@ export function WikiView({
     const title = (await askText(category ? t("ws.newCategoryTitle") : t("ws.newEntryTitle")))?.trim();
     if (!title) return;
     try {
-      const n = await api.create(title, parent, "", category ? { icon: "🗂" } : undefined);
+      const n = await api.create(title, parent, "");
       const parentEntry = entries?.find((e) => e.id === parent);
       if (!category && parentEntry?.wikiFields?.length) await api.update(n.id, { properties: Object.fromEntries(parentEntry.wikiFields.map((f) => [f, ""])) });
       onChanged();
@@ -87,7 +88,7 @@ export function WikiView({
               ＋ {t("ws.newEntry")}
             </button>
             <button className="secondary small-btn" onClick={() => void create(id, true)}>
-              🗂 {t("ws.newCategory")}
+              <Icon name="list-tree" /> {t("ws.newCategory")}
             </button>
           </div>
           {entries && !entries.length && <p className="muted small">{t("ws.wikiEmpty")}</p>}
@@ -101,12 +102,12 @@ export function WikiView({
                     setCollapsed((s) => (s.has(e.id) ? new Set([...s].filter((x) => x !== e.id)) : new Set([...s, e.id])));
                   }}
                 >
-                  {collapsed.has(e.id) ? "▸" : "▾"}
+                  <Icon name={collapsed.has(e.id) ? "chevron-right" : "chevron-down"} size={13} />
                 </span>
               ) : (
                 <span className="fold" />
               )}
-              <span>{e.icon ?? (e.category ? "🗂" : "◇")}</span> {e.title}
+              <span>{e.icon ?? <Icon name={e.category ? "list-tree" : "file"} size={15} />}</span> {e.title}
               {e.noMentions && <span className="muted small" title={t("ws.mentionsOff")}> ⊘</span>}
             </button>
           ))}
@@ -162,7 +163,7 @@ function EntryCard({
     <article className="wiki-card">
       <header>
         <h3>
-          {entry.icon ?? (entry.category ? "🗂" : "◇")} {entry.title}
+          {entry.icon ?? <Icon name={entry.category ? "list-tree" : "file"} size={15} />} {entry.title}
         </h3>
         <button className="primary small-btn" onClick={() => onOpen(entry.id)}>
           {t("ws.openPage")}
@@ -258,7 +259,7 @@ function EntryCard({
         mentions.map((m) => (
           <div key={m.id} className="mention-row">
             <button className="link-row" onClick={() => onOpen(m.id)}>
-              ◇ {m.title} <span className="muted small">× {m.count}</span>
+              <Icon name="file" size={14} /> {m.title} <span className="muted small">× {m.count}</span>
             </button>
             <p className="muted small">{m.snippet}</p>
           </div>
