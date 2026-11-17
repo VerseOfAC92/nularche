@@ -1,6 +1,7 @@
 // Takvim ekranı: yerel Nularche takvimi, Ayarlar'da açılan Google/Apple takvimleri ve tarih özelliği olan Nularche
 // veritabanlarının etkinlikleri Ay, Hafta ve Ajanda görünümlerinde. Takvim etkinlikleri not oluşturmaz: tıklayınca
-// düzenleme penceresi açılır ve değişiklik doğrudan takvime yazılır. Veritabanı satırına tıklamak satırı açar.
+// tüm ayrıntılarıyla (konum, toplantı bağlantısı, katılımcılar, hatırlatma, notlar) açılır; düzenleme doğrudan takvime
+// yazılır. Veritabanı satırına tıklamak satırı açar.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type NodeMeta } from "../api.ts";
@@ -12,6 +13,7 @@ import { Icon } from "../ui/Icon.tsx";
 import { EmptyState } from "../ui/EmptyState.tsx";
 import { useEscape } from "../useEscape.ts";
 import { errorText, useCalendarStatus } from "./CalendarSync.tsx";
+import { alarmLabel, EventDetail } from "./EventDetail.tsx";
 import { addDays, calendarEvents, calendarSources, dayStart, eventsOn, eventTime, eventValue, isoDay, layoutDay, weekStart, type CalEvent, type CalSource } from "./calendar-model.ts";
 
 type ViewMode = "month" | "week" | "agenda";
@@ -25,6 +27,7 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
   const [hidden, setHidden] = usePref<string[]>("calendarHidden", []);
   const [cursor, setCursor] = useState(() => dayStart(Date.now()));
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [detail, setDetail] = useState<CalEvent | null>(null);
   const [syncing, setSyncing] = useState(false);
   // Not dışı takvimler (yerel Nularche takvimi ve görüntülenen hesap takvimleri); masaüstü uygulamasında.
   const [views, setViews] = useState<ViewCalendar[]>([]);
@@ -38,12 +41,21 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
   const sources = useMemo(() => calendarSources(nodes, status?.links ?? [], views), [nodes, status, views]);
   const visible = useMemo(() => sources.filter((s) => !hidden.includes(s.key)), [sources, hidden]);
   const events = useMemo(() => calendarEvents(nodes, visible, views), [nodes, visible, views]);
-  const pick = (e: CalEvent) => {
-    if (!e.view) return onOpen(e.id);
-    const d = new Date(e.start);
+  // Takvim etkinliği ayrıntılarıyla açılır; veritabanı satırı not olarak açılır.
+  const pick = (e: CalEvent) => (e.view ? setDetail(e) : onOpen(e.id));
+  const edit = (e: CalEvent) => {
     const hm = (ms: number) => new Date(ms).toTimeString().slice(0, 5);
-    setDraft({ date: isoDay(e.start), allDay: e.allDay, start: e.allDay ? undefined : hm(e.start), end: e.allDay ? undefined : hm(e.end), edit: { event: e, title: e.title } });
-    void d;
+    setDetail(null);
+    setDraft({ date: isoDay(e.start), allDay: e.allDay, start: e.allDay ? undefined : hm(e.start), end: e.allDay ? undefined : hm(e.end), edit: e });
+  };
+  const remove = async (e: CalEvent) => {
+    const view = e.source.type === "view" ? e.source.viewId : null;
+    if (!desktop || !view || !e.view) return;
+    const res = await desktop.calendarEventDelete(view, e.view.id);
+    if (!res.ok) return onToast(errorText(res.code, res.error));
+    setDraft(null);
+    setDetail(null);
+    onToast(t("cal.deleted"));
   };
   const today = dayStart(Date.now());
 
@@ -126,22 +138,28 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
       {sources.length > 0 && view === "week" && <WeekView cursor={cursor} today={today} events={events} onOpen={pick} onNew={(day, hour) => setDraft({ date: isoDay(day), allDay: hour === null, start: hour === null ? undefined : `${String(hour).padStart(2, "0")}:00`, end: hour === null ? undefined : `${String(Math.min(23, hour + 1)).padStart(2, "0")}:00` })} />}
       {sources.length > 0 && view === "agenda" && <AgendaView from={today} events={events} onOpen={pick} />}
 
+      {detail && <EventDetail event={detail} onClose={() => setDetail(null)} onEdit={() => edit(detail)} onDelete={() => remove(detail)} />}
+
       {draft && (
         <EventDialog
           initial={draft}
           sources={sources}
           onClose={() => setDraft(null)}
-          onDelete={async (e) => {
-            const view = e.source.type === "view" ? e.source.viewId : null;
-            if (!desktop || !view || !e.view) return;
-            const res = await desktop.calendarEventDelete(view, e.view.id);
-            if (!res.ok) return onToast(errorText(res.code, res.error));
-            setDraft(null);
-            onToast(t("cal.deleted"));
-          }}
+          onDelete={remove}
           onSave={async (form, source, existing) => {
             if (source?.type === "view" && desktop) {
-              const res = await desktop.calendarEventSave(source.viewId, existing?.view?.id ?? null, { title: form.title || t("cal.untitledEvent"), when: eventTime(form) });
+              // Düzenlemede yalnızca değişen ayrıntılar gönderilir (Google'ın HTML açıklaması gibi alanlar korunur).
+              const before = existing?.view;
+              const changed = <T,>(next: T, prev: T) => (existing && next === prev ? undefined : next);
+              const alarm = form.alarm === "" ? null : Number(form.alarm);
+              const res = await desktop.calendarEventSave(source.viewId, before?.id ?? null, {
+                title: form.title || t("cal.untitledEvent"),
+                when: eventTime(form),
+                description: changed(form.description, before?.description ?? ""),
+                location: changed(form.location, before?.location ?? ""),
+                url: changed(form.url, before?.url ?? ""),
+                alarm: existing && alarm === (before?.alarms?.[0] ?? null) ? undefined : alarm,
+              });
               if (!res.ok) return onToast(errorText(res.code, res.error));
             } else if (source?.type === "db") {
               await api.create(form.title || t("cal.untitledEvent"), source.dbId, "", { props: { [source.dateProp]: eventValue(form) } });
@@ -299,11 +317,15 @@ function AgendaView({ from, events, onOpen }: { from: number; events: CalEvent[]
   );
 }
 
-type Draft = { date: string; allDay: boolean; start?: string; end?: string; edit?: { event: CalEvent; title: string } };
-type Form = { title: string; date: string; allDay: boolean; start?: string; end?: string };
+type Draft = { date: string; allDay: boolean; start?: string; end?: string; edit?: CalEvent };
+type Form = { title: string; date: string; allDay: boolean; start?: string; end?: string; description: string; location: string; url: string; alarm: string };
+
+/** Hatırlatma seçenekleri (başlangıçtan kaç dakika önce). */
+const ALARMS = [0, 5, 10, 15, 30, 60, 120, 1440, 2880, 10080];
 
 /** Yeni etkinlik ya da takvim etkinliğini düzenleme. Yinelenen etkinlikler yalnızca görüntülenir (takvim uygulamasında
- *  düzenlenir); veritabanı satırları not olarak açılır, burada düzenlenmez. */
+ *  düzenlenir); veritabanı satırları not olarak açılır, burada düzenlenmez. Katılımcı davet etmek takvim uygulamasının
+ *  işidir; burada gösterilir ama değiştirilmez. */
 function EventDialog({
   initial,
   sources,
@@ -318,24 +340,36 @@ function EventDialog({
   onDelete: (e: CalEvent) => Promise<void>;
 }) {
   useEscape(onClose);
-  const existing = initial.edit?.event;
-  const readOnly = !!existing?.view?.recurring;
-  const [title, setTitle] = useState(initial.edit?.title ?? "");
+  const existing = initial.edit;
+  const ev = existing?.view;
+  const [title, setTitle] = useState(existing?.title ?? "");
   const [date, setDate] = useState(initial.date);
   const [allDay, setAllDay] = useState(initial.allDay);
   const [start, setStart] = useState(initial.start ?? "09:00");
   const [end, setEnd] = useState(initial.end ?? "10:00");
+  const [location, setLocation] = useState(ev?.location ?? "");
+  const [url, setUrl] = useState(ev?.url ?? "");
+  const [description, setDescription] = useState(ev?.description ?? "");
+  const [lastAlarm, setLastAlarm] = usePref<string>("calendarAlarm", "");
+  const [alarm, setAlarm] = useState(existing ? String(ev?.alarms?.[0] ?? "") : lastAlarm);
   const [lastSource, setLastSource] = usePref<string>("calendarDefault", "");
   // Yeni etkinlik: önce son kullanılan, sonra bir hesap takvimi, sonra yerel Nularche takvimi.
   const targets = existing ? sources.filter((s) => s.key === existing.source.key) : sources;
   const [sourceKey, setSourceKey] = useState(() =>
     existing ? existing.source.key : targets.some((s) => s.key === lastSource) ? lastSource : (targets.find((s) => s.type === "view" && s.kind !== "local")?.key ?? targets[0]?.key ?? ""),
   );
+  const target = sources.find((s) => s.key === sourceKey);
+  // Ayrıntılar yalnızca takvimlere yazılır; veritabanı satırının ayrıntıları notun kendisidir.
+  const details = target?.type === "view";
+  const alarmOptions = [...new Set([...ALARMS, ...(alarm ? [Number(alarm)] : [])])].sort((a, b) => a - b);
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     setBusy(true);
-    if (!existing) setLastSource(sourceKey);
-    await onSave({ title: title.trim(), date, allDay, start, end }, sources.find((s) => s.key === sourceKey) ?? null, existing);
+    if (!existing) {
+      setLastSource(sourceKey);
+      setLastAlarm(alarm);
+    }
+    await onSave({ title: title.trim(), date, allDay, start, end, description, location: location.trim(), url: url.trim(), alarm }, target ?? null, existing);
     setBusy(false);
   };
   return (
@@ -346,28 +380,28 @@ function EventDialog({
         </h2>
         <label className="field">
           <span>{t("cal.eventTitle")}</span>
-          <input autoFocus value={title} disabled={readOnly} onChange={(e) => setTitle(e.target.value)} placeholder={t("cal.untitledEvent")} />
+          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("cal.untitledEvent")} />
         </label>
         <div className="cal-dialog-row">
           <label className="field">
             <span>{t("cal.date")}</span>
-            <input type="date" value={date} disabled={readOnly} onChange={(e) => setDate(e.target.value)} required />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </label>
           {!allDay && (
             <>
               <label className="field">
                 <span>{t("cal.start")}</span>
-                <input type="time" value={start} disabled={readOnly} onChange={(e) => setStart(e.target.value)} />
+                <input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
               </label>
               <label className="field">
                 <span>{t("cal.end")}</span>
-                <input type="time" value={end} disabled={readOnly} onChange={(e) => setEnd(e.target.value)} />
+                <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
               </label>
             </>
           )}
         </div>
         <label className="check">
-          <input type="checkbox" checked={allDay} disabled={readOnly} onChange={(e) => setAllDay(e.target.checked)} /> {t("cal.allDay")}
+          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> {t("cal.allDay")}
         </label>
         {targets.length > 0 && (
           <label className="field">
@@ -382,9 +416,37 @@ function EventDialog({
             </select>
           </label>
         )}
-        {readOnly && <p className="muted small">{t("cal.recurringReadOnly")}</p>}
+        {details && (
+          <>
+            <label className="field">
+              <span>{t("cal.location")}</span>
+              <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t("cal.locationHint")} />
+            </label>
+            <div className="cal-dialog-row">
+              <label className="field grow">
+                <span>{t("cal.url")}</span>
+                <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />
+              </label>
+              <label className="field">
+                <span>{t("cal.alarm")}</span>
+                <select value={alarm} onChange={(e) => setAlarm(e.target.value)}>
+                  <option value="">{t("cal.alarmNone")}</option>
+                  {alarmOptions.map((m) => (
+                    <option key={m} value={String(m)}>
+                      {alarmLabel(m)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className="field">
+              <span>{t("cal.notes")}</span>
+              <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("cal.notesHint")} />
+            </label>
+          </>
+        )}
         <div className="dialog-actions">
-          {existing && !readOnly && (
+          {existing && (
             <button type="button" className="danger" disabled={busy} onClick={() => (setBusy(true), void onDelete(existing).finally(() => setBusy(false)))}>
               <Icon name="trash" size={15} /> {t("cal.delete")}
             </button>
@@ -393,11 +455,9 @@ function EventDialog({
           <button type="button" className="secondary" onClick={onClose}>
             {t("common.cancel")}
           </button>
-          {!readOnly && (
-            <button type="submit" className="primary" disabled={busy || !date}>
-              {existing ? t("cal.save") : t("cal.create")}
-            </button>
-          )}
+          <button type="submit" className="primary" disabled={busy || !date}>
+            {existing ? t("cal.save") : t("cal.create")}
+          </button>
         </div>
       </form>
     </div>

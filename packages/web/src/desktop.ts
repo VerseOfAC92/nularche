@@ -74,12 +74,28 @@ export interface CalendarLinkStatus {
 
 /** Etkinlik zamanı: tüm gün (bitiş günü hariç) ya da başlangıç–bitiş anı (ms). */
 export type EventTime = { allDay: true; start: string; end: string } | { allDay: false; start: number; end: number };
+export type AttendeeStatus = "accepted" | "declined" | "tentative" | "needs-action";
 export interface CachedEvent {
   id: string;
   title: string;
   when: EventTime;
   description?: string;
+  location?: string;
+  url?: string;
+  organizer?: { name?: string; email?: string };
+  attendees?: { name?: string; email?: string; status: AttendeeStatus; organizer?: boolean }[];
+  /** Başlangıçtan kaç dakika önce. */
+  alarms?: number[];
   recurring?: boolean;
+}
+/** Takvim ekranından yazılan etkinlik: verilmeyen ayrıntı değiştirilmez; `alarm: null` hatırlatmayı kaldırır. */
+export interface EventSaveInput {
+  title: string;
+  when: EventTime;
+  description?: string;
+  location?: string;
+  url?: string;
+  alarm?: number | null;
 }
 /** Takvim ekranının not dışı takvimleri: yerel Nularche takvimi ve görüntülenen hesap takvimleri. */
 export interface ViewCalendar {
@@ -156,7 +172,7 @@ export interface DesktopBridge {
     dateProp?: string;
   }): Promise<{ ok: true; linkId: string; errors: string[] } | CalendarFailure>;
   calendarEvents(): Promise<{ calendars: ViewCalendar[] }>;
-  calendarEventSave(linkId: string, eventId: string | null, input: { title: string; when: EventTime }): Promise<{ ok: true; event: CachedEvent } | CalendarFailure>;
+  calendarEventSave(linkId: string, eventId: string | null, input: EventSaveInput): Promise<{ ok: true; event: CachedEvent } | CalendarFailure>;
   calendarEventDelete(linkId: string, eventId: string): Promise<{ ok: true } | CalendarFailure>;
   calendarUnlink(linkId: string): Promise<void>;
   calendarSync(): Promise<{ ok: boolean; errors: string[] }>;

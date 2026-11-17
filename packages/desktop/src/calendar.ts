@@ -388,9 +388,32 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     if (!root || typeof linkId !== "string" || typeof i.title !== "string" || !when) return { ok: false, code: "invalid", error: "input" };
     const id = typeof eventId === "string" && eventId ? eventId : null;
     const title = i.title.trim() || d("cal.untitled");
+    // Ayrıntılar: verilmeyen alan değiştirilmez; boş dize alanı kaldırır.
+    const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : undefined);
+    const details = {
+      description: text(i.description, 100_000),
+      location: text(i.location, 2_000),
+      url: typeof i.url === "string" ? (/^(https?:\/\/|$)/i.test(i.url.trim()) ? i.url.trim() : undefined) : undefined,
+      alarm: i.alarm === null ? null : typeof i.alarm === "number" && Number.isFinite(i.alarm) && i.alarm >= 0 && i.alarm <= 40_320 ? Math.round(i.alarm) : undefined,
+    };
     try {
       if (linkId === LOCAL) {
-        const ev: CachedEvent = { id: id ?? randomUUID(), title, when };
+        const prev = id ? (await readEventCache(root))[LOCAL]?.find((x) => x.id === id) : undefined;
+        const merged = {
+          description: details.description ?? prev?.description,
+          location: details.location ?? prev?.location,
+          url: details.url ?? prev?.url,
+          alarms: details.alarm === undefined ? prev?.alarms : details.alarm === null ? undefined : [details.alarm],
+        };
+        const ev: CachedEvent = {
+          id: id ?? randomUUID(),
+          title,
+          when,
+          ...(merged.description ? { description: merged.description } : {}),
+          ...(merged.location ? { location: merged.location } : {}),
+          ...(merged.url ? { url: merged.url } : {}),
+          ...(merged.alarms?.length ? { alarms: merged.alarms } : {}),
+        };
         await withCache(root, (c) => ({ ...c, [LOCAL]: [...(c[LOCAL] ?? []).filter((x) => x.id !== ev.id), ev] }));
         announce();
         return { ok: true, event: ev };
@@ -402,8 +425,8 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
       if (id) {
         const current = await prov.getEvent(link.calendarId, id);
         if (!current) return { ok: false, code: "not_found", error: d("cal.eventGone") };
-        saved = await prov.updateEvent(link.calendarId, current, { title, when });
-      } else saved = await prov.createEvent(link.calendarId, { title, when });
+        saved = await prov.updateEvent(link.calendarId, current, { title, when, ...details });
+      } else saved = await prov.createEvent(link.calendarId, { title, when, ...details });
       const ev = toCached(saved);
       await withCache(root, (c) => ({ ...c, [link.id]: [...(c[link.id] ?? []).filter((x) => x.id !== ev.id), ev] }));
       announce();

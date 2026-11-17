@@ -14,6 +14,7 @@ import {
   createDatabase,
   defaultDatabase,
   fromEventTime,
+  fromGoogleEvent,
   GoogleCalendar,
   localDateTime,
   NodeStore,
@@ -354,6 +355,82 @@ test("görüntüleme bağlantısı veritabanı gerektirmez; etkinlikleri önbell
   assert.ok(!buildIcs("u", { title: "T", when: { allDay: true, start: "2026-01-01", end: "2026-01-02" } }).includes("X-NULARCHE-ROW"));
   const raw = buildIcs("u", { title: "T", when: { allDay: true, start: "2026-01-01", end: "2026-01-02" }, rowId: "r1" });
   assert.ok(patchIcs(raw, { title: "U", when: { allDay: true, start: "2026-01-01", end: "2026-01-02" } }).includes("X-NULARCHE-ROW:r1"), "görüntülemeden düzenleme var olan işareti korur");
+});
+
+test("etkinlik ayrıntıları: iCloud davetinden konum, toplantı bağlantısı, katılımcılar, hatırlatma okunur ve yalnızca verilenler değişir", () => {
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "BEGIN:VEVENT",
+    "UID:x",
+    "DTSTART:20261118T070000Z",
+    "DTEND:20261118T073000Z",
+    "SUMMARY:Tanışma Görüşmesi",
+    "LOCATION:Microsoft Teams Meeting",
+    "DESCRIPTION:Join: https://teams.microsoft.com/l/meetup-join/abc?x=1\\nMeeting ID: 368",
+    'ORGANIZER;CN="Gizem P":mailto:gizem@example.com',
+    "ATTENDEE;CN=Gizem P;PARTSTAT=ACCEPTED:mailto:gizem@example.com",
+    "ATTENDEE;PARTSTAT=NEEDS-ACTION:mailto:me@example.com",
+    "ATTENDEE;CN=Derya D;PARTSTAT=TENTATIVE:mailto:derya@example.com",
+    "BEGIN:VALARM",
+    "ACTION:DISPLAY",
+    "DESCRIPTION:Hatırlatma",
+    "TRIGGER:-PT30M",
+    "END:VALARM",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+  const ev = parseIcsEvent(ics, "/e.ics")!;
+  assert.equal(ev.location, "Microsoft Teams Meeting");
+  assert.equal(ev.url, "https://teams.microsoft.com/l/meetup-join/abc?x=1");
+  assert.match(ev.description!, /^Join: /, "alarmın açıklaması etkinliğin açıklamasına karışmaz");
+  assert.deepEqual(ev.organizer, { name: "Gizem P", email: "gizem@example.com" });
+  assert.deepEqual(
+    ev.attendees!.map((a) => [a.email, a.status, !!a.organizer]),
+    [
+      ["gizem@example.com", "accepted", true],
+      ["me@example.com", "needs-action", false],
+      ["derya@example.com", "tentative", false],
+    ],
+  );
+  assert.deepEqual(ev.alarms, [30]);
+
+  // Yalnızca başlık/zaman: katılımcılar, açıklama ve alarm korunur.
+  const same = parseIcsEvent(patchIcs(ics, { title: "Yeni", when: ev.when }), "/e.ics")!;
+  assert.equal(same.title, "Yeni");
+  assert.equal(same.attendees!.length, 3);
+  assert.deepEqual(same.alarms, [30]);
+  assert.equal(same.description, ev.description);
+  // Ayrıntılar verilince değişir; alarm null ile kalkar.
+  const changed = parseIcsEvent(patchIcs(ics, { title: "Yeni", when: ev.when, location: "Oda 3", description: "", alarm: null }), "/e.ics")!;
+  assert.equal(changed.location, "Oda 3");
+  assert.equal(changed.description, undefined);
+  assert.equal(changed.alarms, undefined);
+  assert.equal(changed.attendees!.length, 3);
+  // Yeni etkinlik ayrıntılarıyla oluşturulur.
+  const built = parseIcsEvent(buildIcs("u", { title: "T", when: ev.when, location: "Ofis", url: "https://example.com/m", description: "Gündem\nmadde", alarm: 15 }), "/n.ics")!;
+  assert.deepEqual([built.location, built.url, built.description, built.alarms], ["Ofis", "https://example.com/m", "Gündem\nmadde", [15]]);
+});
+
+test("Google etkinliği: toplantı bağlantısı, katılımcı yanıtları ve hatırlatmalar", () => {
+  const ev = fromGoogleEvent({
+    id: "g",
+    summary: "S",
+    start: { dateTime: "2026-11-18T10:00:00+03:00" },
+    end: { dateTime: "2026-11-18T10:30:00+03:00" },
+    location: "Oda",
+    hangoutLink: "https://meet.google.com/abc",
+    organizer: { email: "o@example.com", displayName: "O" },
+    attendees: [
+      { email: "o@example.com", displayName: "O", responseStatus: "accepted", organizer: true },
+      { email: "a@example.com", responseStatus: "declined" },
+      { email: "room@resource.calendar.google.com", resource: true, responseStatus: "accepted" },
+    ],
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 10 }] },
+  } as never)!;
+  assert.equal(ev.url, "https://meet.google.com/abc");
+  assert.deepEqual(ev.attendees!.map((a) => [a.email, a.status]), [["o@example.com", "accepted"], ["a@example.com", "declined"]]);
+  assert.deepEqual(ev.alarms, [10]);
+  assert.equal(ev.location, "Oda");
 });
 
 // --- Sağlayıcılar: gerçek HTTP üzerinden sahte sunucular -------------------------------------------

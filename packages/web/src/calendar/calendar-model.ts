@@ -5,6 +5,7 @@
 // Bu modül yalnızca okur ve takvim görünümleri için düzenler.
 
 import { dateMs, parseDatabase, parseDateValue } from "../../../core/src/database.ts";
+import type { CachedEvent } from "../desktop.ts";
 
 export interface CalNode {
   id: string;
@@ -25,13 +26,10 @@ export interface CalLink {
   dateProp?: string;
 }
 
-export type EventTime = { allDay: true; start: string; end: string } | { allDay: false; start: number; end: number };
-export interface ViewEvent {
-  id: string;
-  title: string;
-  when: EventTime;
-  recurring?: boolean;
-}
+export type { EventTime } from "../desktop.ts";
+import type { EventTime } from "../desktop.ts";
+/** Not dışı takvimin etkinliği ve ayrıntıları (masaüstü önbelleğindeki biçim). */
+export type ViewEvent = CachedEvent;
 /** Not dışı takvim: yerel Nularche takvimi (`id: "local"`) ya da görüntülenen hesap takvimi. */
 export interface ViewCal {
   id: string;
@@ -189,3 +187,28 @@ export function isoDay(ms: number): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+
+/** Açıklamayı düz metne çevirir: Google açıklamaları HTML olabilir (<br>, <a>, <p>); iCloud açıklamaları düz metindir. */
+export function plainDescription(text: string): string {
+  if (!/<[a-z][\s\S]*>/i.test(text)) return text;
+  const html = text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h\d)>/gi, "\n")
+    .replace(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href: string, label: string) => (label.replace(/<[^>]+>/g, "").trim() === href ? href : `${label} <${href}>`));
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return (doc.body.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** Metni düz parçalara ve bağlantılara ayırır (gösterimde bağlantılar tıklanabilir olur). */
+export function linkify(text: string): { text: string; href?: string }[] {
+  const out: { text: string; href?: string }[] = [];
+  const re = /(https?:\/\/[^\s<>"]+[^\s<>".,;:!?)\]]|mailto:[^\s<>"]+|tel:[+\d][\d,#*+-]*)/gi;
+  let last = 0;
+  for (const m of text.matchAll(re)) {
+    if (m.index! > last) out.push({ text: text.slice(last, m.index) });
+    out.push({ text: m[0].replace(/^(mailto|tel):/i, ""), href: m[0] });
+    last = m.index! + m[0].length;
+  }
+  if (last < text.length) out.push({ text: text.slice(last) });
+  return out;
+}

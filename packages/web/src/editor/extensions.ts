@@ -11,7 +11,7 @@ import { Focus, Placeholder } from "@tiptap/extensions";
 import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
-import { Callout, MdDetails, MdDetailsContent, MdDetailsSummary, MdTextStyle, MdYoutube } from "./markdown-extensions.ts";
+import { Callout, MdDetails, MdTable, MdDetailsContent, MdDetailsSummary, MdTextStyle, MdYoutube } from "./markdown-extensions.ts";
 import { t } from "../i18n/index.ts";
 import { InlineDatabase } from "../database/InlineDatabase.tsx";
 import { AudioBlock, DrawingBlock } from "./media-nodes.tsx";
@@ -52,7 +52,9 @@ export function buildExtensions(options: { placeholder?: string } = {}): Extensi
     CodeBlockLowlight.configure({ lowlight }),
     TaskList,
     TaskItem.configure({ nested: true }),
-    TableKit.configure({ table: { resizable: true } }),
+    // Tablo, sütun genişliklerini de saklayan MdTable'dır (markdown-extensions.ts).
+    TableKit.configure({ table: false }),
+    MdTable.configure({ resizable: true }),
     Image.configure({ inline: false }),
     Highlight,
     MdTextStyle,

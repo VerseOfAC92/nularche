@@ -24,13 +24,37 @@ export const isCalendarProvider = (v: unknown): v is CalendarProviderId => CALEN
 /** Etkinlik zamanı: tüm gün (bitiş hariç, iCalendar/Google kuralı) ya da başlangıç–bitiş anı (ms). */
 export type EventTime = { allDay: true; start: string; end: string } | { allDay: false; start: number; end: number };
 
-export interface CalendarEvent {
+/** Katılımcının yanıtı (iCalendar PARTSTAT / Google responseStatus). */
+export type AttendeeStatus = "accepted" | "declined" | "tentative" | "needs-action";
+
+export interface EventPerson {
+  name?: string;
+  email?: string;
+}
+
+export interface EventAttendee extends EventPerson {
+  status: AttendeeStatus;
+  organizer?: boolean;
+}
+
+/** Etkinliğin takvim ekranında gösterilen ayrıntıları; sağlayıcı ne bildiriyorsa o (bilinmeyen alan yoktur). */
+export interface EventDetails {
+  description?: string;
+  location?: string;
+  /** Etkinliğin bağlantısı (URL alanı ya da çevrimiçi toplantı adresi). */
+  url?: string;
+  organizer?: EventPerson;
+  attendees?: EventAttendee[];
+  /** Hatırlatmalar: başlangıçtan kaç dakika önce. */
+  alarms?: number[];
+}
+
+export interface CalendarEvent extends EventDetails {
   /** Sağlayıcıdaki kimlik: Google etkinlik id'si ya da CalDAV kaynağının mutlak adresi. */
   id: string;
   etag?: string;
   title: string;
   when: EventTime;
-  description?: string;
   /** Son değişiklik zamanı (ms), sağlayıcı bildiriyorsa. */
   updatedAt?: number;
   /** Etkinliği Nularche oluşturduysa satırın id'si (eşleme durumu kaybolursa yinelenmeyi önler). */
@@ -46,6 +70,13 @@ export interface EventInput {
   when: EventTime;
   /** Veritabanı bağlantısında satırın id'si; görüntüleme bağlantısında yoktur. */
   rowId?: string;
+  /** Takvim ekranından yazılan ayrıntılar. `undefined` alan değiştirilmez; boş dize ya da `null` alanı kaldırır.
+   *  Katılımcılar ve düzenleyen yalnızca okunur (davet göndermek takvim uygulamasının işidir). */
+  description?: string;
+  location?: string;
+  url?: string;
+  /** Tek hatırlatma: başlangıçtan kaç dakika önce; `null` hatırlatmaları kaldırır. */
+  alarm?: number | null;
 }
 
 export interface CalendarInfo {
@@ -443,12 +474,11 @@ export async function syncLink(store: NodeStore, provider: CalendarProvider, lin
 
 export const CALENDAR_EVENTS_FILE = path.join(".nularche", "calendar-events.json");
 
-/** Takvim ekranında gösterilen etkinlik (sağlayıcının ham iCalendar metni saklanmaz). */
-export interface CachedEvent {
+/** Takvim ekranında gösterilen etkinlik ve ayrıntıları (sağlayıcının ham iCalendar metni saklanmaz). */
+export interface CachedEvent extends EventDetails {
   id: string;
   title: string;
   when: EventTime;
-  description?: string;
   recurring?: boolean;
 }
 
@@ -462,17 +492,41 @@ function parseWhen(raw: unknown): EventTime | null {
   return null;
 }
 
+const STATUSES: AttendeeStatus[] = ["accepted", "declined", "tentative", "needs-action"];
+
+function parsePerson(raw: unknown): EventPerson | undefined {
+  if (!isObj(raw)) return undefined;
+  const p: EventPerson = { ...(str(raw.name) ? { name: raw.name as string } : {}), ...(str(raw.email) ? { email: raw.email as string } : {}) };
+  return p.name || p.email ? p : undefined;
+}
+
+/** Önbellekteki ayrıntılar (bozuk alanlar atlanır). */
+function parseDetails(raw: Record<string, unknown>): EventDetails {
+  const attendees = Array.isArray(raw.attendees)
+    ? raw.attendees.flatMap((a): EventAttendee[] => {
+        const p = parsePerson(a);
+        if (!p || !isObj(a)) return [];
+        const status = STATUSES.includes(a.status as AttendeeStatus) ? (a.status as AttendeeStatus) : "needs-action";
+        return [{ ...p, status, ...(a.organizer === true ? { organizer: true } : {}) }];
+      })
+    : [];
+  const alarms = Array.isArray(raw.alarms) ? raw.alarms.filter((m): m is number => typeof m === "number" && Number.isFinite(m)) : [];
+  const organizer = parsePerson(raw.organizer);
+  return {
+    ...(str(raw.description) ? { description: raw.description as string } : {}),
+    ...(str(raw.location) ? { location: raw.location as string } : {}),
+    ...(str(raw.url) ? { url: raw.url as string } : {}),
+    ...(organizer ? { organizer } : {}),
+    ...(attendees.length ? { attendees } : {}),
+    ...(alarms.length ? { alarms } : {}),
+  };
+}
+
 function parseCached(raw: unknown): CachedEvent | null {
   if (!isObj(raw) || !str(raw.id) || typeof raw.title !== "string") return null;
   const when = parseWhen(raw.when);
   if (!when) return null;
-  return {
-    id: raw.id as string,
-    title: raw.title,
-    when,
-    ...(str(raw.description) ? { description: raw.description as string } : {}),
-    ...(raw.recurring === true ? { recurring: true } : {}),
-  };
+  return { id: raw.id as string, title: raw.title, when, ...parseDetails(raw), ...(raw.recurring === true ? { recurring: true } : {}) };
 }
 
 /** Bağlantı id'si → etkinlikler. Okunamayan dosya boş önbellektir (bir sonraki eşitleme yeniden doldurur). */
@@ -499,9 +553,19 @@ export const toCached = (ev: CalendarEvent): CachedEvent => ({
   id: ev.id,
   title: ev.title,
   when: ev.when,
-  ...(ev.description ? { description: ev.description } : {}),
+  ...parseDetails(ev as unknown as Record<string, unknown>),
   ...(ev.recurring ? { recurring: true } : {}),
 });
+
+/** Açıklama ya da konumdaki ilk çevrimiçi toplantı adresi (Teams, Zoom, Meet, Webex). */
+export function meetingUrl(...texts: (string | undefined)[]): string | undefined {
+  const re = /https:\/\/(?:[\w-]+\.)*(?:teams\.microsoft\.com|teams\.live\.com|zoom\.us|meet\.google\.com|webex\.com)\/[^\s<>"')\]]+/i;
+  for (const t of texts) {
+    const m = t ? re.exec(t) : null;
+    if (m) return m[0];
+  }
+  return undefined;
+}
 
 /** Görüntüleme bağlantısının etkinliklerini eşitleme aralığında okur. */
 export async function fetchViewEvents(provider: CalendarProvider, link: CalendarLink, now = Date.now()): Promise<CachedEvent[]> {
