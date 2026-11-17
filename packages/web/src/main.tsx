@@ -5,6 +5,7 @@ import { useLang } from "./i18n/index.ts";
 import { applyTheme } from "./theme.ts";
 import "./studio/fonts.ts";
 import "./styles.css";
+import { installContextMenu } from "./contextMenu.ts";
 
 applyTheme();
 
@@ -13,6 +14,8 @@ function Root() {
   useLang();
   return <App />;
 }
+
+installContextMenu();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

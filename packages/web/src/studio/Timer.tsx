@@ -6,6 +6,7 @@ import { t } from "../i18n/index.ts";
 import { usePref } from "../prefs.ts";
 import { useDraggable } from "../ai/useDraggable.ts";
 import { chime } from "./sounds.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 type Phase = "focus" | "break";
 
@@ -54,7 +55,7 @@ export function Timer({ onClose, onToast }: { onClose: () => void; onToast: (msg
         <span>{phase === "focus" ? t("ws.timerFocus") : t("ws.timerBreak")}</span>
         <span className="muted small">{rounds > 0 ? t("ws.timerRounds", { n: rounds }) : ""}</span>
         <button className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
-          ✕
+          <Icon name="x" />
         </button>
       </div>
       <div className="timer-face" role="timer" aria-live="off">

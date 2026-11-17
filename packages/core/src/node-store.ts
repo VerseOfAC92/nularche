@@ -81,6 +81,8 @@ export interface PageFields {
   wikiFields?: string[];
   /** Wiki girdisi: anma tespiti (notlarda adının altının çizilmesi ve "Geçtiği yerler") kapalı. */
   noMentions?: boolean;
+  /** Başlığın biçimli hâli (kalın, italik, renk… satır içi HTML). Düz başlık `title`dır; bu yalnızca görünümdür. */
+  titleRich?: string;
 }
 
 export const PAGE_FIELD_KEYS = [
@@ -102,6 +104,7 @@ export const PAGE_FIELD_KEYS = [
   "wordGoal",
   "wikiFields",
   "noMentions",
+  "titleRich",
 ] as const;
 export type PageFieldKey = (typeof PAGE_FIELD_KEYS)[number];
 
@@ -309,6 +312,7 @@ function pageFields(fm: Frontmatter): PageFields {
     if (fields.length) out.wikiFields = [...new Set(fields)].slice(0, 40);
   }
   if (fm.noMentions === true) out.noMentions = true;
+  if (typeof fm.titleRich === "string" && fm.titleRich && fm.titleRich.length <= 8000) out.titleRich = fm.titleRich;
   return out;
 }
 
@@ -1352,9 +1356,11 @@ export class NodeStore {
         score += (inTitle ? 10 : 0) + Math.min(count, 10);
       }
       if (!ok) continue;
-      const first = Math.max(0, text.indexOf(terms[0]));
+      // Özet işlenmiş Markdown yerine okunur düz metinden alınır ([[bağlantı]], # başlık, - [ ] gibi işaretler görünmez).
+      const plain = meta.locked ? "" : plainText(body);
+      const first = Math.max(0, lowerTr(plain).indexOf(terms[0]));
       const start = Math.max(0, first - 60);
-      const snippet = (meta.locked ? "" : body)
+      const snippet = plain
         .slice(start, start + 160)
         .replace(/\s+/g, " ")
         .trim();

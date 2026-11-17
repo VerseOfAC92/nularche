@@ -6,6 +6,8 @@ import { api, type CaptureKind, type NodeMeta, type ShadowView as ShadowData } f
 
 import { ago, t } from "./i18n/index.ts";
 import { keys, modPressed } from "./shortcuts.tsx";
+import { Icon } from "./ui/Icon.tsx";
+import { EmptyState } from "./ui/EmptyState.tsx";
 
 export function ShadowView({
   nodes,
@@ -86,7 +88,7 @@ export function ShadowView({
       {withMove && (
         <select value="" onChange={(e) => e.target.value && void promote(n, e.target.value)} title={t("ws.promoteHint")}>
           <option value="">{t("ws.promote")}</option>
-          {/^\s*::/.test(n.excerpt) && <option value="auto:">⚡ {t("ws.promoteAuto")}</option>}
+          {/^\s*::/.test(n.excerpt) && <option value="auto:">{t("ws.promoteAuto")}</option>}
           {destinations.map((d) =>
             d.nodes.length ? (
               <optgroup key={d.kind} label={t(`ws.ck.${d.kind}`)}>
@@ -114,7 +116,7 @@ export function ShadowView({
 
   return (
     <div className="shadow-view">
-      <h1>◐ Shadow</h1>
+      <h1><Icon name="circle-half-2" size={26} /> Shadow</h1>
       <p className="muted">{t("shadow.intro")}</p>
       <div className="capture">
         <textarea
@@ -136,7 +138,7 @@ export function ShadowView({
       <h2 className="section-title">{t("shadow.inbox")} · {data?.inbox.length ?? 0}</h2>
       <div className="shadow-list">
         {data?.inbox.map((n) => item(n, true))}
-        {data && data.inbox.length === 0 && <p className="empty">{t("shadow.inboxEmpty")}</p>}
+        {data && data.inbox.length === 0 && <EmptyState compact icon="inbox" text={t("shadow.inboxEmpty")} />}
       </div>
 
       <h2 className="section-title">{t("shadow.unlinked")} · {data?.unlinked.length ?? 0}</h2>
@@ -145,7 +147,7 @@ export function ShadowView({
       </p>
       <div className="shadow-list">
         {data?.unlinked.map((n) => item(n, false))}
-        {data && data.unlinked.length === 0 && <p className="empty">{t("shadow.allLinked")}</p>}
+        {data && data.unlinked.length === 0 && <EmptyState compact icon="link" text={t("shadow.allLinked")} />}
       </div>
     </div>
   );

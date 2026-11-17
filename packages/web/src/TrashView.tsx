@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type TrashEntry } from "./api.ts";
 import { ago, t } from "./i18n/index.ts";
+import { Icon } from "./ui/Icon.tsx";
+import { EmptyState } from "./ui/EmptyState.tsx";
 
 /** Klasör notu yolunu ("A/B/B.md") okunur konuma ("A/B") çevirir. */
 function displayPath(p: string): string {
@@ -60,7 +62,7 @@ export function TrashView({
   return (
     <article className="page trash-page">
       <div className="trash-head">
-        <h1>🗑 {t("trash.title")}</h1>
+        <h1><Icon name="trash" size={26} /> {t("trash.title")}</h1>
         {!!entries?.length && (
           <button className="secondary danger" onClick={emptyAll}>
             {t("trash.empty")}
@@ -68,7 +70,7 @@ export function TrashView({
         )}
       </div>
       <p className="muted">{t("trash.hint")}</p>
-      {entries && entries.length === 0 && <p className="muted trash-none">{t("trash.none")}</p>}
+      {entries && entries.length === 0 && <EmptyState icon="trash" text={t("trash.none")} />}
       <div className="trash-list">
         {entries?.map((e) => (
           <div key={e.entry} className="trash-row">
@@ -82,7 +84,7 @@ export function TrashView({
               </span>
             </div>
             <button className="primary" disabled={busy === e.entry} onClick={() => restore(e)}>
-              ↺ {t("trash.restore")}
+              <Icon name="restore" /> {t("trash.restore")}
             </button>
             <button className="secondary" onClick={() => remove(e)} title={t("trash.deleteForever")}>
               {t("trash.deleteForever")}

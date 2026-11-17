@@ -21,6 +21,7 @@ export interface PageFields {
   wordGoal?: number;
   wikiFields?: string[];
   noMentions?: boolean;
+  titleRich?: string;
 }
 
 export type PageFieldPatch = { [K in keyof PageFields]?: PageFields[K] | null };

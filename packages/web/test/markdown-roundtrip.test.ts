@@ -24,6 +24,7 @@ const cases: Record<string, [string, string]> = {
   kod: ["```ts\nconst x = 1;\n```", "codeBlock"],
   ayırıcı: ["üst\n\n---\n\nalt", "horizontalRule"],
   tablo: ["| Ad | Durum |\n| --- | --- |\n| A | Açık |", "tableCell"],
+  "tablo sütun genişlikleri": ["<!-- nularche-table widths=180,0,240 -->\n| Ad | Durum | Not |\n| --- | --- | --- |\n| A | Açık | uzun |", "tableCell"],
   resim: ["![ekran](/files/Attachments/ekran.png)", "image"],
   callout: ["> [!WARNING]\n> Dikkat edilmeli\n>\n> - madde", "callout"],
   açılır: ["<details>\n<summary>Ayrıntılar</summary>\n\nGizli **içerik**\n\n- madde\n\n</details>", "detailsContent"],
@@ -110,5 +111,19 @@ describe("v1.5 biçimleri", () => {
     expect(out).toContain("+ bir");
     expect(out).toContain("- madde");
     expect(JSON.stringify(editor!.getJSON())).toContain('"dashed":true');
+  });
+});
+
+describe("tablo sütun genişlikleri", () => {
+  test("ayarlanan genişlikler hücrelere okunur ve geri yazılır; ayarlanmamış tablo düz GFM kalır", () => {
+    const md = "<!-- nularche-table widths=180,0,240 -->\n| Ad | Durum | Not |\n| --- | --- | --- |\n| A | Açık | uzun |";
+    const out = roundtrip(md);
+    const cells: (number[] | null)[] = [];
+    editor!.state.doc.descendants((n) => {
+      if (n.type.name === "tableHeader") cells.push(n.attrs.colwidth as number[] | null);
+    });
+    expect(cells).toEqual([[180], null, [240]]);
+    expect(out.startsWith("<!-- nularche-table widths=180,0,240 -->\n| Ad")).toBe(true);
+    expect(roundtrip("| Ad | Durum |\n| --- | --- |\n| A | Açık |").startsWith("|")).toBe(true);
   });
 });

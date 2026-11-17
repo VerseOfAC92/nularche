@@ -4,9 +4,11 @@
 //   Açılır blok  → HTML:                <details><summary>…</summary> … </details>
 //   YouTube      → tek satır:            @[youtube](https://…)
 //   Metin rengi  → HTML:                <span style="color: …">…</span>
+//   Tablo genişliği → görünmez yorum:   <!-- nularche-table widths=120,200,0 --> (GFM tablosunun hemen önünde)
 
 import { mergeAttributes, Node, type MarkdownLexerConfiguration, type MarkdownToken } from "@tiptap/core";
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
+import { Table } from "@tiptap/extension-table";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Youtube from "@tiptap/extension-youtube";
 import { CALLOUT_KINDS, calloutTone, type CalloutKind } from "../../../core/src/note-text.ts";
@@ -177,5 +179,68 @@ export const MdTextStyle = TextStyle.extend({
     const inner: string = h.renderChildren(node);
     const color = node.attrs?.color;
     return color ? `<span style="color: ${color}">${inner}</span>` : inner;
+  },
+});
+
+// --- Tablo: sütun genişlikleri -------------------------------------------------------------------------
+
+/** GFM tablosu genişlik taşımaz; kullanıcının sürükleyerek ayarladığı sütun genişlikleri tablonun önündeki görünmez
+ *  bir HTML yorumunda saklanır (0: ayarlanmamış sütun). Başka Markdown araçlarında tablo olduğu gibi görünür. */
+const WIDTHS_RE = /^<!--\s*nularche-table\s+widths=([\d,]+)\s*-->[ \t]*\n(?:[ \t]*\n)*/;
+const base = Table.config;
+
+/** İlk satırdaki hücrelerin sütun genişlikleri (birleştirilmiş hücreler sütun sayısınca açılır). */
+function columnWidths(node: AnyNode): number[] {
+  const first = childrenOf(node)[0];
+  if (!first) return [];
+  const out: number[] = [];
+  for (const cell of childrenOf(first)) {
+    const span = Number(cell.attrs?.colspan ?? 1) || 1;
+    const w = cell.attrs?.colwidth as number[] | null | undefined;
+    for (let i = 0; i < span; i++) out.push(Math.max(0, Math.round(w?.[i] ?? 0)));
+  }
+  return out;
+}
+
+export const MdTable = Table.extend({
+  renderMarkdown: (node: AnyNode, h: any, ctx: any) => {
+    const md: string = (base.renderMarkdown as any)(node, h, ctx);
+    const widths = columnWidths(node);
+    return widths.some((w) => w > 0) ? `<!-- nularche-table widths=${widths.join(",")} -->\n${md.replace(/^\n+/, "")}` : md;
+  },
+  markdownTokenizer: {
+    name: "table",
+    level: "block",
+    start: (src: string) => {
+      const m = /<!--\s*nularche-table\s+widths=/.exec(src);
+      const plain = (base.markdownTokenizer as any).start(src);
+      return m && (plain < 0 || m.index < plain) ? m.index : plain;
+    },
+    tokenize(src: string, tokens: MarkdownToken[], helper: MarkdownLexerConfiguration) {
+      const tokenize = (base.markdownTokenizer as any).tokenize as (s: string, t: MarkdownToken[], h: MarkdownLexerConfiguration) => MarkdownToken | undefined;
+      const m = WIDTHS_RE.exec(src);
+      if (!m) return tokenize(src, tokens, helper);
+      // Düz GFM tablosunu Markdown okuyucunun kendisi ayrıştırır; özel ayrıştırıcı yalnızca kaçışlı borulu tablolar içindir.
+      const rest = src.slice(m[0].length);
+      const own = tokenize(rest, tokens, helper);
+      const table = own ?? (helper.blockTokens(rest.split(/\n[ \t]*\n/)[0]) as MarkdownToken[])[0];
+      if (!table || table.type !== "table" || !table.raw) return undefined;
+      return { ...table, raw: m[0] + table.raw, widths: m[1].split(",").map((x) => Number(x) || 0) } as MarkdownToken;
+    },
+  },
+  parseMarkdown: (token: MarkdownToken & { widths?: number[] }, h: any) => {
+    const table = (base.parseMarkdown as any)(token, h);
+    const widths = token.widths;
+    if (!widths?.some((w) => w > 0)) return table;
+    for (const row of table.content ?? []) {
+      let col = 0;
+      for (const cell of row.content ?? []) {
+        const span = Number(cell.attrs?.colspan ?? 1) || 1;
+        const w = widths.slice(col, col + span);
+        col += span;
+        if (w.length === span && w.every((x) => x > 0)) cell.attrs = { ...(cell.attrs ?? {}), colwidth: w };
+      }
+    }
+    return table;
   },
 });

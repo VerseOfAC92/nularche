@@ -16,6 +16,7 @@ import { importFiles, IMPORTABLE_EXTS, type ImportFile } from "../../core/src/im
 import type { McpEntry } from "../../core/src/ai-clients.ts";
 import { registerAiIpc, type AiSettings } from "./ai.ts";
 import { registerCalendarIpc } from "./calendar.ts";
+import { attachContextMenu } from "./context-menu.ts";
 import { registerBackupIpc, type OriginBackup } from "./backup.ts";
 import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
 import { loadOrigin, type Origin } from "../../core/src/origin.ts";
@@ -389,6 +390,7 @@ function createNoteWindow(nodeId: string): void {
   });
   noteWindows.add(w);
   watchFullScreen(w);
+  attachContextMenu(w);
   w.once("ready-to-show", () => w.show());
   guardNavigation(w);
   w.on("closed", () => noteWindows.delete(w));
@@ -437,6 +439,7 @@ function createWindow(): void {
     },
   });
   watchFullScreen(win);
+  attachContextMenu(win);
   win.once("ready-to-show", () => win?.show());
   if (SMOKE) {
     win.webContents.on("console-message", (e) => {

@@ -4,6 +4,7 @@
 import { useEscape } from "./useEscape.ts";
 import { t, type StringKey } from "./i18n/index.ts";
 import { ALL_COMMANDS, comboFor } from "./commands.ts";
+import { Icon } from "./ui/Icon.tsx";
 
 export const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
 
@@ -141,9 +142,9 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog shortcuts">
         <div className="dialog-head">
-          <h2>⌨ {t("keys.title")}</h2>
+          <h2 className="dialog-title"><Icon name="keyboard" size={20} /> {t("keys.title")}</h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
-            ✕
+            <Icon name="x" />
           </button>
         </div>
         <p className="muted small">{isMac ? t("keys.hintMac") : t("keys.hintOther")}</p>

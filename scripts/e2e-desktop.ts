@@ -157,10 +157,12 @@ try {
       env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NULARCHE_ORIGIN: origin } as Record<string, string>,
     }),
   );
-  await page.getByText("✓ ChatGPT bağlandı").first().waitFor({ timeout: 10_000 });
+  await page.getByText("ChatGPT bağlandı").first().waitFor({ timeout: 10_000 });
   await shot("4-baglandi");
   await page.getByRole("button", { name: "İleri" }).click();
   await page.getByRole("button", { name: "Başla" }).click();
+  // Sihirbaz bitince AI paneli kendiliğinden açılmaz (karşılama ekranını kapatmaz); sağ alttaki düğmeyle açılır.
+  await page.locator(".nai-fab").click();
   await page.locator(".nai-panel").waitFor();
   await shot("5-nularche-ai");
   await client.close();
@@ -172,7 +174,7 @@ try {
   await page.getByRole("tab", { name: "Yapay zekâ" }).click();
   await page.getByPlaceholder(/Anahtarı buraya yapıştırın/).fill("AIza-test-anahtari");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
-  await page.getByText("✓ Otomatik mod açık").waitFor({ timeout: 10_000 });
+  await page.getByText("Otomatik mod açık").waitFor({ timeout: 10_000 });
   await shot("6-otomatik-mod");
   await page.keyboard.press("Escape");
   await page
@@ -181,8 +183,8 @@ try {
     .click();
   // Uzun başlık kesilmemeli: alan satır kaydırıp büyümeli.
   const longTitle = "Microsoft Identity & Communication Infrastructure: ADFS, WAP, ADRMS, Skype for Business and Teams";
-  await page.locator(".title-input").fill(longTitle);
-  const box = await page.locator(".title-input").evaluate((el: HTMLTextAreaElement) => ({
+  await page.locator(".title-input .ProseMirror").fill(longTitle);
+  const box = await page.locator(".title-input").evaluate((el: HTMLElement) => ({
     h: el.clientHeight,
     sh: el.scrollHeight,
     w: el.clientWidth,
@@ -192,8 +194,8 @@ try {
   assert.ok(box.h > box.line * 1.5, `başlık alt satıra geçmedi: ${JSON.stringify(box)}`);
   assert.ok(box.sh <= box.h + 1 && box.sw <= box.w + 1, `başlık kesildi: ${JSON.stringify(box)}`);
   await shot("6b-uzun-baslik");
-  await page.locator(".title-input").fill("Test notu");
-  await page.locator(".ProseMirror").click();
+  await page.locator(".title-input .ProseMirror").fill("Test notu");
+  await page.locator(".editor .ProseMirror").click();
   await page.keyboard.type("hatalı içerik");
   await page.waitForTimeout(1200);
   await page.locator(".claude-btn").click();
@@ -278,7 +280,7 @@ try {
   await page.locator(".side-btn", { hasText: "Templates" }).click();
   await page.locator(".tpl-card", { hasText: "Task board" }).click();
   await page.locator(".db .board-card").first().waitFor({ timeout: 10_000 });
-  assert.equal(await page.locator(".title-input").inputValue(), "Task board");
+  assert.equal(await page.locator(".title-input").textContent(), "Task board");
   assert.ok((await page.locator(".db .board-card").count()) >= 2);
   // Yeni satır ekle ve tablo görünümünde durumunu seç.
   await page.locator(".db-tab", { hasText: "Table" }).click();
@@ -291,14 +293,14 @@ try {
   // Çöp: veritabanını sil, Çöp'te gör, geri getir. (Nularche AI penceresi menüyü örtmesin diye küçültülür.)
   if (await page.locator(".nai-panel").count()) await page.locator(".nai-panel .icon-btn").last().click();
   page.once("dialog", (d) => void d.accept());
-  await page.locator(".topbar .icon-btn", { hasText: "⋯" }).click();
+  await page.locator(".topbar .icon-btn[title=\"More\"], .topbar .icon-btn[title=\"Diğer\"]").click();
   await page.locator(".menu-pop button.danger").click();
   await page.locator(".side-btn", { hasText: "Trash" }).click();
   await page.locator(".trash-row", { hasText: "Task board" }).waitFor({ timeout: 5_000 });
   assert.match((await page.locator(".trash-row", { hasText: "Task board" }).textContent()) ?? "", /subpages/);
   await shot("14-cop");
   await page.locator(".trash-row", { hasText: "Task board" }).getByRole("button", { name: /Restore/ }).click();
-  await page.locator(".trash-none").waitFor({ timeout: 5_000 });
+  await page.locator(".trash-page .empty-state").waitFor({ timeout: 5_000 });
   const restored = await page.evaluate(async () => (await (await fetch("/api/nodes")).json()).nodes.filter((n: { title: string }) => n.title === "Task board" || n.title === "E2E satırı").map((n: { path: string }) => n.path));
   assert.equal(restored.length, 2, `geri gelenler: ${restored}`);
 
@@ -314,7 +316,7 @@ try {
   });
   await page.evaluate((id) => (location.hash = id), note);
   await page.reload();
-  await page.locator(".main.has-bg .ProseMirror").waitFor({ timeout: 10_000 });
+  await page.locator(".main.has-bg .editor .ProseMirror").waitFor({ timeout: 10_000 });
   const pageWidth = async (w: number) => {
     await app.evaluate(({ BrowserWindow }, w) => BrowserWindow.getAllWindows()[0].setSize(w, 860), w);
     await page.waitForTimeout(400);
@@ -325,7 +327,7 @@ try {
   assert.ok(wide - narrow > 400, `sayfa pencereyle genişlemedi: ${wide} → ${narrow}`);
   await shot("15-manzara");
   // 2.0: cam efektli sayfada "/" menüsü imlecin yanında açılır (bulanıklık açılır pencereleri kaydırmamalı).
-  await page.locator(".ProseMirror").click();
+  await page.locator(".editor .ProseMirror").click();
   await page.keyboard.press("End");
   await page.keyboard.press("Enter");
   await page.keyboard.type("/");
@@ -341,7 +343,7 @@ try {
   await page.keyboard.press("Backspace");
 
   // 1.5: odak modu ⇧⌘F ile açılır, sayfa yine pencereye uyar; Esc ile kapanır.
-  await page.locator(".ProseMirror").click();
+  await page.locator(".editor .ProseMirror").click();
   await page.keyboard.press(process.platform === "darwin" ? "Meta+Shift+F" : "Control+Shift+F");
   await page.locator(".app.focus-mode").waitFor({ timeout: 5_000 });
   await page.waitForTimeout(800);
@@ -369,7 +371,7 @@ try {
   await page.locator(".ProseMirror .wiki-link").first().waitFor({ timeout: 10_000 });
   assert.equal(await page.locator(".ProseMirror .wiki-link.unresolved").count(), 1);
   assert.ok(await page.locator(".ProseMirror .katex").count(), "matematik çizilmedi");
-  await page.locator(".ProseMirror").click();
+  await page.locator(".editor .ProseMirror").click();
   await page.keyboard.press("End");
   await page.keyboard.type(" ek");
   await page.waitForTimeout(1500);
@@ -436,13 +438,13 @@ try {
   await page.locator(".picker .results button", { hasText: "Bağlantılı not" }).first().waitFor();
   await page.keyboard.press("Enter");
   await page.locator(".title-input").waitFor();
-  assert.equal(await page.locator(".title-input").inputValue(), "Bağlantılı not");
+  assert.equal(await page.locator(".title-input").textContent(), "Bağlantılı not");
   // Sekmeler: yeni sekme açılır, sekme çubuğu görünür, sekme kapanınca çubuk gizlenir ve önceki sayfa kalır.
   await page.keyboard.press(`${mod}+Alt+T`);
   await page.locator(".tab-bar .tab").nth(1).waitFor({ timeout: 5_000 });
   await page.keyboard.press(`${mod}+Alt+W`);
   await page.locator(".tab-bar").waitFor({ state: "detached", timeout: 5_000 });
-  assert.equal(await page.locator(".title-input").inputValue(), "Bağlantılı not");
+  assert.equal(await page.locator(".title-input").textContent(), "Bağlantılı not");
   // 2.0: gizli kenar çubuğu üzerine gelince açılır; New Writing Project menüsü tam görünür, menüdeyken panel açık
   // kalır ve menüden Tabula oluşturulur. Tabula'da kalemle çizim ve yapışkan not kaydedilir.
   await page.evaluate(async () => {

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { NodeMeta, TagCount } from "../api.ts";
 import { t } from "../i18n/index.ts";
 import { newSmartId, smartMatches, type SmartFolder } from "./smart.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 const DAYS = [0, 1, 7, 30, 90, 365];
 
@@ -39,9 +40,9 @@ export function SmartFolderDialog({
         }}
       >
         <header>
-          <h2>⚙︎ {initial?.id ? t("smart.edit") : t("smart.new")}</h2>
+          <h2 className="dialog-title"><Icon name="folder-cog" size={20} /> {initial?.id ? t("smart.edit") : t("smart.new")}</h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
-            ✕
+            <Icon name="x" />
           </button>
         </header>
         <label className="field">

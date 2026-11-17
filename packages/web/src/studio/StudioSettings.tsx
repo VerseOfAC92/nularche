@@ -9,6 +9,8 @@ import { usePref } from "../prefs.ts";
 import { BUNDLED_FONTS } from "./fonts.ts";
 import { AMBIENCES, bell, setAmbience, typeSound, type Ambience, type TypeProfile } from "./sounds.ts";
 import type { TextShortcut } from "./editor-plugins.ts";
+import { Icon } from "../ui/Icon.tsx";
+import { DEFAULT_FONT_SIZE } from "../notes/font-stack.ts";
 
 export interface CustomCommand {
   id: string;
@@ -25,6 +27,7 @@ export type StudioPart = "goals" | "contrast" | "sound" | "timer" | "shortcuts" 
 export function StudioSettings({ nodes, onToast, part }: { nodes: NodeMeta[]; onToast: (msg: string) => void; part: StudioPart }) {
   const [dailyGoal, setDailyGoal] = usePref<number>("dailyGoal", 0);
   const [writingFont, setWritingFont] = usePref<string>("writingFont", "");
+  const [writingSize, setWritingSize] = usePref<number>("writingFontSize", 0);
   const [contrast, setContrast] = usePref<boolean>("highContrast", false);
   const [mentions, setMentions] = usePref<boolean>("wikiMentions", true);
   const [typeOn, setTypeOn] = usePref<boolean>("typeSounds", false);
@@ -93,6 +96,18 @@ export function StudioSettings({ nodes, onToast, part }: { nodes: NodeMeta[]; on
             </option>
           ))}
         </select>
+      </label>
+      <label className="field inline">
+        <span>{t("ws.writingSize")}</span>
+        <span className="size-control">
+          <input type="range" min={12} max={28} step={1} value={writingSize || DEFAULT_FONT_SIZE} onChange={(e) => setWritingSize(Number(e.target.value) === DEFAULT_FONT_SIZE ? 0 : Number(e.target.value))} aria-label={t("ws.writingSize")} />
+          <output>{writingSize || DEFAULT_FONT_SIZE} px</output>
+          {writingSize > 0 && (
+            <button className="secondary small-btn" onClick={() => setWritingSize(0)}>
+              {t("ws.resetSize")}
+            </button>
+          )}
+        </span>
       </label>
       <label className="check">
         <input type="checkbox" checked={mentions} onChange={(e) => setMentions(e.target.checked)} /> {t("ws.wikiMentionsSetting")}
@@ -188,7 +203,7 @@ export function StudioSettings({ nodes, onToast, part }: { nodes: NodeMeta[]; on
               </td>
               <td>
                 <button className="icon-btn" onClick={() => setShortcuts(shortcuts.filter((_, j) => j !== i))} aria-label={t("common.remove")}>
-                  ✕
+                  <Icon name="x" />
                 </button>
               </td>
             </tr>
@@ -232,7 +247,7 @@ export function StudioSettings({ nodes, onToast, part }: { nodes: NodeMeta[]; on
               <textarea rows={1} value={c.value} placeholder={c.action === "run" ? "view.focus, timer.toggle" : t("ws.commandValue")} onChange={(e) => set({ value: e.target.value })} />
             )}
             <button className="icon-btn" onClick={() => setCommands(commands.filter((_, j) => j !== i))} aria-label={t("common.remove")}>
-              ✕
+              <Icon name="x" />
             </button>
           </div>
         );
@@ -242,10 +257,10 @@ export function StudioSettings({ nodes, onToast, part }: { nodes: NodeMeta[]; on
           ＋ {t("ws.addCommand")}
         </button>
         <button className="secondary small-btn" onClick={exportFile}>
-          ⇩ {t("ws.exportShortcuts")}
+          <Icon name="download" /> {t("ws.exportShortcuts")}
         </button>
         <button className="secondary small-btn" onClick={importFile}>
-          ⇧ {t("ws.importShortcuts")}
+          <Icon name="upload" /> {t("ws.importShortcuts")}
         </button>
       </div>
 
@@ -313,7 +328,7 @@ function CaptureSettings({ nodes, onToast }: { nodes: NodeMeta[]; onToast: (msg:
                 </td>
                 <td>
                   <button className="icon-btn" onClick={() => void save({ ...config, rules: config.rules.filter((_, j) => j !== i) })} aria-label={t("common.remove")}>
-                    ✕
+                    <Icon name="x" />
                   </button>
                 </td>
               </tr>

@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "../i18n/index.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 type Kind = "text" | "list" | "number" | "checkbox" | "date";
 
@@ -59,7 +60,7 @@ export function PropertiesBlock({
           <PropValue value={value} readOnly={readOnly} onChange={(v) => onChange({ [key]: v })} />
           {!readOnly && (
             <button className="icon-btn prop-remove" title={t("common.remove")} onClick={() => onChange({ [key]: null })}>
-              ✕
+              <Icon name="x" size={14} />
             </button>
           )}
         </div>

@@ -252,7 +252,7 @@ export const STRINGS = {
   "onb.back": { tr: "Geri", en: "Back" },
   "onb.next": { tr: "İleri", en: "Next" },
   "onb.readyText": { tr: "Sağ alttaki Nularche AI penceresinden yapay zekânıza istek gönderebilirsiniz. Yapay zekâ ayarlarını istediğiniz zaman Ayarlar → Yapay zekâ bölümünden değiştirebilirsiniz.", en: "You can send requests to your AI from the Nularche AI window at the bottom right. You can change the AI settings any time under Settings → AI." },
-  "onb.readyTitle": { tr: "Hazırsınız 🎉", en: "You're all set 🎉" },
+  "onb.readyTitle": { tr: "Hazırsınız", en: "You're all set" },
   "onb.skip": { tr: "Atla", en: "Skip" },
   "onb.start": { tr: "Başla", en: "Start" },
   "onb.stepAi": { tr: "Yapay zekâ", en: "AI" },

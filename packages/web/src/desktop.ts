@@ -59,16 +59,50 @@ export type CalendarFailure = { ok: false; code: CalendarErrorCode; error: strin
 
 export interface CalendarLinkStatus {
   id: string;
-  dbId: string;
+  /** Yalnızca veritabanı bağlantısında; görüntüleme bağlantısı not oluşturmaz. */
+  dbId?: string;
   provider: CalendarProviderId;
   calendarId: string;
   calendarName: string;
-  dateProp: string;
+  dateProp?: string;
   lastSync?: number;
   lastError?: { code: CalendarErrorCode; message: string } | null;
   lastResult?: { createdLocal: number; createdRemote: number; updatedLocal: number; updatedRemote: number; trashedLocal: number; deletedRemote: number; skipped: number };
   /** Eşlenmiş satır sayısı. */
   count: number;
+}
+
+/** Etkinlik zamanı: tüm gün (bitiş günü hariç) ya da başlangıç–bitiş anı (ms). */
+export type EventTime = { allDay: true; start: string; end: string } | { allDay: false; start: number; end: number };
+export type AttendeeStatus = "accepted" | "declined" | "tentative" | "needs-action";
+export interface CachedEvent {
+  id: string;
+  title: string;
+  when: EventTime;
+  description?: string;
+  location?: string;
+  url?: string;
+  organizer?: { name?: string; email?: string };
+  attendees?: { name?: string; email?: string; status: AttendeeStatus; organizer?: boolean }[];
+  /** Başlangıçtan kaç dakika önce. */
+  alarms?: number[];
+  recurring?: boolean;
+}
+/** Takvim ekranından yazılan etkinlik: verilmeyen ayrıntı değiştirilmez; `alarm: null` hatırlatmayı kaldırır. */
+export interface EventSaveInput {
+  title: string;
+  when: EventTime;
+  description?: string;
+  location?: string;
+  url?: string;
+  alarm?: number | null;
+}
+/** Takvim ekranının not dışı takvimleri: yerel Nularche takvimi ve görüntülenen hesap takvimleri. */
+export interface ViewCalendar {
+  id: string;
+  provider: CalendarProviderId | "local";
+  name: string;
+  events: CachedEvent[];
 }
 
 export interface CalendarStatus {
@@ -91,6 +125,8 @@ export interface DesktopBridge {
   /** Yerel çerçevenin koyu/açık görünümü seçilen arka plana uysun; null kullanıcının temasına döner. */
   setChrome?(mode: "dark" | "light" | null): Promise<void>;
   onFullScreen?(cb: (on: boolean) => void): () => void;
+  contextItems?(items: unknown): unknown;
+  onContextRun?(cb: (id: string) => void): () => void;
   setLanguage(lang: "tr" | "en"): Promise<void>;
   rendererReady(): Promise<string | null>;
   info(): Promise<{ version: string; platform: string; originDir: string; warning: string | null }>;
@@ -127,14 +163,17 @@ export interface DesktopBridge {
   calendarConnectApple(appleId: string, password: string): Promise<{ ok: true; account: string } | CalendarFailure>;
   calendarDisconnect(provider: CalendarProviderId): Promise<void>;
   calendarCalendars(provider: CalendarProviderId): Promise<{ ok: true; calendars: { id: string; name: string; color?: string }[] } | CalendarFailure>;
-  /** Veritabanını takvime bağlar ve ilk eşitlemeyi yapar. */
+  /** Takvimi bağlar (veritabanı verilmezse yalnızca Takvim ekranında görüntülenir) ve ilk eşitlemeyi yapar. */
   calendarLink(input: {
-    dbId: string;
+    dbId?: string;
     provider: CalendarProviderId;
     calendarId: string;
     calendarName: string;
-    dateProp: string;
+    dateProp?: string;
   }): Promise<{ ok: true; linkId: string; errors: string[] } | CalendarFailure>;
+  calendarEvents(): Promise<{ calendars: ViewCalendar[] }>;
+  calendarEventSave(linkId: string, eventId: string | null, input: EventSaveInput): Promise<{ ok: true; event: CachedEvent } | CalendarFailure>;
+  calendarEventDelete(linkId: string, eventId: string): Promise<{ ok: true } | CalendarFailure>;
   calendarUnlink(linkId: string): Promise<void>;
   calendarSync(): Promise<{ ok: boolean; errors: string[] }>;
   /** Google Cloud kimlik bilgileri ya da Apple uygulamaya özel parola sayfasını açar. */

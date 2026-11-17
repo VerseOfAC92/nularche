@@ -5,6 +5,45 @@
 Tabula, a whiteboard that sits over your writing background; a sidebar that hides completely; a richer Atrium; and
 Nularche AI requests that can no longer hang, can be cancelled, and never edit notes unless you ask. Plus
 **Nularche Font**, Nularche's own handwriting typeface, Archipelagos that group Arches, and smart folders in the Atrium.
+A Calendar page shows Google and Apple calendars with full event details without creating notes, titles take
+formatting, and the interface got a careful visual pass.
+
+### Calendar
+- New Calendar page (sidebar, ⇧⌘K): month, week (hour grid, now line, all-day row) and agenda views of the local
+  Nularche calendar, the Google and Apple (iCloud) calendars turned on in Settings, and every database with a date
+  property; each source can be shown or hidden.
+- Calendars turned on in Settings → Calendar are shown, not imported: no Arche, database or notes are created. Events
+  are cached in `.nularche/calendar-events.json` (one year back, two years ahead, refreshed every 5 minutes) and
+  changes made on the Calendar page are written straight to the calendar. Database ↔ calendar sync stays available
+  from the database's Calendar button.
+- Event details: time, alerts, location, meeting link (Teams, Zoom, Meet, Webex) with an Open button, organiser,
+  attendees with their replies, and notes with clickable links, read from Google and iCloud. New events take location,
+  link, alert and notes; editing writes only the changed fields, so attendees and other details are kept. Recurring
+  events are view-only.
+- Calendars linked by an earlier 2.5 build inside an automatic "Calendars" Arche become shown calendars; that Arche
+  moves to Trash when it only held them.
+- Fixed: Settings → Calendar showed an error when a synced database had been deleted; such links are now removed.
+
+### Writing and editing
+- Titles take bold, italic, underline, strike, highlight and colour (selection bar and right-click). The plain title
+  still names the file; the formatting is stored in the `titleRich` field.
+- Right-click shows Nularche's options (formatting, links, Marginalia; Tabula shape options; sidebar open, add and
+  move) together with the system's (spelling, Look Up, cut, copy, paste, Share, Services).
+- Tab indents in notes and nests list items; Shift-Tab outdents; tables keep Tab for moving between cells. Tab no
+  longer moves focus to Nularche AI.
+- Default text size in Settings → Writing.
+- Table column widths set by dragging are saved in an invisible comment before the table
+  (`<!-- nularche-table widths=… -->`) and restored when the note opens.
+- The writing hint only shows in an empty note (not in table cells, new lines or under database views); right-clicking
+  a selection no longer opens the format bar as well.
+
+### Look
+- One set of line icons (Tabler Icons, MIT) replaces emoji and symbols in menus, toolbars, panels, dialogs, callouts and
+  empty states; icons given to notes are unchanged.
+- Menus and dialogs over a background use solid frosted glass; controls, spacing, alignment and focus states were
+  tidied across the app. Tabula's shape library has a Diagram shapes / Pictures switch with one scrolling category row,
+  and its format panel closes with one click on the board.
+- Fixed: the Aura volume slider overflowed its menu; board JSON appeared in search snippets.
 
 ### Nularche Font
 - Nularche's own handwriting typeface, bundled with the app (WOFF2, works offline) and listed first among the

@@ -13,6 +13,7 @@ import { aiActions, PROVIDER_LABEL, requestPrompt } from "./prompts.ts";
 import { getLang, t } from "../i18n/index.ts";
 import { useDraggable } from "./useDraggable.ts";
 import { keys } from "../shortcuts.tsx";
+import { Glyph, Icon } from "../ui/Icon.tsx";
 
 export interface AiContext {
   nodeId?: string;
@@ -170,7 +171,7 @@ export function NularcheAI({
         )}
         {requests.length > 0 && (
           <button className="icon-btn" onClick={clearHistory} title={t("nai.clearHistory")}>
-            ⌫
+            <Icon name="eraser" />
           </button>
         )}
         <button className="icon-btn" onClick={() => onOpenChange(false)} title={t("nai.minimize")}>
@@ -196,18 +197,18 @@ export function NularcheAI({
                   <div className="nai-text">{r.label === r.instruction || r.instruction.startsWith(r.label) ? r.instruction : r.label}</div>
                   {r.nodeTitle && (
                     <button className="nai-chip" onClick={() => r.nodeId && onOpenNode(r.nodeId)}>
-                      ◇ {r.nodeTitle}
+                      <Icon name="file" size={13} /> {r.nodeTitle}
                     </button>
                   )}
                   {r.selection && <span className="nai-chip">{t("nai.selection")}</span>}
-                  {r.readOnly && <span className="nai-chip">💬 {t("nai.replyOnly")}</span>}
+                  {r.readOnly && <span className="nai-chip"><Icon name="message-circle" size={13} /> {t("nai.replyOnly")}</span>}
                 </div>
                 <div className={`nai-status ${r.status}`}>
                   {STATUS_TEXT(r, r.provider ? PROVIDER_LABEL[r.provider] : ai, autoOn)}
                   {r.status === "done" && r.client?.startsWith("Gemini ·") && <span className="nai-model"> · {r.client.slice(9)}</span>}
                   {(r.status === "pending" || r.status === "received") && (
                     <button className="nai-copy" onClick={() => void cancel(r)} title={t("nai.cancelHint")}>
-                      ✕ {t("nai.cancel")}
+                      <Icon name="x" size={14} /> {t("nai.cancel")}
                     </button>
                   )}
                   {desktop && autoOn && (r.status === "failed" || (r.status !== "done" && Date.now() - r.createdAt > 60_000)) && (
@@ -218,7 +219,7 @@ export function NularcheAI({
                         if (!res.ok && res.error) onToast(res.error);
                       }}
                     >
-                      ↻ {t("nai.retry")}
+                      <Icon name="refresh" size={14} /> {t("nai.retry")}
                     </button>
                   )}
                   {r.status === "pending" && !autoOn && (
@@ -240,14 +241,14 @@ export function NularcheAI({
                   <div className="nai-changes">
                     {[...new Map(r.changes.map((c) => [c.nodeId, c])).values()].map((c) => (
                       <button key={c.nodeId} className="nai-chip" onClick={() => onOpenNode(c.nodeId)}>
-                        ✎ {c.title}
+                        <Icon name="pencil" size={13} /> {c.title}
                       </button>
                     ))}
                     {r.undoneAt ? (
                       <span className="muted small">{t("nai.undoneShort")}</span>
                     ) : (
                       <button className="nai-undo" onClick={() => undo(r)}>
-                        ↶ {t("nai.undo")}
+                        <Icon name="arrow-back-up" size={14} /> {t("nai.undo")}
                       </button>
                     )}
                   </div>
@@ -259,7 +260,7 @@ export function NularcheAI({
           <div className="nai-composer">
             <div className="nai-context">
               {context.nodeTitle ? (
-                <span className="nai-chip">◇ {context.nodeTitle}</span>
+                <span className="nai-chip"><Icon name="file" size={13} /> {context.nodeTitle}</span>
               ) : (
                 <span className="muted small">{t("nai.noNode")}</span>
               )}
@@ -270,7 +271,7 @@ export function NularcheAI({
                 </label>
               )}
               <label className={`nai-chip nai-mode ${replyOnly ? "on" : ""}`} title={t("nai.replyOnlyHint")}>
-                <input type="checkbox" checked={replyOnly} onChange={(e) => setReplyOnly(e.target.checked)} /> 💬 {t("nai.replyOnly")}
+                <input type="checkbox" checked={replyOnly} onChange={(e) => setReplyOnly(e.target.checked)} /> <Icon name="message-circle" size={14} /> {t("nai.replyOnly")}
               </label>
             </div>
             {context.nodeId && (
@@ -281,7 +282,7 @@ export function NularcheAI({
                     disabled={sending}
                     onClick={() => send(a.label, selection ? `${a.instruction} ${t("nai.onlySelection")}` : a.instruction)}
                   >
-                    <span>{a.icon}</span> {a.label}
+                    <span className="nai-act-icon"><Glyph icon={a.icon} size={14} /></span> {a.label}
                   </button>
                 ))}
               </div>
@@ -305,7 +306,7 @@ export function NularcheAI({
                 }}
               />
               <button className="primary" disabled={!text.trim() || sending}>
-                ↑
+                <Icon name="arrow-up" size={18} />
               </button>
             </form>
           </div>

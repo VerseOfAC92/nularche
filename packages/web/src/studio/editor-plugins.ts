@@ -180,7 +180,7 @@ export const StudioMarks = Extension.create({
             const word = /(\S+)$/.exec(before)?.[1];
             const hit = word ? data.shortcuts.find((s) => s.abbr === word) : undefined;
             if (!hit || !word) return false;
-            const title = (document.querySelector<HTMLTextAreaElement>(".title-input")?.value ?? "").trim();
+            const title = (document.querySelector<HTMLElement>(".page .title-input")?.textContent ?? "").trim();
             const expansion = fillTemplate(hit.text, { title, now: new Date() });
             const start = from - word.length;
             if (!expansion.includes("\n")) {

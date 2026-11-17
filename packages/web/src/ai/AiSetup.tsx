@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { copyText, desktop, type AiStatus, type ConnectionStatus, type LauncherId, type ProviderId } from "../desktop.ts";
 import { AutoModeSetup } from "./AutoModeSetup.tsx";
 import { ago, t } from "../i18n/index.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 const LOGOS: Record<ProviderId, string> = { claude: "✳", chatgpt: "◎", gemini: "✦" };
 
@@ -139,7 +140,7 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
   return (
     <div className={`ai-setup ${compact ? "compact" : ""}`}>
       {status.warning && <p className="warn">{status.warning}</p>}
-      <div className="ai-mode-title">⚡ {t("ais.autoTitle")}</div>
+      <div className="ai-mode-title"><Icon name="bolt" /> {t("ais.autoTitle")}</div>
       <AutoModeSetup onToast={onToast} onChanged={refresh} />
       <div className="ai-mode-title">{t("ais.subTitle")}</div>
       <p className="muted small">{t("ais.subHint")}</p>
@@ -153,7 +154,7 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
               <span className="provider-logo">{LOGOS[x.id]}</span>
               <strong>{x.name}</strong>
               <small>{x.company}</small>
-              {isProviderConnected(status, x.id) && <span className="provider-ok">✓ {t("ais.connected")}</span>}
+              {isProviderConnected(status, x.id) && <span className="provider-ok"><Icon name="check" /> {t("ais.connected")}</span>}
             </button>
           ))}
         </div>
@@ -249,7 +250,7 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
             {connected.length ? (
               connected.map((c) => (
                 <p key={c.name} className="ok">
-                  ✓ {t("ais.providerConnected", { name: p.name })}{" "}
+                  <Icon name="check" /> {t("ais.providerConnected", { name: p.name })}{" "}
                   <span className="muted small">({t("ais.lastUsed", { client: c.name, when: ago(c.lastSeen) })})</span>
                 </p>
               ))

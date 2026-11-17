@@ -4,16 +4,18 @@ import { t } from "../i18n/index.ts";
 import { BUNDLED_FONTS } from "../studio/fonts.ts";
 
 import { DEFAULT_FONT_SIZE, fontStack, SYSTEM_FONTS } from "./font-stack.ts";
+import { Icon } from "../ui/Icon.tsx";
 
-export function FontDialog({ font, size, onChange, onClose }: { font?: string; size?: number; onChange: (font: string | null, size: number | null) => void; onClose: () => void }) {
-  const current = size ?? DEFAULT_FONT_SIZE;
+export function FontDialog({ font, size, fallbackSize, onChange, onClose }: { font?: string; size?: number; fallbackSize?: number; onChange: (font: string | null, size: number | null) => void; onClose: () => void }) {
+  const base = fallbackSize ?? DEFAULT_FONT_SIZE;
+  const current = size ?? base;
   return (
     <div className="overlay" onMouseDown={onClose} onKeyDown={(e) => e.key === "Escape" && onClose()}>
       <div className="dialog small-dialog" onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <h2>{t("font.title")}</h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
-            ✕
+            <Icon name="x" />
           </button>
         </header>
         <label className="field">
@@ -43,7 +45,7 @@ export function FontDialog({ font, size, onChange, onClose }: { font?: string; s
           <span>
             {t("font.size")} · {current}px
           </span>
-          <input type="range" min={12} max={32} value={current} onChange={(e) => onChange(font ?? null, Number(e.target.value) === DEFAULT_FONT_SIZE ? null : Number(e.target.value))} />
+          <input type="range" min={12} max={32} value={current} onChange={(e) => onChange(font ?? null, Number(e.target.value) === base ? null : Number(e.target.value))} />
         </label>
         <p className="font-preview" style={{ fontFamily: fontStack(font), fontSize: current }}>
           {t("font.preview")}

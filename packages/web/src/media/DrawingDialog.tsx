@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.ts";
 import { t } from "../i18n/index.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 type Tool = "pen" | "marker" | "eraser";
 const COLORS = ["#1f2328", "#e6edf3", "#f85149", "#f0883e", "#d29922", "#3fb950", "#00a8b5", "#2f81f7", "#a371f7"];
@@ -107,7 +108,7 @@ export function DrawingDialog({ src, onDone }: { src: string | null; onDone: (pa
         <div className="draw-tools">
           {(["pen", "marker", "eraser"] as Tool[]).map((k) => (
             <button key={k} className={`secondary ${tool === k ? "on" : ""}`} onClick={() => setTool(k)}>
-              {k === "pen" ? "✎" : k === "marker" ? "▮" : "⌫"} {t(k === "pen" ? "draw.pen" : k === "marker" ? "draw.marker" : "draw.eraser")}
+              <Icon name={k === "pen" ? "pencil" : k === "marker" ? "brush" : "eraser"} size={15} /> {t(k === "pen" ? "draw.pen" : k === "marker" ? "draw.marker" : "draw.eraser")}
             </button>
           ))}
           <span className="sep" />

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { api, type NodeMeta, type ParentTarget } from "../api.ts";
 import { getLang, t } from "../i18n/index.ts";
 import { BUILTIN_TEMPLATES, instantiateBuiltin, type BuiltinTemplate } from "./builtins.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 export function TemplateGallery({
   nodes,
@@ -48,9 +49,9 @@ export function TemplateGallery({
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog templates">
         <div className="dialog-head">
-          <h2>📋 {t("tpl.title")}</h2>
+          <h2 className="dialog-title"><Icon name="template" size={20} /> {t("tpl.title")}</h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
-            ✕
+            <Icon name="x" />
           </button>
         </div>
         <div className="row-inline tpl-target">
@@ -84,7 +85,7 @@ export function TemplateGallery({
           <div className="tpl-grid">
             {mine.map((n) => (
               <button key={n.id} className="tpl-card" disabled={!!busy} onClick={() => useMine(n)}>
-                <span className="tpl-icon">{n.icon ?? "📄"}</span>
+                <span className="tpl-icon">{n.icon ?? <Icon name="file" size={22} />}</span>
                 <strong>{n.title}</strong>
                 {busy === n.id && <span className="muted small">…</span>}
               </button>

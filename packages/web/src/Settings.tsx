@@ -18,12 +18,13 @@ import type { MathMode } from "./editor/notes-extensions.ts";
 import type { NodeMeta } from "./api.ts";
 import { StudioSettings } from "./studio/StudioSettings.tsx";
 import { runCommand } from "./commands.ts";
+import { Icon, type IconName } from "./ui/Icon.tsx";
 
 type CategoryId = "appearance" | "writing" | "aura" | "automation" | "origin" | "keys" | "publish" | "calendar" | "ai" | "about";
 
 interface Category {
   id: CategoryId;
-  icon: string;
+  icon: IconName;
   label: StringKey;
   hint: StringKey;
   /** Aramada eşleşecek ek sözcükler (her iki dilde). */
@@ -31,35 +32,35 @@ interface Category {
 }
 
 const CATEGORIES: Category[] = [
-  { id: "appearance", icon: "🎨", label: "settings.catAppearance", hint: "settings.catAppearanceHint", keywords: "tema theme dil language kontrast contrast renk accent css snippet görünüm" },
-  { id: "writing", icon: "✍️", label: "settings.catWriting", hint: "settings.catWritingHint", keywords: "yazım spell kelime word hedef goal font yazı tipi matematik math düzenleyici editor okuma reading lore" },
-  { id: "aura", icon: "♪", label: "settings.catAura", hint: "settings.catAuraHint", keywords: "aura ses sound daktilo typewriter ortam ambience clepsydra zamanlayıcı timer odak focus arka plan background manzara" },
-  { id: "automation", icon: "⚡", label: "settings.catAutomation", hint: "settings.catAutomationHint", keywords: "sigil kısaltma shortcut rite komut command conduit yakalama capture" },
-  { id: "origin", icon: "🗄", label: "settings.catOrigin", hint: "settings.catOriginHint", keywords: "origin klasör folder içe aktar import arşiv archive nla yedek backup ark dosya file açılış startup hariç excluded" },
-  { id: "keys", icon: "⌨", label: "settings.catKeys", hint: "settings.catKeysHint", keywords: "kısayol shortcut hotkey klavye keyboard" },
-  { id: "publish", icon: "🌐", label: "settings.catPublish", hint: "settings.catPublishHint", keywords: "yayınla publish site web" },
-  { id: "calendar", icon: "🗓", label: "settings.catCalendar", hint: "settings.catCalendarHint", keywords: "takvim calendar google apple icloud" },
-  { id: "ai", icon: "✦", label: "settings.catAi", hint: "settings.catAiHint", keywords: "ai yapay zekâ claude chatgpt gemini mcp" },
-  { id: "about", icon: "ⓘ", label: "settings.catAbout", hint: "settings.catAboutHint", keywords: "hakkında about sürüm version lisans license sözlük glossary destek support e-posta email iletişim contact" },
+  { id: "appearance", icon: "palette", label: "settings.catAppearance", hint: "settings.catAppearanceHint", keywords: "tema theme dil language kontrast contrast renk accent css snippet görünüm" },
+  { id: "writing", icon: "pencil", label: "settings.catWriting", hint: "settings.catWritingHint", keywords: "yazım spell kelime word hedef goal font yazı tipi matematik math düzenleyici editor okuma reading lore" },
+  { id: "aura", icon: "music", label: "settings.catAura", hint: "settings.catAuraHint", keywords: "aura ses sound daktilo typewriter ortam ambience clepsydra zamanlayıcı timer odak focus arka plan background manzara" },
+  { id: "automation", icon: "bolt", label: "settings.catAutomation", hint: "settings.catAutomationHint", keywords: "sigil kısaltma shortcut rite komut command conduit yakalama capture" },
+  { id: "origin", icon: "database", label: "settings.catOrigin", hint: "settings.catOriginHint", keywords: "origin klasör folder içe aktar import arşiv archive nla yedek backup ark dosya file açılış startup hariç excluded" },
+  { id: "keys", icon: "keyboard", label: "settings.catKeys", hint: "settings.catKeysHint", keywords: "kısayol shortcut hotkey klavye keyboard" },
+  { id: "publish", icon: "world", label: "settings.catPublish", hint: "settings.catPublishHint", keywords: "yayınla publish site web" },
+  { id: "calendar", icon: "calendar", label: "settings.catCalendar", hint: "settings.catCalendarHint", keywords: "takvim calendar google apple icloud" },
+  { id: "ai", icon: "sparkles", label: "settings.catAi", hint: "settings.catAiHint", keywords: "ai yapay zekâ zeka claude chatgpt gemini mcp" },
+  { id: "about", icon: "info-circle", label: "settings.catAbout", hint: "settings.catAboutHint", keywords: "hakkında about sürüm version lisans license sözlük glossary destek support e-posta email iletişim contact" },
 ];
 
 /** Destek e-postası (Hakkında). */
 const SUPPORT_EMAIL = "verseofac@gmail.com";
 
 /** Hakkında sayfasındaki kısa özellik listesi: simge, başlık, açıklama. */
-const ABOUT_FEATURES: [string, StringKey, StringKey][] = [
-  ["🗂", "about.f.filesTitle", "about.f.files"],
-  ["🔗", "about.f.linksTitle", "about.f.links"],
-  ["▦", "about.f.dbTitle", "about.f.db"],
-  ["📕", "about.f.studioTitle", "about.f.studio"],
-  ["🎨", "about.f.tabulaTitle", "about.f.tabula"],
-  ["✍️", "about.f.fontTitle", "about.f.font"],
-  ["🏛", "about.f.atriumTitle", "about.f.atrium"],
-  ["🎯", "about.f.focusTitle", "about.f.focus"],
-  ["✦", "about.f.aiTitle", "about.f.ai"],
-  ["🔒", "about.f.privacyTitle", "about.f.privacy"],
-  ["⇩", "about.f.exportTitle", "about.f.export"],
-  ["🖼", "about.f.lookTitle", "about.f.look"],
+const ABOUT_FEATURES: [IconName, StringKey, StringKey][] = [
+  ["folders", "about.f.filesTitle", "about.f.files"],
+  ["link", "about.f.linksTitle", "about.f.links"],
+  ["table", "about.f.dbTitle", "about.f.db"],
+  ["book", "about.f.studioTitle", "about.f.studio"],
+  ["chalkboard", "about.f.tabulaTitle", "about.f.tabula"],
+  ["signature", "about.f.fontTitle", "about.f.font"],
+  ["building-bank", "about.f.atriumTitle", "about.f.atrium"],
+  ["target", "about.f.focusTitle", "about.f.focus"],
+  ["sparkles", "about.f.aiTitle", "about.f.ai"],
+  ["lock", "about.f.privacyTitle", "about.f.privacy"],
+  ["download", "about.f.exportTitle", "about.f.export"],
+  ["photo", "about.f.lookTitle", "about.f.look"],
 ];
 
 /** Bir kategori içindeki başlıklı kart. */
@@ -289,7 +290,7 @@ export function Settings({
       <Card title={t("keys.title")} hint={t("keys.settingsHint", { key: keys("Mod+/") })}>
         <div className="row">
           <button className="secondary" onClick={onShortcuts}>
-            ⌨ {t("keys.show")}
+            <Icon name="keyboard" /> {t("keys.show")}
           </button>
         </div>
         <HotkeyEditor />
@@ -310,7 +311,7 @@ export function Settings({
               }
             }}
           >
-            🌐 {desktop ? t("export.createSite") : t("export.downloadSite")}
+            <Icon name="world" /> {desktop ? t("export.createSite") : t("export.downloadSite")}
           </button>
         </div>
       </Card>
@@ -341,7 +342,7 @@ export function Settings({
             {ABOUT_FEATURES.map(([icon, title, text]) => (
               <li key={title}>
                 <span className="about-icon" aria-hidden>
-                  {icon}
+                  <Icon name={icon} size={18} />
                 </span>
                 <span>
                   <b>{t(title)}</b> {t(text)}
@@ -356,7 +357,7 @@ export function Settings({
         <Card title={t("about.supportTitle")} hint={t("about.supportHint")}>
           <div className="row about-support">
             <a className="about-mail" href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Nularche ${info?.version ?? ""}`.trim())}`} target="_blank" rel="noreferrer">
-              ✉ {SUPPORT_EMAIL}
+              <Icon name="mail" /> {SUPPORT_EMAIL}
             </a>
             <button
               className="secondary small-btn"
@@ -366,7 +367,7 @@ export function Settings({
                 onToast(t("about.copied"));
               }}
             >
-              ⧉ {t("about.copy")}
+              <Icon name="copy" /> {t("about.copy")}
             </button>
           </div>
         </Card>
@@ -391,7 +392,7 @@ export function Settings({
             {visible.map((c) => (
               <button key={c.id} role="tab" aria-selected={tab === c.id} className={tab === c.id ? "on" : ""} onClick={() => setSaved(c.id)}>
                 <span className="settings-tab-icon" aria-hidden>
-                  {c.icon}
+                  <Icon name={c.icon} />
                 </span>
                 {t(c.label)}
               </button>
@@ -403,12 +404,12 @@ export function Settings({
           <header>
             <div>
               <h3>
-                {current.icon} {t(current.label)}
+                <Icon name={current.icon} size={20} /> {t(current.label)}
               </h3>
               <p className="muted small">{t(current.hint)}</p>
             </div>
             <button className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
-              ✕
+              <Icon name="x" />
             </button>
           </header>
           <div className="settings-body" key={tab}>

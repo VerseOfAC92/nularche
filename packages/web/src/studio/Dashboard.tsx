@@ -10,8 +10,10 @@ import { runCommand } from "../commands.ts";
 import { useSessionWords, writingStats } from "./goals.ts";
 import { Progress } from "./ui.tsx";
 import { smartMatches, type SmartFolder } from "../notes/smart.ts";
+import { Icon } from "../ui/Icon.tsx";
+import { nodeIconName } from "../ui/node-icon.ts";
 
-const PROJECT_ICON: Record<string, string> = { manuscript: "📕", outline: "🗂", cards: "🗃", wiki: "📚" };
+const PROJECT_LAYOUTS = new Set(["manuscript", "outline", "cards", "wiki"]);
 
 export function Dashboard({
   nodes,
@@ -49,7 +51,7 @@ export function Dashboard({
   const usable = useMemo(() => nodes.filter((n) => !n.template && !n.database && !(n.parentNodeId && nodes.find((p) => p.id === n.parentNodeId)?.database)), [nodes]);
   const last = recent.map((id) => usable.find((n) => n.id === id)).find(Boolean);
   const edited = [...usable].sort((a, b) => b.updatedAt - a.updatedAt).filter((n) => n.id !== last?.id).slice(0, 8);
-  const projects = usable.filter((n) => n.layoutMode in PROJECT_ICON).sort((a, b) => b.updatedAt - a.updatedAt);
+  const projects = usable.filter((n) => PROJECT_LAYOUTS.has(n.layoutMode)).sort((a, b) => b.updatedAt - a.updatedAt);
   const pinned = usable.filter((n) => n.pinned).slice(0, 8);
   const boards = usable.filter((n) => n.layoutMode === "whiteboard").sort((a, b) => b.updatedAt - a.updatedAt);
   const openTasks = usable.filter((n) => n.todos > n.done).sort((a, b) => b.updatedAt - a.updatedAt);
@@ -103,16 +105,16 @@ export function Dashboard({
         </div>
         <div className="row">
           <button className="secondary" onClick={() => runCommand("help.glossary")} title={t("gloss.title")}>
-            ⓘ {t("gloss.title")}
+            <Icon name="info-circle" /> {t("gloss.title")}
           </button>
           <button className="secondary" onClick={() => runCommand("daily.today")}>
-            📔 {t("ob.dailyToday")}
+            <Icon name="notebook" /> {t("ob.dailyToday")}
           </button>
           <button className="secondary" onClick={() => onCreate(SHADOW)}>
-            ＋ {t("common.quickNote")}
+            <Icon name="plus" /> {t("common.quickNote")}
           </button>
           <button className="secondary" onClick={() => onCreate(null)}>
-            ◈ {t("common.newArche")}
+            <Icon name="diamond" /> {t("common.newArche")}
           </button>
         </div>
       </header>
@@ -120,9 +122,9 @@ export function Dashboard({
       <div className="dash-grid">
         {last && (
           <section className="dash-card continue" onClick={() => onOpen(last.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onOpen(last.id)}>
-            <h3>{t("ws.continueWriting")}</h3>
+            <h3><Icon name="file-text" /> {t("ws.continueWriting")}</h3>
             <div className="dash-title">
-              {last.icon ?? "◇"} {last.title}
+              {last.icon ?? <Icon name="file" size={15} />} {last.title}
             </div>
             {last.excerpt && <p className="muted">{last.excerpt.slice(0, 180)}</p>}
             <span className="muted small">{t("ws.lastEdited", { when: ago(last.updatedAt) })}</span>
@@ -130,7 +132,7 @@ export function Dashboard({
         )}
 
         <section className="dash-card">
-          <h3>{t("ws.todayWriting")}</h3>
+          <h3><Icon name="target" /> {t("ws.todayWriting")}</h3>
           <div className="dash-big">{stats.today.toLocaleString()}</div>
           <Progress value={stats.today} goal={dailyGoal || undefined} label={dailyGoal ? undefined : t("ws.wordsToday")} />
           <p className="muted small">
@@ -143,13 +145,13 @@ export function Dashboard({
           </div>
           {!dailyGoal && (
             <button className="secondary small-btn" onClick={() => (setPref("settingsTab", "writing"), runCommand("app.settings"))}>
-              🎯 {t("ws.setDailyGoal")}
+              <Icon name="target" /> {t("ws.setDailyGoal")}
             </button>
           )}
         </section>
 
         <section className="dash-card dash-capture">
-          <h3>{t("ws.quickCapture")}</h3>
+          <h3><Icon name="bolt" /> {t("ws.quickCapture")}</h3>
           <textarea
             value={capture}
             rows={3}
@@ -162,19 +164,19 @@ export function Dashboard({
               {t("ws.capture")} <span className="muted small">{keys("Mod+Enter")}</span>
             </button>
             <button className="secondary small-btn" onClick={onShadow}>
-              ◐ Shadow
+              <Icon name="circle-half-2" /> Shadow
             </button>
           </div>
           <p className="muted small">{t("ws.captureSyntax")}</p>
         </section>
 
         <section className="dash-card wide">
-          <h3>{t("ws.projects")}</h3>
+          <h3><Icon name="book" /> {t("ws.projects")}</h3>
           {projects.length ? (
             <div className="dash-projects">
               {projects.map((p) => (
                 <button key={p.id} className="dash-project" onClick={() => onOpen(p.id)} data-path={p.path}>
-                  <span className="dash-project-icon">{p.icon ?? PROJECT_ICON[p.layoutMode]}</span>
+                  <span className="dash-project-icon">{p.icon ?? <Icon name={nodeIconName(p)} size={22} />}</span>
                   <span className="grow">
                     <b>{p.title}</b>
                     <span className="muted small">{t(`ws.kind.${p.layoutMode as "manuscript" | "outline" | "cards" | "wiki" | "whiteboard"}`)} · {ago(p.updatedAt)}</span>
@@ -188,30 +190,30 @@ export function Dashboard({
           )}
           <div className="row">
             <button className="secondary small-btn" onClick={() => runCommand("manuscript.new")}>
-              📕 {t("ws.newManuscript")}
+              <Icon name="book" /> {t("ws.newManuscript")}
             </button>
             <button className="secondary small-btn" onClick={() => runCommand("outline.new")}>
-              🗂 {t("ws.newOutline")}
+              <Icon name="list-tree" /> {t("ws.newOutline")}
             </button>
             <button className="secondary small-btn" onClick={() => runCommand("cards.new")}>
-              🗃 {t("ws.newCards")}
+              <Icon name="layout-grid" /> {t("ws.newCards")}
             </button>
             <button className="secondary small-btn" onClick={() => runCommand("wiki.new")}>
-              📚 {t("ws.newWiki")}
+              <Icon name="books" /> {t("ws.newWiki")}
             </button>
             <button className="secondary small-btn" onClick={() => runCommand("whiteboard.new")} title={`Tabula — ${t("gloss.tabula")}`}>
-              🎨 {t("ws.newWhiteboard")}
+              <Icon name="chalkboard" /> {t("ws.newWhiteboard")}
             </button>
           </div>
         </section>
 
         <section className="dash-card">
-          <h3 title={`Tabula — ${t("gloss.tabula")}`}>🎨 Tabula</h3>
+          <h3 title={`Tabula — ${t("gloss.tabula")}`}><Icon name="chalkboard" /> Tabula</h3>
           {boards.length ? (
             <div className="dash-boards">
               {boards.slice(0, 4).map((b) => (
                 <button key={b.id} className="dash-board" onClick={() => onOpen(b.id)}>
-                  <span className="dash-board-icon">{b.icon ?? "🎨"}</span>
+                  <span className="dash-board-icon">{b.icon ?? <Icon name="chalkboard" size={22} />}</span>
                   <b>{b.title}</b>
                   <span className="muted small">{ago(b.updatedAt)}</span>
                 </button>
@@ -222,17 +224,17 @@ export function Dashboard({
           )}
           <div className="row">
             <button className="secondary small-btn" onClick={() => runCommand("whiteboard.new")}>
-              🎨 {t("ws.newWhiteboard")}
+              <Icon name="chalkboard" /> {t("ws.newWhiteboard")}
             </button>
           </div>
         </section>
 
         <section className="dash-card dash-smart">
-          <h3>⚙︎ {t("smart.title")}</h3>
+          <h3><Icon name="folder-cog" /> {t("smart.title")}</h3>
           {smart.length ? (
             smart.slice(0, 8).map(({ f, count }) => (
               <button key={f.id} className="link-row" onClick={() => onSmart?.(f.id)} title={t("ws.smartNotes", { n: count })}>
-                <span>{f.icon ?? "⚙︎"}</span>
+                <span>{f.icon ?? <Icon name="folder-cog" size={15} />}</span>
                 <span className="grow">{f.name}</span>
                 <span className="dash-count">{count}</span>
               </button>
@@ -248,10 +250,10 @@ export function Dashboard({
         </section>
 
         <section className="dash-card">
-          <h3>☑ {t("ws.openTasks")}</h3>
+          <h3><Icon name="checkbox" /> {t("ws.openTasks")}</h3>
           {openTasks.slice(0, 6).map((n) => (
             <button key={n.id} className="link-row dash-task" onClick={() => onOpen(n.id)}>
-              <span>{n.icon ?? "◇"}</span>
+              <span>{n.icon ?? <Icon name={nodeIconName(n)} size={15} />}</span>
               <span className="grow">{n.title}</span>
               <span className="dash-task-bar" title={`${n.done}/${n.todos}`}>
                 <span style={{ width: `${(n.done / n.todos) * 100}%` }} />
@@ -265,25 +267,25 @@ export function Dashboard({
         </section>
 
         <section className="dash-card">
-          <h3 title={t("term.shadow")}>◐ Shadow</h3>
+          <h3 title={t("term.shadow")}><Icon name="circle-half-2" /> Shadow</h3>
           <div className="dash-big">{shadow.length}</div>
           <p className="muted small">{t(shadow.length ? "ws.shadowWaiting" : "ws.shadowEmpty")}</p>
           {shadow.slice(0, 4).map((n) => (
             <button key={n.id} className="link-row" onClick={() => onOpen(n.id)}>
-              <span>{n.icon ?? "◇"}</span> {n.title} <span className="muted small">· {ago(n.updatedAt)}</span>
+              <span>{n.icon ?? <Icon name={nodeIconName(n)} size={15} />}</span> {n.title} <span className="muted small">· {ago(n.updatedAt)}</span>
             </button>
           ))}
           {shadow.length > 0 && (
             <div className="row">
               <button className="secondary small-btn" onClick={onShadow}>
-                ◐ {t("ws.openShadow")}
+                <Icon name="circle-half-2" /> {t("ws.openShadow")}
               </button>
             </div>
           )}
         </section>
 
         <section className="dash-card">
-          <h3>⊙ Origin</h3>
+          <h3><Icon name="circle-dot" /> Origin</h3>
           <div className="dash-stats">
             <span>
               <b>{usable.length.toLocaleString()}</b>
@@ -315,9 +317,9 @@ export function Dashboard({
 
         {rediscover && (
           <section className="dash-card continue" onClick={() => onOpen(rediscover.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onOpen(rediscover.id)}>
-            <h3>✧ {t("ws.rediscover")}</h3>
+            <h3><Icon name="sparkles" /> {t("ws.rediscover")}</h3>
             <div className="dash-title">
-              {rediscover.icon ?? "◇"} {rediscover.title}
+              {rediscover.icon ?? <Icon name="file" size={15} />} {rediscover.title}
             </div>
             <p className="muted">{rediscover.excerpt.slice(0, 160)}</p>
             <span className="muted small">{t("ws.lastEdited", { when: ago(rediscover.updatedAt) })}</span>
@@ -325,10 +327,10 @@ export function Dashboard({
         )}
 
         <section className="dash-card">
-          <h3>{t("ws.recentlyEdited")}</h3>
+          <h3><Icon name="clock" /> {t("ws.recentlyEdited")}</h3>
           {edited.map((n) => (
             <button key={n.id} className="link-row" onClick={() => onOpen(n.id)} data-path={n.path}>
-              <span>{n.icon ?? "◇"}</span> {n.title} <span className="muted small">· {ago(n.updatedAt)}</span>
+              <span>{n.icon ?? <Icon name={nodeIconName(n)} size={15} />}</span> {n.title} <span className="muted small">· {ago(n.updatedAt)}</span>
             </button>
           ))}
           {!edited.length && <p className="muted small">{t("list.empty")}</p>}
@@ -336,10 +338,10 @@ export function Dashboard({
 
         {pinned.length > 0 && (
           <section className="dash-card">
-            <h3>📌 {t("ws.pinned")}</h3>
+            <h3><Icon name="pin" /> {t("ws.pinned")}</h3>
             {pinned.map((n) => (
               <button key={n.id} className="link-row" onClick={() => onOpen(n.id)} data-path={n.path}>
-                <span>{n.icon ?? "◇"}</span> {n.title}
+                <span>{n.icon ?? <Icon name={nodeIconName(n)} size={15} />}</span> {n.title}
               </button>
             ))}
           </section>

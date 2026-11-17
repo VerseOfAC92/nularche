@@ -24,6 +24,7 @@ import {
 } from "./model.ts";
 import { Popover } from "./Popover.tsx";
 import { PropertyMenu, TYPE_ICON, typeLabel } from "./PropertyMenu.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 export interface ViewProps {
   model: DatabaseModel;
@@ -64,10 +65,10 @@ function TitleCell({ row, actions, autoFocus }: { row: Row; actions: DatabaseAct
   }
   return (
     <div className="db-cell title-cell" onClick={() => setEditing(true)}>
-      <span className="row-icon">{row.icon ?? "◇"}</span>
+      <span className="row-icon">{row.icon ?? <Icon name="file" size={15} />}</span>
       <span className="row-title">{row.title}</span>
       <button className="open-btn" onClick={(e) => (e.stopPropagation(), actions.openRow(row.id))}>
-        ↗ {t("db.open")}
+        <Icon name="external-link" /> {t("db.open")}
       </button>
     </div>
   );
@@ -94,7 +95,7 @@ function AddPropertyButton({ model, saveDb, className = "" }: { model: DatabaseM
             <div className="type-list">
               {PROPERTY_TYPES.map((ty) => (
                 <button key={ty} onClick={() => add(ty)}>
-                  <span className="type-icon">{TYPE_ICON[ty]}</span> {typeLabel(ty)}
+                  <span className="type-icon"><Icon name={TYPE_ICON[ty]} size={14} /></span> {typeLabel(ty)}
                 </button>
               ))}
             </div>
@@ -128,7 +129,7 @@ function HeaderCell({ prop, props, width, onResize }: { prop: Property; props: V
   return (
     <div className="th" style={{ width }}>
       <button className="th-btn" onClick={(e) => setAnchor(e.currentTarget)}>
-        <span className="type-icon">{TYPE_ICON[prop.type]}</span> {prop.name}
+        <span className="type-icon"><Icon name={TYPE_ICON[prop.type]} size={14} /></span> {prop.name}
       </button>
       <span className="resize" onMouseDown={startResize} />
       {anchor && (
@@ -157,9 +158,9 @@ function RowMenu({ row, actions }: { row: Row; actions: DatabaseActions }) {
       {anchor && (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} width={200}>
           <div className="prop-menu">
-            <button onClick={() => (setAnchor(null), actions.openRow(row.id))}>↗ {t("db.open")}</button>
+            <button onClick={() => (setAnchor(null), actions.openRow(row.id))}><Icon name="external-link" /> {t("db.open")}</button>
             <button className="danger" onClick={() => (setAnchor(null), void actions.trashRow(row))}>
-              🗑 {t("common.moveToTrash")}
+              <Icon name="trash" /> {t("common.moveToTrash")}
             </button>
           </div>
         </Popover>
@@ -351,7 +352,7 @@ export function ListView(props: ViewProps) {
     <div className="db-list">
       {rows.map((r) => (
         <div key={r.id} className="list-row" onClick={() => actions.openRow(r.id)}>
-          <span className="row-icon">{r.icon ?? "◇"}</span>
+          <span className="row-icon">{r.icon ?? <Icon name="file" size={15} />}</span>
           <span className="row-title">{r.title}</span>
           <CardProps model={model} actions={actions} view={view} row={r} />
         </div>
@@ -372,7 +373,7 @@ export function GalleryView(props: ViewProps) {
         return (
           <div key={r.id} className="gallery-card" onClick={() => actions.openRow(r.id)}>
             <div className={`gallery-cover ${cover?.className ?? "empty"}`} style={cover?.style}>
-              {!cover && <span>{r.icon ?? "◇"}</span>}
+              {!cover && <span>{r.icon ?? <Icon name="file" size={15} />}</span>}
             </div>
             <div className="card-title">
               {cover && r.icon ? `${r.icon} ` : ""}
@@ -573,7 +574,7 @@ export function TimelineView(props: ViewProps) {
             return (
               <div key={r.id} className="tl-row">
                 <div className="tl-label" onClick={() => actions.openRow(r.id)} title={r.title}>
-                  {r.icon ?? "◇"} {r.title}
+                  {r.icon ?? <Icon name="file" size={15} />} {r.title}
                 </div>
                 <div className="tl-track" style={{ width: DAYS * COL }}>
                   {visible && (

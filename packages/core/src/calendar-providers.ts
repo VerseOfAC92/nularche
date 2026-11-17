@@ -3,7 +3,19 @@
 // eşitleme kuralları ve zaman yorumu calendar.ts'tedir. `fetch` dışarıdan verilebilir (testler).
 
 import { randomUUID } from "node:crypto";
-import { addDays, CalendarError, type CalendarEvent, type CalendarInfo, type CalendarProvider, type EventInput, type EventTime } from "./calendar.ts";
+import {
+  addDays,
+  CalendarError,
+  meetingUrl,
+  type AttendeeStatus,
+  type CalendarEvent,
+  type CalendarInfo,
+  type CalendarProvider,
+  type EventAttendee,
+  type EventInput,
+  type EventPerson,
+  type EventTime,
+} from "./calendar.ts";
 
 type Fetch = typeof fetch;
 
@@ -105,7 +117,19 @@ interface GoogleEvent {
   recurrence?: string[];
   recurringEventId?: string;
   extendedProperties?: { private?: Record<string, string> };
+  location?: string;
+  hangoutLink?: string;
+  source?: { url?: string; title?: string };
+  conferenceData?: { entryPoints?: { entryPointType?: string; uri?: string }[] };
+  organizer?: { email?: string; displayName?: string; self?: boolean };
+  attendees?: { email?: string; displayName?: string; responseStatus?: string; organizer?: boolean; resource?: boolean }[];
+  reminders?: { useDefault?: boolean; overrides?: { method?: string; minutes?: number }[] };
 }
+
+const GOOGLE_STATUS: Record<string, AttendeeStatus> = { accepted: "accepted", declined: "declined", tentative: "tentative", needsAction: "needs-action" };
+
+const person = (name: string | undefined, email: string | undefined): EventPerson | undefined =>
+  name || email ? { ...(name ? { name } : {}), ...(email ? { email } : {}) } : undefined;
 
 const ROW_PROP = "nularcheRow";
 
@@ -128,11 +152,26 @@ export function fromGoogleEvent(g: GoogleEvent): CalendarEvent | null {
     when = { allDay: false, start, end: Number.isFinite(end) ? end : start };
   } else return null;
   const updated = g.updated ? Date.parse(g.updated) : NaN;
+  const video = g.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")?.uri;
+  const attendees: EventAttendee[] = (g.attendees ?? [])
+    .filter((a) => !a.resource)
+    .flatMap((a) => {
+      const p = person(a.displayName, a.email);
+      return p ? [{ ...p, status: GOOGLE_STATUS[a.responseStatus ?? ""] ?? "needs-action", ...(a.organizer ? { organizer: true } : {}) }] : [];
+    });
+  const organizer = person(g.organizer?.displayName, g.organizer?.email);
+  const alarms = g.reminders?.useDefault ? [] : (g.reminders?.overrides ?? []).map((r) => r.minutes).filter((m): m is number => typeof m === "number");
+  const url = g.hangoutLink || video || g.source?.url || meetingUrl(g.location, g.description);
   return {
     id: g.id,
     etag: g.etag,
     title: g.summary ?? "",
     description: g.description,
+    ...(g.location ? { location: g.location } : {}),
+    ...(url ? { url } : {}),
+    ...(organizer ? { organizer } : {}),
+    ...(attendees.length ? { attendees } : {}),
+    ...(alarms.length ? { alarms } : {}),
     when,
     updatedAt: Number.isFinite(updated) ? updated : undefined,
     rowId: g.extendedProperties?.private?.[ROW_PROP],
@@ -241,14 +280,23 @@ export class GoogleCalendar implements CalendarProvider {
     }
   }
 
+  /** Yalnızca verilen alanlar yazılır (PATCH diğerlerini, ör. katılımcıları, korur). */
   private body(input: EventInput) {
-    return { summary: input.title, start: googleTime(input.when, "start"), end: googleTime(input.when, "end") };
+    return {
+      summary: input.title,
+      start: googleTime(input.when, "start"),
+      end: googleTime(input.when, "end"),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.location !== undefined ? { location: input.location } : {}),
+      ...(input.url !== undefined ? { source: input.url ? { url: input.url, title: input.title || input.url } : null } : {}),
+      ...(input.alarm !== undefined ? { reminders: { useDefault: false, overrides: input.alarm === null ? [] : [{ method: "popup", minutes: input.alarm }] } } : {}),
+    };
   }
 
   async createEvent(calendarId: string, input: EventInput): Promise<CalendarEvent> {
     const res = await this.call(this.cal(calendarId), {
       method: "POST",
-      body: JSON.stringify({ ...this.body(input), extendedProperties: { private: { [ROW_PROP]: input.rowId } } }),
+      body: JSON.stringify({ ...this.body(input), ...(input.rowId ? { extendedProperties: { private: { [ROW_PROP]: input.rowId } } } : {}) }),
     });
     return fromGoogleEvent((await res.json()) as GoogleEvent)!;
   }
@@ -395,27 +443,57 @@ function timeLines(t: EventTime): string[] {
 
 const ROW_ICS = "X-NULARCHE-ROW";
 
-/** CalDAV kaynağındaki ilk etkinliği okur; etkinlik yoksa null. */
+const ICS_STATUS: Record<string, AttendeeStatus> = { ACCEPTED: "accepted", DECLINED: "declined", TENTATIVE: "tentative", "NEEDS-ACTION": "needs-action" };
+const mailto = (v: string) => v.replace(/^mailto:/i, "").trim() || undefined;
+
+/** VALARM tetikleyicisi → başlangıçtan kaç dakika önce (bitişe ya da kesin zamana göre olanlar okunmaz). */
+function alarmMinutes(trigger: IcsLine | undefined): number | null {
+  if (!trigger || trigger.params.VALUE === "DATE-TIME" || trigger.params.RELATED === "END") return null;
+  const ms = parseIcsDuration(trigger.value);
+  return ms === null || ms > 0 ? null : Math.round(-ms / 60_000);
+}
+
+/** CalDAV kaynağındaki ilk etkinliği okur; etkinlik yoksa null. Alt bileşenlerin (VALARM) satırları etkinliğin
+ *  alanlarıyla karışmaz; hatırlatmalar ayrıca okunur. */
 export function parseIcsEvent(text: string, id: string, etag?: string): CalendarEvent | null {
   const lines = parseIcsLines(text);
-  let depth = 0;
   let events = 0;
   let ev: Record<string, IcsLine> | null = null;
+  const attendees: EventAttendee[] = [];
+  const alarms: number[] = [];
   let recurring = false;
+  // Bileşen yığını: ilk VEVENT'in içindeki doğrudan satırlar etkinliğin alanlarıdır.
+  const stack: string[] = [];
+  let trigger: IcsLine | undefined;
   for (const l of lines) {
-    if (l.name === "BEGIN" && l.value.toUpperCase() === "VEVENT") {
-      events++;
-      depth++;
-      if (events === 1) ev = {};
+    if (l.name === "BEGIN") {
+      const comp = l.value.toUpperCase();
+      stack.push(comp);
+      if (comp === "VEVENT") {
+        events++;
+        if (events === 1) ev = {};
+      }
+      if (comp === "VALARM") trigger = undefined;
       continue;
     }
-    if (l.name === "END" && l.value.toUpperCase() === "VEVENT") {
-      depth--;
+    if (l.name === "END") {
+      const comp = stack.pop();
+      if (comp === "VALARM" && events === 1 && stack.at(-1) === "VEVENT") {
+        const m = alarmMinutes(trigger);
+        if (m !== null) alarms.push(m);
+      }
       continue;
     }
-    if (depth !== 1) continue;
+    const top = stack.at(-1);
+    if (top === "VALARM" && l.name === "TRIGGER") trigger = l;
+    if (top !== "VEVENT") continue;
     if (l.name === "RRULE" || l.name === "RDATE" || l.name === "RECURRENCE-ID") recurring = true;
-    if (events === 1 && ev && !(l.name in ev)) ev[l.name] = l;
+    if (events !== 1 || !ev) continue;
+    if (l.name === "ATTENDEE") {
+      const email = mailto(l.value);
+      const name = l.params.CN;
+      if (email || name) attendees.push({ ...(name ? { name } : {}), ...(email ? { email } : {}), status: ICS_STATUS[(l.params.PARTSTAT ?? "").toUpperCase()] ?? "needs-action" });
+    } else if (!(l.name in ev)) ev[l.name] = l;
   }
   if (!ev || !ev.DTSTART) return null;
   const start = parseIcsTime(ev.DTSTART);
@@ -432,11 +510,22 @@ export function parseIcsEvent(text: string, id: string, etag?: string): Calendar
     when = { allDay: false, start: start.ms, end: Math.max(endMs, start.ms) };
   }
   const modified = ev["LAST-MODIFIED"] ? parseIcsTime(ev["LAST-MODIFIED"]) : null;
+  const description = ev.DESCRIPTION ? unescapeIcs(ev.DESCRIPTION.value) : undefined;
+  const location = ev.LOCATION ? unescapeIcs(ev.LOCATION.value) : undefined;
+  const organizer = ev.ORGANIZER ? person(ev.ORGANIZER.params.CN, mailto(ev.ORGANIZER.value)) : undefined;
+  const orgEmail = organizer?.email?.toLowerCase();
+  const people = attendees.map((a) => (orgEmail && a.email?.toLowerCase() === orgEmail ? { ...a, organizer: true } : a));
+  const url = ev.URL?.value.trim() || meetingUrl(location, description);
   return {
     id,
     etag,
     title: ev.SUMMARY ? unescapeIcs(ev.SUMMARY.value) : "",
-    description: ev.DESCRIPTION ? unescapeIcs(ev.DESCRIPTION.value) : undefined,
+    description,
+    ...(location ? { location } : {}),
+    ...(url ? { url } : {}),
+    ...(organizer ? { organizer } : {}),
+    ...(people.length ? { attendees: people } : {}),
+    ...(alarms.length ? { alarms } : {}),
     when,
     updatedAt: modified && !modified.allDay ? modified.ms : undefined,
     rowId: ev[ROW_ICS]?.value || undefined,
@@ -444,6 +533,18 @@ export function parseIcsEvent(text: string, id: string, etag?: string): Calendar
     raw: text,
   };
 }
+
+/** Ayrıntı satırları: yalnızca verilen (boş olmayan) alanlar. */
+function detailLines(input: EventInput): string[] {
+  return [
+    ...(input.description ? [`DESCRIPTION:${escapeIcs(input.description)}`] : []),
+    ...(input.location ? [`LOCATION:${escapeIcs(input.location)}`] : []),
+    ...(input.url ? [`URL:${input.url.replace(/[\r\n]/g, "")}`] : []),
+  ];
+}
+
+const alarmLines = (minutes: number | null | undefined): string[] =>
+  typeof minutes === "number" ? ["BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Reminder", `TRIGGER:-PT${Math.max(0, Math.round(minutes))}M`, "END:VALARM"] : [];
 
 /** Yeni etkinlik için iCalendar metni. */
 export function buildIcs(uid: string, input: EventInput, now = Date.now()): string {
@@ -457,48 +558,75 @@ export function buildIcs(uid: string, input: EventInput, now = Date.now()): stri
     `LAST-MODIFIED:${icsUtc(now)}`,
     ...timeLines(input.when),
     `SUMMARY:${escapeIcs(input.title)}`,
-    `${ROW_ICS}:${input.rowId}`,
+    ...detailLines(input),
+    ...(input.rowId ? [`${ROW_ICS}:${input.rowId}`] : []),
+    ...alarmLines(input.alarm),
     "END:VEVENT",
     "END:VCALENDAR",
   ];
   return `${lines.map(foldLine).join("\r\n")}\r\n`;
 }
 
-/** Var olan iCalendar metninde yalnızca başlık ve zamanı değiştirir; diğer her şey (açıklama, alarmlar, katılımcılar) korunur. */
+/** Var olan iCalendar metninde başlık ve zamanı ve yalnızca verilen ayrıntıları (açıklama, konum, bağlantı,
+ *  hatırlatma) değiştirir; diğer her şey (katılımcılar, düzenleyen, başka alanlar) korunur. */
 export function patchIcs(raw: string, input: EventInput, now = Date.now()): string {
-  const replaced = new Set(["SUMMARY", "DTSTART", "DTEND", "DURATION", "DTSTAMP", "LAST-MODIFIED", "SEQUENCE", ROW_ICS]);
+  // Satır işareti yalnızca veritabanı bağlantısında yazılır; görüntüleme bağlantısı var olanı korur.
+  const replaced = new Set([
+    "SUMMARY",
+    "DTSTART",
+    "DTEND",
+    "DURATION",
+    "DTSTAMP",
+    "LAST-MODIFIED",
+    "SEQUENCE",
+    ...(input.rowId ? [ROW_ICS] : []),
+    ...(input.description !== undefined ? ["DESCRIPTION"] : []),
+    ...(input.location !== undefined ? ["LOCATION"] : []),
+    ...(input.url !== undefined ? ["URL"] : []),
+  ]);
   const physical = raw
     .replace(/\r?\n[ \t]/g, "")
     .split(/\r?\n/)
     .filter(Boolean);
   const out: string[] = [];
-  let depth = 0;
+  const stack: string[] = [];
   let seen = 0;
   let sequence = 0;
+  // Hatırlatma değiştiriliyorsa ana etkinliğin VALARM blokları atlanır.
+  let skipping = 0;
   for (const line of physical) {
     const [l] = parseIcsLines(line);
-    if (l.name === "BEGIN" && l.value.toUpperCase() === "VEVENT") {
-      depth++;
-      seen++;
-      out.push(line);
+    const inMaster = stack.length > 0 && stack.at(-1) === "VEVENT" && seen === 1 && stack.filter((c) => c === "VEVENT").length === 1;
+    if (l.name === "BEGIN") {
+      const comp = l.value.toUpperCase();
+      if (comp === "VALARM" && inMaster && input.alarm !== undefined) skipping++;
+      if (comp === "VEVENT") seen++;
+      stack.push(comp);
+      if (!skipping) out.push(line);
       continue;
     }
-    const inMaster = depth === 1 && seen === 1;
-    if (l.name === "END" && l.value.toUpperCase() === "VEVENT") {
-      if (inMaster) {
+    if (l.name === "END") {
+      const comp = stack.pop();
+      if (skipping) {
+        if (comp === "VALARM") skipping--;
+        continue;
+      }
+      if (comp === "VEVENT" && stack.filter((c) => c === "VEVENT").length === 0 && seen === 1) {
         out.push(
           ...timeLines(input.when),
           `SUMMARY:${escapeIcs(input.title)}`,
+          ...detailLines(input),
           `DTSTAMP:${icsUtc(now)}`,
           `LAST-MODIFIED:${icsUtc(now)}`,
           `SEQUENCE:${sequence + 1}`,
-          `${ROW_ICS}:${input.rowId}`,
+          ...(input.rowId ? [`${ROW_ICS}:${input.rowId}`] : []),
+          ...alarmLines(input.alarm),
         );
       }
-      depth--;
       out.push(line);
       continue;
     }
+    if (skipping) continue;
     if (inMaster && replaced.has(l.name)) {
       if (l.name === "SEQUENCE") sequence = Number(l.value) || 0;
       continue;

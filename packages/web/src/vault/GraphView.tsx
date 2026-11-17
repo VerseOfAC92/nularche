@@ -7,6 +7,7 @@ import { api, type LinkGraph } from "../api.ts";
 import { t } from "../i18n/index.ts";
 import { usePref } from "../prefs.ts";
 import { isExcluded } from "./excluded.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 interface GNode {
   id: string;
@@ -304,7 +305,7 @@ export function GraphView({
     <div className={`graph-view ${compact ? "compact" : ""}`}>
       {!compact && (
         <header className="graph-head">
-          <h1>🕸 {t("ob.graph")}</h1>
+          <h1 className="dialog-title"><Icon name="graph" size={26} /> {t("ob.graph")}</h1>
           <input className="graph-search" placeholder={t("ob.graphFilter")} value={query} onChange={(e) => setQuery(e.target.value)} />
           <label className="check">
             <input type="checkbox" checked={orphans} onChange={(e) => setOrphans(e.target.checked)} /> {t("ob.graphOrphans")}

@@ -6,6 +6,7 @@ import { desktop } from "../desktop.ts";
 import { safeHtml } from "../editor/linked-nodes.tsx";
 import { toEditorMarkdown } from "../editor/paths.ts";
 import { t } from "../i18n/index.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 /** Kod blokları dışındaki `---` satırlarından böler; boş slaytlar atlanır. */
 export function splitSlides(md: string): string[] {
@@ -51,7 +52,7 @@ export function Slides({ title, body, path, onClose }: { title: string; body: st
           {Math.min(i + 1, Math.max(slides.length, 1))} / {Math.max(slides.length, 1)}
         </span>
         <button className="focus-btn" onClick={onClose} title={t("common.close")}>
-          ✕
+          <Icon name="x" />
         </button>
       </div>
     </div>

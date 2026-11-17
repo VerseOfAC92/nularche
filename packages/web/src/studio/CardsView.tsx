@@ -8,6 +8,7 @@ import { NotePicker } from "../vault/Palettes.tsx";
 import { newWritingId, type IndexCard } from "../../../core/src/writing.ts";
 import { colorOf, moveItem, useWriting } from "./useWriting.ts";
 import { ColorDots } from "./ui.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 type Drag = { group: number; index: number } | null;
 
@@ -100,7 +101,7 @@ export function CardsView({
           <span>{t("ws.selected", { n: selected.size })}</span>
           <ColorDots onChange={(c) => bulk((x) => ({ ...x, color: c }))} />
           <button className="secondary small-btn" onClick={() => confirm(t("ws.deleteCardsConfirm", { n: selected.size })) && (bulk(() => null), setSelected(new Set()))}>
-            🗑 {t("common.remove")}
+            <Icon name="trash" /> {t("common.remove")}
           </button>
           <button className="secondary small-btn" onClick={() => setSelected(new Set())}>
             {t("ws.deselect")}
@@ -123,10 +124,10 @@ export function CardsView({
               )}
             </div>
             <button className="icon-btn" disabled={gi === 0} onClick={() => update((d) => ({ ...d, groups: moveItem(d.groups, gi, gi - 1) }))} title={t("ws.moveUp")}>
-              ↑
+              <Icon name="arrow-up" />
             </button>
             <button className="icon-btn" disabled={gi === data.groups.length - 1} onClick={() => update((d) => ({ ...d, groups: moveItem(d.groups, gi, gi + 1) }))} title={t("ws.moveDown")}>
-              ↓
+              <Icon name="arrow-down" />
             </button>
             {data.groups.length > 1 && (
               <button
@@ -141,7 +142,7 @@ export function CardsView({
                   });
                 }}
               >
-                ✕
+                <Icon name="x" />
               </button>
             )}
           </header>
@@ -181,10 +182,10 @@ export function CardsView({
                             update((d) => (d.groups[gi].cards.splice(ci + 1, 0, copy), d));
                           }}
                         >
-                          ⧉ {t("ws.duplicate")}
+                          <Icon name="copy" /> {t("ws.duplicate")}
                         </button>
                         <button className="secondary small-btn" onClick={() => (update((d) => (d.groups[gi].cards.splice(ci, 1), d)), setEditing(null))}>
-                          🗑
+                          <Icon name="trash" />
                         </button>
                       </div>
                     </div>
@@ -195,15 +196,15 @@ export function CardsView({
                       <footer>
                         {linked ? (
                           <a onClick={(e) => (e.stopPropagation(), onOpen(linked.id))} data-path={linked.path}>
-                            {linked.icon ?? "📄"} {linked.title}
+                            {linked.icon ?? <Icon name="file" size={15} />} {linked.title}
                           </a>
                         ) : (
                           <span className="card-tools">
                             <button className="icon-btn" title={t("ws.linkNote")} onClick={(e) => (e.stopPropagation(), setLinkFor(c.id))}>
-                              🔗
+                              <Icon name="link" />
                             </button>
                             <button className="icon-btn" title={t("ws.cardToNote")} onClick={(e) => (e.stopPropagation(), void toNote(c))}>
-                              ✎
+                              <Icon name="pencil" />
                             </button>
                           </span>
                         )}

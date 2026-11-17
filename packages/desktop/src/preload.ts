@@ -19,6 +19,13 @@ contextBridge.exposeInMainWorld("nularche", {
     ipcRenderer.on("nularche:full-screen", listener);
     return () => ipcRenderer.removeListener("nularche:full-screen", listener);
   },
+  // Sağ tık: uygulamanın öğeleri menü açılmadan önce eşzamanlı gönderilir; seçilen öğenin kimliği geri gelir.
+  contextItems: (items: unknown) => ipcRenderer.sendSync("nularche:ctx-items", items),
+  onContextRun: (cb: (id: string) => void) => {
+    const listener = (_e: IpcRendererEvent, id: unknown) => typeof id === "string" && cb(id);
+    ipcRenderer.on("nularche:ctx-run", listener);
+    return () => ipcRenderer.removeListener("nularche:ctx-run", listener);
+  },
   rendererReady: () => invoke("renderer-ready"),
   info: () => invoke("info"),
   changeOrigin: () => invoke("change-origin"),
@@ -51,6 +58,9 @@ contextBridge.exposeInMainWorld("nularche", {
   calendarLink: (input: unknown) => invoke("calendar-link", input),
   calendarUnlink: (linkId: string) => invoke("calendar-unlink", linkId),
   calendarSync: () => invoke("calendar-sync"),
+  calendarEvents: () => invoke("calendar-events"),
+  calendarEventSave: (linkId: string, eventId: string | null, input: unknown) => invoke("calendar-event-save", linkId, eventId, input),
+  calendarEventDelete: (linkId: string, eventId: string) => invoke("calendar-event-delete", linkId, eventId),
   calendarHelp: (which: string) => invoke("calendar-help", which),
   onCalendarSynced: (cb: () => void) => {
     const listener = () => cb();

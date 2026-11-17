@@ -8,6 +8,7 @@ import { keys } from "../shortcuts.tsx";
 import { BackgroundPicker } from "./BackgroundPicker.tsx";
 import { runCommand } from "../commands.ts";
 import { AuraMenu, termTip } from "../studio/StudioTools.tsx";
+import { Icon } from "../ui/Icon.tsx";
 
 export function FocusHud({ onExit }: { onExit: () => void }) {
   const [visible, setVisible] = useState(true);
@@ -49,15 +50,15 @@ export function FocusHud({ onExit }: { onExit: () => void }) {
         </button>
         <span className="rel">
           <button data-menu-trigger className="focus-btn" onClick={(e) => setAura(aura ? null : e.currentTarget.getBoundingClientRect())} title={termTip("Aura", "gloss.aura")}>
-            ♪ Aura
+            <Icon name="music" size={15} /> Aura
           </button>
           {aura && <AuraMenu anchor={aura} onClose={() => setAura(null)} />}
         </span>
         <button className="focus-btn" onClick={() => setPicker((v) => !v)} title={t("focus.background")}>
-          🏞 {t("focus.background")}
+          <Icon name="mountain" size={15} /> {t("focus.background")}
         </button>
         <button className="focus-btn" onClick={onExit} title={t("focus.exit")}>
-          ✕
+          <Icon name="x" />
         </button>
       </div>
       {picker && (

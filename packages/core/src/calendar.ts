@@ -1,4 +1,8 @@
-// Takvim eşitleme: bir veritabanının tarih özelliğini bir Google ya da Apple (iCloud) takvimiyle iki yönlü eşitler.
+// Takvim eşitleme. İki tür bağlantı vardır:
+//  - görüntüleme bağlantısı (veritabanı yok): takvimin etkinlikleri `.nularche/calendar-events.json` önbelleğine okunur
+//    ve Nularche Takvim ekranında gösterilir; ekrandan yapılan değişiklikler doğrudan sağlayıcıya yazılır. Not oluşturmaz.
+//  - veritabanı bağlantısı (isteğe bağlı): bir veritabanının tarih özelliğini bir Google ya da Apple (iCloud) takvimiyle
+//    iki yönlü eşitler.
 // Bu modül sağlayıcıdan bağımsızdır: Nularche tarih değeri ↔ etkinlik zamanı dönüşümünün, eşleme durumunun
 // (`.nularche/calendar.json`) ve eşitleme kurallarının tek sahibidir. Sağlayıcı bağdaştırıcıları
 // calendar-providers.ts'tedir; kimlik bilgileri masaüstü uygulamasında şifreli saklanır, burada tutulmaz.
@@ -20,13 +24,37 @@ export const isCalendarProvider = (v: unknown): v is CalendarProviderId => CALEN
 /** Etkinlik zamanı: tüm gün (bitiş hariç, iCalendar/Google kuralı) ya da başlangıç–bitiş anı (ms). */
 export type EventTime = { allDay: true; start: string; end: string } | { allDay: false; start: number; end: number };
 
-export interface CalendarEvent {
+/** Katılımcının yanıtı (iCalendar PARTSTAT / Google responseStatus). */
+export type AttendeeStatus = "accepted" | "declined" | "tentative" | "needs-action";
+
+export interface EventPerson {
+  name?: string;
+  email?: string;
+}
+
+export interface EventAttendee extends EventPerson {
+  status: AttendeeStatus;
+  organizer?: boolean;
+}
+
+/** Etkinliğin takvim ekranında gösterilen ayrıntıları; sağlayıcı ne bildiriyorsa o (bilinmeyen alan yoktur). */
+export interface EventDetails {
+  description?: string;
+  location?: string;
+  /** Etkinliğin bağlantısı (URL alanı ya da çevrimiçi toplantı adresi). */
+  url?: string;
+  organizer?: EventPerson;
+  attendees?: EventAttendee[];
+  /** Hatırlatmalar: başlangıçtan kaç dakika önce. */
+  alarms?: number[];
+}
+
+export interface CalendarEvent extends EventDetails {
   /** Sağlayıcıdaki kimlik: Google etkinlik id'si ya da CalDAV kaynağının mutlak adresi. */
   id: string;
   etag?: string;
   title: string;
   when: EventTime;
-  description?: string;
   /** Son değişiklik zamanı (ms), sağlayıcı bildiriyorsa. */
   updatedAt?: number;
   /** Etkinliği Nularche oluşturduysa satırın id'si (eşleme durumu kaybolursa yinelenmeyi önler). */
@@ -40,7 +68,15 @@ export interface CalendarEvent {
 export interface EventInput {
   title: string;
   when: EventTime;
-  rowId: string;
+  /** Veritabanı bağlantısında satırın id'si; görüntüleme bağlantısında yoktur. */
+  rowId?: string;
+  /** Takvim ekranından yazılan ayrıntılar. `undefined` alan değiştirilmez; boş dize ya da `null` alanı kaldırır.
+   *  Katılımcılar ve düzenleyen yalnızca okunur (davet göndermek takvim uygulamasının işidir). */
+  description?: string;
+  location?: string;
+  url?: string;
+  /** Tek hatırlatma: başlangıçtan kaç dakika önce; `null` hatırlatmaları kaldırır. */
+  alarm?: number | null;
 }
 
 export interface CalendarInfo {
@@ -140,13 +176,13 @@ export interface SyncedItem {
 
 export interface CalendarLink {
   id: string;
-  /** Veritabanı Node id'si. */
-  dbId: string;
+  /** Veritabanı bağlantısında Node id'si; görüntüleme bağlantısında yoktur. */
+  dbId?: string;
   provider: CalendarProviderId;
   calendarId: string;
   calendarName: string;
-  /** Eşitlenen tarih özelliğinin id'si. */
-  dateProp: string;
+  /** Veritabanı bağlantısında eşitlenen tarih özelliğinin id'si. */
+  dateProp?: string;
   lastSync?: number;
   lastError?: { code: CalendarErrorCode | "unknown"; message: string } | null;
   lastResult?: SyncCounts;
@@ -170,7 +206,9 @@ function parseItem(raw: unknown): SyncedItem | null {
 function parseLink(raw: unknown): CalendarLink | null {
   if (!isObj(raw)) return null;
   const { id, dbId, provider, calendarId, dateProp } = raw;
-  if (!str(id) || !str(dbId) || !isCalendarProvider(provider) || !str(calendarId) || !str(dateProp)) return null;
+  if (!str(id) || !isCalendarProvider(provider) || !str(calendarId)) return null;
+  // Veritabanı ve tarih özelliği birlikte vardır ya da ikisi de yoktur (görüntüleme bağlantısı).
+  if (!!str(dbId) !== !!str(dateProp)) return null;
   const items: Record<string, SyncedItem> = {};
   if (isObj(raw.items)) {
     for (const [rowId, v] of Object.entries(raw.items)) {
@@ -180,11 +218,10 @@ function parseLink(raw: unknown): CalendarLink | null {
   }
   return {
     id: id as string,
-    dbId: dbId as string,
+    ...(str(dbId) ? { dbId: dbId as string, dateProp: dateProp as string } : {}),
     provider,
     calendarId: calendarId as string,
     calendarName: str(raw.calendarName) ?? (calendarId as string),
-    dateProp: dateProp as string,
     lastSync: typeof raw.lastSync === "number" ? raw.lastSync : undefined,
     lastError: isObj(raw.lastError) && typeof raw.lastError.message === "string" ? (raw.lastError as CalendarLink["lastError"]) : null,
     lastResult: isObj(raw.lastResult) ? (raw.lastResult as unknown as SyncCounts) : undefined,
@@ -210,7 +247,8 @@ export async function writeCalendarState(root: string, state: CalendarState): Pr
   await rename(tmp, file);
 }
 
-/** Bir veritabanını bir takvime bağlar (aynı veritabanı + takvim zaten bağlıysa tarih özelliğini günceller). */
+/** Bir takvimi bağlar: veritabanıyla (aynı veritabanı + takvim zaten bağlıysa tarih özelliğini günceller) ya da
+ *  yalnızca görüntüleme için (aynı takvim zaten görüntüleniyorsa o bağlantı döner). */
 export function addLink(state: CalendarState, input: Omit<CalendarLink, "id" | "items">): { state: CalendarState; link: CalendarLink } {
   const existing = state.links.find((l) => l.dbId === input.dbId && l.provider === input.provider && l.calendarId === input.calendarId);
   if (existing) {
@@ -294,6 +332,9 @@ const overlaps = (t: EventTime, from: number, to: number) => {
  * Listeleme ve kimlik doğrulama hataları eşitlemeyi durdurur; öğe hataları toplanır ve diğer öğeler sürer.
  */
 export async function syncLink(store: NodeStore, provider: CalendarProvider, link: CalendarLink, options: SyncOptions): Promise<SyncReport> {
+  if (!link.dbId || !link.dateProp) throw new NodeError("invalid", "Görüntüleme bağlantısı veritabanıyla eşitlenmez.");
+  const dbId = link.dbId;
+  const dateProp = link.dateProp;
   const counts = emptyCounts();
   const errors: string[] = [];
   const items: Record<string, SyncedItem> = { ...link.items };
@@ -301,10 +342,10 @@ export async function syncLink(store: NodeStore, provider: CalendarProvider, lin
   const from = now - SYNC_WINDOW.pastDays * DAY;
   const to = now + SYNC_WINDOW.futureDays * DAY;
 
-  const loaded = await loadDatabase(store, link.dbId);
-  const prop = loaded.db.properties.find((p) => p.id === link.dateProp);
-  if (!prop || prop.type !== "date") throw new NodeError("invalid", `Tarih özelliği bulunamadı: ${link.dateProp}`);
-  const rows = new Map(loaded.rows.map((n) => [n.id, localRow(n, link.dateProp)]));
+  const loaded = await loadDatabase(store, dbId);
+  const prop = loaded.db.properties.find((p) => p.id === dateProp);
+  if (!prop || prop.type !== "date") throw new NodeError("invalid", `Tarih özelliği bulunamadı: ${dateProp}`);
+  const rows = new Map(loaded.rows.map((n) => [n.id, localRow(n, dateProp)]));
   const listed = await provider.listEvents(link.calendarId, { from, to });
   const remote = new Map(listed.map((e) => [e.id, e]));
 
@@ -335,7 +376,7 @@ export async function syncLink(store: NodeStore, provider: CalendarProvider, lin
     counts.updatedRemote++;
   };
   const pullLocal = async (row: LocalRow, ev: CalendarEvent) => {
-    const props = { ...(row.node.props ?? {}), [link.dateProp]: storedDate(fromEventTime(ev.when)) };
+    const props = { ...(row.node.props ?? {}), [dateProp]: storedDate(fromEventTime(ev.when)) };
     await store.update(row.node.id, { title: ev.title || options.untitled, baseRevision: row.node.revision, fields: { props } });
     items[row.node.id] = { eventId: ev.id, etag: ev.etag, key: remoteKey(ev) };
     counts.updatedLocal++;
@@ -348,9 +389,9 @@ export async function syncLink(store: NodeStore, provider: CalendarProvider, lin
   const createLocal = async (ev: CalendarEvent) => {
     const node = await store.create({
       title: ev.title || options.untitled,
-      parentNodeId: link.dbId,
+      parentNodeId: dbId,
       body: ev.description?.trim() ? `${ev.description.trim()}\n` : undefined,
-      fields: { props: { [link.dateProp]: storedDate(fromEventTime(ev.when)) } },
+      fields: { props: { [dateProp]: storedDate(fromEventTime(ev.when)) } },
     });
     items[node.id] = { eventId: ev.id, etag: ev.etag, key: remoteKey(ev) };
     counts.createdLocal++;
@@ -427,4 +468,108 @@ export async function syncLink(store: NodeStore, provider: CalendarProvider, lin
   }
 
   return { link: { ...link, items, lastSync: now, lastError: null, lastResult: counts }, counts, errors };
+}
+
+// --- Görüntüleme bağlantıları: etkinlik önbelleği ----------------------------------------------------
+
+export const CALENDAR_EVENTS_FILE = path.join(".nularche", "calendar-events.json");
+
+/** Takvim ekranında gösterilen etkinlik ve ayrıntıları (sağlayıcının ham iCalendar metni saklanmaz). */
+export interface CachedEvent extends EventDetails {
+  id: string;
+  title: string;
+  when: EventTime;
+  recurring?: boolean;
+}
+
+export const isViewLink = (l: CalendarLink): boolean => !l.dbId;
+export const isDbLink = (l: CalendarLink): l is CalendarLink & { dbId: string; dateProp: string } => !!l.dbId && !!l.dateProp;
+
+function parseWhen(raw: unknown): EventTime | null {
+  if (!isObj(raw)) return null;
+  if (raw.allDay === true && typeof raw.start === "string" && typeof raw.end === "string") return { allDay: true, start: raw.start, end: raw.end };
+  if (raw.allDay === false && typeof raw.start === "number" && typeof raw.end === "number") return { allDay: false, start: raw.start, end: raw.end };
+  return null;
+}
+
+const STATUSES: AttendeeStatus[] = ["accepted", "declined", "tentative", "needs-action"];
+
+function parsePerson(raw: unknown): EventPerson | undefined {
+  if (!isObj(raw)) return undefined;
+  const p: EventPerson = { ...(str(raw.name) ? { name: raw.name as string } : {}), ...(str(raw.email) ? { email: raw.email as string } : {}) };
+  return p.name || p.email ? p : undefined;
+}
+
+/** Önbellekteki ayrıntılar (bozuk alanlar atlanır). */
+function parseDetails(raw: Record<string, unknown>): EventDetails {
+  const attendees = Array.isArray(raw.attendees)
+    ? raw.attendees.flatMap((a): EventAttendee[] => {
+        const p = parsePerson(a);
+        if (!p || !isObj(a)) return [];
+        const status = STATUSES.includes(a.status as AttendeeStatus) ? (a.status as AttendeeStatus) : "needs-action";
+        return [{ ...p, status, ...(a.organizer === true ? { organizer: true } : {}) }];
+      })
+    : [];
+  const alarms = Array.isArray(raw.alarms) ? raw.alarms.filter((m): m is number => typeof m === "number" && Number.isFinite(m)) : [];
+  const organizer = parsePerson(raw.organizer);
+  return {
+    ...(str(raw.description) ? { description: raw.description as string } : {}),
+    ...(str(raw.location) ? { location: raw.location as string } : {}),
+    ...(str(raw.url) ? { url: raw.url as string } : {}),
+    ...(organizer ? { organizer } : {}),
+    ...(attendees.length ? { attendees } : {}),
+    ...(alarms.length ? { alarms } : {}),
+  };
+}
+
+function parseCached(raw: unknown): CachedEvent | null {
+  if (!isObj(raw) || !str(raw.id) || typeof raw.title !== "string") return null;
+  const when = parseWhen(raw.when);
+  if (!when) return null;
+  return { id: raw.id as string, title: raw.title, when, ...parseDetails(raw), ...(raw.recurring === true ? { recurring: true } : {}) };
+}
+
+/** Bağlantı id'si → etkinlikler. Okunamayan dosya boş önbellektir (bir sonraki eşitleme yeniden doldurur). */
+export async function readEventCache(root: string): Promise<Record<string, CachedEvent[]>> {
+  try {
+    const raw = JSON.parse(await readFile(path.join(root, CALENDAR_EVENTS_FILE), "utf8"));
+    const out: Record<string, CachedEvent[]> = {};
+    if (isObj(raw)) for (const [k, v] of Object.entries(raw)) if (Array.isArray(v)) out[k] = v.map(parseCached).filter((e): e is CachedEvent => !!e);
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export async function writeEventCache(root: string, cache: Record<string, CachedEvent[]>): Promise<void> {
+  const file = path.join(root, CALENDAR_EVENTS_FILE);
+  await mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  await writeFile(tmp, JSON.stringify(cache));
+  await rename(tmp, file);
+}
+
+export const toCached = (ev: CalendarEvent): CachedEvent => ({
+  id: ev.id,
+  title: ev.title,
+  when: ev.when,
+  ...parseDetails(ev as unknown as Record<string, unknown>),
+  ...(ev.recurring ? { recurring: true } : {}),
+});
+
+/** Açıklama ya da konumdaki ilk çevrimiçi toplantı adresi (Teams, Zoom, Meet, Webex). */
+export function meetingUrl(...texts: (string | undefined)[]): string | undefined {
+  const re = /https:\/\/(?:[\w-]+\.)*(?:teams\.microsoft\.com|teams\.live\.com|zoom\.us|meet\.google\.com|webex\.com)\/[^\s<>"')\]]+/i;
+  for (const t of texts) {
+    const m = t ? re.exec(t) : null;
+    if (m) return m[0];
+  }
+  return undefined;
+}
+
+/** Görüntüleme bağlantısının etkinliklerini eşitleme aralığında okur. */
+export async function fetchViewEvents(provider: CalendarProvider, link: CalendarLink, now = Date.now()): Promise<CachedEvent[]> {
+  const day = 86_400_000;
+  const events = await provider.listEvents(link.calendarId, { from: now - SYNC_WINDOW.pastDays * day, to: now + SYNC_WINDOW.futureDays * day });
+  return events.map(toCached);
 }

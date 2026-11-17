@@ -7,6 +7,7 @@ import { getPref, setPref } from "../prefs.ts";
 import { keys } from "../shortcuts.tsx";
 import { isExcluded } from "./excluded.ts";
 import { Picker, type PickItem } from "./Picker.tsx";
+import { nodeIconName } from "../ui/node-icon.ts";
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
   const recent = getPref<string[]>("paletteRecent", []);
@@ -55,7 +56,7 @@ export function QuickSwitcher({
     label: n.title,
     aliases: [...n.aliases, n.path],
     detail: n.aliases.length ? `${n.aliases.join(", ")} · ${n.path.replace(/\.md$/, "")}` : n.path.replace(/\.md$/, ""),
-    icon: n.icon ?? (n.layoutMode === "canvas" ? "🧩" : "◇"),
+    icon: n.icon ?? nodeIconName(n),
   }));
   return (
     <Picker
@@ -76,7 +77,7 @@ export function QuickSwitcher({
 export function NotePicker({ nodes, placeholder, onPick, onClose }: { nodes: NodeMeta[]; placeholder: string; onPick: (n: NodeMeta) => void; onClose: () => void }) {
   return (
     <Picker
-      items={nodes.map((n) => ({ id: n.id, label: n.title, aliases: [...n.aliases, n.path], detail: n.path.replace(/\.md$/, ""), icon: n.icon ?? "◇" }))}
+      items={nodes.map((n) => ({ id: n.id, label: n.title, aliases: [...n.aliases, n.path], detail: n.path.replace(/\.md$/, ""), icon: n.icon ?? nodeIconName(n) }))}
       placeholder={placeholder}
       onClose={onClose}
       onPick={(it) => {

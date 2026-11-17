@@ -3,44 +3,45 @@
 
 import { useEffect } from "react";
 import { t, type StringKey } from "../i18n/index.ts";
+import { Icon, type IconName } from "../ui/Icon.tsx";
 
-type Term = [name: string, icon: string, meaning: StringKey];
+type Term = [name: string, icon: IconName, meaning: StringKey];
 
 export const GLOSSARY: { group: StringKey; terms: Term[] }[] = [
   {
     group: "gloss.groupBase",
     terms: [
-      ["Origin", "⊙", "term.origin"],
-      ["Arche", "◈", "term.arche"],
-      ["Archipelago", "⁂", "gloss.archipelago"],
-      ["Node", "◇", "term.node"],
-      ["Shard", "▱", "term.shard"],
-      ["Shadow", "◐", "term.shadow"],
-      ["Atrium", "🏛", "gloss.atrium"],
+      ["Origin", "circle-dot", "term.origin"],
+      ["Arche", "diamond", "term.arche"],
+      ["Archipelago", "stack-2", "gloss.archipelago"],
+      ["Node", "file", "term.node"],
+      ["Shard", "square", "term.shard"],
+      ["Shadow", "circle-half-2", "term.shadow"],
+      ["Atrium", "building-bank", "gloss.atrium"],
     ],
   },
   {
     group: "gloss.groupStudio",
     terms: [
-      ["Codex", "📕", "gloss.codex"],
-      ["Axis", "🗂", "gloss.axis"],
-      ["Mosaic", "🗃", "gloss.mosaic"],
-      ["Lore", "📚", "gloss.lore"],
-      ["Marginalia", "✎", "gloss.marginalia"],
-      ["Epoch", "⚑", "gloss.epoch"],
-      ["Diptych", "◫", "gloss.diptych"],
-      ["Tabula", "🎨", "gloss.tabula"],
+      ["Codex", "book", "gloss.codex"],
+      ["Axis", "list-tree", "gloss.axis"],
+      ["Mosaic", "layout-grid", "gloss.mosaic"],
+      ["Lore", "books", "gloss.lore"],
+      ["Marginalia", "message-circle", "gloss.marginalia"],
+      ["Epoch", "flag", "gloss.epoch"],
+      ["Diptych", "layout-columns", "gloss.diptych"],
+      ["Tabula", "chalkboard", "gloss.tabula"],
     ],
   },
   {
     group: "gloss.groupTools",
     terms: [
-      ["Clepsydra", "⧗", "gloss.clepsydra"],
-      ["Aura", "♪", "gloss.aura"],
-      ["Sigil", "⌁", "gloss.sigil"],
-      ["Rite", "★", "gloss.rite"],
-      ["Conduit", "⇢", "gloss.conduit"],
-      ["Ark", "⛵", "gloss.ark"],
+      ["Clepsydra", "hourglass", "gloss.clepsydra"],
+      ["Aura", "music", "gloss.aura"],
+      ["Sigil", "signature", "gloss.sigil"],
+      ["Rite", "star", "gloss.rite"],
+      ["Conduit", "arrow-right", "gloss.conduit"],
+      ["Ark", "archive", "gloss.ark"],
     ],
   },
 ];
@@ -55,7 +56,7 @@ export function Glossary({ compact = false }: { compact?: boolean }) {
             {g.terms.map(([name, icon, meaning]) => (
               <div key={name} className="gloss-row">
                 <dt>
-                  <span aria-hidden>{icon}</span> {name}
+                  <span className="gloss-icon" aria-hidden><Icon name={icon} size={15} /></span> {name}
                 </dt>
                 <dd>{t(meaning)}</dd>
               </div>
@@ -79,7 +80,7 @@ export function GlossaryDialog({ onClose }: { onClose: () => void }) {
         <header>
           <h2>{t("gloss.title")}</h2>
           <button className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
-            ✕
+            <Icon name="x" />
           </button>
         </header>
         <p className="muted">{t("gloss.intro")}</p>

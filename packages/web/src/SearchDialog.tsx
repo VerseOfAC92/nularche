@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type NodeMeta, type SearchHit } from "./api.ts";
 import { t } from "./i18n/index.ts";
+import { Glyph } from "./ui/Icon.tsx";
 
 export function SearchDialog({ onClose, onPick, nodes }: { onClose: () => void; onPick: (id: string) => void; nodes: NodeMeta[] }) {
   const [q, setQ] = useState("");
@@ -17,7 +18,7 @@ export function SearchDialog({ onClose, onPick, nodes }: { onClose: () => void; 
     return () => clearTimeout(t);
   }, [q, nodes]);
 
-  const icon = (id: string) => nodes.find((n) => n.id === id)?.icon ?? "◇";
+  const icon = (id: string) => <Glyph icon={nodes.find((n) => n.id === id)?.icon ?? "file"} size={15} />;
 
   return (
     <div className="overlay" onMouseDown={onClose}>

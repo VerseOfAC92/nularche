@@ -6,6 +6,7 @@ import { fileUrl } from "../editor/paths.ts";
 import { t } from "../i18n/index.ts";
 import { usePref } from "../prefs.ts";
 import { PALETTES, SCENE_LIST, sceneUrl, type WritingBg } from "./scenes.ts";
+import { Icon } from "../ui/Icon.tsx";
 
 export function BackgroundPicker({ compact = false }: { compact?: boolean }) {
   const [bg, setBg] = usePref<WritingBg>("writingBg", { kind: "none" });
@@ -54,10 +55,10 @@ export function BackgroundPicker({ compact = false }: { compact?: boolean }) {
         ))}
         <label className={`bg-tile palette ${is("color") ? "on" : ""}`} title={t("focus.custom")} style={bg.kind === "color" ? { background: bg.value } : undefined}>
           <input type="color" value={bg.kind === "color" ? bg.value : "#1e2a38"} onChange={(e) => setBg({ kind: "color", value: e.target.value })} />
-          <span>🎨</span>
+          <span><Icon name="palette" size={20} /></span>
         </label>
         <button className={`bg-tile palette ${is("image") ? "on" : ""}`} onClick={pickImage} title={t("focus.image")} style={bg.kind === "image" ? { background: `url("${fileUrl(bg.path)}") center / cover` } : undefined}>
-          <span>🖼</span>
+          <span><Icon name="photo" size={20} /></span>
         </button>
       </div>
       <label className="check">
