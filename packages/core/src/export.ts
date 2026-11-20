@@ -313,7 +313,8 @@ export async function exportSite(
 
   for (const n of selected.values()) {
     const file = pagePaths.get(n.path)!;
-    const body = (await store.read(n.id)).body;
+    const doc = await store.read(n.id);
+    const body = await exportBodyOf(store, doc);
     const crumbs: string[] = [];
     let cur = rc.all.find((p) => p.id === n.parentNodeId);
     while (cur && selected.has(cur.id)) {

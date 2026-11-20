@@ -3,7 +3,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api, type NodeMeta } from "../api.ts";
-import { headingSection, safeHtml } from "../editor/linked-nodes.tsx";
+import { safeHtml } from "../editor/linked-nodes.tsx";
+import { findBlock, headingSection } from "../../../core/src/blocks.ts";
 import { toEditorMarkdown, vaultPathFromUrl } from "../editor/paths.ts";
 import { modPressed } from "../shortcuts.tsx";
 import { t } from "../i18n/index.ts";
@@ -57,7 +58,7 @@ export function PagePreview({ nodes }: { nodes: NodeMeta[] }) {
         if (!n || over.current !== target.anchor) return;
         const d = await api.read(n.id).catch(() => null);
         if (!d || over.current !== target.anchor) return;
-        const body = d.locked ? t("ob.embedLocked") : target.heading ? (headingSection(d.body, target.heading) ?? d.body) : d.body;
+        const body = d.locked ? t("ob.embedLocked") : target.heading?.startsWith("^") ? (findBlock(d.body, target.heading.slice(1)) ?? d.body) : target.heading ? (headingSection(d.body, target.heading) ?? d.body) : d.body;
         const r = target.anchor.getBoundingClientRect();
         const x = Math.max(8, Math.min(r.left, innerWidth - 440));
         const y = r.bottom + 360 > innerHeight ? Math.max(8, r.top - 368) : r.bottom + 6;

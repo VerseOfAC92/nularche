@@ -1,5 +1,6 @@
 // Not gövdesinden türetilen bilgiler: #etiketler, kilit biçimi, düz metin özeti, ilk görsel, yapılacak ve ek bilgisi.
 // Hem çekirdek (liste, arama, MCP) hem arayüz (editör vurgusu, etiket tıklama) bu modülü kullanır; Node API'si içermez.
+import { stripBlockIds } from "./blocks.ts";
 
 /** `#etiket`: harf ya da rakamla başlar, en az bir harf içerir; `/`, `-` ve `_` ile alt etiket yazılabilir (`#proje/nularche`). */
 export const TAG_RE = /(^|[\s(])#([\p{L}\p{N}_][\p{L}\p{N}_/-]*)/gu;
@@ -144,6 +145,7 @@ export function bodyFacts(body: string): BodyFacts {
  * Dışa aktarma için bağlantılı not sözdizimini sadeleştirir: `%%yorum%%` atılır (yayımlanmaz), `[[Not|ad]]` görünen ada,
  * `![[resim.png]]` Attachments resmine çevrilir; not gömmeleri (`![[Not]]`) atılır. Kod blokları değişmez.
  */
+// Blok kimlikleri (` ^abc123`) dışa aktarmada atılır.
 export function exportableMarkdown(body: string): string {
   const masked = maskCode(body);
   let out = "";
@@ -156,7 +158,7 @@ export function exportableMarkdown(body: string): string {
     if (bang) out += /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(target) ? `![](${target.includes("/") ? target : `Attachments/${target}`})` : "";
     else out += alias?.trim() || (heading ? `${target.trim()}${target.trim() ? " › " : ""}${heading.trim()}` : target.trim());
   }
-  return out + body.slice(last);
+  return stripBlockIds(out + body.slice(last));
 }
 
 /** Kutu (callout) türleri: GitHub'ın beş türü ve yaygın ek türler (tür adı dosyada olduğu gibi kalır). */

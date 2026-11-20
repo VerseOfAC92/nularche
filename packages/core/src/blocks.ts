@@ -48,3 +48,81 @@ export function rearrangeBlocks(blocks: string[], items: BlockItem[], drop: numb
   }
   return { body: out.join("\n\n") + "\n" };
 }
+
+// ------------------------------------------------------------------ Blok kimlikleri ve blok bağlantıları
+//
+// Bir paragrafın ya da liste maddesinin satır sonuna yazılan ` ^kimlik` o bloğu adlandırır; başka notlar
+// `[[Not#^kimlik]]` ile bağlanır, `![[Not#^kimlik]]` ile gömer. Kimlik dosyada düz metin olarak durur (Markdown
+// uyumlu), arayüzde soluk gösterilir, dışa aktarmada atılır.
+
+/** Satır sonundaki blok kimliği: boşluk + `^` + 2–40 harf, rakam ya da tire. */
+export const BLOCK_ID_AT_END = /[ \t]\^([A-Za-z0-9][A-Za-z0-9-]{1,39})[ \t]*$/;
+const BLOCK_ID_LINES = /[ \t]\^[A-Za-z0-9][A-Za-z0-9-]{1,39}[ \t]*$/gm;
+
+export function isBlockId(s: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9-]{1,39}$/.test(s);
+}
+
+/** Yeni, kısa ve okunur bir blok kimliği (6 karakter). */
+export function newBlockId(): string {
+  const abc = "abcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return [...bytes].map((b) => abc[b % abc.length]).join("");
+}
+
+/** Gövdedeki blok kimliklerini atar (kod blokları korunur). */
+export function stripBlockIds(body: string): string {
+  const masked = body.replace(/^(```|~~~)[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, (m) => m.replace(/[^\n]/g, "\u0000"));
+  let out = "";
+  let last = 0;
+  for (const m of masked.matchAll(BLOCK_ID_LINES)) {
+    out += body.slice(last, m.index);
+    last = m.index! + m[0].length;
+  }
+  return out + body.slice(last);
+}
+
+/**
+ * Kimliği verilen bloğun metni (kimlik atılmış). Kimlik bir liste maddesinin satırındaysa yalnızca o madde (alt
+ * maddeleriyle), paragraftaysa paragrafın tamamı döner. Bulunamazsa null.
+ */
+export function findBlock(body: string, id: string): string | null {
+  if (!isBlockId(id)) return null;
+  const blocks = splitBlocks(body);
+  for (const block of blocks) {
+    if (/^\s{0,3}(`{3,}|~{3,})/.test(block)) continue; // kod bloğu
+    const lines = block.split("\n");
+    const at = lines.findIndex((l) => BLOCK_ID_AT_END.exec(l)?.[1] === id);
+    if (at < 0) continue;
+    const item = /^(\s*)(?:[-*+]|\d+[.)])\s/.exec(lines[at]);
+    if (item) {
+      // Liste maddesi: maddenin satırı ve daha içeriden başlayan alt satırları.
+      const indent = item[1].length;
+      const out = [lines[at]];
+      for (const l of lines.slice(at + 1)) {
+        if (l.trim() && (/^(\s*)/.exec(l)![1].length <= indent)) break;
+        out.push(l);
+      }
+      return stripBlockIds(out.join("\n").replace(/^\s+/, (s) => s.slice(indent)));
+    }
+    return stripBlockIds(block);
+  }
+  return null;
+}
+
+/** Markdown'dan bir başlığın bölümü (bir sonraki aynı ya da üst düzey başlığa kadar), başlık satırıyla birlikte. */
+export function headingSection(md: string, heading: string): string | null {
+  const lines = md.split("\n");
+  const key = heading.trim().toLocaleLowerCase("tr");
+  const start = lines.findIndex((l) => /^#{1,6}\s/.test(l) && l.replace(/^#+\s*/, "").trim().toLocaleLowerCase("tr") === key);
+  if (start < 0) return null;
+  const level = /^#+/.exec(lines[start])![0].length;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^#{1,6}\s/.test(lines[i]) && /^#+/.exec(lines[i])![0].length <= level) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(start, end).join("\n");
+}

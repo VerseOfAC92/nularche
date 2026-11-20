@@ -157,6 +157,8 @@ export const MENU: Group[] = [
       c("insert.math", "ob.mathBlock"),
       c("insert.mermaid", "ob.mermaid"),
       c("fmt.comment", "ob.comment"),
+      c("block.copyLink", "blk.copyLink"),
+      c("block.copyEmbed", "blk.copyEmbed"),
       c("fmt.clear", "ob.clearFormat", "Mod+\\"),
       "-",
       c("line.up", "ob.moveUp", "Alt+ArrowUp", true),

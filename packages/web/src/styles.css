@@ -1929,3 +1929,6 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .snap-st.deleted { color: var(--nlc-danger, #f85149); }
 .snap-st.added { color: var(--nlc-ok); }
 .snap-preview { max-height: 240px; overflow: auto; font-size: 12px; white-space: pre-wrap; background: var(--nlc-bg-base, transparent); border: 1px solid var(--nlc-border-subtle); border-radius: 6px; padding: 8px; margin: 4px 0; }
+.readability.r-hard, .readability.r-veryHard { color: var(--nlc-warn, #d29922); }
+.ProseMirror .block-id { color: var(--nlc-text-shadow, #8b949e); font-size: 0.78em; opacity: 0.55; font-family: var(--nlc-font-mono, ui-monospace, monospace); }
+.ProseMirror .anchor-flash { background: var(--nlc-accent-glow); border-radius: 4px; transition: background 0.4s; }

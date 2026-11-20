@@ -38,6 +38,7 @@ const cases: Record<string, [string, string]> = {
   "tire liste": ["+ bir\n+ iki\n\n- madde", "bulletList"],
   ses: ["@[audio](/files/Attachments/kayit.webm)", "audioBlock"],
   çizim: ["@[drawing](/files/Attachments/cizim.png)", "drawingBlock"],
+  "blok kimliği": ["Bağlanacak paragraf ^ab12cd\n\n- madde ^m-1\n\n![[Not#^ab12cd]]", "wikiLink"],
   etiket: ["Bugün #toplantı vardı", "text"],
   "wiki bağlantısı": ["Bkz [[Plan#Hedef|takma]] ve ![[resim.png]] ile ![[Plan]]", "wikiLink"],
   dipnot: ["Metin[^1] devam\n\n[^1]: Dipnot metni", "footnoteRef"],

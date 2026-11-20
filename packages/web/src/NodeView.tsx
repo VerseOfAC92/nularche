@@ -1105,6 +1105,16 @@ export function NodeView(props: NodeViewProps) {
             {stats.selWords > 0 || stats.selChars > 0
               ? t("stats.selection", { words: stats.selWords.toLocaleString(), chars: stats.selChars.toLocaleString() })
               : `${t("stats.words", { n: stats.words.toLocaleString() })} · ${t("stats.chars", { n: stats.chars.toLocaleString() })} · ${t("stats.read", { n: Math.max(1, Math.round(stats.words / 200)) })}`}
+            {stats.readability && !(stats.selWords > 0) && (
+              <span
+                className={`readability r-${stats.readability.level}`}
+                data-testid="readability"
+                title={t(stats.readability.lang === "tr" ? "read.tipTr" : "read.tipEn", { wps: stats.readability.wordsPerSentence, spw: stats.readability.syllablesPerWord })}
+              >
+                {" · "}
+                {t("read.label", { n: stats.readability.score, level: t(`read.${stats.readability.level}` as StringKey) })}
+              </span>
+            )}
             {doc.wordGoal ? (
               <>
                 {" · "}

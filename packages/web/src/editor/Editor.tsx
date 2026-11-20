@@ -1,6 +1,8 @@
 // Stream modu editörü: bir Node'un Shard'larını (blokları) Notion benzeri dikey akışta düzenler.
 // Dosyadaki Markdown ↔ editör dönüşümü yalnızca burada, yükleme ve kaydetme sınırında yapılır.
 
+import { anchorAtCursor, scrollToAnchor, setPendingAnchor, takePendingAnchor } from "./block-refs.ts";
+import { guessLang, readability, type Readability } from "../../../core/src/readability.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { askText } from "../ask.tsx";
 import { EditorContent, useEditor, type Editor as TiptapEditor } from "@tiptap/react";
@@ -351,13 +353,21 @@ export interface EditorStats {
   chars: number;
   selWords: number;
   selChars: number;
+  /** Okunabilirlik puanı (Ateşman / Flesch); kısa metinlerde null. */
+  readability: Readability | null;
 }
 
 function statsOf(e: TiptapEditor): EditorStats {
   const text = e.state.doc.textBetween(0, e.state.doc.content.size, "\n", " ");
   const { from, to, empty } = e.state.selection;
   const sel = empty ? "" : e.state.doc.textBetween(from, to, "\n", " ");
-  return { words: countWords(text), chars: text.replace(/\n/g, "").length, selWords: countWords(sel), selChars: sel.replace(/\n/g, "").length };
+  return {
+    words: countWords(text),
+    chars: text.replace(/\n/g, "").length,
+    selWords: countWords(sel),
+    selChars: sel.replace(/\n/g, "").length,
+    readability: readability(text, guessLang(text, document.documentElement.lang === "en" ? "en" : "tr")),
+  };
 }
 
 const foldStoreKey = (id: string) => `nlc-fold:${id}`;
@@ -558,6 +568,8 @@ export function Editor(props: EditorProps) {
     }
     const q = findKey.getState(editor.state)?.query;
     if (q) setFind(editor, {}, false);
+    const anchor = takePendingAnchor(nodePath);
+    if (anchor) requestAnimationFrame(() => scrollToAnchor(editor, anchor));
     propsRef.current.onStats?.(statsOf(editor));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, docKey]);
@@ -628,6 +640,8 @@ export function Editor(props: EditorProps) {
       }),
       registerEditorUi("edit.copyMarkdown", (e) => void copyAsMarkdown(e, propsRef.current.nodePath).then(() => propsRef.current.onToast?.(t("node.copiedMd")))),
       registerEditorUi("edit.pasteMarkdown", (e) => void pasteAsMarkdown(e, propsRef.current.nodePath)),
+      registerEditorUi("block.copyLink", (e) => void copyBlockRef(e, false)),
+      registerEditorUi("block.copyEmbed", (e) => void copyBlockRef(e, true)),
     ];
     return () => {
       offs.forEach((off) => off());
@@ -635,12 +649,33 @@ export function Editor(props: EditorProps) {
     };
   }, [editor]);
 
+  /** İmlecin bloğuna `[[Not#^kimlik]]` (ya da gömme `![[…]]`) bağlantısı üretip panoya kopyalar. */
+  async function copyBlockRef(e: TiptapEditor, embed: boolean) {
+    const p = propsRef.current;
+    const anchor = anchorAtCursor(e);
+    const self = p.nodes.find((n) => n.id === p.currentId);
+    if (!anchor || !self) return p.onToast?.(t("blk.noBlock"));
+    const unique = p.nodes.filter((n) => n.title.toLocaleLowerCase("tr") === self.title.toLocaleLowerCase("tr")).length === 1;
+    const target = unique ? self.title : self.path.replace(/\.md$/i, "");
+    const ref = `${embed ? "!" : ""}[[${target}#${anchor}]]`;
+    try {
+      await navigator.clipboard.writeText(ref);
+      p.onToast?.(t(embed ? "blk.embedCopied" : "blk.linkCopied", { ref }));
+    } catch {
+      p.onToast?.(ref);
+    }
+  }
+
   const resolver = useMemo(() => makeResolver(props.nodes), [props.nodes]);
   const vaultHost: VaultHost = {
     resolve: resolver,
-    open: (id) => {
+    open: (id, anchor) => {
       const n = propsRef.current.nodes.find((x) => x.id === id);
-      if (n) propsRef.current.onOpenPath(n.path);
+      if (!n) return;
+      // Aynı notun içindeki bir yere bağlantı: yalnızca kaydır.
+      if (anchor && id === propsRef.current.currentId && editorRef.current) return void scrollToAnchor(editorRef.current, anchor);
+      if (anchor) setPendingAnchor(n.path, anchor);
+      propsRef.current.onOpenPath(n.path);
     },
     create: (title) => propsRef.current.onCreateNote?.(title),
   };
@@ -753,6 +788,9 @@ export function Editor(props: EditorProps) {
                   : []),
                 { label: t("cmd.link"), run: () => runCommand("link.edit") },
                 { label: `Marginalia — ${t("ws.addComment")}`, enabled: hasSel, run: () => runCommand("comment.add") },
+                "separator" as const,
+                { label: t("blk.copyLink"), run: () => runCommand("block.copyLink") },
+                { label: t("blk.copyEmbed"), run: () => runCommand("block.copyEmbed") },
               ]);
             }}
           />

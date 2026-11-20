@@ -3,6 +3,7 @@
 // Bu yapılar ayrı editör düğümleridir ve Markdown'a okundukları gibi yazılır: düz metin olsalardı Markdown yazıcısı
 // köşeli parantezleri ve ters eğik çizgileri kaçışlayıp (`\[\[Not\]\]`) dosyayı bozardı.
 
+import { findBlock, headingSection } from "../../../core/src/blocks.ts";
 import DOMPurify from "dompurify";
 import { Extension, InputRule, mergeAttributes, Node, type MarkdownToken } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
@@ -22,7 +23,8 @@ import { fileUrl, toEditorMarkdown } from "./paths.ts";
 export interface VaultHost {
   /** Wiki hedefini (başlık, dosya adı, yol ya da takma ad) nota çözer. */
   resolve: (name: string) => NodeMeta | null;
-  open: (id: string) => void;
+  /** Notu açar; `anchor` verilirse (başlık metni ya da `^blok`) o yere kaydırır. */
+  open: (id: string, anchor?: string | null) => void;
   /** Var olmayan wiki hedefi için not oluşturur ve açar. */
   create: (title: string) => void;
 }
@@ -102,18 +104,6 @@ export function safeHtml(md: string): string {
   });
 }
 
-/** Markdown'dan bir başlığın bölümünü (bir sonraki aynı ya da üst düzey başlığa kadar) alır. */
-export function headingSection(md: string, heading: string): string | null {
-  const lines = md.split("\n");
-  const key = heading.trim().toLocaleLowerCase("tr");
-  const start = lines.findIndex((l) => /^#{1,6}\s/.test(l) && l.replace(/^#+\s*/, "").trim().toLocaleLowerCase("tr") === key);
-  if (start < 0) return null;
-  const level = /^#+/.exec(lines[start])![0].length;
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) if (/^#{1,6}\s/.test(lines[i]) && /^#+/.exec(lines[i])![0].length <= level) (end = i), (i = lines.length);
-  return lines.slice(start, end).join("\n");
-}
-
 // ------------------------------------------------------------------ Wiki bağlantısı ve gömme
 
 function NoteEmbed({ note, heading }: { note: NodeMeta; heading: string | null }) {
@@ -124,7 +114,8 @@ function NoteEmbed({ note, heading }: { note: NodeMeta; heading: string | null }
       (d) => {
         if (!live) return;
         if (d.locked) return setHtml(`<p class="embed-locked">${t("ob.embedLocked")}</p>`);
-        const body = heading ? (headingSection(d.body, heading) ?? "") : d.body;
+        // `#^kimlik` bir bloğu, `#Başlık` bir başlığın bölümünü gömer.
+        const body = heading?.startsWith("^") ? (findBlock(d.body, heading.slice(1)) ?? "") : heading ? (headingSection(d.body, heading) ?? "") : d.body;
         setHtml(safeHtml(toEditorMarkdown(body, d.path)));
       },
       () => live && setHtml(""),
@@ -143,7 +134,7 @@ function WikiLinkView({ node, selected }: NodeViewProps) {
   const label = w.alias ?? (w.heading ? `${w.target}${w.target ? " › " : ""}${w.heading}` : w.target);
   const open = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (note) host?.open(note.id);
+    if (note) host?.open(note.id, w.heading);
     else if (w.target && !IMAGE_RE.test(w.target)) host?.create(w.target);
   };
   if (w.embed) {
