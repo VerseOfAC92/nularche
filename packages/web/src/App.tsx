@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AskHost, askText } from "./ask.tsx";
 import { api, SHADOW, type NodeMeta, type ParentTarget } from "./api.ts";
 import { desktop } from "./desktop.ts";
@@ -48,6 +48,10 @@ import { nodeIconName } from "./ui/node-icon.ts";
 import { CalendarPage } from "./calendar/CalendarPage.tsx";
 import { migrateCalendarArche } from "./calendar/CalendarSync.tsx";
 
+import { lecternHash, parseLecternHash } from "./lectern/link.ts";
+/** PDF okuyucu (pdf.js büyük olduğundan ilk açılışta yüklenir). */
+const LecternView = lazy(() => import("./lectern/LecternView.tsx"));
+
 export type Route =
   | { kind: "home" }
   | { kind: "shadow" }
@@ -60,9 +64,12 @@ export type Route =
   | { kind: "calendar" }
   | { kind: "tag"; tag: string }
   | { kind: "smart"; id: string }
-  | { kind: "list"; id: string };
+  | { kind: "list"; id: string }
+  | { kind: "lectern"; path: string; page?: number; hl?: string };
 
 function parseHash(): Route {
+  const lec = parseLecternHash(location.hash);
+  if (lec) return { kind: "lectern", ...lec };
   const h = decodeURIComponent(location.hash.slice(1));
   if (!h) return { kind: "home" };
   if (h === "shadow" || h === "trash" || h === "notes" || h === "recent" || h === "attachments" || h === "graph" || h === "calendar") return { kind: h };
@@ -82,6 +89,8 @@ function routeHash(r: Route): string {
     case "smart":
     case "list":
       return `${r.kind}:${encodeURIComponent(r.id)}`;
+    case "lectern":
+      return lecternHash(r.path, r.page, r.hl);
     default:
       return r.kind;
   }
@@ -481,6 +490,13 @@ export function App() {
 
   const openPath = useCallback(
     (p: string) => {
+      // PDF bağlantısı (`dosya.pdf#page=3&hl=…`): Lectern'de açılır.
+      const pdf = /^(.+\.pdf)(?:#(.*))?$/i.exec(p);
+      if (pdf) {
+        const q = new URLSearchParams(pdf[2] ?? "");
+        const page = Number(q.get("page")) || undefined;
+        return navigate({ kind: "lectern", path: pdf[1], ...(page ? { page } : {}), ...(q.get("hl") ? { hl: q.get("hl")! } : {}) });
+      }
       const n = nodes.find((x) => x.path === p);
       if (n) navigate({ kind: "node", id: n.id });
       else showToast(t("app.linkNotFound", { path: p }));
@@ -877,6 +893,11 @@ export function App() {
               />
             );
           })()}
+        {route.kind === "lectern" && (
+          <Suspense fallback={<div className="page" />}>
+            <LecternView key={route.path} path={route.path} page={route.page} highlight={route.hl} nodes={nodes} onOpenNote={openNode} onChanged={refresh} onToast={showToast} />
+          </Suspense>
+        )}
         {route.kind === "attachments" && <AttachmentBrowser changeTick={changeTick} onOpen={openNode} onToast={showToast} />}
         {route.kind === "shadow" && (
           <ShadowView nodes={nodes} changeTick={changeTick} onOpen={(id) => navigate({ kind: "node", id })} onChanged={refresh} onToast={showToast} />

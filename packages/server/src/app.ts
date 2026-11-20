@@ -9,6 +9,7 @@ import path from "node:path";
 import { NodeError, NodeStore } from "../../core/src/node-store.ts";
 import { SnapshotError, SnapshotStore } from "../../core/src/snapshots.ts";
 import { citationSettings, findLibraryFiles, loadLibrary } from "../../core/src/citations-store.ts";
+import { readAnnotations, writeAnnotations } from "../../core/src/annotations.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
@@ -163,6 +164,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const MIME: Record<string, string> = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8",
     ".svg": "image/svg+xml",
     ".png": "image/png",
@@ -482,6 +484,16 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       case "POST attachments/:id/rename": {
         const b = await readJson(req);
         return send(res, 200, { path: await store.renameAttachment(str(b.path) ?? "", str(b.name) ?? "") });
+      }
+      case "GET annotations": {
+        const pdf = url.searchParams.get("path") ?? "";
+        if (!/\.pdf$/i.test(pdf) || !(await store.pathExists(pdf))) return send(res, 404, { error: "not_found", message: "PDF bulunamadı" });
+        return send(res, 200, await readAnnotations(store.root, pdf));
+      }
+      case "PUT annotations": {
+        const pdf = url.searchParams.get("path") ?? "";
+        if (!/\.pdf$/i.test(pdf) || !(await store.pathExists(pdf))) return send(res, 404, { error: "not_found", message: "PDF bulunamadı" });
+        return send(res, 200, await writeAnnotations(store.root, pdf, await readJson(req, 20 * 1024 * 1024)));
       }
       case "GET prefs":
         return send(res, 200, await readPrefs(store.root));

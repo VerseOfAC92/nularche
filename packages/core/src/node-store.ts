@@ -17,6 +17,7 @@ import { extractLinks, relativeLink, resolveLink, rewriteLinks } from "./links.t
 import { parseNodeFile, revisionOf, serializeNodeFile, slugify, type Frontmatter } from "./node-file.ts";
 import { bodyFacts, fillTemplate, isLockedBody, plainText, renameTagInBody, tagKey } from "./note-text.ts";
 import { markForPurge } from "./drive-sync.ts";
+import { moveAnnotations } from "./annotations.ts";
 import { extractWikiLinks, wikiResolver } from "./wikilinks.ts";
 import { canvasFiles, rewriteCanvasFiles } from "./canvas.ts";
 import { rewriteWhiteboardFiles, whiteboardFiles } from "./whiteboard.ts";
@@ -1616,6 +1617,7 @@ export class NodeStore {
     if (target === rel) return rel;
     for (let i = 2; await this.exists(target); i++) target = `${dir}/${base} ${i}${ext}`;
     await this.renameAndRewrite([[rel, target]], new Map([[rel, target]]));
+    if (/\.pdf$/i.test(rel)) await moveAnnotations(this.root, rel, target);
     return target;
   }
 

@@ -111,7 +111,7 @@ const REMOVED_DIR = ".nularche/sync-removed";
  * `.nularche` içinde eşitlenen yollar (izin listesi). Listede olmayan her şey bu bilgisayarda kalır; böylece ileride
  * eklenecek iç kayıtlar da kendiliğinden buluta gitmez.
  */
-const SYNCED_NULARCHE = ["ui.json", "origin.json", "comments/", "epochs/", "snippets/"];
+const SYNCED_NULARCHE = ["ui.json", "origin.json", "comments/", "epochs/", "snippets/", "annotations/"];
 /** İki tarafta da değiştiğinde anahtar anahtar birleştirilen ayar dosyaları. */
 const MERGEABLE = new Set([".nularche/ui.json"]);
 

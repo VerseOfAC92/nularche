@@ -528,6 +528,12 @@ export function Editor(props: EditorProps) {
           propsRef.current.onOpenPath(target);
           return true;
         }
+        // PDF bağlantısı Lectern'de (varsa sayfa ve vurguyla) açılır.
+        if (target?.toLowerCase().endsWith(".pdf")) {
+          const hash = href.includes("#") ? href.slice(href.indexOf("#")) : "";
+          propsRef.current.onOpenPath(`${target}${hash}`);
+          return true;
+        }
         if (href && modPressed(event)) {
           window.open(href, "_blank", "noopener");
           return true;
