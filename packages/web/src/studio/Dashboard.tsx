@@ -1,6 +1,8 @@
 // Ana sayfa / proje panosu (2.0): selamlama, kaldığın yerden devam, bugünkü yazma hedefi ve seri, yazma projeleri
 // (manuskriptlerin kelime hedefleri), son düzenlenenler, sabitlenenler ve hızlı yakalama.
 
+import { cleanVigils } from "../../../core/src/vigil-schedule.ts";
+import { nextText } from "../vigil/VigilSettings.tsx";
 import { useEffect, useMemo, useState } from "react";
 import { api, SHADOW, type NodeMeta, type ParentTarget } from "../api.ts";
 import { locale, t, ago } from "../i18n/index.ts";
@@ -39,6 +41,9 @@ export function Dashboard({
   onNewSmart?: () => void;
 }) {
   const [recent] = usePref<string[]>("recent", []);
+  const [vigilsRaw] = usePref<unknown>("vigils", []);
+  const vigils = cleanVigils(vigilsRaw);
+  const byIdVigil = new Map(nodes.map((n) => [n.id, n]));
   const [log] = usePref<Record<string, number>>("writingLog", {});
   const [dailyGoal] = usePref<number>("dailyGoal", 0);
   const session = useSessionWords();
@@ -265,6 +270,30 @@ export function Dashboard({
           ))}
           {!openTasks.length && <p className="muted small">{t("ws.noOpenTasks")}</p>}
         </section>
+
+        {vigils.length > 0 && (
+          <section className="dash-card" data-testid="dash-vigil">
+            <h3 title={t("gloss.vigil")}><Icon name="calendar-repeat" /> Vigil</h3>
+            {vigils.map((v) => (
+              <div key={v.id} className="dash-vigil">
+                <div>
+                  <strong>{v.name}</strong> <span className="muted small">· {v.enabled ? t("vigil.next", { when: nextText(v) }) : t("vigil.off")}</span>
+                </div>
+                {v.lastResult && (
+                  <div className="small">
+                    {v.lastResult.nodeId && byIdVigil.has(v.lastResult.nodeId) ? (
+                      <button className="link-btn" onClick={() => onOpen(v.lastResult!.nodeId!)}>
+                        <Icon name="file-text" size={13} /> {byIdVigil.get(v.lastResult.nodeId)!.title}
+                      </button>
+                    ) : (
+                      <span className={v.lastResult.ok ? "muted" : "error-text"}>{v.lastResult.message}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
 
         <section className="dash-card">
           <h3 title={t("term.shadow")}><Icon name="circle-half-2" /> Shadow</h3>

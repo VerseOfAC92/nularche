@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AskHost, askText } from "./ask.tsx";
 import { api, SHADOW, type NodeMeta, type ParentTarget } from "./api.ts";
 import { desktop } from "./desktop.ts";
@@ -48,6 +48,13 @@ import { nodeIconName } from "./ui/node-icon.ts";
 import { CalendarPage } from "./calendar/CalendarPage.tsx";
 import { migrateCalendarArche } from "./calendar/CalendarSync.tsx";
 
+import { lectioHash, parseLectioHash } from "./lectio/link.ts";
+import { ORIGIN_CHANGED } from "./editor/query-widget.ts";
+import { AnamnesisView } from "./anamnesis/AnamnesisView.tsx";
+import { installVigilRunner } from "./vigil/runner.ts";
+/** PDF okuyucu (pdf.js büyük olduğundan ilk açılışta yüklenir). */
+const LectioView = lazy(() => import("./lectio/LectioView.tsx"));
+
 export type Route =
   | { kind: "home" }
   | { kind: "shadow" }
@@ -56,16 +63,20 @@ export type Route =
   | { kind: "notes" }
   | { kind: "recent" }
   | { kind: "attachments" }
+  | { kind: "anamnesis" }
   | { kind: "graph" }
   | { kind: "calendar" }
   | { kind: "tag"; tag: string }
   | { kind: "smart"; id: string }
-  | { kind: "list"; id: string };
+  | { kind: "list"; id: string }
+  | { kind: "lectio"; path: string; page?: number; hl?: string };
 
 function parseHash(): Route {
+  const lec = parseLectioHash(location.hash);
+  if (lec) return { kind: "lectio", ...lec };
   const h = decodeURIComponent(location.hash.slice(1));
   if (!h) return { kind: "home" };
-  if (h === "shadow" || h === "trash" || h === "notes" || h === "recent" || h === "attachments" || h === "graph" || h === "calendar") return { kind: h };
+  if (h === "shadow" || h === "trash" || h === "notes" || h === "recent" || h === "attachments" || h === "anamnesis" || h === "graph" || h === "calendar") return { kind: h };
   const m = /^(tag|smart|list):(.+)$/.exec(h);
   if (m) return m[1] === "tag" ? { kind: "tag", tag: m[2] } : { kind: m[1] as "smart" | "list", id: m[2] };
   return { kind: "node", id: h };
@@ -82,6 +93,8 @@ function routeHash(r: Route): string {
     case "smart":
     case "list":
       return `${r.kind}:${encodeURIComponent(r.id)}`;
+    case "lectio":
+      return lectioHash(r.path, r.page, r.hl);
     default:
       return r.kind;
   }
@@ -210,6 +223,9 @@ export function App() {
     toastTimer.current = window.setTimeout(() => setToast(null), 4000);
   }, []);
 
+  // Vigil: zamanlanmış otomasyonlar yalnızca ana pencerede çalışır.
+  useEffect(() => (SINGLE ? undefined : installVigilRunner(showToast)), [showToast]);
+
   const navigate = useCallback((r: Route) => {
     location.hash = routeHash(r);
     setRoute(r);
@@ -303,6 +319,7 @@ export function App() {
     es.addEventListener("change", () => {
       refresh();
       setChangeTick((t) => t + 1);
+      window.dispatchEvent(new Event(ORIGIN_CHANGED));
     });
     es.addEventListener("ai", () => setAiTick((t) => t + 1));
     es.addEventListener("comments", () => commentsChanged());
@@ -481,6 +498,13 @@ export function App() {
 
   const openPath = useCallback(
     (p: string) => {
+      // PDF bağlantısı (`dosya.pdf#page=3&hl=…`): Lectio'da açılır.
+      const pdf = /^(.+\.pdf)(?:#(.*))?$/i.exec(p);
+      if (pdf) {
+        const q = new URLSearchParams(pdf[2] ?? "");
+        const page = Number(q.get("page")) || undefined;
+        return navigate({ kind: "lectio", path: pdf[1], ...(page ? { page } : {}), ...(q.get("hl") ? { hl: q.get("hl")! } : {}) });
+      }
       const n = nodes.find((x) => x.path === p);
       if (n) navigate({ kind: "node", id: n.id });
       else showToast(t("app.linkNotFound", { path: p }));
@@ -533,6 +557,7 @@ export function App() {
       registerCommand("view.allNotes", () => navigate({ kind: "notes" })),
       registerCommand("view.recent", () => navigate({ kind: "recent" })),
       registerCommand("view.attachments", () => navigate({ kind: "attachments" })),
+      registerCommand("view.anamnesis", () => navigate({ kind: "anamnesis" })),
       registerCommand("view.list", () => navigate({ kind: "notes" })),
       registerCommand("view.gallery", () => navigate({ kind: "notes" })),
       registerCommand("app.importMarkdown", () => void importNotes(false)),
@@ -877,6 +902,12 @@ export function App() {
               />
             );
           })()}
+        {route.kind === "lectio" && (
+          <Suspense fallback={<div className="page" />}>
+            <LectioView key={route.path} path={route.path} page={route.page} highlight={route.hl} nodes={nodes} onOpenNote={openNode} onChanged={refresh} onToast={showToast} />
+          </Suspense>
+        )}
+        {route.kind === "anamnesis" && <AnamnesisView nodes={nodes} changeTick={changeTick} onOpen={openNode} />}
         {route.kind === "attachments" && <AttachmentBrowser changeTick={changeTick} onOpen={openNode} onToast={showToast} />}
         {route.kind === "shadow" && (
           <ShadowView nodes={nodes} changeTick={changeTick} onOpen={(id) => navigate({ kind: "node", id })} onChanged={refresh} onToast={showToast} />

@@ -1,6 +1,6 @@
 {
   "name": "nularche",
-  "version": "2.5.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Nularche: yerel, Markdown tabanlı kişisel bilgi yönetimi (PKM) uygulaması; Claude ile MCP üzerinden düzenleme",
   "type": "module",
@@ -97,6 +97,8 @@
     "notion-alternative"
   ],
   "dependencies": {
-    "marked": "17.0.6"
+    "dompurify": "^3.2.6",
+    "marked": "17.0.6",
+    "pdfjs-dist": "^6.4.299"
   }
 }

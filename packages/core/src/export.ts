@@ -5,6 +5,7 @@ import { exportBodyOf } from "./manuscript.ts";
 import path from "node:path";
 import { zipSync, type Zippable } from "fflate";
 import { Marked, type Tokens } from "marked";
+import { safeUrl, sanitizeRawHtml } from "./html-safe.ts";
 import { calloutTone, exportableMarkdown } from "./note-text.ts";
 import {
   cellValue,
@@ -133,7 +134,16 @@ export function renderBody(node: NodeMeta, body: string, rc: RenderContext, t: R
     renderer: {
       link(tk) {
         const text = this.parser.parseInline(tk.tokens);
-        return tk.href ? `<a href="${esc(tk.href)}">${text}</a>` : `<span class="dead-link">${text}</span>`;
+        const href = safeUrl(tk.href);
+        return href ? `<a href="${esc(href)}">${text}</a>` : `<span class="dead-link">${text}</span>`;
+      },
+      image(tk) {
+        const src = safeUrl(tk.href, { image: true });
+        return src ? `<img src="${esc(src)}" alt="${esc(tk.text ?? "")}"${tk.title ? ` title="${esc(tk.title)}"` : ""}>` : esc(tk.text ?? "");
+      },
+      // Notlardaki ham HTML yalnızca izin listesindeki etiketlerle geçer (yayınlanan sitede betik çalıştırılamaz).
+      html(tk) {
+        return sanitizeRawHtml(tk.text);
       },
     },
   });
@@ -223,7 +233,7 @@ export async function exportPageHtml(store: NodeStore, ref: string, lang: "tr" |
   const rc = await contextFor(store, lang);
   const doc = await store.read(ref);
   if (doc.locked) throw new NodeError("invalid", lang === "tr" ? "Kilitli not dışa aktarılamaz; önce kilidi kaldırın." : "A locked note can't be exported; remove the lock first.");
-  const node = { ...doc, body: await exportBodyOf(store, doc) };
+  const node = { ...doc, body: await exportBodyOf(store, doc, lang) };
   const assets = new Map<string, string>();
   for (const l of extractLinks(node.path, node.body)) {
     if (!l.target.startsWith(`${ATTACHMENTS_DIR}/`) || !(await store.pathExists(l.target))) continue;
@@ -303,7 +313,8 @@ export async function exportSite(
 
   for (const n of selected.values()) {
     const file = pagePaths.get(n.path)!;
-    const body = (await store.read(n.id)).body;
+    const doc = await store.read(n.id);
+    const body = await exportBodyOf(store, doc, lang);
     const crumbs: string[] = [];
     let cur = rc.all.find((p) => p.id === n.parentNodeId);
     while (cur && selected.has(cur.id)) {

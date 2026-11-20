@@ -1,6 +1,9 @@
 // Stream modu editörü: bir Node'un Shard'larını (blokları) Notion benzeri dikey akışta düzenler.
 // Dosyadaki Markdown ↔ editör dönüşümü yalnızca burada, yükleme ve kaydetme sınırında yapılır.
 
+import { citationState, reloadCitations, searchLibrary, shortAuthor } from "../citations.ts";
+import { anchorAtCursor, scrollToAnchor, setPendingAnchor, takePendingAnchor } from "./block-refs.ts";
+import { guessLang, readability, type Readability } from "../../../core/src/readability.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { askText } from "../ask.tsx";
 import { EditorContent, useEditor, type Editor as TiptapEditor } from "@tiptap/react";
@@ -295,6 +298,14 @@ const commands = (): Command[] => [
       if (src) e.chain().focus().setYoutubeVideo({ src }).run();
     },
   },
+  {
+    group: t("ed.g.basic"),
+    label: t("query.slash"),
+    hint: t("query.slashHint"),
+    icon: "◎",
+    keywords: "speculum query sorgu canlı live liste list dataview tablo table",
+    run: (e) => void runCommand("insert.query"),
+  },
 ];
 
 function linkContent(node: Pick<NodeMeta, "title" | "path">) {
@@ -307,7 +318,7 @@ function linkContent(node: Pick<NodeMeta, "title" | "path">) {
 const fold = (s: string) => s.toLocaleLowerCase("tr").replace(/[çğıöşü]/g, (c) => ({ ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u" })[c] ?? c);
 
 interface Trigger {
-  kind: "slash" | "link";
+  kind: "slash" | "link" | "cite";
   query: string;
   from: number;
   top?: number;
@@ -351,13 +362,21 @@ export interface EditorStats {
   chars: number;
   selWords: number;
   selChars: number;
+  /** Okunabilirlik puanı (Ateşman / Flesch); kısa metinlerde null. */
+  readability: Readability | null;
 }
 
 function statsOf(e: TiptapEditor): EditorStats {
   const text = e.state.doc.textBetween(0, e.state.doc.content.size, "\n", " ");
   const { from, to, empty } = e.state.selection;
   const sel = empty ? "" : e.state.doc.textBetween(from, to, "\n", " ");
-  return { words: countWords(text), chars: text.replace(/\n/g, "").length, selWords: countWords(sel), selChars: sel.replace(/\n/g, "").length };
+  return {
+    words: countWords(text),
+    chars: text.replace(/\n/g, "").length,
+    selWords: countWords(sel),
+    selChars: sel.replace(/\n/g, "").length,
+    readability: readability(text, guessLang(text, document.documentElement.lang === "en" ? "en" : "tr")),
+  };
 }
 
 const foldStoreKey = (id: string) => `nlc-fold:${id}`;
@@ -426,6 +445,20 @@ export function Editor(props: EditorProps) {
         run: (e: TiptapEditor) => c.run(e, ctxRef.current),
       }));
     }
+    if (trigger.kind === "cite") {
+      const found = searchLibrary(trigger.query);
+      if (!found.length && !citationState().items.size) {
+        return [{ key: "cite:setup", label: t("cite.setup"), hint: t("cite.setupHint"), icon: "📚", group: t("cite.group"), run: () => void runCommand("app.settings") }];
+      }
+      return found.map((it) => ({
+        key: `cite:${it.id}`,
+        label: it.title ?? it.id,
+        hint: `@${it.id} · ${shortAuthor(it)}`,
+        icon: "❝",
+        group: t("cite.group"),
+        run: (e: TiptapEditor) => void e.chain().focus().insertContent([{ type: "citation", attrs: { raw: `[@${it.id}]` } }, { type: "text", text: " " }]).run(),
+      }));
+    }
     return propsRef.current.nodes
       .filter((n) => n.id !== propsRef.current.currentId && fold(n.title).includes(q))
       .slice(0, 30)
@@ -454,11 +487,12 @@ export function Editor(props: EditorProps) {
     if (!empty || $from.parent.type.name === "codeBlock") return setTrigger(null);
     const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "￼");
     const link = /\[\[([^\]\n]{0,60})$/.exec(before);
+    const cite = link ? null : /\[-?@([\p{L}\d_:.-]{0,40})$/u.exec(before);
     const slash = /(?:^|\s)\/([\p{L}\d:]*)$/u.exec(before);
-    const m = link ?? slash;
+    const m = link ?? cite ?? slash;
     if (!m) return setTrigger(null);
-    const kind = link ? "link" : "slash";
-    const from = $from.pos - m[1].length - (link ? 2 : 1);
+    const kind = link ? "link" : cite ? "cite" : "slash";
+    const from = $from.pos - m[0].length + (kind === "slash" && /^\s/.test(m[0]) ? 1 : 0);
     const coords = e.view.coordsAtPos(from);
     setTrigger((prev) => {
       if (!prev || prev.query !== m[1] || prev.kind !== kind) setActive(0);
@@ -502,6 +536,12 @@ export function Editor(props: EditorProps) {
           propsRef.current.onOpenPath(target);
           return true;
         }
+        // PDF bağlantısı Lectio'da (varsa sayfa ve vurguyla) açılır.
+        if (target?.toLowerCase().endsWith(".pdf")) {
+          const hash = href.includes("#") ? href.slice(href.indexOf("#")) : "";
+          propsRef.current.onOpenPath(`${target}${hash}`);
+          return true;
+        }
         if (href && modPressed(event)) {
           window.open(href, "_blank", "noopener");
           return true;
@@ -542,6 +582,11 @@ export function Editor(props: EditorProps) {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  // Kaynakça (atıf çipleri ve `[@` önerileri için) her not açılışında tazelenir; sunucu dosyayı önbellekten verir.
+  useEffect(() => {
+    void reloadCitations();
+  }, [props.currentId]);
+
   // Başka bir Node seçildiğinde ya da Node dışarıdan (ör. Claude) değiştiğinde içeriği yükle.
   useEffect(() => {
     if (!editor) return;
@@ -558,6 +603,8 @@ export function Editor(props: EditorProps) {
     }
     const q = findKey.getState(editor.state)?.query;
     if (q) setFind(editor, {}, false);
+    const anchor = takePendingAnchor(nodePath);
+    if (anchor) requestAnimationFrame(() => scrollToAnchor(editor, anchor));
     propsRef.current.onStats?.(statsOf(editor));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, docKey]);
@@ -628,6 +675,8 @@ export function Editor(props: EditorProps) {
       }),
       registerEditorUi("edit.copyMarkdown", (e) => void copyAsMarkdown(e, propsRef.current.nodePath).then(() => propsRef.current.onToast?.(t("node.copiedMd")))),
       registerEditorUi("edit.pasteMarkdown", (e) => void pasteAsMarkdown(e, propsRef.current.nodePath)),
+      registerEditorUi("block.copyLink", (e) => void copyBlockRef(e, false)),
+      registerEditorUi("block.copyEmbed", (e) => void copyBlockRef(e, true)),
     ];
     return () => {
       offs.forEach((off) => off());
@@ -635,12 +684,33 @@ export function Editor(props: EditorProps) {
     };
   }, [editor]);
 
+  /** İmlecin bloğuna `[[Not#^kimlik]]` (ya da gömme `![[…]]`) bağlantısı üretip panoya kopyalar. */
+  async function copyBlockRef(e: TiptapEditor, embed: boolean) {
+    const p = propsRef.current;
+    const anchor = anchorAtCursor(e);
+    const self = p.nodes.find((n) => n.id === p.currentId);
+    if (!anchor || !self) return p.onToast?.(t("blk.noBlock"));
+    const unique = p.nodes.filter((n) => n.title.toLocaleLowerCase("tr") === self.title.toLocaleLowerCase("tr")).length === 1;
+    const target = unique ? self.title : self.path.replace(/\.md$/i, "");
+    const ref = `${embed ? "!" : ""}[[${target}#${anchor}]]`;
+    try {
+      await navigator.clipboard.writeText(ref);
+      p.onToast?.(t(embed ? "blk.embedCopied" : "blk.linkCopied", { ref }));
+    } catch {
+      p.onToast?.(ref);
+    }
+  }
+
   const resolver = useMemo(() => makeResolver(props.nodes), [props.nodes]);
   const vaultHost: VaultHost = {
     resolve: resolver,
-    open: (id) => {
+    open: (id, anchor) => {
       const n = propsRef.current.nodes.find((x) => x.id === id);
-      if (n) propsRef.current.onOpenPath(n.path);
+      if (!n) return;
+      // Aynı notun içindeki bir yere bağlantı: yalnızca kaydır.
+      if (anchor && id === propsRef.current.currentId && editorRef.current) return void scrollToAnchor(editorRef.current, anchor);
+      if (anchor) setPendingAnchor(n.path, anchor);
+      propsRef.current.onOpenPath(n.path);
     },
     create: (title) => propsRef.current.onCreateNote?.(title),
   };
@@ -753,6 +823,9 @@ export function Editor(props: EditorProps) {
                   : []),
                 { label: t("cmd.link"), run: () => runCommand("link.edit") },
                 { label: `Marginalia — ${t("ws.addComment")}`, enabled: hasSel, run: () => runCommand("comment.add") },
+                "separator" as const,
+                { label: t("blk.copyLink"), run: () => runCommand("block.copyLink") },
+                { label: t("blk.copyEmbed"), run: () => runCommand("block.copyEmbed") },
               ]);
             }}
           />

@@ -3,6 +3,10 @@
 // Bu yapılar ayrı editör düğümleridir ve Markdown'a okundukları gibi yazılır: düz metin olsalardı Markdown yazıcısı
 // köşeli parantezleri ve ters eğik çizgileri kaçışlayıp (`\[\[Not\]\]`) dosyayı bozardı.
 
+import { citeLabel } from "../citations.ts";
+import { queryWidget } from "./query-widget.ts";
+import { findBlock, headingSection } from "../../../core/src/blocks.ts";
+import DOMPurify from "dompurify";
 import { Extension, InputRule, mergeAttributes, Node, type MarkdownToken } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import type { Node as PMNode } from "@tiptap/pm/model";
@@ -21,7 +25,8 @@ import { fileUrl, toEditorMarkdown } from "./paths.ts";
 export interface VaultHost {
   /** Wiki hedefini (başlık, dosya adı, yol ya da takma ad) nota çözer. */
   resolve: (name: string) => NodeMeta | null;
-  open: (id: string) => void;
+  /** Notu açar; `anchor` verilirse (başlık metni ya da `^blok`) o yere kaydırır. */
+  open: (id: string, anchor?: string | null) => void;
   /** Var olmayan wiki hedefi için not oluşturur ve açar. */
   create: (title: string) => void;
 }
@@ -76,6 +81,22 @@ embedMarked.use({
       renderer: (tok) => renderTex(String(tok.text), false),
     },
     {
+      // Atıf: gömmelerde de seçili stile göre biçimlenir.
+      name: "nlCite",
+      level: "inline",
+      start: (src: string) => {
+        const m = /\[(?!\^)[^[\]\n]*@/.exec(src);
+        return m ? m.index : -1;
+      },
+      tokenizer(src: string) {
+        const m = /^\[(?!\^)[^[\]\n]*?-?@[\p{L}\d_][^[\]\n]*\](?![([])/u.exec(src);
+        if (!m) return undefined;
+        const label = citeLabel(m[0]);
+        return label.text === m[0] ? undefined : { type: "nlCite", raw: m[0], text: label.text };
+      },
+      renderer: (tok) => `<span class="cite-chip">${String(tok.text).replace(/[<&]/g, (c) => (c === "<" ? "&lt;" : "&amp;"))}</span>`,
+    },
+    {
       name: "nlWiki",
       level: "inline",
       start: (src: string) => src.indexOf("[["),
@@ -93,24 +114,12 @@ embedMarked.use({
 export function safeHtml(md: string): string {
   // Yorumlar atılır, kutular kalın başlıklı alıntı olur (dışa aktarmadaki kuralların aynısı).
   const prepared = exportableMarkdown(md).replace(/^> \[!([\w-]+)\][+-]?[ \t]*(.*)$/gm, (_m, k: string, title: string) => `> **${title.trim() || k.toUpperCase()}**\n>`);
-  const doc = new DOMParser().parseFromString(String(embedMarked.parse(prepared, { async: false })), "text/html");
-  doc.querySelectorAll("script,iframe,object,embed,style,link,meta,form").forEach((el) => el.remove());
-  doc.querySelectorAll("*").forEach((el) => {
-    for (const a of [...el.attributes]) if (/^on/i.test(a.name) || /^\s*javascript:/i.test(a.value)) el.removeAttribute(a.name);
+  // İzin listesine dayalı temizlik (DOMPurify): betik, olay öznitelikleri, gizlenmiş javascript: adresleri, çerçeve ve
+  // formlar geçmez. Arayüzün içerik güvenlik politikası (CSP) ikinci kalkandır.
+  return DOMPurify.sanitize(String(embedMarked.parse(prepared, { async: false })), {
+    FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select", "iframe", "frame", "object", "embed", "base", "meta", "link"],
+    FORBID_ATTR: ["srcdoc", "formaction"],
   });
-  return doc.body.innerHTML;
-}
-
-/** Markdown'dan bir başlığın bölümünü (bir sonraki aynı ya da üst düzey başlığa kadar) alır. */
-export function headingSection(md: string, heading: string): string | null {
-  const lines = md.split("\n");
-  const key = heading.trim().toLocaleLowerCase("tr");
-  const start = lines.findIndex((l) => /^#{1,6}\s/.test(l) && l.replace(/^#+\s*/, "").trim().toLocaleLowerCase("tr") === key);
-  if (start < 0) return null;
-  const level = /^#+/.exec(lines[start])![0].length;
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) if (/^#{1,6}\s/.test(lines[i]) && /^#+/.exec(lines[i])![0].length <= level) (end = i), (i = lines.length);
-  return lines.slice(start, end).join("\n");
 }
 
 // ------------------------------------------------------------------ Wiki bağlantısı ve gömme
@@ -123,7 +132,8 @@ function NoteEmbed({ note, heading }: { note: NodeMeta; heading: string | null }
       (d) => {
         if (!live) return;
         if (d.locked) return setHtml(`<p class="embed-locked">${t("ob.embedLocked")}</p>`);
-        const body = heading ? (headingSection(d.body, heading) ?? "") : d.body;
+        // `#^kimlik` bir bloğu, `#Başlık` bir başlığın bölümünü gömer.
+        const body = heading?.startsWith("^") ? (findBlock(d.body, heading.slice(1)) ?? "") : heading ? (headingSection(d.body, heading) ?? "") : d.body;
         setHtml(safeHtml(toEditorMarkdown(body, d.path)));
       },
       () => live && setHtml(""),
@@ -142,7 +152,7 @@ function WikiLinkView({ node, selected }: NodeViewProps) {
   const label = w.alias ?? (w.heading ? `${w.target}${w.target ? " › " : ""}${w.heading}` : w.target);
   const open = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (note) host?.open(note.id);
+    if (note) host?.open(note.id, w.heading);
     else if (w.target && !IMAGE_RE.test(w.target)) host?.create(w.target);
   };
   if (w.embed) {
@@ -466,6 +476,10 @@ function vaultDecorations(doc: PMNode): DecorationSet {
       if (String(node.attrs.language).toLowerCase() === "mermaid") {
         const code = node.textContent;
         decos.push(Decoration.widget(pos + node.nodeSize, () => mermaidWidget(code), { side: -1, key: `mermaid:${code}` }));
+      }
+      if (String(node.attrs.language).toLowerCase() === "query") {
+        const code = node.textContent;
+        decos.push(Decoration.widget(pos + node.nodeSize, () => queryWidget(code), { side: -1, key: `query:${code}` }));
       }
       return false;
     }

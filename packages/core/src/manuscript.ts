@@ -2,6 +2,9 @@
 // Dışa aktarma (DOCX, RTF, HTML, metin) ve MCP aracı bu derlemeyi kullanır. Notlar değiştirilmez.
 
 import { rewriteLinks } from "./links.ts";
+import { expandEmbeds } from "./transclude.ts";
+import { applyCitations } from "./citations-store.ts";
+import { guessLang } from "./readability.ts";
 import { countWords, exportableMarkdown, isLockedBody, plainText } from "./note-text.ts";
 import { NodeError, type NodeStore } from "./node-store.ts";
 import { parseWriting, type ManuscriptData } from "./writing.ts";
@@ -61,7 +64,8 @@ export async function compileManuscript(store: NodeStore, ref: string): Promise<
         parts.push({ id: doc.id, path: doc.path, title: doc.title, missing: "locked", words: 0 });
         continue;
       }
-      const body = rewriteLinks(dropLeadingTitle(exportableMarkdown(doc.body), doc.title).trim(), doc.path, ms.path, new Map());
+      const expanded = await expandEmbeds(store, doc.body, doc.path);
+      const body = rewriteLinks(dropLeadingTitle(exportableMarkdown(expanded), doc.title).trim(), doc.path, ms.path, new Map());
       const words = countWords(plainText(body));
       parts.push({ id: doc.id, path: doc.path, title: doc.title, words });
       const level = data.options.sectionTitles && named ? "##" : "#";
@@ -86,6 +90,8 @@ export async function compileManuscript(store: NodeStore, ref: string): Promise<
 }
 
 /** Dışa aktarılacak gövde: manuskriptlerde derlenmiş metin, diğer sayfalarda notun kendisi. */
-export async function exportBodyOf(store: NodeStore, node: { id: string; layoutMode: string; body: string }): Promise<string> {
-  return node.layoutMode === "manuscript" ? (await compileManuscript(store, node.id)).markdown : node.body;
+export async function exportBodyOf(store: NodeStore, node: { id: string; layoutMode: string; body: string; path: string }, lang?: "tr" | "en"): Promise<string> {
+  const body = node.layoutMode === "manuscript" ? (await compileManuscript(store, node.id)).markdown : await expandEmbeds(store, node.body, node.path);
+  // Atıflar ([@anahtar]) Origin'in kaynakçasıyla biçimlenir; Codex'te bütün bölümlerin kaynakçası sonda tek listedir.
+  return applyCitations(store.root, body, lang ?? guessLang(body));
 }

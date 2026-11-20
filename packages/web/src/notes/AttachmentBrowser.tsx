@@ -1,6 +1,7 @@
 // İlişik (ek) tarayıcısı: `Attachments/` klasöründeki tüm resim, ses, çizim ve dosyalar; türe göre süzme,
 // yeniden adlandırma (bağlantılar güncellenir) ve eki kullanan nota gitme.
 
+import { lectioHash } from "../lectio/link.ts";
 import { useCallback, useEffect, useState } from "react";
 import { askText } from "../ask.tsx";
 import { api, type AttachmentInfo } from "../api.ts";
@@ -62,7 +63,13 @@ export function AttachmentBrowser({ changeTick, onOpen, onToast }: { changeTick:
       <div className="att-grid">
         {shown.map((a) => (
           <div key={a.path} className="att-card">
-            <a className="att-preview" href={fileUrl(a.path)} target="_blank" rel="noopener" title={t("att.open")}>
+            <a
+              className="att-preview"
+              href={a.kind === "pdf" ? `#${lectioHash(a.path)}` : fileUrl(a.path)}
+              target={a.kind === "pdf" ? undefined : "_blank"}
+              rel="noopener"
+              title={a.kind === "pdf" ? t("lectio.open") : t("att.open")}
+            >
               {a.kind === "image" || a.kind === "drawing" ? <img src={fileUrl(a.path)} alt="" loading="lazy" /> : a.kind === "audio" ? null : <span className="att-icon"><Icon name={ICON[a.kind]} size={30} /></span>}
             </a>
             {a.kind === "audio" && <audio controls preload="none" src={fileUrl(a.path)} />}

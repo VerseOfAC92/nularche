@@ -22,6 +22,8 @@ export interface PageFields {
   wikiFields?: string[];
   noMentions?: boolean;
   titleRich?: string;
+  /** Şifreli Arche'nin anahtar parametreleri (bkz. lock.ts). */
+  archeLock?: { salt: string; iter: number; check: string; hint?: string };
 }
 
 export type PageFieldPatch = { [K in keyof PageFields]?: PageFields[K] | null };
@@ -239,7 +241,34 @@ async function request<T>(method: string, url: string, body?: unknown, raw?: Bod
 
 const enc = encodeURIComponent;
 
+export interface SnapshotSummary {
+  id: string;
+  at: number;
+  label?: string;
+  auto: boolean;
+  files: number;
+  bytes: number;
+  skipped: number;
+  added: number;
+  changed: number;
+  removed: number;
+}
+
+export interface SnapshotFile {
+  path: string;
+  status: "same" | "changed" | "deleted" | "added";
+  size: number;
+}
+
 export const api = {
+  snapshots: () => request<{ snapshots: SnapshotSummary[]; encrypted: boolean }>("GET", "/api/snapshots"),
+  createSnapshot: (label: string) => request<SnapshotSummary>("POST", "/api/snapshots", { label }),
+  snapshotFiles: (id: string) => request<{ files: SnapshotFile[] }>("GET", `/api/snapshots/${enc(id)}/files`).then((r) => r.files),
+  snapshotFile: (id: string, path: string) => request<{ path: string; text: string | null; size: number }>("GET", `/api/snapshots/${enc(id)}/file?path=${enc(path)}`),
+  restoreSnapshot: (id: string, paths?: string[], beforeLabel?: string) =>
+    request<{ restored: number; removed: number; before: string | null }>("POST", `/api/snapshots/${enc(id)}/restore`, { paths, beforeLabel }),
+  renameSnapshot: (id: string, label: string | null) => request<SnapshotSummary>("POST", `/api/snapshots/${enc(id)}/rename`, { label }),
+  deleteSnapshot: (id: string) => request<unknown>("DELETE", `/api/snapshots/${enc(id)}`),
   origin: () => request<{ name: string; path: string }>("GET", "/api/origin"),
   list: () => request<{ nodes: NodeMeta[] }>("GET", "/api/nodes").then((r) => r.nodes),
   read: (id: string) => request<NodeDoc>("GET", `/api/nodes/${enc(id)}`),

@@ -16,12 +16,15 @@ import { BackgroundPicker } from "./focus/BackgroundPicker.tsx";
 import { HotkeyEditor, VaultSettings } from "./vault/VaultSettings.tsx";
 import type { MathMode } from "./editor/notes-extensions.ts";
 import { StorageSetup } from "./StorageSetup.tsx";
+import { SecuritySettings } from "./SecuritySettings.tsx";
+import { CitationSettings } from "./CitationSettings.tsx";
+import { VigilSettings } from "./vigil/VigilSettings.tsx";
 import type { NodeMeta } from "./api.ts";
 import { StudioSettings } from "./studio/StudioSettings.tsx";
 import { runCommand } from "./commands.ts";
 import { Icon, type IconName } from "./ui/Icon.tsx";
 
-type CategoryId = "appearance" | "writing" | "aura" | "automation" | "origin" | "keys" | "publish" | "calendar" | "ai" | "about";
+type CategoryId = "appearance" | "writing" | "aura" | "automation" | "origin" | "security" | "keys" | "publish" | "calendar" | "ai" | "about";
 
 interface Category {
   id: CategoryId;
@@ -34,10 +37,11 @@ interface Category {
 
 const CATEGORIES: Category[] = [
   { id: "appearance", icon: "palette", label: "settings.catAppearance", hint: "settings.catAppearanceHint", keywords: "tema theme dil language kontrast contrast renk accent css snippet görünüm" },
-  { id: "writing", icon: "pencil", label: "settings.catWriting", hint: "settings.catWritingHint", keywords: "yazım spell kelime word hedef goal font yazı tipi matematik math düzenleyici editor okuma reading lore" },
+  { id: "writing", icon: "pencil", label: "settings.catWriting", hint: "settings.catWritingHint", keywords: "yazım spell kelime word hedef goal font yazı tipi matematik math düzenleyici editor okuma reading lore kaynakça bibliography atıf citation bibtex csl apa mla chicago ieee canon" },
   { id: "aura", icon: "music", label: "settings.catAura", hint: "settings.catAuraHint", keywords: "aura ses sound daktilo typewriter ortam ambience clepsydra zamanlayıcı timer odak focus arka plan background manzara" },
-  { id: "automation", icon: "bolt", label: "settings.catAutomation", hint: "settings.catAutomationHint", keywords: "sigil kısaltma shortcut rite komut command conduit yakalama capture" },
+  { id: "automation", icon: "bolt", label: "settings.catAutomation", hint: "settings.catAutomationHint", keywords: "sigil kısaltma shortcut rite komut command conduit yakalama capture vigil zamanla schedule otomasyon automation özet digest haftalık weekly" },
   { id: "origin", icon: "database", label: "settings.catOrigin", hint: "settings.catOriginHint", keywords: "depolama storage google drive eşitleme sync bulut cloud origin klasör folder içe aktar import arşiv archive nla yedek backup ark dosya file açılış startup hariç excluded" },
+  { id: "security", icon: "shield-lock", label: "settings.catSecurity", hint: "settings.catSecurityHint", keywords: "güvenlik security kilit lock parola password şifre encrypt otomatik auto anlık görüntü snapshot geçmiş history geri restore" },
   { id: "keys", icon: "keyboard", label: "settings.catKeys", hint: "settings.catKeysHint", keywords: "kısayol shortcut hotkey klavye keyboard" },
   { id: "publish", icon: "world", label: "settings.catPublish", hint: "settings.catPublishHint", keywords: "yayınla publish site web" },
   { id: "calendar", icon: "calendar", label: "settings.catCalendar", hint: "settings.catCalendarHint", keywords: "takvim calendar google apple icloud" },
@@ -180,6 +184,7 @@ export function Settings({
             <input type="checkbox" checked={wordCount} onChange={(e) => setWordCount(e.target.checked)} /> {t("settings.wordCount")}
           </label>
         </Card>
+        <CitationSettings onToast={onToast} />
         <Card title={t("settings.goalsAndFonts")}>
           <StudioSettings part="goals" nodes={nodes} onToast={onToast} />
         </Card>
@@ -214,6 +219,7 @@ export function Settings({
     ),
     automation: () => (
       <>
+        <VigilSettings nodes={nodes} onToast={onToast} onChanged={onChanged} />
         <Card title={t("ws.textShortcuts")} hint={t("gloss.sigil")}>
           <StudioSettings part="shortcuts" nodes={nodes} onToast={onToast} />
         </Card>
@@ -305,6 +311,7 @@ export function Settings({
         </div>
       </Card>
     ),
+    security: () => <SecuritySettings nodes={nodes} onToast={onToast} onChanged={onChanged} />,
     calendar: () => (
       <Card title={t("cal.title")}>
         <CalendarAccounts onToast={onToast} titleOf={(id) => titles.get(id)} />

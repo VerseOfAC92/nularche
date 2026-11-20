@@ -14,7 +14,7 @@ volume-off cloud-rain moon flame microphone movie external-link restore arrows-d
 align-left align-center align-right bold italic underline strikethrough arrow-bar-to-up arrow-bar-to-down arrow-down
 layout-align-left layout-align-center layout-align-right layout-align-top layout-align-middle layout-align-bottom
 layout-distribute-horizontal layout-distribute-vertical inbox folder-open eraser minus file-text player-play
-player-pause player-skip-forward rotate maximize brush flip-horizontal flip-vertical box-multiple box-off upload filter arrows-sort eye-off alert-triangle square layout-kanban timeline selector tags progress phone arrow-up-right clock-hour-4 letter-t calculator clock-edit circle-check grip-vertical home graph puzzle numbers math-function sum bulb alert-circle alert-octagon archive arrow-right quote mountain arrows-vertical align-justified wand circle-x help-circle map-pin video bell repeat device-laptop cloud-check
+player-pause player-skip-forward rotate maximize brush flip-horizontal flip-vertical box-multiple box-off upload filter arrows-sort eye-off alert-triangle square layout-kanban timeline selector tags progress phone arrow-up-right clock-hour-4 letter-t calculator clock-edit circle-check grip-vertical home graph puzzle numbers math-function sum bulb alert-circle alert-octagon archive arrow-right quote mountain arrows-vertical align-justified wand circle-x help-circle map-pin video bell repeat device-laptop cloud-check shield-lock shield-check history camera file-type-pdf highlight cards brain robot calendar-repeat list-search blockquote gauge books
 `.trim().split(/\s+/);
 
 const root = fileURLToPath(new URL("..", import.meta.url));

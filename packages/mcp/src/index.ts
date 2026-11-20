@@ -48,7 +48,7 @@ const comments = new CommentStore(store);
 let clientName = "";
 
 const server = new McpServer(
-  { name: "nularche", version: "2.5.0" },
+  { name: "nularche", version: "3.0.0" },
   {
     instructions:
       "Kullanıcının Nularche not uygulamasındaki yerel Markdown notları. Terimler: Origin = not kasası; Arche = kökteki ana Node " +

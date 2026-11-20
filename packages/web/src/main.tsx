@@ -5,6 +5,7 @@ import { useLang } from "./i18n/index.ts";
 import { applyTheme } from "./theme.ts";
 import "./studio/fonts.ts";
 import "./styles.css";
+import { installAutoLock } from "./autoLock.ts";
 import { installContextMenu } from "./contextMenu.ts";
 
 applyTheme();
@@ -16,6 +17,7 @@ function Root() {
 }
 
 installContextMenu();
+installAutoLock();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

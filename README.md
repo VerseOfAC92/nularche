@@ -10,7 +10,7 @@ Your notes stay on your computer. Your AI is the one you already pay for.</p>
 <p align="center">
   <a href="https://github.com/VerseOfAC92/nularche/releases/latest"><b>Download</b></a> ·
   <a href="#install-from-the-terminal">Terminal install</a> ·
-  <a href="#whats-new-in-250">What's new in 2.5</a> ·
+  <a href="#whats-new-in-300">What's new in 3.0</a> ·
   <a href="#features">Features</a> ·
   <a href="#ai-claude-chatgpt-gemini">AI</a> ·
   <a href="#keyboard-shortcuts">Shortcuts</a> ·
@@ -29,6 +29,86 @@ Markdown files in a folder you own. There is no account, no cloud and no subscri
 official Claude, ChatGPT or Gemini app you already use, or for free with a Gemini API key.
 
 The name comes from **Null** (a clean starting point) and **Arche** (first principle, root).
+
+## What's new in 3.0.0
+
+Nularche 3.0 is about **trust** and **using what you know**. Your notes get stronger protection: a whole Arche can be
+encrypted with one password, open locked notes close themselves, and encrypted snapshots let you bring back any note,
+or the whole Origin, from a past moment. For research and writing there is a bibliography with citations, a PDF reader
+with highlights that turn into notes, block links and embeds, and a readability score. And your knowledge starts working
+for you: live queries inside notes, flashcards scheduled with spaced repetition, and automations that run on a schedule.
+Every new part has its own Nularche name, explained in the Nularche language window.
+
+<p align="center">
+  <img src="docs/screenshots/security-light.png" width="860" alt="Settings → Security: Custos auto-lock, a Crypta encrypted Arche and Strata snapshots" />
+</p>
+
+**Security**
+
+- **Crypta (encrypted Arche):** in **Settings → Security**, encrypt every note in an Arche with one password
+  (AES-256-GCM, key derived with PBKDF2, 600,000 rounds). Enter it once per session and all of the Arche's notes open;
+  new notes you add to it are encrypted automatically. Titles, properties and the tree stay visible. The password is
+  never stored, so it can't be recovered.
+- **Custos (auto-lock):** open locked notes and Crypta Arches close by themselves after a period without activity
+  (1 to 60 minutes, 5 by default), and always at once when the computer sleeps or the screen locks.
+- **Strata (snapshots):** your whole Origin, notes and attachments, is saved as a snapshot every 15 minutes when
+  something changed, and any time you press **Take now**. Snapshots are content-addressed and incremental (an unchanged
+  file is never stored twice) and encrypted with a key kept in your system keychain. See what changed, preview a note,
+  bring back one file or restore the whole Origin; a snapshot of the current state is taken first, so a restore can be
+  undone. Snapshots stay on this computer and never go to Google Drive. Locking a note removes its unencrypted versions
+  from every snapshot.
+- **A sealed local connection:** the app's local server now accepts requests only from Nularche's own windows, through a
+  per-launch secret that page scripts can't read, and the interface runs under a strict content security policy.
+  HTML inside notes is cleaned with an allow-list both in the app and in exported and published pages, so imported or
+  pasted content can't run scripts.
+
+**Research and writing**
+
+<p align="center">
+  <img src="docs/screenshots/lectio-light.png" width="49%" alt="Lectio: a PDF with coloured highlights and comments in the side panel" />
+  <img src="docs/screenshots/fontes-light.png" width="49%" alt="A note with citation chips formatted in APA style, and the Fontes settings" />
+</p>
+
+- **Fontes (bibliography and citations):** choose a BibTeX (`.bib`) or CSL-JSON file in **Settings → Writing**. Type
+  `[@` in a note to pick a source; `[@key, p. 12]` adds a page, `[-@key]` leaves out the author and `[@a; @b]` cites
+  several. Citations show as chips formatted in your style. On export (HTML, Word, RTF, the published site and a whole
+  Codex) they are written out and a bibliography is added at the end, or where you put a `{{bibliography}}` line.
+  Styles: APA 7, Chicago (author-date), MLA 9 and IEEE.
+- **Lectio (PDF reader):** open a PDF from **Attachments** or from a link in a note. Select text and pick one of five
+  colours to highlight it, add comments, then **Export to a note**: every highlight becomes a quote with a link that
+  opens the PDF at that page. New highlights are added to the same note. Highlights live in
+  `.nularche/annotations/` and sync with your notes.
+- **Tessera (block links and embeds):** right-click a paragraph and **Copy block link**: the paragraph gets a short
+  `^id` and `[[Note#^id]]` is copied. The link opens the note at that paragraph; `![[Note#^id]]` shows the paragraph
+  itself in another note. Headings work the same way. Exports and the published site write embedded text out in full.
+- **Claritas (readability):** next to the word count, a 0–100 score (higher is easier), using the Ateşman formula for
+  Turkish and Flesch reading ease for English. Hover it for words per sentence and syllables per word.
+
+**Using what you know**
+
+<p align="center">
+  <img src="docs/screenshots/speculum-dark.png" width="49%" alt="Speculum: a live query block showing matching notes as a table" />
+  <img src="docs/screenshots/anamnesis-light.png" width="49%" alt="Anamnesis: a flashcard with its answer and the four review buttons with their next intervals" />
+</p>
+
+- **Speculum (live query):** type `/` and choose **Speculum** to add a query block. Lines such as `tag: #draft`,
+  `arche: Thesis`, `where: status = Open`, `where: updated >= -7d`, `sort: updated desc`, `show: table` and
+  `fields: status, due` list matching notes as a list, table, count or open tasks, and the result updates as your notes
+  change. Ticking a task in the result ticks it in its note.
+- **Anamnesis (flashcards):** every `Question :: Answer` line in your notes is a card; `Term ::: Definition` makes two,
+  one each way. **Anamnesis** in the sidebar asks them one at a time, scheduled with the FSRS algorithm so each card
+  comes back just before you'd forget it. Space shows the answer, 1–4 rates it, and each button shows when the card
+  returns. Pick a deck by Arche and how many new cards a day. Cards in encrypted notes appear while the note or its
+  Crypta Arche is open.
+- **Vigil (scheduled automations):** in **Settings → Automation**, run something every day, week or month at a set time:
+  give **Nularche AI** a task (for example "summarise last week's notes into a new note") or let Nularche write a
+  **digest note** itself (new and updated notes, notes with open tasks, cards due). Results appear in a Vigil card in
+  the **Atrium** and upcoming runs in the **Calendar**. A run missed while the app was closed happens once when it
+  opens, and two computers sharing an Origin don't run the same job twice.
+
+<p align="center">
+  <img src="docs/screenshots/vigil-atrium-lavender.png" width="860" alt="The Atrium with a Vigil card showing the next run and the latest digest note" />
+</p>
 
 ## What's new in 2.5.0
 
@@ -748,7 +828,9 @@ Every command's shortcut can be changed in **Settings → Keyboard shortcuts**.
 
 Inside the Origin, the hidden `.nularche/` folder holds the app's own data, which travels and is backed up with your
 notes: `ui.json` (preferences, word log), `history/` (snapshots and named checkpoints), `comments/` (comment threads),
-`capture.json` (smart-capture rules) and `snippets/` (CSS snippets). Automatic backups go to the folder you choose.
+`capture.json` (smart-capture rules), `snippets/` (CSS snippets), `annotations/` (Lectio highlights) and
+`anamnesis.json` (flashcard review state). `snapshots/` holds the encrypted Strata snapshots; like automatic version
+history, they stay on this computer and are never synced to Google Drive. Automatic backups go to the folder you choose.
 
 **Uninstall:** delete `Nularche.app` (macOS), use **Settings → Apps** (Windows) or run `sudo apt remove nularche`
 (Linux). Uninstalling never deletes your notes.
@@ -788,6 +870,16 @@ rm -rf ~/Library/Preferences/io.nularche.app ~/Library/Application\ Support/Nula
 | **Rite** | A custom command. |
 | **Conduit** | Smart capture that routes `::mosaic`, `::axis`, `::lore` and `::task` notes to their target. |
 | **Ark** | Automatic backups of the Origin to a folder you choose. |
+| **Crypta** | An Arche whose notes are all encrypted with one password. |
+| **Custos** | Auto-lock: open locked notes close when idle, on sleep and on screen lock. |
+| **Strata** | Encrypted, incremental snapshots of the whole Origin that you can restore. |
+| **Vigil** | A scheduled automation: a Nularche AI task or a digest note, daily, weekly or monthly. |
+| **Fontes** | Your bibliography (BibTeX or CSL-JSON), `[@key]` citations and the bibliography on export. |
+| **Lectio** | The PDF reader: highlights, comments and quotes exported to a note. |
+| **Tessera** | A block link or embed: `[[Note#^id]]` and `![[Note#^id]]`. |
+| **Speculum** | A live query block that lists notes by tag, Arche or property. |
+| **Anamnesis** | Flashcards from `Question :: Answer` lines, reviewed with FSRS spaced repetition. |
+| **Claritas** | The readability score next to the word count. |
 
 ## Development
 
@@ -856,6 +948,53 @@ Questions, ideas or bug reports: write to **[verseofac@gmail.com](mailto:verseof
 bilgi yönetimi uygulamasıdır. Veritabanları (tablo, pano, takvim, galeri, liste, zaman çizelgesi), şablonlar, günlük
 not, Çöp, statik site yayınlama ve Claude / ChatGPT / Gemini entegrasyonu içerir. Arayüz Ayarlar'dan Türkçeye
 alınabilir.
+
+### 3.0.0'daki yenilikler
+
+3.0'ın konusu **güven** ve **bildiğinizi kullanmak**. Yeni her parçanın Nularche dilinde bir adı var; anlamları
+Nularche dili penceresinde.
+
+**Güvenlik**
+
+- **Crypta (şifreli Arche):** Ayarlar → Güvenlik'ten bir Arche'nin bütün notları tek parolayla şifrelenir (AES-256-GCM,
+  PBKDF2 600.000 tur). Parola oturum başına bir kez girilir; Arche'ye eklenen yeni notlar kendiliğinden şifrelenir.
+  Başlıklar, özellikler ve ağaç görünür kalır. Parola hiçbir yerde saklanmaz, unutulursa içerik kurtarılamaz.
+- **Custos (otomatik kilit):** açık kilitli notlar ve Crypta Arche'leri bir süre işlem yapılmayınca (1–60 dakika,
+  varsayılan 5), bilgisayar uyuyunca ya da ekran kilitlenince hemen kapanır.
+- **Strata (anlık görüntüler):** Origin'in tamamı, bir şey değiştiyse 15 dakikada bir ve **Şimdi al** ile kaydedilir.
+  İçerik adreslidir ve yalnızca değişen dosyalar yeniden saklanır; sistemin anahtar zincirindeki bir anahtarla şifrelidir.
+  Değişenleri görün, notu önizleyin, tek dosyayı ya da Origin'in tamamını geri getirin; geri yüklemeden önce şimdiki
+  hâlin anlık görüntüsü alınır. Bu bilgisayarda kalır, Google Drive'a gitmez. Kilitlenen notun şifresiz sürümleri bütün
+  anlık görüntülerden silinir.
+- **Mühürlü yerel bağlantı:** yerel sunucu yalnızca Nularche'nin kendi pencerelerinden gelen istekleri kabul eder;
+  arayüz sıkı bir içerik güvenlik politikasıyla çalışır; notlardaki HTML hem uygulamada hem dışa aktarılan ve
+  yayınlanan sayfalarda izin listesiyle temizlenir.
+
+**Araştırma ve yazma**
+
+- **Fontes (kaynakça ve atıflar):** Ayarlar → Yazma'dan BibTeX (`.bib`) ya da CSL-JSON dosyası seçin. Notta `[@`
+  yazınca kaynaklar önerilir; `[@anahtar, s. 12]` sayfa, `[-@anahtar]` yazarsız atıf, `[@a; @b]` birden çok kaynak.
+  Atıflar seçtiğiniz stille biçimli çip olarak görünür; dışa aktarmada (HTML, Word, RTF, yayınlanan site ve Codex)
+  yazıya dökülür ve sona (ya da `{{kaynakça}}` satırının yerine) kaynakça eklenir. Stiller: APA 7, Chicago, MLA 9, IEEE.
+- **Lectio (PDF okuyucu):** Ekler'den ya da nottaki bağlantıdan PDF açın; metni seçip beş renkten biriyle vurgulayın,
+  yorum yazın, **Nota aktar** ile her vurgu o sayfaya dönen bağlantılı bir alıntı olur. Yeni vurgular aynı nota eklenir.
+- **Tessera (blok bağlantısı ve gömme):** paragrafa sağ tıklayıp **blok bağlantısını kopyala**: paragrafa kısa bir
+  `^kimlik` eklenir ve `[[Not#^kimlik]]` kopyalanır. Bağlantı notu o paragrafta açar; `![[Not#^kimlik]]` paragrafı
+  başka bir notta gösterir. Dışa aktarma ve yayınlamada gömülen metin açık yazılır.
+- **Claritas (okunabilirlik):** kelime sayısının yanında 0–100 puan (yüksek = kolay); Türkçede Ateşman, İngilizcede
+  Flesch formülü.
+
+**Bildiğinizi kullanmak**
+
+- **Speculum (canlı sorgu):** `/` ile eklenen sorgu bloğu `tag: #taslak`, `arche: Tez`, `where: durum = Açık`,
+  `where: updated >= -7d`, `sort: updated desc`, `show: table` gibi satırlarla notları liste, tablo, sayı ya da açık
+  görev olarak gösterir ve notlar değiştikçe güncellenir.
+- **Anamnesis (bilgi kartları):** notlardaki her `Soru :: Cevap` satırı bir kart, `Terim ::: Tanım` iki yönlü iki kart
+  olur. Kenar çubuğundaki **Anamnesis** kartları tek tek, FSRS algoritmasıyla unutmak üzereyken sorar (Boşluk cevabı
+  gösterir, 1–4 değerlendirir). Arche'ye göre deste ve günlük yeni kart sayısı seçilir.
+- **Vigil (zamanlanmış otomasyon):** Ayarlar → Otomasyon'dan her gün, hafta ya da ay belli bir saatte Nularche AI'a iş
+  verin ya da Nularche'nin özet notu yazmasını sağlayın. Sonuçlar Atrium'daki Vigil kartında, planlı çalışmalar
+  Takvim'de görünür; uygulama kapalıyken kaçırılan çalışma açılışta bir kez yapılır.
 
 ### 2.5.0'daki yenilikler
 

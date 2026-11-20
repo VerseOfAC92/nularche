@@ -1,11 +1,18 @@
 // Yerel HTTP sunucusu: JSON API + derlenmiş web arayüzü + canlı değişiklik bildirimi (SSE).
 // Yalnızca 127.0.0.1'e bağlanır.
 
+import { timingSafeEqual } from "node:crypto";
 import { watch } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { NodeError, NodeStore } from "../../core/src/node-store.ts";
+import { SnapshotError, SnapshotStore } from "../../core/src/snapshots.ts";
+import { citationSettings, findLibraryFiles, loadLibrary } from "../../core/src/citations-store.ts";
+import { readAnnotations, writeAnnotations } from "../../core/src/annotations.ts";
+import { runQuery } from "../../core/src/query.ts";
+import { Anamnesis, type Grade } from "../../core/src/anamnesis.ts";
+import { writeDigest } from "../../core/src/vigil.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
@@ -29,12 +36,61 @@ export interface ServerOptions {
   extraOrigins?: string[];
   /** Nularche AI etkinliği değiştiğinde (ör. masaüstünde "✓ Bağlandı" bildirimi için). */
   onAiActivity?: () => void;
+  /**
+   * Oturum anahtarı: verilirse her istek `x-nularche-token` başlığını taşımalıdır. Masaüstü uygulaması her açılışta
+   * rastgele bir anahtar üretir ve yalnızca kendi pencerelerinin bu sunucuya giden isteklerine başlık olarak ekler
+   * (çerez kullanılmaz: macOS'ta çerez deposu anahtar zinciri izni ister ve açılışı bekletir); böylece
+   * bilgisayardaki başka bir kullanıcı ya da program 127.0.0.1 üzerinden notlara erişemez. Verilmezse (tarayıcı
+   * sürümü, testler) yalnızca Host ve Origin denetimi uygulanır.
+   */
+  token?: string;
+  /**
+   * Anlık görüntü anahtarı (32 bayt): verilirse anlık görüntüler şifrelenir. Masaüstü uygulaması bunu işletim sisteminin
+   * anahtar zincirinde korur; Origin'e ya da Drive'a yazılmaz.
+   */
+  snapshotKey?: Uint8Array | null | (() => Promise<Uint8Array | null>);
+  /** Otomatik anlık görüntü aralığı (dakika). Verilmezse otomatik anlık görüntü alınmaz (testler, tarayıcı). */
+  autoSnapshotMinutes?: number;
+}
+
+/**
+ * Arayüzün içerik güvenlik politikası: betikler yalnızca uygulamanın kendi dosyalarından, bağlantılar yalnızca yerel
+ * sunucuya; notlardaki web görselleri ve gizlilik dostu YouTube çerçevesi dışında dış kaynak yok. Notlara ya da içe
+ * aktarılan dosyalara gömülmüş HTML/JS'e karşı ikinci kalkandır.
+ */
+export const APP_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https: http:",
+  "media-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "worker-src 'self' blob:",
+  "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+/** Sabit sürede karşılaştırma (anahtar zamanlama ile tahmin edilemesin). */
+function sameToken(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+function requestToken(req: IncomingMessage): string {
+  const header = req.headers["x-nularche-token"];
+  return typeof header === "string" ? header : "";
 }
 
 export interface RunningServer {
   port: number;
   url: string;
   store: NodeStore;
+  snapshots: SnapshotStore;
   close(): Promise<void>;
 }
 
@@ -49,6 +105,27 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   // şifresiz sürümleri sil. Başarısız olsa da Origin açılır.
   await store.migrateEpochs().catch(() => 0);
   await store.purgeLockedPlaintext().catch(() => 0);
+
+  // --- Anlık görüntüler: kilitlenen notun şifresiz sürümleri anlık görüntülerden de silinir.
+  const snapshots = new SnapshotStore(store.root, { key: options.snapshotKey ?? null });
+  const anamnesis = new Anamnesis(store);
+  store.lockPurgeHooks.add((ids) => snapshots.purgeNotes(ids));
+  // Açılışı bekletmez (anahtar gerekebilir).
+  void store
+    .list()
+    .then((all) => snapshots.purgeNotes(all.filter((n) => n.locked).map((n) => n.id)))
+    .catch(() => 0);
+  let snapshotTimer: NodeJS.Timeout | undefined;
+  if (options.autoSnapshotMinutes && options.autoSnapshotMinutes > 0) {
+    const every = options.autoSnapshotMinutes * 60_000;
+    const tick = () => void snapshots.create({ auto: true }).catch((e) => console.error("snapshot", e));
+    // Açılıştan kısa süre sonra bir kez (açılıştaki hâl), sonra düzenli aralıklarla; değişiklik yoksa alınmaz.
+    snapshotTimer = setTimeout(function loop() {
+      tick();
+      snapshotTimer = setTimeout(loop, every);
+    }, 30_000);
+    snapshotTimer.unref();
+  }
 
   // --- Canlı bildirim: Origin'de (AI araçları dahil) bir dosya değişince istemcilere haber ver.
   const clients = new Set<ServerResponse>();
@@ -86,6 +163,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const MIME: Record<string, string> = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8",
     ".svg": "image/svg+xml",
     ".png": "image/png",
@@ -147,11 +225,87 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const obj = (v: unknown): Record<string, unknown> | undefined =>
     v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
 
+  async function handleSnapshots(req: IncomingMessage, res: ServerResponse, url: URL, parts: string[], method: string): Promise<void> {
+    try {
+      const [, sid, action] = parts;
+      if (!sid && method === "GET") return send(res, 200, { snapshots: await snapshots.list(), encrypted: await snapshots.isEncrypted() });
+      if (!sid && method === "POST") {
+        const b = await readJson(req);
+        return send(res, 201, await snapshots.create({ label: str(b.label) ?? "" }));
+      }
+      if (sid && !action && method === "DELETE") {
+        await snapshots.remove(sid);
+        return send(res, 200, { deleted: sid });
+      }
+      if (sid && action === "files" && method === "GET") return send(res, 200, { files: await snapshots.files(sid) });
+      if (sid && action === "file" && method === "GET") {
+        const file = url.searchParams.get("path") ?? "";
+        const data = await snapshots.read(sid, file);
+        // Önizleme yalnızca metin notları için; ham içerik ve betik çalıştırılabilecek türler gönderilmez.
+        if (!/\.(md|txt|json|canvas|csv)$/i.test(file)) return send(res, 200, { path: file, text: null, size: data.length });
+        return send(res, 200, { path: file, text: data.subarray(0, 512 * 1024).toString("utf8"), size: data.length });
+      }
+      if (sid && action === "restore" && method === "POST") {
+        const b = await readJson(req);
+        const paths = Array.isArray(b.paths) ? b.paths.filter((p): p is string => typeof p === "string") : undefined;
+        const out = await snapshots.restore(sid, { paths, beforeLabel: str(b.beforeLabel) });
+        store.invalidate();
+        return send(res, 200, out);
+      }
+      if (sid && action === "rename" && method === "POST") {
+        const b = await readJson(req);
+        return send(res, 200, await snapshots.rename(sid, str(b.label) ?? null));
+      }
+      return send(res, 404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+    } catch (e) {
+      if (e instanceof SnapshotError) return send(res, e.code === "not_found" ? 404 : 400, { error: e.code, message: e.message });
+      throw e;
+    }
+  }
+
   async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
     const parts = url.pathname.split("/").filter(Boolean).slice(1).map(decodeURIComponent); // "api" sonrası
     const method = req.method ?? "GET";
     const route = `${method} ${parts[0] ?? ""}${parts[2] ? `/:id/${parts[2]}` : parts[1] ? "/:id" : ""}`;
     const id = parts[1];
+
+    if (parts[0] === "snapshots") return handleSnapshots(req, res, url, parts, method);
+    if (parts[0] === "anamnesis") {
+      // GET: kuyruk; POST: kuyruk + pencerede çözülmüş şifreli not kartları (`extra`).
+      if ((method === "GET" || method === "POST") && !parts[1]) {
+        const b = method === "POST" ? await readJson(req, 8 * 1024 * 1024) : {};
+        const arche = url.searchParams.get("arche");
+        const prefs = await readPrefs(store.root);
+        const newPerDay = Number(prefs.anamnesisNewPerDay);
+        const extra = Array.isArray(b.extra) ? (b.extra as { noteId: string; front: string; back: string; line: number; dir: "f" | "r" }[]) : undefined;
+        return send(res, 200, await anamnesis.queue({ archeId: arche === null ? undefined : arche === "shadow" ? null : arche, newPerDay: Number.isInteger(newPerDay) && newPerDay >= 0 ? newPerDay : 20, extra }));
+      }
+      if (method === "POST" && parts[1] === "grade") {
+        const b = await readJson(req);
+        try {
+          return send(res, 200, await anamnesis.grade(str(b.id) ?? "", Number(b.grade) as Grade));
+        } catch (e) {
+          return send(res, 400, { error: "invalid", message: (e as Error).message });
+        }
+      }
+      return send(res, 404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+    }
+    if (parts[0] === "vigil" && parts[1] === "digest" && method === "POST") {
+      const b = await readJson(req);
+      const days = Number(b.days);
+      const doc = await writeDigest(store, { days: Number.isFinite(days) ? days : 7, title: str(b.title) ?? "Vigil", parentId: str(b.parentId) ?? null, lang: b.lang === "en" ? "en" : "tr" });
+      return send(res, 201, doc);
+    }
+    if (parts[0] === "query" && method === "POST") {
+      const b = await readJson(req);
+      return send(res, 200, await runQuery(store, str(b.query) ?? "", { selfId: str(b.selfId) }));
+    }
+    if (parts[0] === "citations" && method === "GET") {
+      // Kaynakça: kayıtlar (CSL-JSON), seçili stil, okunamayan dosyalar ve Origin'deki aday dosyalar.
+      const settings = await citationSettings(store.root);
+      const lib = await loadLibrary(store.root, settings.files);
+      return send(res, 200, { style: settings.style, files: settings.files, items: [...lib.items.values()], problems: lib.problems, available: await findLibraryFiles(store.root) });
+    }
 
     if (parts[0] === "ai") {
       if (method === "GET" && parts.length === 1) {
@@ -360,6 +514,16 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         const b = await readJson(req);
         return send(res, 200, { path: await store.renameAttachment(str(b.path) ?? "", str(b.name) ?? "") });
       }
+      case "GET annotations": {
+        const pdf = url.searchParams.get("path") ?? "";
+        if (!/\.pdf$/i.test(pdf) || !(await store.pathExists(pdf))) return send(res, 404, { error: "not_found", message: "PDF bulunamadı" });
+        return send(res, 200, await readAnnotations(store.root, pdf));
+      }
+      case "PUT annotations": {
+        const pdf = url.searchParams.get("path") ?? "";
+        if (!/\.pdf$/i.test(pdf) || !(await store.pathExists(pdf))) return send(res, 404, { error: "not_found", message: "PDF bulunamadı" });
+        return send(res, 200, await writeAnnotations(store.root, pdf, await readJson(req, 20 * 1024 * 1024)));
+      }
       case "GET prefs":
         return send(res, 200, await readPrefs(store.root));
       case "PUT prefs":
@@ -408,7 +572,12 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     if (!file.startsWith(WEB_DIST) || !path.extname(file)) file = path.join(WEB_DIST, "index.html");
     try {
       const data = await readFile(file);
-      res.writeHead(200, { "content-type": MIME[path.extname(file)] ?? "application/octet-stream" });
+      const ext = path.extname(file);
+      res.writeHead(200, {
+        "content-type": MIME[ext] ?? "application/octet-stream",
+        "x-content-type-options": "nosniff",
+        ...(ext === ".html" ? { "content-security-policy": APP_CSP, "referrer-policy": "no-referrer" } : {}),
+      });
       res.end(data);
     } catch {
       if (file.endsWith("index.html")) {
@@ -430,6 +599,11 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       !origin || origin === `http://localhost:${PORT}` || origin === `http://127.0.0.1:${PORT}` || (options.extraOrigins ?? []).includes(origin);
     if ((host !== "127.0.0.1" && host !== "localhost") || !originOk) {
       res.writeHead(403).end();
+      return;
+    }
+    // Oturum anahtarı olmayan istekler (başka kullanıcılar ya da programlar) reddedilir.
+    if (options.token && !sameToken(requestToken(req), options.token)) {
+      res.writeHead(401, { "content-type": "text/plain; charset=utf-8" }).end("Nularche: unauthorized");
       return;
     }
     try {
@@ -458,7 +632,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     port: PORT,
     url: `http://127.0.0.1:${PORT}`,
     store,
+    snapshots,
     close: async () => {
+      clearTimeout(snapshotTimer);
       watcher.close();
       for (const res of clients) res.end();
       clients.clear();

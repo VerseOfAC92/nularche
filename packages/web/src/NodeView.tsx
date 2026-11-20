@@ -16,7 +16,7 @@ import { RowProperties } from "./database/RowProperties.tsx";
 import { DatabaseHostContext } from "./database/InlineDatabase.tsx";
 import { freshDatabase, serializeDatabase } from "./database/model.ts";
 import { isLockedBody } from "../../core/src/note-text.ts";
-import { closeAllLocked, forgetNote, isUnlocked, lockHint, lockNote, onLockChange, resealNote, unlockNote } from "./lock.ts";
+import { closeAllLocked, forgetNote, isArcheUnlocked, isUnlocked, lockedArche, lockHint, lockNote, onLockChange, openWithSession, resealNote, sealForArche, unlockArche, unlockNote } from "./lock.ts";
 import { LockDialog, LockScreen } from "./notes/LockViews.tsx";
 import { FontDialog } from "./notes/FontDialog.tsx";
 import { DEFAULT_FONT_SIZE, fontStack } from "./notes/font-stack.ts";
@@ -138,12 +138,23 @@ export function NodeView(props: NodeViewProps) {
   const focusedNew = useRef(false);
   /** Not kilitli mi (kayıtlar şifrelenerek yazılır). */
   const lockedRef = useRef(false);
+  /** Kilitli not şifreli bir Arche'ye aitse o Arche'nin id'si (kayıtlar Arche'nin anahtarıyla şifrelenir). */
+  const lockArcheRef = useRef<string | null>(null);
 
   const load = useCallback((n: NodeDoc) => {
     revision.current = n.revision;
     pending.current = {};
-    if (!(n.locked || isLockedBody(n.body))) setPlain(null);
-    else if (!isUnlocked(n.id)) setPlain(null);
+    const sealed = n.locked || isLockedBody(n.body);
+    if (!sealed || !isUnlocked(n.id, lockedArche(n.body))) setPlain(null);
+    else {
+      // Anahtar bu oturumda açık (not ya da şifreli Arche'si açılmış): parola sormadan aç.
+      void openWithSession(n.id, n.body).then((text) => {
+        if (revision.current !== n.revision) return;
+        liveBody.current = text;
+        setPlain(text);
+        setVersion((v) => v + 1);
+      });
+    }
     setDoc(n);
     setTitle(n.title);
     setVersion((v) => v + 1);
@@ -158,7 +169,7 @@ export function NodeView(props: NodeViewProps) {
     setStatus("saving");
     try {
       if (patch.body !== undefined && lockedRef.current) {
-        const sealed = await resealNote(id, patch.body, t("lock.notice"));
+        const sealed = await resealNote(id, patch.body, t("lock.notice"), lockArcheRef.current);
         if (sealed === null) throw new Error(t("lock.locked"));
         patch.body = sealed;
       }
@@ -278,7 +289,7 @@ export function NodeView(props: NodeViewProps) {
   useEffect(
     () =>
       onLockChange(() => {
-        if (lockedRef.current && !isUnlocked(id)) setPlain(null);
+        if (lockedRef.current && !isUnlocked(id, lockArcheRef.current)) setPlain(null);
       }),
     [id, flush],
   );
@@ -356,6 +367,22 @@ export function NodeView(props: NodeViewProps) {
     setVersion((v) => v + 1);
     propsRef.current.onChanged();
     propsRef.current.onToast(t("lock.done"));
+  }
+
+  /** Şifreli Arche'ye düşen şifresiz notu Arche'nin anahtarıyla şifreler (Arche açık olmalı). */
+  async function sealIntoArche(archeId: string) {
+    await flush();
+    const fresh = await api.read(id);
+    if (fresh.locked || isLockedBody(fresh.body)) return load(fresh);
+    const sealed = await sealForArche(archeId, fresh.body, t("lock.notice"));
+    if (sealed === null) return;
+    const saved = await api.update(id, { body: sealed, fields: { locked: true }, baseRevision: fresh.revision });
+    revision.current = saved.revision;
+    liveBody.current = fresh.body;
+    setPlain(fresh.body);
+    setDoc({ ...saved, body: saved.body });
+    setVersion((v) => v + 1);
+    propsRef.current.onChanged();
   }
 
   async function removeLock() {
@@ -499,6 +526,19 @@ export function NodeView(props: NodeViewProps) {
   useEffect(() => () => speechSynthesis.cancel(), [id]);
 
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+  const archeOfNode = useMemo(() => {
+    const a = byId.get(id)?.archeId;
+    return a ? byId.get(a) : undefined;
+  }, [byId, id]);
+  // Şifreli Arche açıkken içine düşen şifresiz not hemen Arche'nin anahtarıyla şifrelenir.
+  const sealingRef = useRef(false);
+  useEffect(() => {
+    if (!doc || doc.id !== id || sealingRef.current) return;
+    const lock = archeOfNode?.archeLock;
+    if (!lock || doc.locked || isLockedBody(doc.body) || !isArcheUnlocked(archeOfNode!.id)) return;
+    sealingRef.current = true;
+    void sealIntoArche(archeOfNode!.id).finally(() => (sealingRef.current = false));
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   const ancestors = useMemo(() => {
     const out: NodeMeta[] = [];
     let cur = byId.get(id);
@@ -576,6 +616,11 @@ export function NodeView(props: NodeViewProps) {
 
   const locked = !!doc.locked || isLockedBody(doc.body);
   lockedRef.current = locked;
+  lockArcheRef.current = locked ? lockedArche(doc.body) : null;
+  // Şifreli Arche'deki henüz şifrelenmemiş not (yeni oluşturulmuş, taşınmış ya da dışarıdan eklenmiş): Arche açıksa
+  // hemen şifrelenir; değilse önce Arche'nin parolası sorulur.
+  const archeMeta = archeOfNode;
+  const pendingSeal = !locked && !!archeMeta?.archeLock && !isArcheUnlocked(archeMeta.id);
   const pageFont = doc.font ?? (writingFont || undefined);
   // Notun kendi boyutu yoksa Ayarlar → Yazım'daki varsayılan boyut kullanılır.
   const pageSize = doc.fontSize ?? (writingSize || undefined);
@@ -615,7 +660,7 @@ export function NodeView(props: NodeViewProps) {
         </div>
         <div className="topbar-right">
           {locked && plain !== null && (
-            <button className="status-pill" title={t("lock.close")} onClick={() => void flush().then(() => (forgetNote(id), setPlain(null)))}>
+            <button className="status-pill" title={t("lock.close")} onClick={() => void flush().then(() => (forgetNote(id, lockArcheRef.current), setPlain(null)))}>
               <Icon name="lock-open" size={14} /> {t("lock.badge")}
             </button>
           )}
@@ -676,7 +721,7 @@ export function NodeView(props: NodeViewProps) {
                   </button>
                 )}
                 <button onClick={() => (setMenu(null), void setFields({ pinned: doc.pinned ? null : true }))}><Icon name="pin" /> {doc.pinned ? t("cmd.unpin") : t("cmd.pin")}</button>
-                <button onClick={() => (setMenu(null), locked ? void removeLock() : setDialog("lock"))} disabled={locked && plain === null}>
+                <button onClick={() => (setMenu(null), locked ? void removeLock() : setDialog("lock"))} disabled={(locked && plain === null) || !!lockArcheRef.current || !!archeOfNode?.archeLock}>
                   <Icon name={locked ? "lock-open" : "lock"} /> {locked ? t("lock.remove") : t("cmd.lock")}
                 </button>
                 <button onClick={() => (setMenu(null), setDialog("font"))}><Icon name="typography" /> {t("cmd.fontPanel")}</button>
@@ -971,10 +1016,22 @@ export function NodeView(props: NodeViewProps) {
             saveSchema={(db) => setFields({ database: serializeDatabase(db) })}
           />
         )}
-        {locked && plain === null ? (
+        {pendingSeal ? (
+          <LockScreen
+            title={doc.title}
+            arche={archeMeta!.title}
+            hint={archeMeta!.archeLock!.hint}
+            onUnlock={async (pw) => {
+              if (!(await unlockArche(archeMeta!.id, archeMeta!.archeLock!, pw))) return false;
+              await sealIntoArche(archeMeta!.id);
+              return true;
+            }}
+          />
+        ) : locked && plain === null ? (
           <LockScreen
             title={doc.title}
             hint={lockHint(doc.body)}
+            arche={lockArcheRef.current ? byId.get(lockArcheRef.current)?.title : undefined}
             onUnlock={async (pw) => {
               const fresh = await api.read(id);
               const text = await unlockNote(id, pw, fresh.body);
@@ -1048,6 +1105,16 @@ export function NodeView(props: NodeViewProps) {
             {stats.selWords > 0 || stats.selChars > 0
               ? t("stats.selection", { words: stats.selWords.toLocaleString(), chars: stats.selChars.toLocaleString() })
               : `${t("stats.words", { n: stats.words.toLocaleString() })} · ${t("stats.chars", { n: stats.chars.toLocaleString() })} · ${t("stats.read", { n: Math.max(1, Math.round(stats.words / 200)) })}`}
+            {stats.readability && !(stats.selWords > 0) && (
+              <span
+                className={`readability r-${stats.readability.level}`}
+                data-testid="readability"
+                title={t(stats.readability.lang === "tr" ? "read.tipTr" : "read.tipEn", { wps: stats.readability.wordsPerSentence, spw: stats.readability.syllablesPerWord })}
+              >
+                {" · "}
+                {t("read.label", { n: stats.readability.score, level: t(`read.${stats.readability.level}` as StringKey) })}
+              </span>
+            )}
             {doc.wordGoal ? (
               <>
                 {" · "}

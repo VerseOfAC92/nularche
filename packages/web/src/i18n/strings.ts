@@ -5,6 +5,8 @@ import { STRINGS_16 } from "./strings16.ts";
 import { STRINGS_17 } from "./strings17.ts";
 import { STRINGS_18 } from "./strings18.ts";
 import { STRINGS_19 } from "./strings19.ts";
+import { STRINGS_20 } from "./strings20.ts";
+import { STRINGS_21 } from "./strings21.ts";
 
 export const STRINGS = {
   ...STRINGS_15,
@@ -12,6 +14,8 @@ export const STRINGS = {
   ...STRINGS_17,
   ...STRINGS_18,
   ...STRINGS_19,
+  ...STRINGS_20,
+  ...STRINGS_21,
   "action.expand": { tr: "Genişlet", en: "Expand" },
   "action.expand.do": { tr: "Notları açık, düzenli ve daha ayrıntılı bir metne dönüştür; uygun başlıklar ve listeler kullan, bilgi uydurma.", en: "Turn the notes into clear, organized and more detailed text; use suitable headings and lists, and do not invent facts." },
   "action.fix": { tr: "Düzelt", en: "Fix" },

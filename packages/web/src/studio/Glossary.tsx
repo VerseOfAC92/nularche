@@ -42,6 +42,21 @@ export const GLOSSARY: { group: StringKey; terms: Term[] }[] = [
       ["Rite", "star", "gloss.rite"],
       ["Conduit", "arrow-right", "gloss.conduit"],
       ["Ark", "archive", "gloss.ark"],
+      ["Strata", "history", "gloss.strata"],
+      ["Custos", "lock", "gloss.custos"],
+      ["Crypta", "shield-lock", "gloss.crypta"],
+      ["Vigil", "calendar-repeat", "gloss.vigil"],
+    ],
+  },
+  {
+    group: "gloss.groupKnowledge",
+    terms: [
+      ["Fontes", "books", "gloss.fontes"],
+      ["Lectio", "file-type-pdf", "gloss.lectio"],
+      ["Tessera", "link", "gloss.tessera"],
+      ["Speculum", "list-search", "gloss.speculum"],
+      ["Anamnesis", "cards", "gloss.anamnesis"],
+      ["Claritas", "gauge", "gloss.claritas"],
     ],
   },
 ];

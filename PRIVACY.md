@@ -35,8 +35,9 @@ Nularche uses this access solely to keep your Nularche folder on your computer a
 Drive in sync, so that the same notes appear on your other computers. Files you delete in Nularche are moved
 to your Drive trash; you can restore them from there.
 
-Only your own content is synced (notes, attachments, settings, comments and named versions). Automatic version
-history, AI records and calendar caches stay on each computer. Locked notes stay encrypted in Drive, and when you lock
+Only your own content is synced (notes, attachments, settings, comments, named versions, PDF highlights and
+flashcard review state). Automatic version history, encrypted snapshots, AI records and calendar caches stay on each
+computer. Locked notes stay encrypted in Drive, and when you lock
 a note its unencrypted earlier copies are deleted from Drive for good. If you turn on end-to-end encryption, every file
 is encrypted on your computer with a key derived from your passphrase before it is uploaded; the passphrase is never
 stored or sent anywhere, and without it neither Google nor we can read the files.
@@ -99,7 +100,8 @@ Changes to this policy are published in this file, with the date at the top. Que
   durur.
 - **Google Drive:** Nularche yalnızca `drive.file` iznini ister; Drive'ınızda yalnızca kendi oluşturduğu
   Nularche klasörünü görür, diğer dosyalarınıza erişemez. Bu erişimi yalnızca notlarınızı bilgisayarlarınız
-  arasında eşitlemek için kullanır. Kilitli notlar Drive'da da şifreli kalır; isteğe bağlı uçtan uca şifreleme açılırsa
+  arasında eşitlemek için kullanır. PDF vurguları ve bilgi kartı tekrar durumu da eşitlenir; şifreli anlık görüntüler (Strata) ve otomatik sürüm geçmişi
+  bilgisayarda kalır. Kilitli notlar Drive'da da şifreli kalır; isteğe bağlı uçtan uca şifreleme açılırsa
   her dosya yüklenmeden önce yalnızca sizin bildiğiniz parolayla şifrelenir.
 - **Google Takvim:** Takvimlerinizi Nularche'nin Takvim ekranında göstermek ve sizin oluşturduğunuz, düzenlediğiniz
   ya da sildiğiniz etkinlikleri takviminize yazmak için kullanılır.
