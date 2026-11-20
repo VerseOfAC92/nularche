@@ -1,5 +1,48 @@
 # Changelog
 
+## 3.0.0
+
+Stronger protection for your notes, research and writing tools, and knowledge that works for you. Every new part has
+its own Nularche name, explained in the Nularche language window and the README glossary.
+
+### Security
+- **Crypta:** encrypt every note in an Arche with one password (AES-256-GCM, PBKDF2-SHA256 600,000 rounds); unlocked
+  once per session; new notes inside are sealed automatically; only key parameters and a check value are stored.
+- **Custos:** open locked notes and Crypta Arches close after inactivity (1–60 min, default 5), on sleep and on screen
+  lock.
+- **Strata:** content-addressed, incremental snapshots of the whole Origin every 15 minutes (when changed) and on
+  demand, AES-256-GCM encrypted with a key kept in the OS keychain (requested only when first needed). Per-file and full
+  restore, with a snapshot taken before every restore; thinned automatically, named snapshots kept. Never synced.
+  Locking a note purges its unencrypted versions from every snapshot.
+- The local server requires a per-launch secret sent only by Nularche's own windows; a strict Content Security Policy,
+  `nosniff` and `no-referrer`; allow-list sanitising of raw HTML and link schemes in the app (DOMPurify) and in
+  exported and published pages.
+
+### Research and writing
+- **Fontes:** BibTeX and CSL-JSON libraries, Pandoc-style `[@key, p. 12; -@other]` citations with `[@` suggestions,
+  styled chips in the editor and in embeds, and formatted citations plus a bibliography on HTML, Word, RTF, site and
+  Codex export (`{{bibliography}}` places it). Styles: APA 7, Chicago author-date, MLA 9, IEEE.
+- **Lectio:** PDF reader (pdf.js) with lazy page rendering, five highlight colours, comments, copy-as-quote and export
+  to a note whose quotes link back to the page; annotations in `.nularche/annotations/` sync with Drive and follow a
+  renamed PDF.
+- **Tessera:** `^id` block ids, `[[Note#^id]]` links that scroll to the block (headings too), `![[Note#^id]]` embeds,
+  copy block link/embed from the context menu and palette; exports and the site expand note, heading and block embeds.
+- **Claritas:** readability score next to the word count (Ateşman for Turkish, Flesch for English).
+
+### Using what you know
+- **Speculum:** live ```query blocks with tag, Arche, text, property and relative-date conditions, sorting, limits and
+  list / table / count / task views that refresh as notes change.
+- **Anamnesis:** flashcards from `Q :: A` and two-way `Term ::: Definition` lines, FSRS-5 scheduling, decks by Arche,
+  daily new-card limit, progress, and cards from encrypted notes while they are unlocked; review state in
+  `.nularche/anamnesis.json` (synced, no card text stored).
+- **Vigil:** daily, weekly or monthly automations that send a task to Nularche AI or write a digest note; results in an
+  Atrium card, runs on the Calendar, one catch-up run after the app was closed, no double runs across computers.
+
+### Fixes
+- A new build no longer waits at launch for a macOS keychain prompt: the session secret is sent as a header instead of
+  a cookie, and the snapshot key is read lazily.
+- Linked notes reopen without asking for the password again while their key is still open this session.
+
 ## 2.5.0
 
 Tabula, a whiteboard that sits over your writing background; a sidebar that hides completely; a richer Atrium; and

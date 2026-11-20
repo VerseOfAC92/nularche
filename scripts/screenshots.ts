@@ -619,9 +619,149 @@ try {
   await page.waitForTimeout(500);
   await shot("storage-light");
   await page.keyboard.press("Escape");
+  // 3.0: Güvenlik, Fontes, Lectio, Speculum, Anamnesis ve Vigil.
+  const api = (u: string, body: unknown, method = "POST") =>
+    page.evaluate(async ([u, body, method]) => (await (await fetch(u as string, { method: method as string, headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json()) as { id: string }, [u, body, method] as const);
+  await mkdir(path.join(origin, "Attachments"), { recursive: true });
+  await writeFile(path.join(origin, "Attachments", "Memory and the Archive.pdf"), samplePdf());
+  await writeFile(
+    path.join(origin, "Attachments", "library.bib"),
+    "@book{assmann2011, author={Jan Assmann}, title={Cultural Memory and Early Civilization}, publisher={Cambridge University Press}, year={2011}}\n" +
+      "@article{nora1989, author={Pierre Nora}, title={Between Memory and History}, journal={Representations}, volume={26}, pages={7--24}, year={1989}}\n" +
+      "@book{halbwachs1992, author={Maurice Halbwachs}, title={On Collective Memory}, publisher={University of Chicago Press}, year={1992}}\n",
+  );
+  // Önceki sahnelerden açık kalan yan panel kapatılır (görüntüler tam genişlikte olsun).
+  await putPrefs({ citationFiles: ["Attachments/library.bib"], citationStyle: "apa", sidePanel: null });
+  const thesis = await api("/api/nodes", { title: "Thesis", parentNodeId: null, fields: { icon: "🎓" } });
+  const ch1 = await api("/api/nodes", {
+    title: "Chapter 1 — Memory",
+    parentNodeId: thesis.id,
+    body: [
+      "#draft Collective memory is not a store of the past but a practice of the present [@halbwachs1992, p. 38]. Archives decide what can be remembered; places of memory appear when living memory fades [@nora1989]. Cultural memory gives a society its sense of time and identity [-@assmann2011].",
+      "",
+      "Short sentences help the reader. Long sentences with many clauses make the reader work harder, and the score below falls.",
+      "",
+      "Collective memory :: Memory shared and shaped by a social group",
+      "Lieu de mémoire ::: A place, object or event where memory crystallises",
+      "",
+      "- [ ] Add the Assmann chapter",
+      "- [ ] Check the Nora page numbers",
+    ].join("\n"),
+  });
+  await api("/api/nodes", { title: "Chapter 2 — Archives", parentNodeId: thesis.id, body: "#draft What an archive keeps and what it forgets.\n\n- [ ] Visit the city archive" });
+  await api("/api/nodes", { title: "Chapter 3 — Forgetting", parentNodeId: thesis.id, body: "#draft Forgetting as a social act." });
+  const queryBoard = await api("/api/nodes", {
+    title: "Thesis dashboard",
+    parentNodeId: thesis.id,
+    body: "Every draft chapter, newest first:\n\n```query\ntag: #draft\nshow: table\nfields: words, todos\nsort: updated desc\n```\n\nOpen tasks:\n\n```query\narche: Thesis\nshow: tasks\n```",
+  });
+  // Fontes: atıf çipleri ve okunabilirlik
+  await page.evaluate(() => location.reload());
+  await page.locator(".sidebar").waitFor();
+  await page.evaluate((id) => (location.hash = id), ch1.id);
+  await page.locator(".cite-chip").first().waitFor();
+  await page.waitForTimeout(1000);
+  await shot("fontes-light");
+  // Speculum (koyu)
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.evaluate((id) => (location.hash = id), queryBoard.id);
+  await page.locator(".query-render .query-link").first().waitFor();
+  await page.waitForTimeout(1000);
+  await shot("speculum-dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  // Lectio: vurgular ve yorumlar
+  const pdfPath = "Attachments/Memory and the Archive.pdf";
+  await page.evaluate(async (p) => {
+    const rect = (y: number, w: number): [number, number, number, number] => [0.116, y, w, 0.024];
+    await fetch(`/api/annotations?path=${encodeURIComponent(p)}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        highlights: [
+          { id: "hl-a1", page: 1, rects: [rect(0.077, 0.43)], text: "Memory is a reconstructive process.", color: "yellow", comment: "Key claim for chapter 1", created: Date.now() },
+          { id: "hl-a2", page: 1, rects: [rect(0.1, 0.44)], text: "The archive shapes what we remember.", color: "green", created: Date.now() },
+          { id: "hl-a3", page: 1, rects: [rect(0.145, 0.48)], text: "Forgetting is as social as remembering.", color: "pink", comment: "Contrast with Nora", created: Date.now() },
+        ],
+      }),
+    });
+  }, pdfPath);
+  await page.evaluate((p) => (location.hash = `lectio:${encodeURIComponent(p)}`), pdfPath);
+  await page.locator(".lectio-page[data-page='1'] canvas").waitFor();
+  await page.waitForTimeout(2000);
+  await shot("lectio-light");
+  // Anamnesis
+  await page.locator(".side-btn", { hasText: "Anamnesis" }).click();
+  await page.locator("[data-testid=mn-show]").click();
+  await page.waitForTimeout(600);
+  await shot("anamnesis-light");
+  // Güvenlik: Crypta, Custos ve Strata
+  const journal = await api("/api/nodes", { title: "Private journal", parentNodeId: null, fields: { icon: "📓" } });
+  await api("/api/nodes", { title: "Monday", parentNodeId: journal.id, body: "A private entry." });
+  await page.evaluate(() => location.reload());
+  await page.locator(".sidebar").waitFor();
+  await page.locator(".side-btn", { hasText: "Settings" }).click();
+  await page.getByRole("tab", { name: "Security" }).click();
+  await page.locator("[data-testid=arche-lock-pick]").selectOption({ label: "📓 Private journal" });
+  await page.locator(".arche-lock-form input[type=password]").nth(0).fill("correct horse battery staple");
+  await page.locator(".arche-lock-form input[type=password]").nth(1).fill("correct horse battery staple");
+  await page.locator(".arche-lock-form input").nth(2).fill("the usual one");
+  await page.locator(".arche-lock-form button[type=submit]").click();
+  await page.locator("[data-testid=arche-lock-row]").waitFor({ timeout: 30_000 });
+  await page.locator(".settings-card input[placeholder]").last().fill("Before restructuring the thesis");
+  await page.locator("[data-testid=snap-take]").click();
+  await page.locator("[data-testid=snap-item]").first().waitFor();
+  await page.locator(".toast").waitFor({ state: "detached", timeout: 15_000 }).catch(() => undefined);
+  await page.waitForTimeout(500);
+  await shot("security-light");
+  await page.keyboard.press("Escape");
+  // Vigil: Atrium kartı (son özet notuyla)
+  const vigil = { id: "v-weekly", name: "Weekly digest", enabled: true, created: Date.now() - 30 * 86_400_000, schedule: { freq: "weekly", weekday: 1, time: "09:00" }, action: { kind: "digest", days: 7 } };
+  const digest = await api("/api/vigil/digest", { days: 7, title: "Weekly digest — this week", lang: "en" });
+  await putPrefs({
+    vigils: [{ ...vigil, lastRun: Date.now(), lastResult: { at: Date.now(), ok: true, nodeId: digest.id, message: "Digest note written." } }],
+    writingBg: { kind: "scene", id: "lavender" },
+    writingBgEverywhere: true,
+  });
+  await page.evaluate(() => location.reload());
+  await page.locator(".sidebar").waitFor();
+  await page.evaluate(() => (location.hash = ""));
+  await page.locator("[data-testid=dash-vigil]").waitFor();
+  await page.locator("[data-testid=dash-vigil]").evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await page.mouse.move(700, 10);
+  await page.waitForTimeout(1000);
+  await shot("vigil-atrium-lavender");
+  await putPrefs({ writingBg: { kind: "none" }, writingBgEverywhere: false });
   console.log(`Ekran görüntüleri: ${out}`);
 } finally {
   await app.close();
   calendarServer.close();
   await fakeDrive.close();
+}
+
+/** Lectio görüntüsü için küçük, metin içeren bir PDF (Helvetica). */
+function samplePdf(): string {
+  const lines = [
+    "Memory is a reconstructive process.",
+    "The archive shapes what we remember.",
+    "Every act of recall rebuilds the past from the present.",
+    "Forgetting is as social as remembering.",
+    "What a society keeps says who it wants to be.",
+  ];
+  const stream = `BT /F1 15 Tf 72 720 Td 18 TL ${lines.map((l) => `(${l}) Tj T*`).join(" ")} ET`;
+  const objs = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let out = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objs.forEach((o, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`;
+  return `${out}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
 }

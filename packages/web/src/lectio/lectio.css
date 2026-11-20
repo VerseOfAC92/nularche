@@ -16,7 +16,7 @@
 .hl-purple { background: #b197fc; }
 .lectio-pop { position: absolute; z-index: 5; display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 10px; background: var(--nlc-bg-surface); border: 1px solid var(--nlc-border-subtle); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); }
 .hl-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; flex: none; }
-.hl-dot.small { width: 13px; height: 13px; }
+.hl-dot.small { width: 14px; height: 14px; padding: 0; margin-right: 3px; flex: none; }
 .hl-dot.on, .hl-dot:hover { border-color: var(--nlc-text-primary); }
 .lectio-side { width: 300px; flex: none; overflow: auto; border-left: 1px solid var(--nlc-border-subtle); padding: 12px; display: flex; flex-direction: column; gap: 10px; background: var(--nlc-bg-surface); }
 .lectio-side h4 { margin: 0; font-size: 13.5px; }
