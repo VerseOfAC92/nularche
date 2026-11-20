@@ -1907,3 +1907,25 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .storage-guard { border: 1px solid rgba(210, 153, 34, 0.55); background: rgba(210, 153, 34, 0.1); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .storage-guard p { margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .storage-guard .ui-icon { color: #d29922; }
+
+/* ---------- Güvenlik: şifreli Arche ve anlık görüntüler */
+.arche-lock-row { padding: 6px 0; border-top: 1px solid var(--nlc-border-subtle); }
+.arche-lock-row:first-of-type { border-top: 0; }
+.arche-lock-row form.row { margin-top: 6px; flex-wrap: wrap; }
+.arche-lock-new { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.arche-lock-form { display: flex; flex-direction: column; gap: 6px; max-width: 360px; }
+.arche-lock-form button { align-self: flex-start; }
+.snap-list { display: flex; flex-direction: column; margin-top: 8px; }
+.snap-item { border-top: 1px solid var(--nlc-border-subtle); padding: 4px 0; }
+.snap-head { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; text-align: left; min-width: 0; }
+.snap-head:hover { background: var(--nlc-hover); }
+.snap-when { font-size: 13.5px; white-space: nowrap; }
+.snap-delta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snap-body { padding: 4px 6px 8px 28px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.snap-files { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 2px; }
+.snap-path { font-size: 12.5px; font-family: var(--nlc-font-mono, ui-monospace, monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snap-st { font-size: 11px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--nlc-border-subtle); white-space: nowrap; }
+.snap-st.changed { color: var(--nlc-accent-primary); }
+.snap-st.deleted { color: var(--nlc-danger, #f85149); }
+.snap-st.added { color: var(--nlc-ok); }
+.snap-preview { max-height: 240px; overflow: auto; font-size: 12px; white-space: pre-wrap; background: var(--nlc-bg-base, transparent); border: 1px solid var(--nlc-border-subtle); border-radius: 6px; padding: 8px; margin: 4px 0; }

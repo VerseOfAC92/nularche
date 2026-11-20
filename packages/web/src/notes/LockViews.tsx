@@ -56,7 +56,7 @@ export function LockDialog({ onLock, onClose }: { onLock: (password: string, hin
   );
 }
 
-export function LockScreen({ title, hint, onUnlock }: { title: string; hint?: string; onUnlock: (password: string) => Promise<boolean> }) {
+export function LockScreen({ title, hint, arche, onUnlock }: { title: string; hint?: string; arche?: string; onUnlock: (password: string) => Promise<boolean> }) {
   const [pw, setPw] = useState("");
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -82,7 +82,7 @@ export function LockScreen({ title, hint, onUnlock }: { title: string; hint?: st
       <div className="lock-icon"><Icon name="lock" /></div>
       <h2>{t("lock.locked")}</h2>
       <p className="muted">{title}</p>
-      <p className="muted small">{t("lock.enter")}</p>
+      <p className="muted small">{arche ? t("archeLock.enter", { arche }) : t("lock.enter")}</p>
       <input ref={ref} type="password" value={pw} placeholder={t("lock.password")} onChange={(e) => (setPw(e.target.value), setError(false))} />
       {error && <p className="error-text">{t("lock.wrong")}</p>}
       {hint && <p className="muted small">{t("lock.showHint", { hint })}</p>}

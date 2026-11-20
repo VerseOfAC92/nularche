@@ -16,12 +16,13 @@ import { BackgroundPicker } from "./focus/BackgroundPicker.tsx";
 import { HotkeyEditor, VaultSettings } from "./vault/VaultSettings.tsx";
 import type { MathMode } from "./editor/notes-extensions.ts";
 import { StorageSetup } from "./StorageSetup.tsx";
+import { SecuritySettings } from "./SecuritySettings.tsx";
 import type { NodeMeta } from "./api.ts";
 import { StudioSettings } from "./studio/StudioSettings.tsx";
 import { runCommand } from "./commands.ts";
 import { Icon, type IconName } from "./ui/Icon.tsx";
 
-type CategoryId = "appearance" | "writing" | "aura" | "automation" | "origin" | "keys" | "publish" | "calendar" | "ai" | "about";
+type CategoryId = "appearance" | "writing" | "aura" | "automation" | "origin" | "security" | "keys" | "publish" | "calendar" | "ai" | "about";
 
 interface Category {
   id: CategoryId;
@@ -38,6 +39,7 @@ const CATEGORIES: Category[] = [
   { id: "aura", icon: "music", label: "settings.catAura", hint: "settings.catAuraHint", keywords: "aura ses sound daktilo typewriter ortam ambience clepsydra zamanlayıcı timer odak focus arka plan background manzara" },
   { id: "automation", icon: "bolt", label: "settings.catAutomation", hint: "settings.catAutomationHint", keywords: "sigil kısaltma shortcut rite komut command conduit yakalama capture" },
   { id: "origin", icon: "database", label: "settings.catOrigin", hint: "settings.catOriginHint", keywords: "depolama storage google drive eşitleme sync bulut cloud origin klasör folder içe aktar import arşiv archive nla yedek backup ark dosya file açılış startup hariç excluded" },
+  { id: "security", icon: "shield-lock", label: "settings.catSecurity", hint: "settings.catSecurityHint", keywords: "güvenlik security kilit lock parola password şifre encrypt otomatik auto anlık görüntü snapshot geçmiş history geri restore" },
   { id: "keys", icon: "keyboard", label: "settings.catKeys", hint: "settings.catKeysHint", keywords: "kısayol shortcut hotkey klavye keyboard" },
   { id: "publish", icon: "world", label: "settings.catPublish", hint: "settings.catPublishHint", keywords: "yayınla publish site web" },
   { id: "calendar", icon: "calendar", label: "settings.catCalendar", hint: "settings.catCalendarHint", keywords: "takvim calendar google apple icloud" },
@@ -305,6 +307,7 @@ export function Settings({
         </div>
       </Card>
     ),
+    security: () => <SecuritySettings nodes={nodes} onToast={onToast} onChanged={onChanged} />,
     calendar: () => (
       <Card title={t("cal.title")}>
         <CalendarAccounts onToast={onToast} titleOf={(id) => titles.get(id)} />

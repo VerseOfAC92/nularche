@@ -84,6 +84,16 @@ export interface PageFields {
   noMentions?: boolean;
   /** Başlığın biçimli hâli (kalın, italik, renk… satır içi HTML). Düz başlık `title`dır; bu yalnızca görünümdür. */
   titleRich?: string;
+  /** Şifreli Arche: Arche'nin bütün notları tek parolayla şifrelidir. Yalnızca anahtar türetme parametreleri ve parola
+   *  denetim değeri tutulur (parola ya da anahtar asla yazılmaz). */
+  archeLock?: ArcheLockFields;
+}
+
+export interface ArcheLockFields {
+  salt: string;
+  iter: number;
+  check: string;
+  hint?: string;
 }
 
 export const PAGE_FIELD_KEYS = [
@@ -106,6 +116,7 @@ export const PAGE_FIELD_KEYS = [
   "wikiFields",
   "noMentions",
   "titleRich",
+  "archeLock",
 ] as const;
 export type PageFieldKey = (typeof PAGE_FIELD_KEYS)[number];
 
@@ -314,6 +325,10 @@ function pageFields(fm: Frontmatter): PageFields {
   }
   if (fm.noMentions === true) out.noMentions = true;
   if (typeof fm.titleRich === "string" && fm.titleRich && fm.titleRich.length <= 8000) out.titleRich = fm.titleRich;
+  const al = fm.archeLock as Record<string, unknown> | undefined;
+  if (al && typeof al === "object" && typeof al.salt === "string" && typeof al.check === "string" && typeof al.iter === "number" && al.iter >= 100_000) {
+    out.archeLock = { salt: al.salt, iter: al.iter, check: al.check, ...(typeof al.hint === "string" && al.hint ? { hint: al.hint.slice(0, 200) } : {}) };
+  }
   return out;
 }
 
@@ -417,6 +432,11 @@ export class NodeStore {
   readonly root: string;
   /** Mutlak yol → son okunan içerik; mtime/boyut değişmedikçe dosya yeniden okunmaz. */
   private cache = new Map<string, CacheEntry>();
+
+  /** Önbelleği boşaltır (Origin dışarıdan toplu değiştiğinde, ör. anlık görüntüden geri yüklemede). */
+  invalidate(): void {
+    this.cache.clear();
+  }
 
   constructor(root: string) {
     this.root = path.resolve(root);
@@ -1191,7 +1211,18 @@ export class NodeStore {
   }
 
   /** Kilitlenen notun şifresiz bütün eski hâllerini siler: otomatik sürümler, Epoch'lar ve Nularche AI geri alma kopyaları. */
+  /**
+   * Bir not kilitlenince (ya da açılışta kilitli notların şifresiz geçmişi temizlenince) çağrılır: notun Origin dışındaki
+   * kayıtlarını tutan bileşenler (ör. anlık görüntüler) şifresiz sürümleri burada siler.
+   */
+  readonly lockPurgeHooks = new Set<(ids: string[]) => Promise<unknown>>();
+
+  private async runLockPurgeHooks(ids: string[]): Promise<void> {
+    for (const hook of this.lockPurgeHooks) await hook(ids);
+  }
+
   private async purgePlaintextHistory(id: string): Promise<void> {
+    await this.runLockPurgeHooks([id]);
     // Drive ile eşitleniyorsa (ya da sonradan eşitlenirse) notun Drive'daki eski dosyası ve Epoch'ları kalıcı silinir.
     const meta = (await this.loadAll()).get(id)?.meta;
     await markForPurge(this.root, { replace: meta ? [meta.path] : [], prefixes: [`.nularche/epochs/${id}/`] });

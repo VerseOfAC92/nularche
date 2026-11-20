@@ -110,6 +110,11 @@ contextBridge.exposeInMainWorld("nularche", {
   importArchive: () => invoke("import-archive"),
   checkUpdate: () => invoke("check-update"),
   skipUpdate: (version: string) => invoke("skip-update", version),
+  onSystemLock: (cb: () => void) => {
+    const listener = () => cb();
+    ipcRenderer.on("nularche:system-lock", listener);
+    return () => ipcRenderer.removeListener("nularche:system-lock", listener);
+  },
   onNavigate: (cb: (nodeId: string) => void) => {
     const listener = (_e: IpcRendererEvent, id: unknown) => typeof id === "string" && cb(id);
     ipcRenderer.on("nularche:navigate", listener);

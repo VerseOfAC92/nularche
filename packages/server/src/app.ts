@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { NodeError, NodeStore } from "../../core/src/node-store.ts";
+import { SnapshotError, SnapshotStore } from "../../core/src/snapshots.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
@@ -37,6 +38,13 @@ export interface ServerOptions {
    * sürümü, testler) yalnızca Host ve Origin denetimi uygulanır.
    */
   token?: string;
+  /**
+   * Anlık görüntü anahtarı (32 bayt): verilirse anlık görüntüler şifrelenir. Masaüstü uygulaması bunu işletim sisteminin
+   * anahtar zincirinde korur; Origin'e ya da Drive'a yazılmaz.
+   */
+  snapshotKey?: Uint8Array | null;
+  /** Otomatik anlık görüntü aralığı (dakika). Verilmezse otomatik anlık görüntü alınmaz (testler, tarayıcı). */
+  autoSnapshotMinutes?: number;
 }
 
 export const SESSION_COOKIE = "nularche_session";
@@ -83,6 +91,7 @@ export interface RunningServer {
   port: number;
   url: string;
   store: NodeStore;
+  snapshots: SnapshotStore;
   close(): Promise<void>;
 }
 
@@ -97,6 +106,25 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   // şifresiz sürümleri sil. Başarısız olsa da Origin açılır.
   await store.migrateEpochs().catch(() => 0);
   await store.purgeLockedPlaintext().catch(() => 0);
+
+  // --- Anlık görüntüler: kilitlenen notun şifresiz sürümleri anlık görüntülerden de silinir.
+  const snapshots = new SnapshotStore(store.root, { key: options.snapshotKey ?? null });
+  store.lockPurgeHooks.add((ids) => snapshots.purgeNotes(ids));
+  await store
+    .list()
+    .then((all) => snapshots.purgeNotes(all.filter((n) => n.locked).map((n) => n.id)))
+    .catch(() => 0);
+  let snapshotTimer: NodeJS.Timeout | undefined;
+  if (options.autoSnapshotMinutes && options.autoSnapshotMinutes > 0) {
+    const every = options.autoSnapshotMinutes * 60_000;
+    const tick = () => void snapshots.create({ auto: true }).catch((e) => console.error("snapshot", e));
+    // Açılıştan kısa süre sonra bir kez (açılıştaki hâl), sonra düzenli aralıklarla; değişiklik yoksa alınmaz.
+    snapshotTimer = setTimeout(function loop() {
+      tick();
+      snapshotTimer = setTimeout(loop, every);
+    }, 30_000);
+    snapshotTimer.unref();
+  }
 
   // --- Canlı bildirim: Origin'de (AI araçları dahil) bir dosya değişince istemcilere haber ver.
   const clients = new Set<ServerResponse>();
@@ -195,11 +223,51 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const obj = (v: unknown): Record<string, unknown> | undefined =>
     v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
 
+  async function handleSnapshots(req: IncomingMessage, res: ServerResponse, url: URL, parts: string[], method: string): Promise<void> {
+    try {
+      const [, sid, action] = parts;
+      if (!sid && method === "GET") return send(res, 200, { snapshots: await snapshots.list(), encrypted: snapshots.encrypted });
+      if (!sid && method === "POST") {
+        const b = await readJson(req);
+        return send(res, 201, await snapshots.create({ label: str(b.label) ?? "" }));
+      }
+      if (sid && !action && method === "DELETE") {
+        await snapshots.remove(sid);
+        return send(res, 200, { deleted: sid });
+      }
+      if (sid && action === "files" && method === "GET") return send(res, 200, { files: await snapshots.files(sid) });
+      if (sid && action === "file" && method === "GET") {
+        const file = url.searchParams.get("path") ?? "";
+        const data = await snapshots.read(sid, file);
+        // Önizleme yalnızca metin notları için; ham içerik ve betik çalıştırılabilecek türler gönderilmez.
+        if (!/\.(md|txt|json|canvas|csv)$/i.test(file)) return send(res, 200, { path: file, text: null, size: data.length });
+        return send(res, 200, { path: file, text: data.subarray(0, 512 * 1024).toString("utf8"), size: data.length });
+      }
+      if (sid && action === "restore" && method === "POST") {
+        const b = await readJson(req);
+        const paths = Array.isArray(b.paths) ? b.paths.filter((p): p is string => typeof p === "string") : undefined;
+        const out = await snapshots.restore(sid, { paths, beforeLabel: str(b.beforeLabel) });
+        store.invalidate();
+        return send(res, 200, out);
+      }
+      if (sid && action === "rename" && method === "POST") {
+        const b = await readJson(req);
+        return send(res, 200, await snapshots.rename(sid, str(b.label) ?? null));
+      }
+      return send(res, 404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+    } catch (e) {
+      if (e instanceof SnapshotError) return send(res, e.code === "not_found" ? 404 : 400, { error: e.code, message: e.message });
+      throw e;
+    }
+  }
+
   async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
     const parts = url.pathname.split("/").filter(Boolean).slice(1).map(decodeURIComponent); // "api" sonrası
     const method = req.method ?? "GET";
     const route = `${method} ${parts[0] ?? ""}${parts[2] ? `/:id/${parts[2]}` : parts[1] ? "/:id" : ""}`;
     const id = parts[1];
+
+    if (parts[0] === "snapshots") return handleSnapshots(req, res, url, parts, method);
 
     if (parts[0] === "ai") {
       if (method === "GET" && parts.length === 1) {
@@ -516,7 +584,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     port: PORT,
     url: `http://127.0.0.1:${PORT}`,
     store,
+    snapshots,
     close: async () => {
+      clearTimeout(snapshotTimer);
       watcher.close();
       for (const res of clients) res.end();
       clients.clear();

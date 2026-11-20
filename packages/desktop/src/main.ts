@@ -5,9 +5,9 @@
 // seçtiği resmi araçta (Claude, ChatGPT, Gemini) "nularche" MCP sunucusuyla yapılır.
 
 import { randomBytes } from "node:crypto";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, session, shell, type BrowserWindowConstructorOptions, type MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, safeStorage, session, shell, type BrowserWindowConstructorOptions, type MenuItemConstructorOptions } from "electron";
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { exportArchive, importArchive, type ArchiveKind } from "../../core/src/archive.ts";
@@ -270,9 +270,43 @@ async function measurePageWidth(nodeId: string): Promise<Record<string, unknown>
 let pendingNav: string | null = null;
 let rendererReady = false;
 
+/**
+ * Anlık görüntülerin şifreleme anahtarı: ilk kullanımda rastgele üretilir, işletim sisteminin anahtar zinciriyle
+ * (safeStorage) şifreli olarak bu bilgisayarın ayar klasöründe durur; Origin'e ve Drive'a yazılmaz. Anahtar zinciri
+ * yoksa anlık görüntüler şifresiz alınır.
+ */
+async function snapshotKey(): Promise<Buffer | null> {
+  const file = path.join(dirs.config, "snapshot-key.bin");
+  const e2e = !!process.env.NULARCHE_E2E;
+  if (!e2e && !safeStorage.isEncryptionAvailable()) return null;
+  const buf = await readFile(file).catch(() => null);
+  if (buf) {
+    try {
+      const hex = e2e ? buf.toString("utf8") : safeStorage.decryptString(buf);
+      if (/^[0-9a-f]{64}$/.test(hex)) return Buffer.from(hex, "hex");
+    } catch {
+      // okunamadı (ör. anahtar zinciri sıfırlandı)
+    }
+    // Okunamayan anahtar silinmez: kenara alınır (eski anlık görüntüler onunla açılabilir).
+    await rename(file, `${file}.unreadable-${Date.now()}`).catch(() => undefined);
+  }
+  const key = randomBytes(32);
+  await mkdir(dirs.config, { recursive: true });
+  await writeFile(file, e2e ? Buffer.from(key.toString("hex")) : safeStorage.encryptString(key.toString("hex")), { mode: 0o600 });
+  return key;
+}
+
 async function openOrigin(originDir: string): Promise<void> {
   await server?.close();
-  server = await startServer({ originDir, webDist: webDist(), port: 0, token: SESSION_TOKEN, onAiActivity: () => aiHooks?.onActivity() });
+  server = await startServer({
+    originDir,
+    webDist: webDist(),
+    port: 0,
+    token: SESSION_TOKEN,
+    snapshotKey: await snapshotKey().catch(() => null),
+    autoSnapshotMinutes: 15,
+    onAiActivity: () => aiHooks?.onActivity(),
+  });
   // Oturum anahtarı yalnızca bu uygulamanın penceresine çerez olarak verilir (HttpOnly: sayfa betikleri de okuyamaz).
   await session.defaultSession.cookies.set({ url: server.url, name: SESSION_COOKIE, value: SESSION_TOKEN, httpOnly: true, sameSite: "strict" });
   origin = await loadOrigin(server.store.root);
@@ -916,6 +950,10 @@ if (!app.requestSingleInstanceLock()) {
   pendingOpens.push(...opensFromArgv(process.argv));
 
   app.whenReady().then(async () => {
+    // Uyku ve ekran kilidi: açık kilitli notlar hemen kapanır (tüm pencerelerde).
+    const systemLock = () => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send("nularche:system-lock"));
+    powerMonitor.on("suspend", systemLock);
+    powerMonitor.on("lock-screen", systemLock);
     settings = await loadSettings();
     setDesktopLang(settings.language ?? systemLang(app.getLocale()));
     // Yerel menüler, iletişim kutuları ve pencere arka planı da seçilen temaya uysun.

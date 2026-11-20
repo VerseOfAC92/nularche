@@ -221,6 +221,8 @@ export interface DesktopBridge {
   /** Toplu silmeyi onaylar: bu bilgisayardan silinenler Drive'dan da silinir. */
   driveConfirmDeletes(): Promise<{ ok: boolean; error?: string }>;
   onDriveSynced(cb: (info: { syncing?: boolean; downloaded?: boolean }) => void): () => void;
+  /** Bilgisayar uyku moduna geçti ya da ekran kilitlendi (açık kilitli notlar kapanır). */
+  onSystemLock?(cb: () => void): () => void;
   printPdf(name: string): Promise<string | null>;
   /** Otomatik yedekleme (2.0). */
   backupStatus(): Promise<BackupStatus>;
