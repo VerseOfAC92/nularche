@@ -4,7 +4,8 @@
 // .nlc/.nla dosyalarını karşılar. Uygulama hiçbir AI kimlik bilgisine dokunmaz; AI işi kullanıcının
 // seçtiği resmi araçta (Claude, ChatGPT, Gemini) "nularche" MCP sunucusuyla yapılır.
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, shell, type BrowserWindowConstructorOptions, type MenuItemConstructorOptions } from "electron";
+import { randomBytes } from "node:crypto";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, session, shell, type BrowserWindowConstructorOptions, type MenuItemConstructorOptions } from "electron";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -21,7 +22,10 @@ import { attachContextMenu } from "./context-menu.ts";
 import { registerBackupIpc, type OriginBackup } from "./backup.ts";
 import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
 import { loadOrigin, type Origin } from "../../core/src/origin.ts";
-import { startServer, type RunningServer } from "../../server/src/app.ts";
+import { SESSION_COOKIE, startServer, type RunningServer } from "../../server/src/app.ts";
+
+/** Bu çalıştırmanın yerel API oturum anahtarı (her açılışta yeni; diske yazılmaz). */
+const SESSION_TOKEN = randomBytes(32).toString("base64url");
 
 const REPO = "VerseOfAC92/nularche";
 const PROTOCOL = "nularche";
@@ -217,7 +221,7 @@ async function finishSmoke(): Promise<void> {
     );
     const created = await server.store.create({ title: "Smoke", body: "ok" });
     result.storeRoundtrip = (await server.store.read(created.id)).body.trim() === "ok";
-    const res = await fetch(`${server.url}/api/nodes`);
+    const res = await fetch(`${server.url}/api/nodes`, { headers: { "x-nularche-token": SESSION_TOKEN } });
     result.api = res.ok && ((await res.json()) as { nodes: unknown[] }).nodes.length >= 1;
     result.pageWidth = await measurePageWidth(created.id);
     result.ok =
@@ -268,7 +272,9 @@ let rendererReady = false;
 
 async function openOrigin(originDir: string): Promise<void> {
   await server?.close();
-  server = await startServer({ originDir, webDist: webDist(), port: 0, onAiActivity: () => aiHooks?.onActivity() });
+  server = await startServer({ originDir, webDist: webDist(), port: 0, token: SESSION_TOKEN, onAiActivity: () => aiHooks?.onActivity() });
+  // Oturum anahtarı yalnızca bu uygulamanın penceresine çerez olarak verilir (HttpOnly: sayfa betikleri de okuyamaz).
+  await session.defaultSession.cookies.set({ url: server.url, name: SESSION_COOKIE, value: SESSION_TOKEN, httpOnly: true, sameSite: "strict" });
   origin = await loadOrigin(server.store.root);
   await aiHooks?.resetBaseline();
   calendarHooks?.onOriginChanged();

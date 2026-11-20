@@ -1,6 +1,7 @@
 // Yerel HTTP sunucusu: JSON API + derlenmiş web arayüzü + canlı değişiklik bildirimi (SSE).
 // Yalnızca 127.0.0.1'e bağlanır.
 
+import { timingSafeEqual } from "node:crypto";
 import { watch } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -29,6 +30,53 @@ export interface ServerOptions {
   extraOrigins?: string[];
   /** Nularche AI etkinliği değiştiğinde (ör. masaüstünde "✓ Bağlandı" bildirimi için). */
   onAiActivity?: () => void;
+  /**
+   * Oturum anahtarı: verilirse her istek `nularche_session` çerezini ya da `x-nularche-token` başlığını taşımalıdır.
+   * Masaüstü uygulaması her açılışta rastgele bir anahtar üretip yalnızca kendi penceresine çerez olarak verir; böylece
+   * bilgisayardaki başka bir kullanıcı ya da program 127.0.0.1 üzerinden notlara erişemez. Verilmezse (tarayıcı
+   * sürümü, testler) yalnızca Host ve Origin denetimi uygulanır.
+   */
+  token?: string;
+}
+
+export const SESSION_COOKIE = "nularche_session";
+
+/**
+ * Arayüzün içerik güvenlik politikası: betikler yalnızca uygulamanın kendi dosyalarından, bağlantılar yalnızca yerel
+ * sunucuya; notlardaki web görselleri ve gizlilik dostu YouTube çerçevesi dışında dış kaynak yok. Notlara ya da içe
+ * aktarılan dosyalara gömülmüş HTML/JS'e karşı ikinci kalkandır.
+ */
+export const APP_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https: http:",
+  "media-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "worker-src 'self' blob:",
+  "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+/** Sabit sürede karşılaştırma (anahtar zamanlama ile tahmin edilemesin). */
+function sameToken(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+function requestToken(req: IncomingMessage): string {
+  const header = req.headers["x-nularche-token"];
+  if (typeof header === "string" && header) return header;
+  for (const part of (req.headers.cookie ?? "").split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === SESSION_COOKIE) return decodeURIComponent(v.join("="));
+  }
+  return "";
 }
 
 export interface RunningServer {
@@ -408,7 +456,12 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     if (!file.startsWith(WEB_DIST) || !path.extname(file)) file = path.join(WEB_DIST, "index.html");
     try {
       const data = await readFile(file);
-      res.writeHead(200, { "content-type": MIME[path.extname(file)] ?? "application/octet-stream" });
+      const ext = path.extname(file);
+      res.writeHead(200, {
+        "content-type": MIME[ext] ?? "application/octet-stream",
+        "x-content-type-options": "nosniff",
+        ...(ext === ".html" ? { "content-security-policy": APP_CSP, "referrer-policy": "no-referrer" } : {}),
+      });
       res.end(data);
     } catch {
       if (file.endsWith("index.html")) {
@@ -430,6 +483,11 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       !origin || origin === `http://localhost:${PORT}` || origin === `http://127.0.0.1:${PORT}` || (options.extraOrigins ?? []).includes(origin);
     if ((host !== "127.0.0.1" && host !== "localhost") || !originOk) {
       res.writeHead(403).end();
+      return;
+    }
+    // Oturum anahtarı olmayan istekler (başka kullanıcılar ya da programlar) reddedilir.
+    if (options.token && !sameToken(requestToken(req), options.token)) {
+      res.writeHead(401, { "content-type": "text/plain; charset=utf-8" }).end("Nularche: unauthorized");
       return;
     }
     try {

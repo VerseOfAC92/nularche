@@ -3,6 +3,7 @@
 // Bu yapılar ayrı editör düğümleridir ve Markdown'a okundukları gibi yazılır: düz metin olsalardı Markdown yazıcısı
 // köşeli parantezleri ve ters eğik çizgileri kaçışlayıp (`\[\[Not\]\]`) dosyayı bozardı.
 
+import DOMPurify from "dompurify";
 import { Extension, InputRule, mergeAttributes, Node, type MarkdownToken } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import type { Node as PMNode } from "@tiptap/pm/model";
@@ -93,12 +94,12 @@ embedMarked.use({
 export function safeHtml(md: string): string {
   // Yorumlar atılır, kutular kalın başlıklı alıntı olur (dışa aktarmadaki kuralların aynısı).
   const prepared = exportableMarkdown(md).replace(/^> \[!([\w-]+)\][+-]?[ \t]*(.*)$/gm, (_m, k: string, title: string) => `> **${title.trim() || k.toUpperCase()}**\n>`);
-  const doc = new DOMParser().parseFromString(String(embedMarked.parse(prepared, { async: false })), "text/html");
-  doc.querySelectorAll("script,iframe,object,embed,style,link,meta,form").forEach((el) => el.remove());
-  doc.querySelectorAll("*").forEach((el) => {
-    for (const a of [...el.attributes]) if (/^on/i.test(a.name) || /^\s*javascript:/i.test(a.value)) el.removeAttribute(a.name);
+  // İzin listesine dayalı temizlik (DOMPurify): betik, olay öznitelikleri, gizlenmiş javascript: adresleri, çerçeve ve
+  // formlar geçmez. Arayüzün içerik güvenlik politikası (CSP) ikinci kalkandır.
+  return DOMPurify.sanitize(String(embedMarked.parse(prepared, { async: false })), {
+    FORBID_TAGS: ["style", "form", "input", "button", "textarea", "select", "iframe", "frame", "object", "embed", "base", "meta", "link"],
+    FORBID_ATTR: ["srcdoc", "formaction"],
   });
-  return doc.body.innerHTML;
 }
 
 /** Markdown'dan bir başlığın bölümünü (bir sonraki aynı ya da üst düzey başlığa kadar) alır. */

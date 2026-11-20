@@ -195,7 +195,7 @@ try {
   await page.getByRole("tab", { name: "Yapay zekâ" }).click();
   await page.getByPlaceholder(/Anahtarı buraya yapıştırın/).fill("AIza-test-anahtari");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
-  await page.getByText("Otomatik mod açık").waitFor({ timeout: 10_000 });
+  await page.getByText("Otomatik mod açık", { exact: true }).waitFor({ timeout: 10_000 });
   await shot("6-otomatik-mod");
   await page.keyboard.press("Escape");
   await page

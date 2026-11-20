@@ -5,6 +5,7 @@ import { exportBodyOf } from "./manuscript.ts";
 import path from "node:path";
 import { zipSync, type Zippable } from "fflate";
 import { Marked, type Tokens } from "marked";
+import { safeUrl, sanitizeRawHtml } from "./html-safe.ts";
 import { calloutTone, exportableMarkdown } from "./note-text.ts";
 import {
   cellValue,
@@ -133,7 +134,16 @@ export function renderBody(node: NodeMeta, body: string, rc: RenderContext, t: R
     renderer: {
       link(tk) {
         const text = this.parser.parseInline(tk.tokens);
-        return tk.href ? `<a href="${esc(tk.href)}">${text}</a>` : `<span class="dead-link">${text}</span>`;
+        const href = safeUrl(tk.href);
+        return href ? `<a href="${esc(href)}">${text}</a>` : `<span class="dead-link">${text}</span>`;
+      },
+      image(tk) {
+        const src = safeUrl(tk.href, { image: true });
+        return src ? `<img src="${esc(src)}" alt="${esc(tk.text ?? "")}"${tk.title ? ` title="${esc(tk.title)}"` : ""}>` : esc(tk.text ?? "");
+      },
+      // Notlardaki ham HTML yalnızca izin listesindeki etiketlerle geçer (yayınlanan sitede betik çalıştırılamaz).
+      html(tk) {
+        return sanitizeRawHtml(tk.text);
       },
     },
   });

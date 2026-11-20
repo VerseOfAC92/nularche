@@ -97,6 +97,7 @@
     "notion-alternative"
   ],
   "dependencies": {
+    "dompurify": "^3.2.6",
     "marked": "17.0.6"
   }
 }
