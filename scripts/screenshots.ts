@@ -8,6 +8,7 @@ import path from "node:path";
 import { _electron as electron, type Page } from "playwright-core";
 import { projectRoot } from "../packages/core/src/config.ts";
 import { addProperty, defaultDatabase, newView, serializeDatabase } from "../packages/core/src/database.ts";
+import { startFakeDrive } from "../packages/core/test/fake-drive.ts";
 
 const arg = (n: string) => (process.argv.includes(n) ? process.argv[process.argv.indexOf(n) + 1] : undefined);
 const root = projectRoot();
@@ -31,7 +32,7 @@ const calendarServer = createServer(async (req, res) => {
   if (url.pathname.startsWith("/google/")) {
     res.setHeader("content-type", "application/json");
     const p = url.pathname.slice("/google".length);
-    if (p === "/token") return res.end(JSON.stringify({ access_token: "at", expires_in: 3600 }));
+    if (p === "/token") return res.end(JSON.stringify({ access_token: "at", expires_in: 3600, refresh_token: "rt" }));
     if (p === "/users/me/calendarList/primary") return res.end('{"id":"alex@gmail.com"}');
     if (p === "/users/me/calendarList") {
       return res.end(JSON.stringify({ items: [{ id: "work", summary: "Work" }, { id: "alex@gmail.com", summary: "Alex" }] }));
@@ -74,6 +75,9 @@ await writeFile(
 );
 await writeFile(path.join(userData, "config", "calendar-apple.bin"), JSON.stringify({ account: "alex@icloud.com", apple: { username: "alex@icloud.com", password: "x" } }));
 
+// Depolama görseli: Google Drive yerine sahte sunucu (tek tıkla bağlanma ve eşitleme).
+const fakeDrive = await startFakeDrive("alex@gmail.com");
+
 const app = await electron.launch({
   executablePath: path.join(root, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"),
   args: [root, "--lang=en"],
@@ -81,6 +85,9 @@ const app = await electron.launch({
     NULARCHE_GOOGLE_API: `${calBase}/google`,
     NULARCHE_GOOGLE_TOKEN: `${calBase}/google/token`,
     NULARCHE_CALDAV: `${calBase}/caldav/`,
+    NULARCHE_GOOGLE_AUTH: `${fakeDrive.url}/auth`,
+    NULARCHE_DRIVE_API: `${fakeDrive.url}/drive/v3`,
+    NULARCHE_DRIVE_UPLOAD: `${fakeDrive.url}/upload/drive/v3`,
   },
 });
 const page: Page = await app.firstWindow();
@@ -598,9 +605,23 @@ try {
   await page.locator(".settings-body").evaluate((el) => (el.scrollTop = 250));
   await page.waitForTimeout(500);
   await shot("about-light");
+  // 2.5: Depolama — Google Drive'a tek tıkla bağlanma ve uçtan uca şifreleme (açık tema).
+  await page.getByRole("tab", { name: "Notes and Origin" }).click();
+  await page.locator("[data-testid=storage-drive] .google-btn").click();
+  await page.locator("[data-testid=storage-drive].on").waitFor({ timeout: 20_000 });
+  await page.locator(".storage-crypto button", { hasText: "Turn on encryption" }).click();
+  await page.locator(".storage-pass input").nth(0).fill("correct horse battery staple");
+  await page.locator(".storage-pass input").nth(1).fill("correct horse battery staple");
+  await page.locator(".storage-pass button.primary").click();
+  await page.locator(".storage-crypto.on").waitFor({ timeout: 30_000 });
+  await page.locator(".toast").waitFor({ state: "detached", timeout: 15_000 }).catch(() => undefined);
+  await page.locator(".settings-body").evaluate((el) => (el.scrollTop = 0));
+  await page.waitForTimeout(500);
+  await shot("storage-light");
   await page.keyboard.press("Escape");
   console.log(`Ekran görüntüleri: ${out}`);
 } finally {
   await app.close();
   calendarServer.close();
+  await fakeDrive.close();
 }

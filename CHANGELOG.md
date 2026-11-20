@@ -5,8 +5,8 @@
 Tabula, a whiteboard that sits over your writing background; a sidebar that hides completely; a richer Atrium; and
 Nularche AI requests that can no longer hang, can be cancelled, and never edit notes unless you ask. Plus
 **Nularche Font**, Nularche's own handwriting typeface, Archipelagos that group Arches, and smart folders in the Atrium.
-A Calendar page shows Google and Apple calendars with full event details without creating notes, titles take
-formatting, and the interface got a careful visual pass.
+A Calendar page shows Google and Apple calendars with full event details without creating notes, notes can sync through
+Google Drive (optionally end-to-end encrypted), titles take formatting, and the interface got a careful visual pass.
 
 ### Calendar
 - New Calendar page (sidebar, ⇧⌘K): month, week (hour grid, now line, all-day row) and agenda views of the local
@@ -23,6 +23,25 @@ formatting, and the interface got a careful visual pass.
 - Calendars linked by an earlier 2.5 build inside an automatic "Calendars" Arche become shown calendars; that Arche
   moves to Trash when it only held them.
 - Fixed: Settings → Calendar showed an error when a synced database had been deleted; such links are now removed.
+
+### Storage and Google Drive
+- No system dialog before the window opens: the Origin is prepared in `Documents/Nularche` and the first-run wizard
+  has a Storage step (this computer or Google Drive), also in Settings → Notes and Origin.
+- Google Drive connects with one click using the built-in Nularche client and the `drive.file` scope (only the Nularche
+  folder it creates). The Origin stays the working copy and syncs both ways (on change, every minute and before quit);
+  another computer that connects gets everything. Google Calendar connects with one click too.
+- Only user content syncs: notes, attachments, `ui.json`, Marginalia, Epochs and snippets. Automatic history, Nularche AI
+  records and the calendar cache stay local; copies of them already in Drive are deleted for good. Epochs move to
+  `.nularche/epochs` (migrated on start). `ui.json` is merged key by key between computers.
+- Locking a note deletes its unencrypted history, Epochs and AI undo copies; in Drive the old file is deleted for good
+  (with its revision history) and the encrypted note is uploaded as a new file. Plaintext left in the history of
+  already locked notes is removed on start.
+- Optional end-to-end encryption (AES-256-GCM, PBKDF2-SHA256 600k; file names are HMACs). Other computers ask for the
+  passphrase once.
+- Two-way safety: a suddenly empty local folder or a mass deletion pauses sync instead of deleting from Drive, with
+  "Restore from Drive" or "Yes, delete from Drive too"; "Download again from Drive" restores at any time. Edits in two
+  places keep a "conflict" copy. Sync stops if the Drive folder disappears.
+- `PRIVACY.md` describes what Nularche does with Google data.
 
 ### Writing and editing
 - Titles take bold, italic, underline, strike, highlight and colour (selection bar and right-click). The plain title

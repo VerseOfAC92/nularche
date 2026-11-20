@@ -1,6 +1,6 @@
 # Nularche Privacy Policy
 
-*Last updated: 20 November 2026*
+*Last updated: 20 November 2026 (storage and encryption)*
 
 Nularche is a free, open-source notes app that runs on your own computer. It is made by VerseOfAC
 (verseofac@gmail.com). This policy explains what happens to your data when you use Nularche, including
@@ -34,6 +34,12 @@ see any other file in your Drive.
 Nularche uses this access solely to keep your Nularche folder on your computer and the Nularche folder in your
 Drive in sync, so that the same notes appear on your other computers. Files you delete in Nularche are moved
 to your Drive trash; you can restore them from there.
+
+Only your own content is synced (notes, attachments, settings, comments and named versions). Automatic version
+history, AI records and calendar caches stay on each computer. Locked notes stay encrypted in Drive, and when you lock
+a note its unencrypted earlier copies are deleted from Drive for good. If you turn on end-to-end encryption, every file
+is encrypted on your computer with a key derived from your passphrase before it is uploaded; the passphrase is never
+stored or sent anywhere, and without it neither Google nor we can read the files.
 
 ## Google Calendar
 
@@ -93,7 +99,8 @@ Changes to this policy are published in this file, with the date at the top. Que
   durur.
 - **Google Drive:** Nularche yalnızca `drive.file` iznini ister; Drive'ınızda yalnızca kendi oluşturduğu
   Nularche klasörünü görür, diğer dosyalarınıza erişemez. Bu erişimi yalnızca notlarınızı bilgisayarlarınız
-  arasında eşitlemek için kullanır.
+  arasında eşitlemek için kullanır. Kilitli notlar Drive'da da şifreli kalır; isteğe bağlı uçtan uca şifreleme açılırsa
+  her dosya yüklenmeden önce yalnızca sizin bildiğiniz parolayla şifrelenir.
 - **Google Takvim:** Takvimlerinizi Nularche'nin Takvim ekranında göstermek ve sizin oluşturduğunuz, düzenlediğiniz
   ya da sildiğiniz etkinlikleri takviminize yazmak için kullanılır.
 - Google'dan alınan veriler, Google API Hizmetleri Kullanıcı Verileri Politikası'na (Sınırlı Kullanım

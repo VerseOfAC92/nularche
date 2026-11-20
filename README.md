@@ -36,7 +36,8 @@ Nularche 2.5 adds **Tabula**, a whiteboard that sits over your writing backgroun
 a richer **Atrium**, and a Nularche AI that can no longer hang and never edits a note unless you ask it to.
 It also brings **Nularche Font**, Nularche's own handwriting typeface, **Archipelagos** that group your Arches, and
 your smart folders in the Atrium. A new **Calendar** page shows your Google and Apple calendars with every detail
-without turning events into notes, titles take formatting, and the whole interface got a careful visual pass.
+without turning events into notes, your notes can sync through **Google Drive** (optionally end-to-end encrypted),
+titles take formatting, and the whole interface got a careful visual pass.
 
 <p align="center">
   <img src="docs/screenshots/atrium-lavender.png" width="860" alt="Atrium over the Lavender Hills background: continue writing, daily goal, quick capture and writing projects as frosted-glass cards" />
@@ -69,6 +70,29 @@ without turning events into notes, titles take formatting, and the whole interfa
 - **New events with details:** title, date and time or all day, location, link, alert and notes, saved to the calendar
   you pick. Editing an invitation changes only the fields you touched, so attendees and other details stay intact.
   Recurring events are view-only.
+
+**Storage and Google Drive**
+
+<p align="center">
+  <img src="docs/screenshots/storage-light.png" width="860" alt="Settings → Notes and Origin: this computer or Google Drive, connected, with end-to-end encryption on" />
+</p>
+
+- **Choose where your notes live** on first launch, in Nularche's own window instead of a system dialog: **this
+  computer** or **Google Drive**. Change it any time in **Settings → Notes and Origin**.
+- **Google Drive** connects with one click (**Continue with Google**); nobody has to create API keys. Nularche asks only
+  for access to the Nularche folder it creates and can't see your other files. The folder on your computer stays the
+  working copy, so Nularche is fast and works offline; it syncs both ways with Drive within seconds, every minute and
+  when you quit. Sign in on another computer and the same notes are there.
+- **Only your content syncs:** notes, attachments, settings, Marginalia, Epochs and CSS snippets. Automatic version
+  history, Nularche AI records and the calendar cache stay on each computer.
+- **Locked notes stay locked in Drive:** locking a note deletes its unencrypted earlier versions and Epochs, and in
+  Drive the old file is deleted for good (with Drive's own version history) before the encrypted note is uploaded.
+- **Optional end-to-end encryption:** encrypt the copy in Drive with your passphrase (AES-256-GCM); file names are
+  hidden too and no one, Google included, can read them. Your other computers ask for the passphrase once.
+- **Two-way safety:** if the folder on your computer suddenly empties, nothing is deleted from Drive; Nularche pauses and
+  offers **Restore from Drive**. **Download again from Drive** brings everything back at any time; changes made in two
+  places at once are kept as a "conflict" copy instead of being lost.
+- **Google Calendar** also connects with one click now.
 
 **Writing and editing**
 
@@ -445,8 +469,9 @@ extra step:
 - **Linux:** install with `sudo apt install ./Nularche-Linux-amd64.deb`, then start it from the
   applications menu or run `nularche`. No extra step is needed.
 
-On first launch Nularche asks where your notes should live (your **Origin** folder) and offers to connect an AI.
-Both can be changed later in **Settings**.
+On first launch Nularche asks, in its own window, whether your notes should live on **this computer** (the
+`Documents/Nularche` folder, your **Origin**) or sync through **Google Drive**, and offers to connect an AI. Both can be
+changed later in **Settings**.
 
 **Updating from 1.x or 2.0:** install 2.5 over the old version the same way (drag it to Applications on macOS, run the
 installer on Windows, `sudo apt install ./Nularche-Linux-amd64.deb` on Linux) or run the terminal installer again.
@@ -842,6 +867,16 @@ alınabilir.
   düzenleyen, katılımcılar ve yanıtları ve notlar görünür. Yeni etkinlik konum, bağlantı, hatırlatma ve notlarıyla
   oluşturulur. Yinelenen etkinlikler yalnızca görüntülenir. Veritabanını takvimle eşitleme veritabanının **Takvim**
   düğmesinde durur.
+- **Depolama ve Google Drive:** ilk açılışta, sistem uyarısı yerine Nularche'nin kendi penceresinde notların **bu
+  bilgisayarda** mı duracağı yoksa **Google Drive** ile mi eşitleneceği seçilir; Ayarlar → Notlar ve Origin'den her
+  zaman değiştirilebilir. Google Drive tek tıkla bağlanır (**Google ile bağlan**); Nularche Drive'da yalnızca kendi
+  oluşturduğu Nularche klasörünü görür. Bilgisayardaki klasör çalışma kopyası olarak kalır (hızlı, internetsiz çalışır)
+  ve Drive ile iki yönlü eşitlenir. Yalnızca notlar, ekler, ayarlar, Marginalia, Epoch'lar ve CSS parçacıkları
+  eşitlenir; otomatik sürüm geçmişi, Nularche AI kayıtları ve takvim önbelleği bilgisayarda kalır. Kilitlenen notun
+  şifresiz eski sürümleri silinir, Drive'daki eski dosyası da sürüm geçmişiyle kalıcı silinip şifreli hâli yüklenir.
+  İsteğe bağlı **uçtan uca şifreleme** Drive'daki kopyayı ve dosya adlarını parolanızla şifreler. Klasör birden
+  boşalırsa Drive'dan hiçbir şey silinmez; **Drive'dan geri getir** ve **Drive'dan yeniden indir** her şeyi geri
+  getirir. Google Takvim de artık tek tıkla bağlanır.
 - **Biçimli başlıklar:** başlığın bir kısmını seçip kalın, italik, altı çizili, üstü çizili, vurgulu ya da renkli
   yapın (seçim çubuğundan ya da sağ tıkla). Dosya adı düz başlık olarak kalır.
 - **Sağ tık** menüsünde Nularche'nin seçenekleri (biçim, bağlantı, Marginalia; Tabula'da şekil seçenekleri; kenar
