@@ -73,6 +73,8 @@ contextBridge.exposeInMainWorld("nularche", {
   driveConnect: () => invoke("drive-connect"),
   driveDisconnect: () => invoke("drive-disconnect"),
   driveSync: () => invoke("drive-sync"),
+  driveRestore: () => invoke("drive-restore"),
+  driveConfirmDeletes: () => invoke("drive-confirm-deletes"),
   driveUnlock: (passphrase: string) => invoke("drive-unlock", passphrase),
   driveEncrypt: (passphrase: string) => invoke("drive-encrypt", passphrase),
   driveDecrypt: () => invoke("drive-decrypt"),

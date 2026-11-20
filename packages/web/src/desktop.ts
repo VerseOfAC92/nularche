@@ -118,7 +118,8 @@ export interface DriveStatus {
   needsPassphrase: boolean;
   syncing: boolean;
   lastSync: number | null;
-  lastError: { code: string; message: string } | null;
+  /** `mass_delete`: bu bilgisayardan birden çok dosya silindi; Drive'dan silinmeden önce onay bekleniyor (`count`). */
+  lastError: { code: string; message: string; count?: number } | null;
   lastCounts: { uploaded: number; downloaded: number; deletedLocal: number; deletedRemote: number; conflicts: number; merged: number; cleaned: number } | null;
 }
 
@@ -215,6 +216,10 @@ export interface DesktopBridge {
   /** Eşitlemeyi kapatır; dosyalar bu bilgisayarda ve Drive'da kalır. */
   driveDisconnect(): Promise<void>;
   driveSync(): Promise<{ ok: boolean; error?: string }>;
+  /** Drive'dan geri getir: eksik ya da farklı dosyalar Drive'daki hâline döner; Drive'dan hiçbir şey silinmez. */
+  driveRestore(): Promise<{ ok: boolean; error?: string }>;
+  /** Toplu silmeyi onaylar: bu bilgisayardan silinenler Drive'dan da silinir. */
+  driveConfirmDeletes(): Promise<{ ok: boolean; error?: string }>;
   onDriveSynced(cb: (info: { syncing?: boolean; downloaded?: boolean }) => void): () => void;
   printPdf(name: string): Promise<string | null>;
   /** Otomatik yedekleme (2.0). */

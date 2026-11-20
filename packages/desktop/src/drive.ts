@@ -50,7 +50,7 @@ export interface DriveContext {
   configDir: () => string;
 }
 
-type ErrorCode = "auth" | "network" | "quota" | "invalid" | "empty_remote" | "wrong_key" | "unknown";
+type ErrorCode = "auth" | "network" | "quota" | "invalid" | "empty_remote" | "wrong_key" | "mass_delete" | "unknown";
 
 export interface DriveStatus {
   /** Google ile tek tıkla bağlanma kullanılabilir mi (yerleşik istemci). */
@@ -66,13 +66,15 @@ export interface DriveStatus {
   needsPassphrase: boolean;
   syncing: boolean;
   lastSync: number | null;
-  lastError: { code: ErrorCode; message: string } | null;
+  /** `count`: toplu silme korumasında Drive'dan silinmeyi bekleyen dosya sayısı. */
+  lastError: { code: ErrorCode; message: string; count?: number } | null;
   lastCounts: DriveSyncCounts | null;
 }
 
-const failure = (e: unknown): { code: ErrorCode; message: string } => ({
+const failure = (e: unknown): { code: ErrorCode; message: string; count?: number } => ({
   code: e instanceof DriveError ? (e.code === "not_found" ? "invalid" : e.code) : e instanceof DriveSyncError ? e.code : "unknown",
   message: (e as Error).message,
+  ...(e instanceof DriveSyncError && e.count ? { count: e.count } : {}),
 });
 
 export function registerDriveIpc(ctx: DriveContext): { onOriginChanged: () => void; flush: () => Promise<void> } {
@@ -159,7 +161,7 @@ export function registerDriveIpc(ctx: DriveContext): { onOriginChanged: () => vo
   }
 
   /** Bir eşitleme turu; çalışırken yeni bir istek gelirse bittiğinde bir tur daha yapılır. */
-  async function syncOnce(): Promise<{ ok: boolean; error?: string }> {
+  async function syncOnce(mode: { restore?: boolean; allowDeletes?: boolean } = {}): Promise<{ ok: boolean; error?: string }> {
     const root = ctx.originRoot();
     const acc = await readAccount();
     if (!root || !acc || !(await readSyncState(root))) return { ok: true };
@@ -170,7 +172,7 @@ export function registerDriveIpc(ctx: DriveContext): { onOriginChanged: () => vo
         announce({});
         return { ok: false, error: d("drive.needsPassphrase") };
       }
-      const report = await syncOrigin(root, api(acc), target.rootId, { host: os.hostname().replace(/\.local$/, ""), keys: target.keys });
+      const report = await syncOrigin(root, api(acc), target.rootId, { host: os.hostname().replace(/\.local$/, ""), keys: target.keys, ...mode });
       lastCounts = report.counts;
       lastError = report.errors.length ? { code: "unknown", message: report.errors.slice(0, 3).join("\n") } : null;
       if (report.state.account !== acc.account) await writeSyncState(root, { ...report.state, account: acc.account });
@@ -365,6 +367,20 @@ export function registerDriveIpc(ctx: DriveContext): { onOriginChanged: () => vo
   });
 
   ipcMain.handle("nularche:drive-sync", () => queueSync());
+
+  /** Bekleyen işi bitirip özel bir tur çalıştırır (geri getirme ya da toplu silmeyi onaylama). */
+  async function runSpecial(mode: { restore?: boolean; allowDeletes?: boolean }): Promise<{ ok: boolean; error?: string }> {
+    await running?.catch(() => undefined);
+    const run = syncOnce(mode);
+    running = run.finally(() => (running = null));
+    return run;
+  }
+
+  /** Drive'dan geri getir: bu bilgisayarda eksik ya da farklı olan her şey Drive'daki hâline döner; Drive'dan hiçbir şey silinmez. */
+  ipcMain.handle("nularche:drive-restore", () => runSpecial({ restore: true }));
+
+  /** Toplu silme onayı: bu bilgisayardan silinen dosyalar Drive'dan da silinir (Drive çöp kutusuna, 30 gün geri alınabilir). */
+  ipcMain.handle("nularche:drive-confirm-deletes", () => runSpecial({ allowDeletes: true }));
 
   void schedule();
   return {

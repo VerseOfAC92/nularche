@@ -234,14 +234,23 @@ export interface DriveSyncReport {
   errors: string[];
 }
 
+export type DriveSyncErrorCode = "empty_remote" | "wrong_key" | "mass_delete";
+
 export class DriveSyncError extends Error {
-  readonly code: "empty_remote" | "wrong_key";
-  constructor(code: "empty_remote" | "wrong_key", message: string) {
+  readonly code: DriveSyncErrorCode;
+  /** Toplu silmede: Drive'dan silinecek dosya sayısı. */
+  readonly count?: number;
+  constructor(code: DriveSyncErrorCode, message: string, count?: number) {
     super(message);
     this.name = "DriveSyncError";
     this.code = code;
+    this.count = count;
   }
 }
+
+/** Toplu silme koruması: bu kadar ya da daha fazla dosya ve eşitlenenlerin bu oranı birden silinirse onay istenir. */
+const MASS_DELETE_MIN = 5;
+const MASS_DELETE_RATIO = 0.3;
 
 export async function readSyncState(root: string): Promise<DriveSyncState | null> {
   try {
@@ -410,6 +419,13 @@ export interface DriveSyncOptions {
   /** Aynı anda en çok kaç aktarım (varsayılan 4). */
   concurrency?: number;
   signal?: AbortSignal;
+  /**
+   * Drive'dan geri getirme: bu bilgisayarda eksik dosyalar Drive'dan indirilir (Drive'dan hiçbir şey silinmez); farklı
+   * olanlarda Drive'daki hâl geçerli olur, buradaki hâl çakışma kopyası olarak saklanır.
+   */
+  restore?: boolean;
+  /** Toplu silme onaylandı: bu bilgisayardan silinen dosyalar Drive'dan da silinir. */
+  allowDeletes?: boolean;
 }
 
 /**
@@ -540,10 +556,17 @@ export async function syncOrigin(root: string, api: DriveApi, rootId: string, op
     counts.downloaded++;
   };
   /** İki taraf da değişti: ayar dosyası birleştirilir, diğerlerinde yerel hâl kopyaya taşınıp yüklenir ve uzak hâl indirilir. */
-  const reconcile = async (rel: string, file: LocalFile, r: RemoteFile) => {
+  const reconcile = async (rel: string, file: LocalFile, r: RemoteFile, restoring = false) => {
     const theirs = await fetchPlain(r);
     if (md5(theirs) === file.md5) {
       keep(rel, file.md5, r.md5 ?? "", r.id);
+      return;
+    }
+    if (MERGEABLE.has(rel) && restoring) {
+      // Geri getirmede ayar dosyası Drive'daki hâline döner (ayar dosyasının çakışma kopyası anlamsızdır).
+      await store(rel, theirs);
+      keep(rel, md5(theirs), r.md5 ?? "", r.id);
+      counts.downloaded++;
       return;
     }
     if (MERGEABLE.has(rel)) {
@@ -576,6 +599,8 @@ export async function syncOrigin(root: string, api: DriveApi, rootId: string, op
   };
 
   const tasks: (() => Promise<void>)[] = [];
+  /** Bu turda Drive'dan silinecek (bu bilgisayarda silinmiş) dosyalar: toplu silme koruması için sayılır. */
+  const plannedDeletes: string[] = [];
   for (const rel of [...taken].sort()) {
     const L = local.get(rel);
     const R = remote.get(rel);
@@ -605,17 +630,23 @@ export async function syncOrigin(root: string, api: DriveApi, rootId: string, op
     } else {
       const lChanged = (L?.md5 ?? null) !== b.md5;
       const rChanged = (R?.md5 ?? null) !== b.remoteMd5;
-      if (!lChanged && !rChanged) {
+      if (options.restore && R) {
+        // Drive'dan geri getirme: eksik dosya indirilir, farklı olan Drive'daki hâline döner (yerel hâl kopyaya).
+        if (!L) task = () => download(rel, R);
+        else if (lChanged || rChanged) task = () => reconcile(rel, L, R, true);
+      } else if (!lChanged && !rChanged) {
         if (L && R) keep(rel, b.md5, b.remoteMd5, R.id);
         // Kilitlenmiş ama Drive'daki dosyası eski (sürüm geçmişinde şifresiz hâli olabilir): yeniden oluşturulur.
         if (L && R && purge.replace.includes(rel)) task = () => upload(rel, L, R.id);
       } else if (lChanged && !rChanged) {
         if (L) task = () => upload(rel, L, R?.id ?? b.remoteId);
-        else if (R)
+        else if (R) {
+          plannedDeletes.push(rel);
           task = async () => {
             await api.trash(R.id);
             counts.deletedRemote++;
           };
+        }
       } else if (rChanged && !lChanged) {
         if (R) task = () => download(rel, R);
         else if (L)
@@ -641,6 +672,13 @@ export async function syncOrigin(root: string, api: DriveApi, rootId: string, op
       }
     });
   }
+  // Toplu silme koruması: bu bilgisayardaki klasör boşaldıysa ya da notların büyük kısmı birden silindiyse Drive'dan
+  // hiçbir şey silinmez; kullanıcı ya Drive'dan geri getirmeyi ya da silmeyi onaylamayı seçer.
+  const known = Object.keys(base).filter((r) => !localOnly(r)).length;
+  if (!options.allowDeletes && plannedDeletes.length && (local.size === 0 || (plannedDeletes.length >= MASS_DELETE_MIN && plannedDeletes.length >= known * MASS_DELETE_RATIO))) {
+    throw new DriveSyncError("mass_delete", `${plannedDeletes.length} files were deleted on this computer; nothing was deleted from Google Drive yet.`, plannedDeletes.length);
+  }
+
   // Drive'a daha önce gitmiş bilgisayara özel kayıtlar kalıcı silinir (içlerinde kilitli notların şifresiz eski
   // hâlleri olabilir; asılları bu bilgisayarda durur).
   for (const id of cleanup)

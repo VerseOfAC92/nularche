@@ -22,6 +22,7 @@ export function useDriveStatus(): [DriveStatus | null, () => Promise<void>] {
 
 function syncLine(s: DriveStatus): string {
   if (s.syncing) return t("storage.syncing");
+  if (s.lastError?.code === "mass_delete") return t("storage.paused");
   if (s.lastError) return t("storage.syncError", { error: s.lastError.message.split("\n")[0].slice(0, 160) });
   if (!s.lastSync) return t("storage.neverSynced");
   return t("storage.lastSync", { time: new Date(s.lastSync).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) });
@@ -132,15 +133,67 @@ export function StorageSetup({ onToast, onBeforeFolderChange }: { onToast: (msg:
                 >
                   <Icon name="refresh" size={15} /> {t("storage.syncNow")}
                 </button>
+                <button
+                  className="secondary"
+                  disabled={busy || drive.syncing}
+                  title={t("storage.redownloadHint")}
+                  onClick={async () => {
+                    if (!confirm(t("storage.redownloadConfirm"))) return;
+                    setBusy(true);
+                    const res = await desktop!.driveRestore();
+                    setBusy(false);
+                    await refresh();
+                    onToast(res.ok ? t("storage.restored") : t("storage.syncError", { error: res.error ?? "" }));
+                  }}
+                >
+                  <Icon name="download" size={15} /> {t("storage.redownload")}
+                </button>
                 <button className="secondary" disabled={busy} onClick={() => void useLocal()}>
                   {t("storage.stopDrive")}
                 </button>
               </div>
+              {drive.lastError?.code === "mass_delete" && (
+                <div className="storage-guard" role="alert">
+                  <p>
+                    <Icon name="alert-triangle" size={16} /> <b>{t("storage.massDeleteTitle", { n: drive.lastError.count ?? 0 })}</b>
+                  </p>
+                  <p className="small">{t("storage.massDeleteText")}</p>
+                  <div className="row">
+                    <button
+                      className="primary"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        const res = await desktop!.driveRestore();
+                        setBusy(false);
+                        await refresh();
+                        onToast(res.ok ? t("storage.restored") : t("storage.syncError", { error: res.error ?? "" }));
+                      }}
+                    >
+                      {t("storage.restoreFromDrive")}
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={async () => {
+                        if (!confirm(t("storage.confirmDeletes", { n: drive.lastError?.count ?? 0 }))) return;
+                        setBusy(true);
+                        const res = await desktop!.driveConfirmDeletes();
+                        setBusy(false);
+                        await refresh();
+                        onToast(res.ok ? t("storage.deletedToo") : t("storage.syncError", { error: res.error ?? "" }));
+                      }}
+                    >
+                      {t("storage.deleteFromDrive")}
+                    </button>
+                  </div>
+                </div>
+              )}
               <Encryption drive={drive} onDone={async (msg) => (await refresh(), onToast(msg))} />
             </>
           ) : drive.available ? (
             <GoogleSignIn
-              label={t("storage.connectDrive")}
+              label={drive.account ? t("storage.reconnect", { account: drive.account }) : t("storage.connectDrive")}
               run={async () => {
                 const res = await desktop!.driveConnect();
                 await refresh();

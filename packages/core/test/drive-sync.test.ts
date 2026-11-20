@@ -246,3 +246,44 @@ test("Drive tarafı birden boş görünürse (kök silinmiş) yerel dosyalar sil
   await assert.rejects(syncOrigin(a, drive, rootId, opts), (e: unknown) => e instanceof DriveSyncError && e.code === "empty_remote");
   assert.equal(await read(a, "A.md"), "1");
 });
+
+test("toplu silme koruması: bu bilgisayardaki klasör boşalırsa Drive'dan hiçbir şey silinmez; geri getirme ve onaylama", async () => {
+  const drive = api();
+  const rootId = await drive.createRoot("Nularche");
+  const files = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`Not ${i}.md`, `içerik ${i}`]));
+  const a = await origin({ ...files, ".nularche/ui.json": '{"theme":"dark"}' });
+  await syncOrigin(a, drive, rootId, opts);
+  // Tek bir dosyanın silinmesi eskisi gibi Drive'a uygulanır.
+  await rm(path.join(a, "Not 0.md"));
+  assert.equal((await syncOrigin(a, drive, rootId, opts)).counts.deletedRemote, 1);
+  // Klasörün içi boşaltıldı: Drive korunur.
+  for (const f of await readdir(a)) if (f !== ".nularche") await rm(path.join(a, f), { recursive: true, force: true });
+  await assert.rejects(syncOrigin(a, drive, rootId, opts), (e: unknown) => e instanceof DriveSyncError && e.code === "mass_delete" && e.count === 7);
+  assert.ok(fake.byPath(rootId, "Not 3.md"), "Drive'daki dosyalar duruyor");
+  // Drive'dan geri getir.
+  const r = await syncOrigin(a, drive, rootId, { ...opts, restore: true });
+  assert.equal(r.counts.downloaded, 7);
+  assert.equal(await read(a, "Not 3.md"), "içerik 3");
+  // Notların büyük kısmını bilerek sil ve onayla.
+  for (const i of [1, 2, 3, 4, 5]) await rm(path.join(a, `Not ${i}.md`));
+  await assert.rejects(syncOrigin(a, drive, rootId, opts), (e: unknown) => e instanceof DriveSyncError && e.code === "mass_delete");
+  const ok = await syncOrigin(a, drive, rootId, { ...opts, allowDeletes: true });
+  assert.equal(ok.counts.deletedRemote, 5);
+  assert.equal(fake.byPath(rootId, "Not 3.md"), undefined);
+  assert.ok(fake.byPath(rootId, "Not 6.md"));
+});
+
+test("Drive'dan yeniden indir: eksikler gelir, farklı dosyada Drive'daki hâl geçerli olur ve buradaki kopya saklanır", async () => {
+  const drive = api();
+  const rootId = await drive.createRoot("Nularche");
+  const a = await origin({ "A.md": "drive hâli", "B.md": "b" });
+  await syncOrigin(a, drive, rootId, opts);
+  await writeFile(path.join(a, "A.md"), "yerel değişiklik");
+  await rm(path.join(a, "B.md"));
+  const r = await syncOrigin(a, drive, rootId, { ...opts, restore: true });
+  assert.equal(await read(a, "A.md"), "drive hâli");
+  assert.equal(await read(a, "B.md"), "b");
+  const copy = (await readdir(a)).find((f) => f.startsWith("A (conflict"));
+  assert.ok(copy && (await read(a, copy)) === "yerel değişiklik", "yerel hâl kaybolmadı");
+  assert.equal(r.counts.deletedRemote, 0);
+});

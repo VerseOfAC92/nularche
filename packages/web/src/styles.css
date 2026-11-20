@@ -1904,3 +1904,6 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .storage-pass input { background: var(--nlc-bg-surface); color: var(--nlc-text-primary); border: 1px solid var(--nlc-border-subtle); border-radius: 6px; padding: 7px 10px; font: inherit; font-size: 14px; outline: none; }
 .storage-pass input:focus { border-color: var(--nlc-accent-primary); }
 .storage-pass p { margin: 0; }
+.storage-guard { border: 1px solid rgba(210, 153, 34, 0.55); background: rgba(210, 153, 34, 0.1); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.storage-guard p { margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.storage-guard .ui-icon { color: #d29922; }
