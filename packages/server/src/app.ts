@@ -11,6 +11,7 @@ import { SnapshotError, SnapshotStore } from "../../core/src/snapshots.ts";
 import { citationSettings, findLibraryFiles, loadLibrary } from "../../core/src/citations-store.ts";
 import { readAnnotations, writeAnnotations } from "../../core/src/annotations.ts";
 import { runQuery } from "../../core/src/query.ts";
+import { Mnemos, type Grade } from "../../core/src/mnemos.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
@@ -112,6 +113,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
 
   // --- Anlık görüntüler: kilitlenen notun şifresiz sürümleri anlık görüntülerden de silinir.
   const snapshots = new SnapshotStore(store.root, { key: options.snapshotKey ?? null });
+  const mnemos = new Mnemos(store);
   store.lockPurgeHooks.add((ids) => snapshots.purgeNotes(ids));
   await store
     .list()
@@ -272,6 +274,23 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     const id = parts[1];
 
     if (parts[0] === "snapshots") return handleSnapshots(req, res, url, parts, method);
+    if (parts[0] === "mnemos") {
+      if (method === "GET" && !parts[1]) {
+        const arche = url.searchParams.get("arche");
+        const prefs = await readPrefs(store.root);
+        const newPerDay = Number(prefs.mnemosNewPerDay);
+        return send(res, 200, await mnemos.queue({ archeId: arche === null ? undefined : arche === "shadow" ? null : arche, newPerDay: Number.isInteger(newPerDay) && newPerDay >= 0 ? newPerDay : 20 }));
+      }
+      if (method === "POST" && parts[1] === "grade") {
+        const b = await readJson(req);
+        try {
+          return send(res, 200, await mnemos.grade(str(b.id) ?? "", Number(b.grade) as Grade));
+        } catch (e) {
+          return send(res, 400, { error: "invalid", message: (e as Error).message });
+        }
+      }
+      return send(res, 404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+    }
     if (parts[0] === "query" && method === "POST") {
       const b = await readJson(req);
       return send(res, 200, await runQuery(store, str(b.query) ?? "", { selfId: str(b.selfId) }));

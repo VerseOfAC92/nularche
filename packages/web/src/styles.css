@@ -1947,3 +1947,21 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .query-table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 .query-table th, .query-table td { border-bottom: 1px solid var(--nlc-border-subtle); padding: 4px 8px; text-align: left; }
 .query-big { font-size: 32px; font-weight: 600; }
+/* Mnemos */
+.mnemos .row { gap: 8px; }
+.mn-card { max-width: 680px; margin: 24px auto; padding: 28px 32px; border: 1px solid var(--nlc-border-subtle); border-radius: 16px; background: var(--nlc-bg-surface); display: flex; flex-direction: column; gap: 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06); }
+.mn-front { font-size: 22px; line-height: 1.45; }
+.mn-back { font-size: 18px; line-height: 1.5; }
+.mn-card hr { border: 0; border-top: 1px dashed var(--nlc-border-subtle); margin: 0; }
+.mn-show { align-self: center; padding: 8px 20px; }
+.mn-grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.mn-grade { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border-radius: 10px; border: 1px solid var(--nlc-border-subtle); }
+.mn-grade:hover { background: var(--nlc-hover); }
+.mn-grade.again strong { color: var(--nlc-danger, #f85149); }
+.mn-grade.hard strong { color: var(--nlc-warn, #d29922); }
+.mn-grade.good strong { color: var(--nlc-ok, #3fb950); }
+.mn-grade.easy strong { color: var(--nlc-accent-primary); }
+.mn-grade kbd, .mn-show kbd { font-size: 10px; opacity: 0.6; }
+.mn-source { align-self: center; }
+.mn-done { text-align: center; margin: 48px auto; color: var(--nlc-text-secondary); }
+@media (max-width: 600px) { .mn-grades { grid-template-columns: repeat(2, 1fr); } }

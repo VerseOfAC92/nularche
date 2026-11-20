@@ -50,6 +50,7 @@ import { migrateCalendarArche } from "./calendar/CalendarSync.tsx";
 
 import { lecternHash, parseLecternHash } from "./lectern/link.ts";
 import { ORIGIN_CHANGED } from "./editor/query-widget.ts";
+import { MnemosView } from "./mnemos/MnemosView.tsx";
 /** PDF okuyucu (pdf.js büyük olduğundan ilk açılışta yüklenir). */
 const LecternView = lazy(() => import("./lectern/LecternView.tsx"));
 
@@ -61,6 +62,7 @@ export type Route =
   | { kind: "notes" }
   | { kind: "recent" }
   | { kind: "attachments" }
+  | { kind: "mnemos" }
   | { kind: "graph" }
   | { kind: "calendar" }
   | { kind: "tag"; tag: string }
@@ -73,7 +75,7 @@ function parseHash(): Route {
   if (lec) return { kind: "lectern", ...lec };
   const h = decodeURIComponent(location.hash.slice(1));
   if (!h) return { kind: "home" };
-  if (h === "shadow" || h === "trash" || h === "notes" || h === "recent" || h === "attachments" || h === "graph" || h === "calendar") return { kind: h };
+  if (h === "shadow" || h === "trash" || h === "notes" || h === "recent" || h === "attachments" || h === "mnemos" || h === "graph" || h === "calendar") return { kind: h };
   const m = /^(tag|smart|list):(.+)$/.exec(h);
   if (m) return m[1] === "tag" ? { kind: "tag", tag: m[2] } : { kind: m[1] as "smart" | "list", id: m[2] };
   return { kind: "node", id: h };
@@ -551,6 +553,7 @@ export function App() {
       registerCommand("view.allNotes", () => navigate({ kind: "notes" })),
       registerCommand("view.recent", () => navigate({ kind: "recent" })),
       registerCommand("view.attachments", () => navigate({ kind: "attachments" })),
+      registerCommand("view.mnemos", () => navigate({ kind: "mnemos" })),
       registerCommand("view.list", () => navigate({ kind: "notes" })),
       registerCommand("view.gallery", () => navigate({ kind: "notes" })),
       registerCommand("app.importMarkdown", () => void importNotes(false)),
@@ -900,6 +903,7 @@ export function App() {
             <LecternView key={route.path} path={route.path} page={route.page} highlight={route.hl} nodes={nodes} onOpenNote={openNode} onChanged={refresh} onToast={showToast} />
           </Suspense>
         )}
+        {route.kind === "mnemos" && <MnemosView nodes={nodes} changeTick={changeTick} onOpen={openNode} />}
         {route.kind === "attachments" && <AttachmentBrowser changeTick={changeTick} onOpen={openNode} onToast={showToast} />}
         {route.kind === "shadow" && (
           <ShadowView nodes={nodes} changeTick={changeTick} onOpen={(id) => navigate({ kind: "node", id })} onChanged={refresh} onToast={showToast} />

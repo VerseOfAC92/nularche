@@ -18,7 +18,7 @@ export const STRINGS_20 = {
   "autoLock.none": { tr: "Şu an açık kilitli not yok.", en: "No locked notes are open." },
   "autoLock.now": { tr: "Hepsini şimdi kapat", en: "Close all now" },
 
-  "archeLock.title": { tr: "Şifreli Arche'ler", en: "Encrypted Arches" },
+  "archeLock.title": { tr: "Aegis — şifreli Arche'ler", en: "Aegis — encrypted Arches" },
   "archeLock.hint": {
     tr: "Bir Arche'nin bütün notları tek parolayla şifrelenir (AES-256). Parolayı oturum başına bir kez girersiniz; Arche'ye eklediğiniz yeni notlar da kendiliğinden şifrelenir. Başlıklar, özellikler ve ağaç yapısı görünür kalır. Parolayı unutursanız içerik kurtarılamaz.",
     en: "All notes in an Arche are encrypted with one password (AES-256). You enter it once per session, and new notes you add to the Arche are encrypted automatically. Titles, properties and the tree structure stay visible. If you forget the password, the content can't be recovered.",
@@ -41,7 +41,7 @@ export const STRINGS_20 = {
   "archeLock.skipped": { tr: "Kendi parolasıyla kilitli {n} not olduğu gibi bırakıldı.", en: "{n} notes locked with their own password were left as they are." },
   "archeLock.decrypted": { tr: "\"{arche}\" artık şifresiz: {n} not.", en: "\"{arche}\" is no longer encrypted: {n} notes." },
   "archeLock.enter": { tr: "\"{arche}\" Arche'si şifreli. Açmak için Arche'nin parolasını girin.", en: "The Arche \"{arche}\" is encrypted. Enter the Arche's password to open it." },
-  "snap.title": { tr: "Anlık görüntüler", en: "Snapshots" },
+  "snap.title": { tr: "Strata — anlık görüntüler", en: "Strata — snapshots" },
   "snap.hint": {
     tr: "Origin'in tamamının (notlar ve ekler) geçmişteki hâlleri. Her 15 dakikada bir, bir şey değiştiyse kendiliğinden alınır; yalnızca değişen dosyalar yeniden saklanır. Bir notu ya da bütün Origin'i o ana döndürebilirsiniz. Anlık görüntüler bu bilgisayarda kalır, Google Drive'a gitmez.",
     en: "Past states of your whole Origin (notes and attachments). Taken automatically every 15 minutes when something changed; only changed files are stored again. You can bring back a single note or the whole Origin. Snapshots stay on this computer and never go to Google Drive.",
