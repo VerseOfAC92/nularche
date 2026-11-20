@@ -12,6 +12,7 @@ import { citationSettings, findLibraryFiles, loadLibrary } from "../../core/src/
 import { readAnnotations, writeAnnotations } from "../../core/src/annotations.ts";
 import { runQuery } from "../../core/src/query.ts";
 import { Mnemos, type Grade } from "../../core/src/mnemos.ts";
+import { writeDigest } from "../../core/src/vigil.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
@@ -290,6 +291,12 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         }
       }
       return send(res, 404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+    }
+    if (parts[0] === "vigil" && parts[1] === "digest" && method === "POST") {
+      const b = await readJson(req);
+      const days = Number(b.days);
+      const doc = await writeDigest(store, { days: Number.isFinite(days) ? days : 7, title: str(b.title) ?? "Vigil", parentId: str(b.parentId) ?? null, lang: b.lang === "en" ? "en" : "tr" });
+      return send(res, 201, doc);
     }
     if (parts[0] === "query" && method === "POST") {
       const b = await readJson(req);

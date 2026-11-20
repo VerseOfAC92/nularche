@@ -1965,3 +1965,11 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .mn-source { align-self: center; }
 .mn-done { text-align: center; margin: 48px auto; color: var(--nlc-text-secondary); }
 @media (max-width: 600px) { .mn-grades { grid-template-columns: repeat(2, 1fr); } }
+/* Vigil */
+.vigil-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--nlc-border-subtle); }
+.vigil-row:first-of-type { border-top: 0; }
+.vigil-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid var(--nlc-border-subtle); border-radius: 10px; }
+.vigil-form .row { flex-wrap: wrap; gap: 8px; }
+.vigil-form textarea { font: inherit; resize: vertical; }
+.dash-vigil { padding: 4px 0; border-top: 1px solid var(--nlc-border-subtle); }
+.dash-vigil:first-of-type { border-top: 0; }

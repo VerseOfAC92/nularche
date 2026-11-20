@@ -51,6 +51,7 @@ import { migrateCalendarArche } from "./calendar/CalendarSync.tsx";
 import { lecternHash, parseLecternHash } from "./lectern/link.ts";
 import { ORIGIN_CHANGED } from "./editor/query-widget.ts";
 import { MnemosView } from "./mnemos/MnemosView.tsx";
+import { installVigilRunner } from "./vigil/runner.ts";
 /** PDF okuyucu (pdf.js büyük olduğundan ilk açılışta yüklenir). */
 const LecternView = lazy(() => import("./lectern/LecternView.tsx"));
 
@@ -221,6 +222,9 @@ export function App() {
     clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 4000);
   }, []);
+
+  // Vigil: zamanlanmış otomasyonlar yalnızca ana pencerede çalışır.
+  useEffect(() => (SINGLE ? undefined : installVigilRunner(showToast)), [showToast]);
 
   const navigate = useCallback((r: Route) => {
     location.hash = routeHash(r);

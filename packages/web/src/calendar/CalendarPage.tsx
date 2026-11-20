@@ -3,6 +3,7 @@
 // tüm ayrıntılarıyla (konum, toplantı bağlantısı, katılımcılar, hatırlatma, notlar) açılır; düzenleme doğrudan takvime
 // yazılır. Veritabanı satırına tıklamak satırı açar.
 
+import { cleanVigils, upcomingRuns, type Vigil } from "../../../core/src/vigil-schedule.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type NodeMeta } from "../api.ts";
 import { desktop, type ViewCalendar } from "../desktop.ts";
@@ -40,9 +41,11 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
 
   const sources = useMemo(() => calendarSources(nodes, status?.links ?? [], views), [nodes, status, views]);
   const visible = useMemo(() => sources.filter((s) => !hidden.includes(s.key)), [sources, hidden]);
-  const events = useMemo(() => calendarEvents(nodes, visible, views), [nodes, visible, views]);
+  // Vigil otomasyonlarının önümüzdeki çalışmaları da (salt okunur) takvimde görünür.
+  const [vigilsRaw] = usePref<unknown>("vigils", []);
+  const events = useMemo(() => [...calendarEvents(nodes, visible, views), ...vigilEvents(cleanVigils(vigilsRaw))], [nodes, visible, views, vigilsRaw]);
   // Takvim etkinliği ayrıntılarıyla açılır; veritabanı satırı not olarak açılır.
-  const pick = (e: CalEvent) => (e.view ? setDetail(e) : onOpen(e.id));
+  const pick = (e: CalEvent) => (e.source.key === VIGIL_SOURCE.key ? (setPref("settingsTab", "automation"), void runCommand("app.settings")) : e.view ? setDetail(e) : onOpen(e.id));
   const edit = (e: CalEvent) => {
     const hm = (ms: number) => new Date(ms).toTimeString().slice(0, 5);
     setDetail(null);
@@ -462,4 +465,15 @@ function EventDialog({
       </form>
     </div>
   );
+}
+
+/** Vigil'in takvimdeki kaynağı (renkli, salt okunur). */
+const VIGIL_SOURCE: CalSource = { key: "vigil", name: "Vigil", kind: "local", type: "view", viewId: "vigil", color: "#a371f7" };
+
+function vigilEvents(vigils: Vigil[]): CalEvent[] {
+  const from = Date.now() - 31 * 86_400_000;
+  const until = Date.now() + 120 * 86_400_000;
+  return vigils
+    .filter((v) => v.enabled)
+    .flatMap((v) => upcomingRuns(v, from, until).map((at) => ({ id: `vigil:${v.id}:${at}`, title: `🕯️ ${v.name}`, allDay: false, start: at, end: at + 30 * 60_000, source: VIGIL_SOURCE })));
 }

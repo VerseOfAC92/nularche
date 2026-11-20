@@ -36,3 +36,4 @@ export * from "./citations-store.ts";
 export * from "./annotations.ts";
 export * from "./query.ts";
 export * from "./mnemos.ts";
+export * from "./vigil.ts";
