@@ -53,3 +53,23 @@ test("Anamnesis: kuyruk, günlük yeni kart sınırı ve değerlendirme", async 
   assert.ok(q.counts.due >= 3, "vadesi gelenler");
   await assert.rejects(mn.grade("../x", 3));
 });
+
+test("Anamnesis: şifreli notların pencerede çözülen kartları sıraya girer; kilitsiz nota sahte kart eklenemez", async () => {
+  const { lockedBody } = await import("../src/note-text.ts");
+  const root = await mkdtemp(path.join(tmpdir(), "nularche-mn2-"));
+  const store = new NodeStore(root);
+  await store.ensureRoot();
+  const sealed = await store.create({ title: "Gizli kartlar", body: lockedBody('{"v":1}', "🔒") });
+  await store.update(sealed.id, { fields: { locked: true } });
+  const open = await store.create({ title: "Açık", body: "düz" });
+  const mn = new Anamnesis(store);
+  const q = await mn.queue({ extra: [
+    { noteId: sealed.id, front: "Başkent nedir?", back: "Ankara", line: 0, dir: "f" },
+    { noteId: open.id, front: "sahte", back: "kart", line: 0, dir: "f" },
+  ] });
+  assert.deepEqual(q.queue.map((c) => c.front), ["Başkent nedir?"]);
+  assert.equal(q.queue[0].id, extractCards("Başkent nedir? :: Ankara", { id: sealed.id, title: "", archeId: null })[0].id, "kimlik sunucudakiyle aynı");
+  await mn.grade(q.queue[0].id, 3);
+  const raw = await import("node:fs/promises").then((fs) => fs.readFile(path.join(root, ".nularche", "anamnesis.json"), "utf8"));
+  assert.ok(!raw.includes("Ankara") && !raw.includes("Başkent"), "kart metni diske yazılmaz");
+});

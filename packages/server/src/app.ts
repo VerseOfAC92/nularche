@@ -276,11 +276,14 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
 
     if (parts[0] === "snapshots") return handleSnapshots(req, res, url, parts, method);
     if (parts[0] === "anamnesis") {
-      if (method === "GET" && !parts[1]) {
+      // GET: kuyruk; POST: kuyruk + pencerede çözülmüş şifreli not kartları (`extra`).
+      if ((method === "GET" || method === "POST") && !parts[1]) {
+        const b = method === "POST" ? await readJson(req, 8 * 1024 * 1024) : {};
         const arche = url.searchParams.get("arche");
         const prefs = await readPrefs(store.root);
         const newPerDay = Number(prefs.anamnesisNewPerDay);
-        return send(res, 200, await anamnesis.queue({ archeId: arche === null ? undefined : arche === "shadow" ? null : arche, newPerDay: Number.isInteger(newPerDay) && newPerDay >= 0 ? newPerDay : 20 }));
+        const extra = Array.isArray(b.extra) ? (b.extra as { noteId: string; front: string; back: string; line: number; dir: "f" | "r" }[]) : undefined;
+        return send(res, 200, await anamnesis.queue({ archeId: arche === null ? undefined : arche === "shadow" ? null : arche, newPerDay: Number.isInteger(newPerDay) && newPerDay >= 0 ? newPerDay : 20, extra }));
       }
       if (method === "POST" && parts[1] === "grade") {
         const b = await readJson(req);

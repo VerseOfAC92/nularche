@@ -9,7 +9,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { NodeStore } from "./node-store.ts";
-import { isLockedBody, maskCode } from "./note-text.ts";
+import { cardKeyInput, extractRawCards } from "./anamnesis-cards.ts";
 
 export type Grade = 1 | 2 | 3 | 4; // Tekrar, Zor, İyi, Kolay
 
@@ -102,27 +102,10 @@ export function preview(prev: CardState | undefined, now = Date.now()): Record<G
 
 // ------------------------------------------------------------------ kartları notlardan çıkarma
 
-const cardId = (noteId: string, front: string, dir: string) => createHash("sha256").update(`${noteId}\0${front.trim().toLocaleLowerCase("tr")}\0${dir}`).digest("hex").slice(0, 20);
+const cardId = (noteId: string, front: string, dir: string) => createHash("sha256").update(cardKeyInput(noteId, front, dir)).digest("hex").slice(0, 20);
 
 export function extractCards(body: string, note: { id: string; title: string; archeId: string | null }): Card[] {
-  if (isLockedBody(body)) return [];
-  const out: Card[] = [];
-  const masked = maskCode(body).split("\n");
-  const lines = body.split("\n");
-  masked.forEach((m, i) => {
-    const hit = /^(.*?\S)\s+(:{2,3})\s+(\S.*)$/.exec(m);
-    if (!hit) return;
-    // Liste işareti ve görev kutusu karta dahil edilmez.
-    const raw = lines[i];
-    const sep = /\s+:{2,3}\s+/.exec(m.slice(hit[1].length))!;
-    const end = hit[1].length + sep.index + sep[0].length;
-    const front = raw.slice(0, hit[1].length).replace(/^[ \t]*(?:[-*+]|\d+[.)])(?:[ \t]+\[.\])?[ \t]+/, "").replace(/^#{1,6}\s+/, "").trim();
-    const back = raw.slice(end).replace(/[ \t]\^[\w-]+$/, "").trim();
-    if (!front || !back) return;
-    out.push({ id: cardId(note.id, front, "f"), noteId: note.id, noteTitle: note.title, archeId: note.archeId, front, back, line: i });
-    if (hit[2] === ":::") out.push({ id: cardId(note.id, back, "r"), noteId: note.id, noteTitle: note.title, archeId: note.archeId, front: back, back: front, line: i });
-  });
-  return out;
+  return extractRawCards(body).map((c) => ({ id: cardId(note.id, c.front, c.dir), noteId: note.id, noteTitle: note.title, archeId: note.archeId, front: c.front, back: c.back, line: c.line }));
 }
 
 // ------------------------------------------------------------------ depo
@@ -187,10 +170,23 @@ export class Anamnesis {
     return out;
   }
 
-  async queue(options: { archeId?: string | null; newPerDay?: number; now?: number } = {}): Promise<AnamnesisQueue> {
+  /**
+   * `extra`: şifreli notların pencerede çözülmüş kartları. Yalnızca gerçekten kilitli notlara ait olanlar ve kimliği
+   * sunucunun aynı metinden üreteceği kimlikle eşleşenler kabul edilir.
+   */
+  async queue(options: { archeId?: string | null; newPerDay?: number; now?: number; extra?: { noteId: string; front: string; back: string; line: number; dir: "f" | "r" }[] } = {}): Promise<AnamnesisQueue> {
     const now = options.now ?? Date.now();
     const data = await this.load();
     const cards = await this.cards(options.archeId);
+    if (options.extra?.length) {
+      const metas = new Map((await this.store.list()).map((n) => [n.id, n]));
+      for (const x of options.extra.slice(0, 5000)) {
+        const n = metas.get(x.noteId);
+        if (!n?.locked || typeof x.front !== "string" || typeof x.back !== "string" || !x.front.trim() || !x.back.trim()) continue;
+        if (options.archeId !== undefined && n.archeId !== options.archeId) continue;
+        cards.push({ id: cardId(n.id, x.front, x.dir === "r" ? "r" : "f"), noteId: n.id, noteTitle: n.title, archeId: n.archeId, front: x.front.slice(0, 4000), back: x.back.slice(0, 4000), line: Number(x.line) || 0 });
+      }
+    }
     const seen = new Set<string>();
     const unique = cards.filter((c) => !seen.has(c.id) && seen.add(c.id));
     const dueCards = unique.filter((c) => data.cards[c.id] && data.cards[c.id].due <= now).sort((a, b) => data.cards[a.id].due - data.cards[b.id].due);

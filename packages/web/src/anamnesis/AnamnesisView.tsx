@@ -4,7 +4,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Grade, AnamnesisQueue } from "../../../core/src/anamnesis.ts";
-import type { NodeMeta } from "../api.ts";
+import { api, type NodeMeta } from "../api.ts";
+import { extractRawCards } from "../../../core/src/anamnesis-cards.ts";
+import { isArcheUnlocked, isUnlocked, onLockChange, openWithSession } from "../lock.ts";
 import { safeHtml } from "../editor/linked-nodes.tsx";
 import { t } from "../i18n/index.ts";
 import { usePref } from "../prefs.ts";
@@ -37,12 +39,40 @@ export function AnamnesisView({ nodes, changeTick, onOpen }: { nodes: NodeMeta[]
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const [hidden, setHidden] = useState(0);
+  const [lockTick, setLockTick] = useState(0);
+  useEffect(() => onLockChange(() => setLockTick((n) => n + 1)), []);
+
   const load = useCallback(() => {
-    fetch(`/api/anamnesis${arche ? `?arche=${encodeURIComponent(arche)}` : ""}`)
-      .then((r) => r.json() as Promise<AnamnesisQueue>)
-      .then((d) => (setData(d), setIndex(0), setShown(false)))
-      .catch(() => undefined);
-  }, [arche]);
+    let live = true;
+    void (async () => {
+      // Şifreli notların kartları sunucuda okunamaz: bu oturumda açık olanlar burada çözülüp sıraya eklenir.
+      const byId = new Map(nodes.map((n) => [n.id, n]));
+      const inScope = (n: NodeMeta) => !arche || (arche === "shadow" ? n.archeId === null : n.archeId === arche);
+      const locked = nodes.filter((n) => n.locked && !n.template && inScope(n));
+      const extra: { noteId: string; front: string; back: string; line: number; dir: "f" | "r" }[] = [];
+      let closed = 0;
+      for (const n of locked) {
+        const a = n.archeId ? byId.get(n.archeId) : undefined;
+        if (!isUnlocked(n.id) && !(a?.archeLock && isArcheUnlocked(a.id))) {
+          closed++;
+          continue;
+        }
+        const doc = await api.read(n.id).catch(() => null);
+        const text = doc ? await openWithSession(n.id, doc.body) : null;
+        if (text === null) closed++;
+        else for (const c of extractRawCards(text)) extra.push({ noteId: n.id, ...c });
+      }
+      const res = await fetch(`/api/anamnesis${arche ? `?arche=${encodeURIComponent(arche)}` : ""}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ extra }) });
+      const d = (await res.json()) as AnamnesisQueue;
+      if (!live) return;
+      setHidden(closed);
+      setData(d);
+      setIndex(0);
+      setShown(false);
+    })().catch(() => undefined);
+    return () => void (live = false);
+  }, [arche, nodes.length, lockTick]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(load, [load, newPerDay]);
   // Notlar değişince (yeni kart eklenince) yalnızca tekrar başlamadıysa yenile.
   useEffect(() => {
@@ -103,6 +133,11 @@ export function AnamnesisView({ nodes, changeTick, onOpen }: { nodes: NodeMeta[]
         </div>
       </div>
       <p className="muted small">{t("mn.hint")}</p>
+      {hidden > 0 && (
+        <p className="muted small" data-testid="mn-hidden">
+          <Icon name="lock" size={13} /> {t("mn.hidden", { n: hidden })}
+        </p>
+      )}
       {data && (
         <p className="muted small" data-testid="mn-counts">
           {t("mn.counts", { due: data.counts.due, fresh: data.counts.new, total: data.counts.total, today: data.counts.reviewedToday })}

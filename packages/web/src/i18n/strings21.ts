@@ -77,6 +77,10 @@ export const STRINGS_21 = {
     en: "Every line you write as \"Question :: Answer\" in your notes is a card; \"Term ::: Definition\" makes two cards, one each way. Cards are scheduled with the FSRS algorithm, just before you'd forget them.",
   },
   "mn.counts": { tr: "Vadesi gelen {due} · yeni {fresh} · toplam {total} · bugün {today} tekrar", en: "{due} due · {fresh} new · {total} in total · {today} reviewed today" },
+  "mn.hidden": {
+    tr: "{n} kilitli ya da şifreli notun kartları gizli. Notu ya da Crypta Arche'sini açtığınızda burada görünürler.",
+    en: "Cards in {n} locked or encrypted notes are hidden. They appear here when you unlock the note or its Crypta Arche.",
+  },
   "mn.show": { tr: "Cevabı göster", en: "Show answer" },
   "mn.again": { tr: "Tekrar", en: "Again" },
   "mn.hard": { tr: "Zor", en: "Hard" },
