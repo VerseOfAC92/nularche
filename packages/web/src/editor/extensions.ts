@@ -31,6 +31,7 @@ import {
 } from "./notes-extensions.ts";
 import { StudioMarks } from "../studio/editor-plugins.ts";
 import { BlockIds } from "./block-refs.ts";
+import { Citation } from "./citation-node.tsx";
 
 export const lowlight = createLowlight(common);
 
@@ -76,6 +77,7 @@ export function buildExtensions(options: { placeholder?: string } = {}): Extensi
     VaultTools,
     TagHighlight,
     BlockIds,
+    Citation,
     HeadingFold,
     FindReplace,
     TaskTools,

@@ -233,7 +233,7 @@ export async function exportPageHtml(store: NodeStore, ref: string, lang: "tr" |
   const rc = await contextFor(store, lang);
   const doc = await store.read(ref);
   if (doc.locked) throw new NodeError("invalid", lang === "tr" ? "Kilitli not dışa aktarılamaz; önce kilidi kaldırın." : "A locked note can't be exported; remove the lock first.");
-  const node = { ...doc, body: await exportBodyOf(store, doc) };
+  const node = { ...doc, body: await exportBodyOf(store, doc, lang) };
   const assets = new Map<string, string>();
   for (const l of extractLinks(node.path, node.body)) {
     if (!l.target.startsWith(`${ATTACHMENTS_DIR}/`) || !(await store.pathExists(l.target))) continue;
@@ -314,7 +314,7 @@ export async function exportSite(
   for (const n of selected.values()) {
     const file = pagePaths.get(n.path)!;
     const doc = await store.read(n.id);
-    const body = await exportBodyOf(store, doc);
+    const body = await exportBodyOf(store, doc, lang);
     const crumbs: string[] = [];
     let cur = rc.all.find((p) => p.id === n.parentNodeId);
     while (cur && selected.has(cur.id)) {

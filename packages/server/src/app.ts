@@ -8,6 +8,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import path from "node:path";
 import { NodeError, NodeStore } from "../../core/src/node-store.ts";
 import { SnapshotError, SnapshotStore } from "../../core/src/snapshots.ts";
+import { citationSettings, findLibraryFiles, loadLibrary } from "../../core/src/citations-store.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
@@ -268,6 +269,12 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     const id = parts[1];
 
     if (parts[0] === "snapshots") return handleSnapshots(req, res, url, parts, method);
+    if (parts[0] === "citations" && method === "GET") {
+      // Kaynakça: kayıtlar (CSL-JSON), seçili stil, okunamayan dosyalar ve Origin'deki aday dosyalar.
+      const settings = await citationSettings(store.root);
+      const lib = await loadLibrary(store.root, settings.files);
+      return send(res, 200, { style: settings.style, files: settings.files, items: [...lib.items.values()], problems: lib.problems, available: await findLibraryFiles(store.root) });
+    }
 
     if (parts[0] === "ai") {
       if (method === "GET" && parts.length === 1) {

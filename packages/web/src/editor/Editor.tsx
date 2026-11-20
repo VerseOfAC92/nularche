@@ -1,6 +1,7 @@
 // Stream modu editörü: bir Node'un Shard'larını (blokları) Notion benzeri dikey akışta düzenler.
 // Dosyadaki Markdown ↔ editör dönüşümü yalnızca burada, yükleme ve kaydetme sınırında yapılır.
 
+import { citationState, reloadCitations, searchLibrary, shortAuthor } from "../citations.ts";
 import { anchorAtCursor, scrollToAnchor, setPendingAnchor, takePendingAnchor } from "./block-refs.ts";
 import { guessLang, readability, type Readability } from "../../../core/src/readability.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -309,7 +310,7 @@ function linkContent(node: Pick<NodeMeta, "title" | "path">) {
 const fold = (s: string) => s.toLocaleLowerCase("tr").replace(/[çğıöşü]/g, (c) => ({ ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u" })[c] ?? c);
 
 interface Trigger {
-  kind: "slash" | "link";
+  kind: "slash" | "link" | "cite";
   query: string;
   from: number;
   top?: number;
@@ -436,6 +437,20 @@ export function Editor(props: EditorProps) {
         run: (e: TiptapEditor) => c.run(e, ctxRef.current),
       }));
     }
+    if (trigger.kind === "cite") {
+      const found = searchLibrary(trigger.query);
+      if (!found.length && !citationState().items.size) {
+        return [{ key: "cite:setup", label: t("cite.setup"), hint: t("cite.setupHint"), icon: "📚", group: t("cite.group"), run: () => void runCommand("app.settings") }];
+      }
+      return found.map((it) => ({
+        key: `cite:${it.id}`,
+        label: it.title ?? it.id,
+        hint: `@${it.id} · ${shortAuthor(it)}`,
+        icon: "❝",
+        group: t("cite.group"),
+        run: (e: TiptapEditor) => void e.chain().focus().insertContent([{ type: "citation", attrs: { raw: `[@${it.id}]` } }, { type: "text", text: " " }]).run(),
+      }));
+    }
     return propsRef.current.nodes
       .filter((n) => n.id !== propsRef.current.currentId && fold(n.title).includes(q))
       .slice(0, 30)
@@ -464,11 +479,12 @@ export function Editor(props: EditorProps) {
     if (!empty || $from.parent.type.name === "codeBlock") return setTrigger(null);
     const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "￼");
     const link = /\[\[([^\]\n]{0,60})$/.exec(before);
+    const cite = link ? null : /\[-?@([\p{L}\d_:.-]{0,40})$/u.exec(before);
     const slash = /(?:^|\s)\/([\p{L}\d:]*)$/u.exec(before);
-    const m = link ?? slash;
+    const m = link ?? cite ?? slash;
     if (!m) return setTrigger(null);
-    const kind = link ? "link" : "slash";
-    const from = $from.pos - m[1].length - (link ? 2 : 1);
+    const kind = link ? "link" : cite ? "cite" : "slash";
+    const from = $from.pos - m[0].length + (kind === "slash" && /^\s/.test(m[0]) ? 1 : 0);
     const coords = e.view.coordsAtPos(from);
     setTrigger((prev) => {
       if (!prev || prev.query !== m[1] || prev.kind !== kind) setActive(0);
@@ -551,6 +567,11 @@ export function Editor(props: EditorProps) {
   editorRef.current = editor;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  // Kaynakça (atıf çipleri ve `[@` önerileri için) her not açılışında tazelenir; sunucu dosyayı önbellekten verir.
+  useEffect(() => {
+    void reloadCitations();
+  }, [props.currentId]);
 
   // Başka bir Node seçildiğinde ya da Node dışarıdan (ör. Claude) değiştiğinde içeriği yükle.
   useEffect(() => {

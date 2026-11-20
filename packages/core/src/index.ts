@@ -31,3 +31,5 @@ export * from "./snapshots.ts";
 export * from "./readability.ts";
 export * from "./transclude.ts";
 export * from "./blocks.ts";
+export * from "./citations.ts";
+export * from "./citations-store.ts";

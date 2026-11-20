@@ -1932,3 +1932,7 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .readability.r-hard, .readability.r-veryHard { color: var(--nlc-warn, #d29922); }
 .ProseMirror .block-id { color: var(--nlc-text-shadow, #8b949e); font-size: 0.78em; opacity: 0.55; font-family: var(--nlc-font-mono, ui-monospace, monospace); }
 .ProseMirror .anchor-flash { background: var(--nlc-accent-glow); border-radius: 4px; transition: background 0.4s; }
+.cite-chip { display: inline; padding: 0 4px; border-radius: 4px; background: var(--nlc-accent-glow); color: var(--nlc-text-primary); cursor: pointer; font-size: 0.95em; white-space: nowrap; }
+.cite-chip.missing { background: transparent; color: var(--nlc-danger, #f85149); border: 1px dashed currentColor; }
+.cite-chip.selected { outline: 2px solid var(--nlc-accent-primary); }
+.settings-card h4.sub { margin: 12px 0 6px; font-size: 13px; }

@@ -17,6 +17,7 @@ import { HotkeyEditor, VaultSettings } from "./vault/VaultSettings.tsx";
 import type { MathMode } from "./editor/notes-extensions.ts";
 import { StorageSetup } from "./StorageSetup.tsx";
 import { SecuritySettings } from "./SecuritySettings.tsx";
+import { CitationSettings } from "./CitationSettings.tsx";
 import type { NodeMeta } from "./api.ts";
 import { StudioSettings } from "./studio/StudioSettings.tsx";
 import { runCommand } from "./commands.ts";
@@ -35,7 +36,7 @@ interface Category {
 
 const CATEGORIES: Category[] = [
   { id: "appearance", icon: "palette", label: "settings.catAppearance", hint: "settings.catAppearanceHint", keywords: "tema theme dil language kontrast contrast renk accent css snippet görünüm" },
-  { id: "writing", icon: "pencil", label: "settings.catWriting", hint: "settings.catWritingHint", keywords: "yazım spell kelime word hedef goal font yazı tipi matematik math düzenleyici editor okuma reading lore" },
+  { id: "writing", icon: "pencil", label: "settings.catWriting", hint: "settings.catWritingHint", keywords: "yazım spell kelime word hedef goal font yazı tipi matematik math düzenleyici editor okuma reading lore kaynakça bibliography atıf citation bibtex csl apa mla chicago ieee canon" },
   { id: "aura", icon: "music", label: "settings.catAura", hint: "settings.catAuraHint", keywords: "aura ses sound daktilo typewriter ortam ambience clepsydra zamanlayıcı timer odak focus arka plan background manzara" },
   { id: "automation", icon: "bolt", label: "settings.catAutomation", hint: "settings.catAutomationHint", keywords: "sigil kısaltma shortcut rite komut command conduit yakalama capture" },
   { id: "origin", icon: "database", label: "settings.catOrigin", hint: "settings.catOriginHint", keywords: "depolama storage google drive eşitleme sync bulut cloud origin klasör folder içe aktar import arşiv archive nla yedek backup ark dosya file açılış startup hariç excluded" },
@@ -182,6 +183,7 @@ export function Settings({
             <input type="checkbox" checked={wordCount} onChange={(e) => setWordCount(e.target.checked)} /> {t("settings.wordCount")}
           </label>
         </Card>
+        <CitationSettings onToast={onToast} />
         <Card title={t("settings.goalsAndFonts")}>
           <StudioSettings part="goals" nodes={nodes} onToast={onToast} />
         </Card>
