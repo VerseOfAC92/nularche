@@ -112,10 +112,14 @@ export interface DriveStatus {
   account: string | null;
   /** Bu Origin Google Drive ile eşitleniyor mu. */
   linked: boolean;
+  /** Drive'daki kopya uçtan uca şifreli mi. */
+  encrypted: boolean;
+  /** Drive'daki kopya şifreli ama bu bilgisayarda anahtarı yok: parola girilmeli. */
+  needsPassphrase: boolean;
   syncing: boolean;
   lastSync: number | null;
   lastError: { code: string; message: string } | null;
-  lastCounts: { uploaded: number; downloaded: number; deletedLocal: number; deletedRemote: number; conflicts: number } | null;
+  lastCounts: { uploaded: number; downloaded: number; deletedLocal: number; deletedRemote: number; conflicts: number; merged: number; cleaned: number } | null;
 }
 
 export interface CalendarStatus {
@@ -201,7 +205,13 @@ export interface DesktopBridge {
   storageChosen(resume?: boolean): Promise<void>;
   driveStatus(): Promise<DriveStatus>;
   /** Google ile tek tıkla giriş yapar ve bu Origin'i Google Drive ile eşitlemeye başlar. */
-  driveConnect(): Promise<{ ok: true; account: string; existing: boolean; error: string | null } | { ok: false; code: string; error: string }>;
+  driveConnect(): Promise<{ ok: true; account: string; existing: boolean; needsPassphrase: boolean; error: string | null } | { ok: false; code: string; error: string }>;
+  /** Şifreli Drive klasörünü bu bilgisayarda açar. */
+  driveUnlock(passphrase: string): Promise<{ ok: true; error: string | null } | { ok: false; code: string; error: string }>;
+  /** Uçtan uca şifrelemeyi açar (Drive'daki kopya parolayla şifrelenir). */
+  driveEncrypt(passphrase: string): Promise<{ ok: boolean; code?: string; error?: string }>;
+  /** Uçtan uca şifrelemeyi kapatır. */
+  driveDecrypt(): Promise<{ ok: boolean; code?: string; error?: string }>;
   /** Eşitlemeyi kapatır; dosyalar bu bilgisayarda ve Drive'da kalır. */
   driveDisconnect(): Promise<void>;
   driveSync(): Promise<{ ok: boolean; error?: string }>;

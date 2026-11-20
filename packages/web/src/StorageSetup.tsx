@@ -109,7 +109,9 @@ export function StorageSetup({ onToast, onBeforeFolderChange }: { onToast: (msg:
           )}
         </div>
         <div className="storage-body">
-          {onDrive ? (
+          {onDrive && drive.needsPassphrase ? (
+            <Unlock onDone={async (msg) => (await refresh(), onToast(msg))} />
+          ) : onDrive ? (
             <>
               <div className="storage-status">
                 <Icon name={drive.lastError ? "alert-triangle" : drive.syncing ? "refresh" : "cloud-check"} size={16} className={drive.syncing ? "spin" : ""} />
@@ -134,6 +136,7 @@ export function StorageSetup({ onToast, onBeforeFolderChange }: { onToast: (msg:
                   {t("storage.stopDrive")}
                 </button>
               </div>
+              <Encryption drive={drive} onDone={async (msg) => (await refresh(), onToast(msg))} />
             </>
           ) : drive.available ? (
             <GoogleSignIn
@@ -168,5 +171,120 @@ function DriveMark({ size = 22 }: { size?: number }) {
       <path fill="#2684fc" d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" />
       <path fill="#ffba00" d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" />
     </svg>
+  );
+}
+
+/** Uçtan uca şifreleme: Drive'daki kopya kullanıcının parolasıyla şifrelenir; Google dahil kimse okuyamaz. */
+function Encryption({ drive, onDone }: { drive: DriveStatus; onDone: (msg: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [pass, setPass] = useState("");
+  const [again, setAgain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (drive.encrypted) {
+    return (
+      <div className="storage-crypto on">
+        <Icon name="lock" size={16} />
+        <span className="grow">
+          <b>{t("storage.e2eOn")}</b>
+          <span className="muted small"> · {t("storage.e2eOnText")}</span>
+        </span>
+        <button
+          className="secondary"
+          disabled={busy}
+          onClick={async () => {
+            if (!confirm(t("storage.e2eOffConfirm"))) return;
+            setBusy(true);
+            const res = await desktop!.driveDecrypt();
+            setBusy(false);
+            if (res.ok) onDone(t("storage.e2eDisabled"));
+            else setError(res.error ?? "");
+          }}
+        >
+          {busy ? t("storage.e2eWorking") : t("storage.e2eTurnOff")}
+        </button>
+        {error && <p className="warn small">{error}</p>}
+      </div>
+    );
+  }
+  return (
+    <div className="storage-crypto">
+      <div className="row" style={{ alignItems: "center" }}>
+        <Icon name="lock" size={16} />
+        <span className="grow">
+          <b>{t("storage.e2e")}</b>
+          <span className="muted small"> · {t("storage.e2eText")}</span>
+        </span>
+        {!open && (
+          <button className="secondary" onClick={() => setOpen(true)}>
+            {t("storage.e2eTurnOn")}
+          </button>
+        )}
+      </div>
+      {open && (
+        <form
+          className="storage-pass"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (pass !== again) return setError(t("storage.e2eMismatch"));
+            setBusy(true);
+            setError(null);
+            const res = await desktop!.driveEncrypt(pass);
+            setBusy(false);
+            if (res.ok) {
+              setOpen(false);
+              setPass("");
+              setAgain("");
+              onDone(t("storage.e2eEnabled"));
+            } else setError(res.error ?? "");
+          }}
+        >
+          <p className="warn small">{t("storage.e2eWarning")}</p>
+          <input type="password" autoFocus autoComplete="new-password" placeholder={t("storage.passphrase")} value={pass} onChange={(e) => setPass(e.target.value)} />
+          <input type="password" autoComplete="new-password" placeholder={t("storage.passphraseAgain")} value={again} onChange={(e) => setAgain(e.target.value)} />
+          <div className="row">
+            <button type="submit" className="primary" disabled={busy || pass.length < 8 || !again}>
+              {busy ? t("storage.e2eWorking") : t("storage.e2eEncrypt")}
+            </button>
+            <button type="button" className="secondary" disabled={busy} onClick={() => (setOpen(false), setError(null))}>
+              {t("common.cancel")}
+            </button>
+          </div>
+          {error && <p className="warn small">{error}</p>}
+        </form>
+      )}
+    </div>
+  );
+}
+
+/** Başka bir bilgisayarda şifrelenmiş Drive klasörünü açmak için parola. */
+function Unlock({ onDone }: { onDone: (msg: string) => void }) {
+  const [pass, setPass] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <form
+      className="storage-pass"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        const res = await desktop!.driveUnlock(pass);
+        setBusy(false);
+        if (res.ok) onDone(t("storage.unlocked"));
+        else setError(res.error);
+      }}
+    >
+      <p className="small">
+        <Icon name="lock" size={14} /> {t("storage.unlockText")}
+      </p>
+      <input type="password" autoFocus autoComplete="current-password" placeholder={t("storage.passphraseEnter")} value={pass} onChange={(e) => setPass(e.target.value)} />
+      <div className="row">
+        <button type="submit" className="primary" disabled={busy || !pass}>
+          {busy ? t("storage.e2eWorking") : t("storage.unlock")}
+        </button>
+      </div>
+      {error && <p className="warn small">{error}</p>}
+    </form>
   );
 }

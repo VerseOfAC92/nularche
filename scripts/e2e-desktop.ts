@@ -133,6 +133,7 @@ try {
   await page.getByRole("button", { name: "İleri" }).click();
   // Depolama: sistem uyarısı yerine sihirbaz adımı; Google ile tek tıkla bağlanınca Origin Drive'a eşitlenir.
   await page.getByText("Notlarınız nerede saklansın?").waitFor();
+  await page.locator('[data-testid="storage-local"]').waitFor();
   assert.equal(await page.locator('[data-testid="storage-local"].on').count(), 1, "varsayılan bu bilgisayar olmalı");
   await page.locator('[data-testid="storage-drive"] .google-btn').click();
   await page.locator('[data-testid="storage-drive"].on').waitFor({ timeout: 15_000 });

@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { GoogleDrive, readSyncState, syncable, syncOrigin } from "../src/index.ts";
+import { deriveKeys, DriveSyncError, GoogleDrive, LOCK_MARKER, NodeStore, readSyncState, syncable, syncOrigin } from "../src/index.ts";
 import { startFakeDrive } from "./fake-drive.ts";
 
 const fake = await startFakeDrive();
@@ -25,9 +25,21 @@ async function origin(files: Record<string, string> = {}) {
 const read = (root: string, rel: string) => readFile(path.join(root, rel), "utf8");
 const opts = { host: "Mac" };
 
-test("hangi yollar eşitlenir", () => {
+test("hangi yollar eşitlenir: kullanıcının içeriği ve ayarları evet, bilgisayarın kendi kayıtları hayır", () => {
   assert.equal(syncable("Notlar/Plan.md"), true);
+  assert.equal(syncable("Attachments/resim.png"), true);
   assert.equal(syncable(".nularche/ui.json"), true);
+  assert.equal(syncable(".nularche/origin.json"), true);
+  assert.equal(syncable(".nularche/comments/abc.json"), true);
+  assert.equal(syncable(".nularche/epochs/abc/1.md"), true);
+  assert.equal(syncable(".nularche/snippets/tema.css"), true);
+  assert.equal(syncable(".nularche/history/abc/1.md"), false, "otomatik sürümler bu bilgisayarda kalır");
+  assert.equal(syncable(".nularche/ai/requests/r.json"), false, "AI kayıtları bu bilgisayarda kalır");
+  assert.equal(syncable(".nularche/calendar-events.json"), false, "takvim önbelleği bu bilgisayarda kalır");
+  assert.equal(syncable(".nularche/calendar.json"), false);
+  assert.equal(syncable(".nularche/sync-purge.json"), false);
+  assert.equal(syncable(".nularche/yeni-ic-kayit.json"), false, "bilinmeyen iç kayıtlar varsayılan olarak eşitlenmez");
+  assert.equal(syncable(".trash/A.md"), false);
   assert.equal(syncable(".nularche/drive-sync.json"), false);
   assert.equal(syncable(".nularche/sync-removed/2026-11-20/A.md"), false);
   assert.equal(syncable("Notlar/.Plan.md.1234.tmp"), false);
@@ -38,7 +50,7 @@ test("hangi yollar eşitlenir", () => {
 test("yerel Origin Drive'a yüklenir; ikinci bilgisayar aynı Origin'i indirir; değişiklikler iki yönde akar", async () => {
   const drive = api();
   assert.equal(await drive.account(), "alex@gmail.com");
-  const a = await origin({ "Plan.md": "# Plan\n", "Proje/Görev.md": "görev", ".nularche/ui.json": '{"theme":"dark"}', "Attachments/big.bin": "x".repeat(6 * 1024 * 1024) });
+  const a = await origin({ "Plan.md": "# Plan\n", "Proje/Görev.md": "görev", ".nularche/ui.json": '{"theme":"dark"}', "Attachments/big.bin": "x".repeat(6 * 1024 * 1024), ".nularche/history/n1/1.md": "eski", ".nularche/ai/requests/r.json": "{}" });
   const rootId = await drive.createRoot("Nularche");
   const r1 = await syncOrigin(a, drive, rootId, opts);
   assert.deepEqual(r1.errors, []);
@@ -71,7 +83,9 @@ test("yerel Origin Drive'a yüklenir; ikinci bilgisayar aynı Origin'i indirir; 
 
   // Değişiklik yoksa hiçbir aktarım olmaz.
   const idle = await syncOrigin(a, drive, rootId, opts);
-  assert.deepEqual(idle.counts, { uploaded: 0, downloaded: 0, deletedLocal: 0, deletedRemote: 0, conflicts: 0 });
+  assert.deepEqual(idle.counts, { uploaded: 0, downloaded: 0, deletedLocal: 0, deletedRemote: 0, conflicts: 0, merged: 0, cleaned: 0 });
+  assert.equal(fake.byPath(rootId, ".nularche/history/n1/1.md"), undefined, "otomatik geçmiş Drive'a gitmez");
+  assert.equal(fake.byPath(rootId, ".nularche/ai/requests/r.json"), undefined, "AI kayıtları Drive'a gitmez");
 });
 
 test("iki tarafta da değişen dosya: Drive'daki sürüm yerine geçer, yerel sürüm çakışma kopyası olarak saklanır", async () => {
@@ -116,4 +130,118 @@ test("silme ve düzenleme çakışırsa düzenleme kazanır", async () => {
   const r = await syncOrigin(a, drive, rootId, opts);
   assert.equal(r.counts.downloaded, 1);
   assert.equal(await read(a, "X.md"), "2");
+});
+
+test("Drive'a daha önce gitmiş bilgisayara özel kayıtlar kalıcı silinir, yereldekiler kalır", async () => {
+  const drive = api();
+  const rootId = await drive.createRoot("Nularche");
+  const dot = await drive.createFolder(rootId, rootId, ".nularche");
+  const hist = await drive.createFolder(rootId, dot.id, "history");
+  await drive.upload(rootId, { parent: hist.id, name: "eski.md", data: new TextEncoder().encode("şifresiz eski sürüm") });
+  await drive.upload(rootId, { parent: dot.id, name: "calendar-events.json", data: new TextEncoder().encode("{}") });
+  const a = await origin({ "Not.md": "n", ".nularche/history/eski.md": "yerel" });
+  const r = await syncOrigin(a, drive, rootId, opts);
+  assert.equal(r.counts.cleaned, 2);
+  assert.ok(fake.removed.includes("eski.md") && fake.removed.includes("calendar-events.json"), "çöpe değil, kalıcı silinmeli");
+  assert.equal(await read(a, ".nularche/history/eski.md"), "yerel");
+});
+
+test("ayar dosyası iki bilgisayarda farklı anahtarlarla değişirse birleştirilir, çakışma kopyası oluşmaz", async () => {
+  const drive = api();
+  const rootId = await drive.createRoot("Nularche");
+  const a = await origin({ ".nularche/ui.json": JSON.stringify({ theme: "dark", font: "Lora" }) });
+  await syncOrigin(a, drive, rootId, opts);
+  const b = await origin();
+  await syncOrigin(b, drive, rootId, { host: "PC" });
+  await writeFile(path.join(a, ".nularche/ui.json"), JSON.stringify({ theme: "light", font: "Lora" }));
+  await writeFile(path.join(b, ".nularche/ui.json"), JSON.stringify({ theme: "dark", font: "Lora", recent: ["x"] }));
+  await syncOrigin(b, drive, rootId, { host: "PC" });
+  const r = await syncOrigin(a, drive, rootId, opts);
+  assert.equal(r.counts.merged, 1);
+  assert.equal(r.counts.conflicts, 0);
+  assert.deepEqual(JSON.parse(await read(a, ".nularche/ui.json")), { theme: "light", font: "Lora", recent: ["x"] });
+  assert.ok(!(await readdir(path.join(a, ".nularche"))).some((f) => f.includes("conflict")));
+  await syncOrigin(b, drive, rootId, { host: "PC" });
+  assert.deepEqual(JSON.parse(await read(b, ".nularche/ui.json")), { theme: "light", font: "Lora", recent: ["x"] });
+});
+
+test("not kilitlenince: eski sürümleri ve Epoch'ları silinir; Drive'daki şifresiz dosyası kalıcı silinip şifreli hâli yeniden yüklenir", async () => {
+  const drive = api();
+  const rootId = await drive.createRoot("Nularche");
+  const a = await origin();
+  const store = new NodeStore(a);
+  await store.ensureRoot();
+  const note = await store.create({ title: "Gizli", body: "maaş bilgisi" });
+  await store.update(note.id, { body: "maaş bilgisi v2" });
+  await store.checkpoint(note.id, "İlk taslak");
+  assert.equal((await store.history(note.id)).length, 2);
+  await syncOrigin(a, drive, rootId, opts);
+  const before = fake.byPath(rootId, note.path)!;
+  assert.ok(fake.byPath(rootId, `.nularche/epochs/${note.id}/labels.json`), "Epoch'lar eşitlenir");
+  assert.equal(fake.byPath(rootId, `.nularche/history/${note.id}`), undefined, "otomatik sürümler eşitlenmez");
+
+  await store.update(note.id, { body: `${LOCK_MARKER}\n\n{"v":1,"data":"şifreli"}` });
+  assert.deepEqual(await store.history(note.id), [], "şifresiz eski sürümler ve Epoch'lar silindi");
+  const r = await syncOrigin(a, drive, rootId, opts);
+  assert.deepEqual(r.errors, []);
+  assert.equal(fake.files.has(before.id), false, "şifresiz dosya Drive'dan kalıcı silindi (sürüm geçmişiyle)");
+  const after = fake.byPath(rootId, note.path)!;
+  assert.notEqual(after.id, before.id);
+  assert.ok(!after.data.toString().includes("maaş"), "Drive'daki not şifreli");
+  assert.equal(fake.byPath(rootId, `.nularche/epochs/${note.id}/labels.json`), undefined, "Epoch'lar Drive'dan kalıcı silindi");
+  assert.equal(existsSync(path.join(a, ".nularche/sync-purge.json")), false, "silme listesi tamamlanınca kalkar");
+});
+
+test("açılışta: kilitli notun geçmişinde kalmış şifresiz sürümler silinir; eski düzendeki Epoch'lar taşınır", async () => {
+  const a = await origin();
+  const store = new NodeStore(a);
+  await store.ensureRoot();
+  const note = await store.create({ title: "Eski", body: `${LOCK_MARKER}\n\nx` });
+  const open = await store.create({ title: "Açık", body: "a" });
+  await mkdir(path.join(a, ".nularche/history", note.id), { recursive: true });
+  await writeFile(path.join(a, ".nularche/history", note.id, "100.md"), "---\nid: x\n---\nşifresiz eski hâl");
+  await mkdir(path.join(a, ".nularche/history", open.id), { recursive: true });
+  await writeFile(path.join(a, ".nularche/history", open.id, "200.md"), "---\nid: y\n---\nepoch");
+  await writeFile(path.join(a, ".nularche/history", open.id, "300.md"), "---\nid: y\n---\notomatik");
+  await writeFile(path.join(a, ".nularche/history", open.id, "labels.json"), JSON.stringify({ 200: "Taslak" }));
+  assert.equal(await store.purgeLockedPlaintext(), 1);
+  assert.equal(existsSync(path.join(a, ".nularche/history", note.id, "100.md")), false);
+  assert.equal(await store.migrateEpochs(), 1);
+  assert.ok(existsSync(path.join(a, ".nularche/epochs", open.id, "200.md")));
+  assert.deepEqual((await store.history(open.id)).map((e) => [e.at, e.label ?? null]), [[300, null], [200, "Taslak"]]);
+});
+
+test("uçtan uca şifreli kök: Drive'da içerik ve dosya adları okunamaz; parolayla başka bilgisayar açar", async () => {
+  const drive = api();
+  const keys = await deriveKeys("çok gizli parola", "c2FsdHNhbHRzYWx0c2FsdA");
+  const rootId = await drive.createRoot("Nularche", { salt: "c2FsdHNhbHRzYWx0c2FsdA", check: "x" });
+  const a = await origin({ "Notlar/Maaş.md": "maaş bilgisi", ".nularche/ui.json": "{}" });
+  await syncOrigin(a, drive, rootId, { host: "Mac", keys });
+  const stored = [...fake.files.values()].filter((f) => f.appProperties.nularcheRoot === rootId);
+  assert.equal(stored.length, 2);
+  for (const f of stored) {
+    assert.match(f.name, /^[0-9a-f]{40}\.nlce$/, "dosya adı yolu ele vermez");
+    assert.ok(!f.data.toString("latin1").includes("maaş") && !f.data.toString("utf8").includes("Maaş"), "içerik şifreli");
+    assert.equal(f.parents[0], rootId, "şifreli kök düzdür (klasör adları da gizli)");
+  }
+  const b = await origin();
+  const r = await syncOrigin(b, drive, rootId, { host: "PC", keys: await deriveKeys("çok gizli parola", "c2FsdHNhbHRzYWx0c2FsdA") });
+  assert.equal(r.counts.downloaded, 2);
+  assert.equal(await read(b, "Notlar/Maaş.md"), "maaş bilgisi");
+  await writeFile(path.join(b, "Notlar/Maaş.md"), "güncel");
+  await syncOrigin(b, drive, rootId, { host: "PC", keys });
+  assert.equal((await syncOrigin(a, drive, rootId, { host: "Mac", keys })).counts.downloaded, 1);
+  assert.equal(await read(a, "Notlar/Maaş.md"), "güncel");
+  const wrong = await syncOrigin(await origin(), drive, rootId, { host: "X", keys: await deriveKeys("yanlış parola", "c2FsdHNhbHRzYWx0c2FsdA") });
+  assert.equal(wrong.counts.downloaded, 0, "yanlış parolayla hiçbir şey açılmaz");
+});
+
+test("Drive tarafı birden boş görünürse (kök silinmiş) yerel dosyalar silinmez, eşitleme durur", async () => {
+  const drive = api();
+  const rootId = await drive.createRoot("Nularche");
+  const a = await origin({ "A.md": "1", "B.md": "2" });
+  await syncOrigin(a, drive, rootId, opts);
+  for (const f of fake.files.values()) if (f.appProperties.nularcheRoot === rootId) f.trashed = true;
+  await assert.rejects(syncOrigin(a, drive, rootId, opts), (e: unknown) => e instanceof DriveSyncError && e.code === "empty_remote");
+  assert.equal(await read(a, "A.md"), "1");
 });

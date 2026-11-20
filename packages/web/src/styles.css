@@ -1895,3 +1895,12 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .google-btn { display: inline-flex; align-items: center; gap: 10px; height: 38px; padding: 0 16px 0 12px; border-radius: 19px; border: 1px solid #dadce0; background: #fff; color: #1f1f1f; font: 500 14px/1 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 2px rgba(60, 64, 67, 0.12); transition: background 0.15s, box-shadow 0.15s; }
 .google-btn:hover:not(:disabled) { background: #f8faff; box-shadow: 0 1px 3px rgba(60, 64, 67, 0.25); }
 .google-btn:disabled { opacity: 0.75; cursor: progress; }
+
+.storage-crypto { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--nlc-border-subtle); }
+.storage-crypto.on { flex-direction: row; align-items: center; flex-wrap: wrap; }
+.storage-crypto.on > .ui-icon { color: #1a7f37; }
+.storage-crypto .row { display: flex; gap: 8px; }
+.storage-pass { display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+.storage-pass input { background: var(--nlc-bg-surface); color: var(--nlc-text-primary); border: 1px solid var(--nlc-border-subtle); border-radius: 6px; padding: 7px 10px; font: inherit; font-size: 14px; outline: none; }
+.storage-pass input:focus { border-color: var(--nlc-accent-primary); }
+.storage-pass p { margin: 0; }

@@ -3,7 +3,7 @@
 // Her öğeye `nularcheRoot` uygulama özelliği yazılır; böylece bir Origin'in bütün ağacı tek sorguyla listelenir.
 
 import { randomUUID } from "node:crypto";
-import type { DriveApi, RemoteEntry } from "./drive-sync.ts";
+import type { DriveApi, RemoteEntry, RootInfo } from "./drive-sync.ts";
 
 type Fetch = typeof fetch;
 
@@ -73,7 +73,17 @@ interface GFile {
   md5Checksum?: string;
   size?: string;
   modifiedTime?: string;
+  trashed?: boolean;
+  appProperties?: Record<string, string>;
 }
+
+/** Kök klasörün uygulama özelliklerinden şifreleme bilgisi. */
+const rootOf = (f: GFile): RootInfo => ({
+  trashed: !!f.trashed,
+  encrypted: f.appProperties?.nularcheEnc === "1",
+  ...(f.appProperties?.nularcheSalt ? { salt: f.appProperties.nularcheSalt } : {}),
+  ...(f.appProperties?.nularcheCheck ? { check: f.appProperties.nularcheCheck } : {}),
+});
 
 const FIELDS = "id,name,mimeType,parents,md5Checksum,size,modifiedTime";
 const escapeQ = (s: string) => s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -128,11 +138,11 @@ export class GoogleDrive implements DriveApi {
     return (await (await this.call(url, init)).json()) as T;
   }
 
-  private async list(q: string): Promise<GFile[]> {
+  private async list(q: string, fields = FIELDS): Promise<GFile[]> {
     const out: GFile[] = [];
     let page: string | undefined;
     do {
-      const params = new URLSearchParams({ q, fields: `nextPageToken,files(${FIELDS})`, pageSize: "1000", spaces: "drive" });
+      const params = new URLSearchParams({ q, fields: `nextPageToken,files(${fields})`, pageSize: "1000", spaces: "drive" });
       if (page) params.set("pageToken", page);
       const res = await this.json<{ files?: GFile[]; nextPageToken?: string }>(`${this.api}/files?${params}`);
       out.push(...(res.files ?? []));
@@ -157,20 +167,38 @@ export class GoogleDrive implements DriveApi {
     return res.user?.emailAddress || res.user?.displayName || "Google Drive";
   }
 
-  async findRoots(): Promise<{ id: string; name: string; modified: number }[]> {
-    const files = await this.list(`mimeType='${FOLDER}' and trashed=false and appProperties has { key='nularcheOrigin' and value='1' }`);
+  async findRoots(): Promise<({ id: string; name: string; modified: number } & RootInfo)[]> {
+    const files = await this.list(`mimeType='${FOLDER}' and trashed=false and appProperties has { key='nularcheOrigin' and value='1' }`, `${FIELDS},appProperties,trashed`);
     return files
-      .map((f) => ({ id: f.id, name: f.name, modified: Date.parse(f.modifiedTime ?? "") || 0 }))
+      .map((f) => ({ id: f.id, name: f.name, modified: Date.parse(f.modifiedTime ?? "") || 0, ...rootOf(f) }))
       .sort((a, b) => b.modified - a.modified);
   }
 
-  async createRoot(name: string): Promise<string> {
+  async createRoot(name: string, crypto?: { salt: string; check: string }): Promise<string> {
+    const appProperties: Record<string, string> = { nularcheOrigin: "1", ...(crypto ? { nularcheEnc: "1", nularcheSalt: crypto.salt, nularcheCheck: crypto.check } : {}) };
     const res = await this.json<GFile>(`${this.api}/files?fields=${FIELDS}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, mimeType: FOLDER, appProperties: { nularcheOrigin: "1" } }),
+      body: JSON.stringify({ name, mimeType: FOLDER, appProperties }),
     });
     return res.id;
+  }
+
+  async rootInfo(rootId: string): Promise<RootInfo | null> {
+    try {
+      return rootOf(await this.json<GFile>(`${this.api}/files/${encodeURIComponent(rootId)}?fields=id,trashed,appProperties`));
+    } catch (e) {
+      if (e instanceof DriveError && e.code === "not_found") return null;
+      throw e;
+    }
+  }
+
+  async remove(id: string): Promise<void> {
+    try {
+      await this.call(`${this.api}/files/${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch (e) {
+      if (!(e instanceof DriveError && e.code === "not_found")) throw e;
+    }
   }
 
   async listTree(rootId: string): Promise<RemoteEntry[]> {

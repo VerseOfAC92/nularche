@@ -21,6 +21,8 @@ const FOLDER = "application/vnd.google-apps.folder";
 export interface FakeDrive {
   url: string;
   files: Map<string, FakeFile>;
+  /** Kalıcı olarak silinen dosyaların adları. */
+  removed: string[];
   /** Drive'da (başka bir cihazdan) bir dosyanın içeriğini değiştirir. */
   edit(id: string, text: string): void;
   /** Kökten itibaren yol ile dosya bulur ("Notes/A.md"). */
@@ -38,6 +40,8 @@ export async function startFakeDrive(account = "alex@gmail.com"): Promise<FakeDr
     mimeType: f.mimeType,
     parents: f.parents,
     modifiedTime: f.modifiedTime,
+    trashed: f.trashed,
+    appProperties: f.appProperties,
     ...(f.mimeType === FOLDER ? {} : { md5Checksum: createHash("md5").update(f.data).digest("hex"), size: String(f.data.length) }),
   });
   const create = (meta: Record<string, unknown>, data = Buffer.alloc(0)) => {
@@ -69,6 +73,8 @@ export async function startFakeDrive(account = "alex@gmail.com"): Promise<FakeDr
     return { meta: JSON.parse(part(first, second).toString("utf8") || "{}"), data: Buffer.from(part(second, third)) };
   };
   const sessions = new Map<string, { id?: string; meta: Record<string, unknown> }>();
+  /** Kalıcı olarak silinen dosyaların adları (testlerde doğrulamak için). */
+  const removedLog: string[] = [];
 
   const server: Server = createServer(async (req, res) => {
     const chunks: Buffer[] = [];
@@ -104,7 +110,12 @@ export async function startFakeDrive(account = "alex@gmail.com"): Promise<FakeDr
     if (fileId) {
       const f = files.get(decodeURIComponent(fileId));
       if (!f) return json({ error: "notFound" }, 404);
+      removedLog.push(...(req.method === "DELETE" ? [f.name] : []));
       if (req.method === "GET" && url.searchParams.get("alt") === "media") return res.writeHead(200).end(f.data);
+      if (req.method === "DELETE") {
+        files.delete(f.id);
+        return res.writeHead(204).end();
+      }
       if (req.method === "PATCH") {
         const patch = JSON.parse(body.toString("utf8") || "{}");
         if (patch.trashed) f.trashed = true;
@@ -153,6 +164,7 @@ export async function startFakeDrive(account = "alex@gmail.com"): Promise<FakeDr
   return {
     url: base,
     files,
+    removed: removedLog,
     edit(id, text) {
       const f = files.get(id)!;
       f.data = Buffer.from(text);

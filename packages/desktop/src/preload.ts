@@ -73,6 +73,9 @@ contextBridge.exposeInMainWorld("nularche", {
   driveConnect: () => invoke("drive-connect"),
   driveDisconnect: () => invoke("drive-disconnect"),
   driveSync: () => invoke("drive-sync"),
+  driveUnlock: (passphrase: string) => invoke("drive-unlock", passphrase),
+  driveEncrypt: (passphrase: string) => invoke("drive-encrypt", passphrase),
+  driveDecrypt: () => invoke("drive-decrypt"),
   onDriveSynced: (cb: (info: { syncing?: boolean; downloaded?: boolean }) => void) => {
     const listener = (_e: unknown, info: { syncing?: boolean; downloaded?: boolean }) => cb(info ?? {});
     ipcRenderer.on("nularche:drive-synced", listener);

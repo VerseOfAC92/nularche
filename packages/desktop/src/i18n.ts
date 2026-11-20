@@ -78,6 +78,14 @@ const STRINGS = {
   "export.siteButton": { tr: "Siteyi buraya oluştur", en: "Create site here" },
   "start.failed": { tr: "Nularche başlatılamadı", en: "Nularche couldn't start" },
   "cal.untitled": { tr: "Adsız etkinlik", en: "Untitled event" },
+  "drive.rootGone": {
+    tr: "Google Drive'daki Nularche klasörü bulunamadı; hiçbir dosya silinmesin diye eşitleme durduruldu.",
+    en: "The Nularche folder in Google Drive can't be found; sync stopped so that no file is removed.",
+  },
+  "drive.needsPassphrase": { tr: "Google Drive'daki notlar şifreli: bu bilgisayarda açmak için parolanızı girin.", en: "Your notes in Google Drive are encrypted: enter your passphrase to open them on this computer." },
+  "drive.notEncrypted": { tr: "Google Drive'daki Nularche klasörü şifreli değil.", en: "The Nularche folder in Google Drive isn't encrypted." },
+  "drive.wrongPassphrase": { tr: "Parola yanlış.", en: "Wrong passphrase." },
+  "drive.shortPassphrase": { tr: "Parola en az 8 karakter olmalı.", en: "The passphrase must be at least 8 characters." },
   "drive.noClient": {
     tr: "Bu derlemede Google bağlantısı yapılandırılmamış.",
     en: "Google sign-in isn't configured in this build.",
