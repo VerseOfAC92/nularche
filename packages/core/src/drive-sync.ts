@@ -462,7 +462,11 @@ export async function syncOrigin(root: string, api: DriveApi, rootId: string, op
     }
   } else {
     const tree = plainTree(rootId, listed);
-    for (const [p, id] of tree.folders) folders.set(p, id);
+    for (const [p, id] of tree.folders) {
+      // Bilgisayara özel kayıt klasörleri (ör. .nularche/history) Drive'dan içleriyle birlikte kalkar.
+      if (p.startsWith(".nularche/") && !syncable(`${p}/x`) && !SYNCED_NULARCHE.some((w) => `.nularche/${w}`.startsWith(`${p}/`))) cleanup.push(id);
+      else folders.set(p, id);
+    }
     remote = new Map();
     for (const [rel, f] of tree.files) {
       if (localOnly(rel)) cleanup.push(f.id);

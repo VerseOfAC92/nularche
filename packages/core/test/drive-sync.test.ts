@@ -141,7 +141,8 @@ test("Drive'a daha önce gitmiş bilgisayara özel kayıtlar kalıcı silinir, y
   await drive.upload(rootId, { parent: dot.id, name: "calendar-events.json", data: new TextEncoder().encode("{}") });
   const a = await origin({ "Not.md": "n", ".nularche/history/eski.md": "yerel" });
   const r = await syncOrigin(a, drive, rootId, opts);
-  assert.equal(r.counts.cleaned, 2);
+  assert.equal(r.counts.cleaned, 3, "iki dosya ve boşalan history klasörü");
+  assert.ok(!fake.files.has(hist.id), "kayıt klasörü de kalktı");
   assert.ok(fake.removed.includes("eski.md") && fake.removed.includes("calendar-events.json"), "çöpe değil, kalıcı silinmeli");
   assert.equal(await read(a, ".nularche/history/eski.md"), "yerel");
 });
