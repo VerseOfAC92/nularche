@@ -73,14 +73,16 @@ export const STRINGS_21 = {
   "mn.allArches": { tr: "Bütün Arche'ler", en: "All Arches" },
   "mn.newPerDay": { tr: "Günde yeni kart", en: "New cards per day" },
   "mn.hint": {
-    tr: "Notlarınızda \"Soru :: Cevap\" yazdığınız her satır bir karttır; \"Terim ::: Tanım\" iki yönlü iki kart olur. Kartlar FSRS algoritmasıyla, unutmak üzereyken sorulur.",
-    en: "Every line you write as \"Question :: Answer\" in your notes is a card; \"Term ::: Definition\" makes two cards, one each way. Cards are scheduled with the FSRS algorithm, just before you'd forget them.",
+    tr: "Notlarınızda \"Soru :: Cevap\" yazdığınız her satır bir karttır; \"Terim ::: Tanım\" iki yönlü iki kart olur. Aynı satır iki kez yazılırsa tek kart sayılır. Kartlar tek tek, FSRS algoritmasıyla unutmak üzereyken sorulur.",
+    en: "Every line you write as \"Question :: Answer\" in your notes is a card; \"Term ::: Definition\" makes two cards, one each way. The same line written twice counts as one card. Cards come one at a time, scheduled with the FSRS algorithm just before you'd forget them.",
   },
   "mn.counts": { tr: "Vadesi gelen {due} · yeni {fresh} · toplam {total} · bugün {today} tekrar", en: "{due} due · {fresh} new · {total} in total · {today} reviewed today" },
   "mn.hidden": {
     tr: "{n} kilitli ya da şifreli notun kartları gizli. Notu ya da Crypta Arche'sini açtığınızda burada görünürler.",
     en: "Cards in {n} locked or encrypted notes are hidden. They appear here when you unlock the note or its Crypta Arche.",
   },
+  "mn.progress": { tr: "Kart {n} / {total}", en: "Card {n} of {total}" },
+  "mn.newCard": { tr: "yeni", en: "new" },
   "mn.show": { tr: "Cevabı göster", en: "Show answer" },
   "mn.again": { tr: "Tekrar", en: "Again" },
   "mn.hard": { tr: "Zor", en: "Hard" },

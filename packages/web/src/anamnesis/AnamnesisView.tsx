@@ -152,6 +152,10 @@ export function AnamnesisView({ nodes, changeTick, onOpen }: { nodes: NodeMeta[]
       )}
       {card && (
         <div className="mn-card" data-testid="mn-card">
+          <div className="mn-progress muted small" data-testid="mn-progress">
+            {t("mn.progress", { n: index + 1, total: data!.queue.length })}
+            {card.state ? "" : ` · ${t("mn.newCard")}`}
+          </div>
           <div className="mn-front" dangerouslySetInnerHTML={{ __html: safeHtml(card.front) }} />
           {shown ? (
             <>
