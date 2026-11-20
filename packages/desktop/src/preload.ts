@@ -51,7 +51,7 @@ contextBridge.exposeInMainWorld("nularche", {
     return () => ipcRenderer.removeListener("nularche:ai-connected", listener);
   },
   calendarStatus: () => invoke("calendar-status"),
-  calendarConnectGoogle: (clientId: string, clientSecret: string) => invoke("calendar-connect-google", clientId, clientSecret),
+  calendarConnectGoogle: (clientId?: string, clientSecret?: string) => invoke("calendar-connect-google", clientId, clientSecret),
   calendarConnectApple: (appleId: string, password: string) => invoke("calendar-connect-apple", appleId, password),
   calendarDisconnect: (provider: string) => invoke("calendar-disconnect", provider),
   calendarCalendars: (provider: string) => invoke("calendar-calendars", provider),
@@ -66,6 +66,22 @@ contextBridge.exposeInMainWorld("nularche", {
     const listener = () => cb();
     ipcRenderer.on("nularche:calendar-synced", listener);
     return () => ipcRenderer.removeListener("nularche:calendar-synced", listener);
+  },
+  storageStatus: () => invoke("storage-status"),
+  storageChosen: (resume?: boolean) => invoke("storage-chosen", resume === true),
+  driveStatus: () => invoke("drive-status"),
+  driveConnect: () => invoke("drive-connect"),
+  driveDisconnect: () => invoke("drive-disconnect"),
+  driveSync: () => invoke("drive-sync"),
+  driveRestore: () => invoke("drive-restore"),
+  driveConfirmDeletes: () => invoke("drive-confirm-deletes"),
+  driveUnlock: (passphrase: string) => invoke("drive-unlock", passphrase),
+  driveEncrypt: (passphrase: string) => invoke("drive-encrypt", passphrase),
+  driveDecrypt: () => invoke("drive-decrypt"),
+  onDriveSynced: (cb: (info: { syncing?: boolean; downloaded?: boolean }) => void) => {
+    const listener = (_e: unknown, info: { syncing?: boolean; downloaded?: boolean }) => cb(info ?? {});
+    ipcRenderer.on("nularche:drive-synced", listener);
+    return () => ipcRenderer.removeListener("nularche:drive-synced", listener);
   },
   printPdf: (name: string) => invoke("print-pdf", name),
   backupStatus: () => invoke("backup-status"),

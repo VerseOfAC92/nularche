@@ -45,6 +45,10 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const activity = new AiActivity(store.root);
   const comments = new CommentStore(store);
   await store.ensureRoot();
+  // Bakım (bir kez, hızlı): eski düzendeki Epoch'ları kendi klasörüne taşı; kilitli notların geçmişinde kalmış
+  // şifresiz sürümleri sil. Başarısız olsa da Origin açılır.
+  await store.migrateEpochs().catch(() => 0);
+  await store.purgeLockedPlaintext().catch(() => 0);
 
   // --- Canlı bildirim: Origin'de (AI araçları dahil) bir dosya değişince istemcilere haber ver.
   const clients = new Set<ServerResponse>();

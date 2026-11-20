@@ -204,8 +204,8 @@ export const STRINGS_15 = {
   // Kilit
   "lock.title": { tr: "Notu kilitle", en: "Lock note" },
   "lock.explain": {
-    tr: "Not içeriği bu parola ile şifrelenir (AES-256). Kilitli notlar aramada, yapay zekâda ve dışa aktarmada görünmez. Parolayı unutursanız içerik kurtarılamaz.",
-    en: "The note's content is encrypted with this password (AES-256). Locked notes are hidden from search, AI and export. If you forget the password the content cannot be recovered.",
+    tr: "Not içeriği bu parola ile şifrelenir (AES-256); Google Drive'a da şifreli gider. Notun şifresiz eski sürümleri ve Epoch'ları kalıcı olarak silinir. Kilitli notlar aramada, yapay zekâda ve dışa aktarmada görünmez. Parolayı unutursanız içerik kurtarılamaz.",
+    en: "The note's content is encrypted with this password (AES-256), in Google Drive too. The note's unencrypted earlier versions and Epochs are deleted for good. Locked notes are hidden from search, AI and export. If you forget the password the content cannot be recovered.",
   },
   "lock.password": { tr: "Parola", en: "Password" },
   "lock.confirm": { tr: "Parolayı doğrula", en: "Verify password" },

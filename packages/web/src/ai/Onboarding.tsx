@@ -1,26 +1,38 @@
-// İlk açılış sihirbazı: Hoş geldiniz → Yapay zekâ seçimi ve bağlantı → Hazır.
-// Her adım atlanabilir; daha sonra Ayarlar → Yapay zekâ bölümünden tamamlanabilir.
+// İlk açılış sihirbazı: Hoş geldiniz → Depolama (bu bilgisayar ya da Google Drive) → Nularche dili → Yapay zekâ
+// seçimi ve bağlantı → Hazır. Her adım atlanabilir; daha sonra Ayarlar'dan tamamlanabilir.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { desktop } from "../desktop.ts";
 import { AiSetup } from "./AiSetup.tsx";
 import { t } from "../i18n/index.ts";
 import { Glossary } from "../studio/Glossary.tsx";
 import { Icon } from "../ui/Icon.tsx";
+import { StorageSetup } from "../StorageSetup.tsx";
 
 export function Onboarding({ aiTick, onToast, onDone }: { aiTick: number; onToast: (msg: string) => void; onDone: () => void }) {
   const [step, setStep] = useState(0);
+  const last = 4;
+  // Sihirbazda klasör değiştirilince pencere yeniden yüklenir: sihirbaz depolama adımından sonra sürer.
+  useEffect(() => {
+    void desktop?.storageStatus().then((s) => s.resume && setStep((v) => (v === 0 ? 2 : v)));
+  }, []);
+  const chooseStorage = () => desktop?.storageChosen();
 
   async function finish() {
+    await chooseStorage();
     await desktop?.aiSet({ onboarded: true });
     onDone();
   }
+  const next = () => {
+    if (step === 1) void chooseStorage();
+    setStep(step + 1);
+  };
 
   return (
     <div className="overlay">
       <div className="dialog onboarding">
         <div className="wizard-steps">
-          {[t("onb.stepWelcome"), t("gloss.step"), t("onb.stepAi"), t("onb.stepReady")].map((label, i) => (
+          {[t("onb.stepWelcome"), t("storage.step"), t("gloss.step"), t("onb.stepAi"), t("onb.stepReady")].map((label, i) => (
             <span key={label} className={i === step ? "on" : i < step ? "done" : ""}>
               {i < step ? <Icon name="check" size={13} /> : i + 1} {label}
             </span>
@@ -37,19 +49,27 @@ export function Onboarding({ aiTick, onToast, onDone }: { aiTick: number; onToas
 
         {step === 1 && (
           <div className="wizard-body">
+            <h2>{t("storage.title")}</h2>
+            <p className="muted">{t("storage.intro")}</p>
+            <StorageSetup onToast={onToast} onBeforeFolderChange={async () => void (await desktop?.storageChosen(true))} />
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="wizard-body">
             <h2>{t("gloss.title")}</h2>
             <p className="muted">{t("gloss.intro")}</p>
             <Glossary compact />
           </div>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <div className="wizard-body">
             <AiSetup tick={aiTick} onToast={onToast} />
           </div>
         )}
 
-        {step === 3 && (
+        {step === last && (
           <div className="wizard-body center">
             <h2>{t("onb.readyTitle")}</h2>
             <p className="muted">{t("onb.readyText")}</p>
@@ -66,8 +86,8 @@ export function Onboarding({ aiTick, onToast, onDone }: { aiTick: number; onToas
                 {t("onb.back")}
               </button>
             )}
-            {step < 3 ? (
-              <button className="primary" onClick={() => setStep(step + 1)}>
+            {step < last ? (
+              <button className="primary" onClick={next}>
                 {t("onb.next")}
               </button>
             ) : (

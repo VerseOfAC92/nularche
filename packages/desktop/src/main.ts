@@ -16,6 +16,7 @@ import { importFiles, IMPORTABLE_EXTS, type ImportFile } from "../../core/src/im
 import type { McpEntry } from "../../core/src/ai-clients.ts";
 import { registerAiIpc, type AiSettings } from "./ai.ts";
 import { registerCalendarIpc } from "./calendar.ts";
+import { registerDriveIpc } from "./drive.ts";
 import { attachContextMenu } from "./context-menu.ts";
 import { registerBackupIpc, type OriginBackup } from "./backup.ts";
 import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
@@ -59,6 +60,10 @@ app.setPath("userData", dirs.data);
 
 interface Settings extends AiSettings {
   originDir?: string;
+  /** İlk açılış penceresinde depolama (bu bilgisayar ya da Google Drive) seçildi mi. */
+  storageChosen?: boolean;
+  /** Sihirbazda klasör değiştirildi: pencere yeniden yüklenince sihirbaz depolama adımından sonra sürer (bir kez). */
+  onboardingResume?: boolean;
   skipVersion?: string;
   /** Arayüz dili; seçilmemişse sistem dilinden çıkarılır. */
   language?: Lang;
@@ -128,38 +133,27 @@ function unstableLocation(): string | null {
   return null;
 }
 
-async function chooseOriginOnFirstRun(): Promise<string | null> {
-  const documents = app.getPath("documents");
-  // Varsayılan "Belgeler/Nularche"; bu ad başka bir şey için kullanılıyorsa (macOS büyük/küçük harf
-  // ayırmadığından ör. "nularche" adlı bir proje klasörü) "Nularche Origin" kullanılır.
+/**
+ * İlk açılışta Origin sessizce "Belgeler/Nularche" olarak hazırlanır (eski sürümlerin klasörü varsa o kullanılır);
+ * pencere açılmadan sistem uyarısı gösterilmez. Depolamanın yeri (bu bilgisayar ya da Google Drive) ve klasör
+ * uygulamanın ilk açılış penceresinde seçilir ve Ayarlar'dan değiştirilebilir.
+ */
+function defaultOrigin(): string {
+  // Testlerde ve taşınabilir kullanımda (NULARCHE_USER_DATA) varsayılan Origin de o klasörün altındadır; kullanıcının
+  // gerçek Belgeler klasörüne dokunulmaz.
+  const documents = override ? path.join(override, "Documents") : app.getPath("documents");
+  const legacy = [path.join(documents, "nularche", "origin"), path.join(documents, "notlar", "vault")].find((p) => existsSync(p));
+  if (legacy) return legacy;
+  // "Nularche" adı başka bir şey için kullanılıyorsa (macOS büyük/küçük harf ayırmadığından ör. "nularche" adlı bir
+  // proje klasörü) "Nularche Origin" kullanılır.
   const candidates = ["Nularche", "Nularche Origin", ...Array.from({ length: 8 }, (_, i) => `Nularche Origin ${i + 2}`)];
-  const defaultDir = path.join(
+  return path.join(
     documents,
     candidates.find((n) => {
       const p = path.join(documents, n);
       return !existsSync(p) || existsSync(path.join(p, ".nularche", "origin.json"));
     }) ?? "Nularche Origin",
   );
-  const legacy = [path.join(documents, "nularche", "origin"), path.join(documents, "notlar", "vault")].find((p) => existsSync(p));
-  const choices = [...(legacy ? (["legacy"] as const) : []), "default", "pick", "quit"] as const;
-  const label = { legacy: d("origin.useLegacy"), default: d("origin.useDefault"), pick: d("origin.pick"), quit: d("menu.quit") };
-  const buttons = choices.map((c) => label[c]);
-  const { response } = await dialog.showMessageBox({
-    type: "question",
-    title: "Nularche",
-    message: d("origin.question"),
-    detail: d("origin.detail", { dir: defaultDir }) + (legacy ? d("origin.legacy", { dir: legacy }) : ""),
-    buttons,
-    defaultId: 0,
-    cancelId: buttons.length - 1,
-  });
-  const choice = choices[response];
-  if (choice === "legacy") return legacy!;
-  let dir: string | null = null;
-  if (choice === "default") dir = defaultDir;
-  else if (choice === "pick") dir = await pickFolder();
-  if (!dir) return null;
-  return (await confirmOriginFolder(dir)) ? dir : chooseOriginOnFirstRun();
 }
 
 const PROJECT_MARKERS = [".git", "package.json", "node_modules", "Cargo.toml", "pyproject.toml", "go.mod"];
@@ -278,6 +272,7 @@ async function openOrigin(originDir: string): Promise<void> {
   origin = await loadOrigin(server.store.root);
   await aiHooks?.resetBaseline();
   calendarHooks?.onOriginChanged();
+  driveHooks?.onOriginChanged();
   settings.originDir = originDir;
   await saveSettings(settings);
   if (win) await win.loadURL(server.url);
@@ -728,6 +723,7 @@ function compareVersions(a: string, b: string): number {
 
 let aiHooks: ReturnType<typeof registerAiIpc> | null = null;
 let calendarHooks: ReturnType<typeof registerCalendarIpc> | null = null;
+let driveHooks: ReturnType<typeof registerDriveIpc> | null = null;
 
 function registerIpc(): void {
   aiHooks = registerAiIpc({
@@ -743,6 +739,21 @@ function registerIpc(): void {
     configDir: () => dirs.config,
   });
   calendarHooks = registerCalendarIpc({ window: () => win, originRoot: () => server?.store.root ?? null, configDir: () => dirs.config });
+  driveHooks = registerDriveIpc({ window: () => win, originRoot: () => server?.store.root ?? null, configDir: () => dirs.config });
+  // Depolama: ilk açılış penceresi ve Ayarlar.
+  ipcMain.handle("nularche:storage-status", async () => {
+    const resume = !!settings.onboardingResume;
+    if (resume) {
+      settings.onboardingResume = false;
+      await saveSettings(settings);
+    }
+    return { originDir: settings.originDir ?? null, chosen: !!settings.storageChosen, resume };
+  });
+  ipcMain.handle("nularche:storage-chosen", async (_e, resume: unknown) => {
+    settings.storageChosen = true;
+    settings.onboardingResume = resume === true;
+    await saveSettings(settings);
+  });
   registerBackupIpc({
     store: () => server?.store ?? null,
     originDir: () => settings.originDir,
@@ -924,8 +935,8 @@ if (!app.requestSingleInstanceLock()) {
       settings.originDir = path.join(dirs.data, "smoke-origin");
       settings.onboarded = true;
     }
-    const originDir = settings.originDir && existsSync(settings.originDir) && !SMOKE ? settings.originDir : SMOKE ? settings.originDir! : await chooseOriginOnFirstRun();
-    if (!originDir) return app.quit();
+    if (settings.originDir && !settings.storageChosen && existsSync(settings.originDir)) settings.storageChosen = true; // önceki sürümlerden gelenler
+    const originDir = SMOKE ? settings.originDir! : settings.originDir && existsSync(settings.originDir) ? settings.originDir : defaultOrigin();
     try {
       if (SMOKE) smokeLog.push("origin: opening");
       await openOrigin(originDir);
@@ -946,5 +957,15 @@ if (!app.requestSingleInstanceLock()) {
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();
   });
-  app.on("before-quit", () => void server?.close());
+  // Çıkarken bekleyen Drive değişiklikleri gönderilir (en fazla birkaç saniye), sonra sunucu kapanır.
+  let quitting = false;
+  app.on("before-quit", (e) => {
+    if (quitting || !driveHooks) return void server?.close();
+    quitting = true;
+    e.preventDefault();
+    void driveHooks.flush().finally(() => {
+      void server?.close();
+      app.quit();
+    });
+  });
 }

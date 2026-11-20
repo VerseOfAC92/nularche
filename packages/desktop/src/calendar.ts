@@ -5,10 +5,7 @@
 // Eşitleme kuralları core/calendar.ts'te, sağlayıcı istemcileri core/calendar-providers.ts'tedir.
 // Kimlik bilgileri bu bilgisayardaki ayar klasöründe kalır; Origin'e yalnızca eşleme durumu yazılır.
 
-import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { ipcMain, safeStorage, shell, type BrowserWindow } from "electron";
 import { randomUUID } from "node:crypto";
@@ -34,30 +31,24 @@ import {
 } from "../../core/src/calendar.ts";
 import {
   CalDavCalendar,
-  exchangeGoogleCode,
   GoogleCalendar,
-  googleAuthUrl,
-  GOOGLE_AUTH_URL,
+  GOOGLE_SCOPES,
   type CalDavCredentials,
   type GoogleCredentials,
 } from "../../core/src/calendar-providers.ts";
 import { NodeError, NodeStore } from "../../core/src/node-store.ts";
+import { authorizeGoogle, builtInGoogleClient, googleEndpoints } from "./google-auth.ts";
 import { d } from "./i18n.ts";
 
 /** Uçtan uca testlerde gerçek Anahtar Zinciri ve tarayıcı kullanılmaz. */
 const dryRun = !!process.env.NULARCHE_E2E;
 /** Testler için sağlayıcı adresleri değiştirilebilir. */
-const google = {
-  auth: process.env.NULARCHE_GOOGLE_AUTH || GOOGLE_AUTH_URL,
-  token: process.env.NULARCHE_GOOGLE_TOKEN || undefined,
-  api: process.env.NULARCHE_GOOGLE_API || undefined,
-};
+const google = { token: googleEndpoints.token, api: process.env.NULARCHE_GOOGLE_API || undefined };
 const CALDAV_SERVER = process.env.NULARCHE_CALDAV || undefined;
 const GOOGLE_CONSOLE_URL = "https://console.cloud.google.com/apis/credentials";
 const APPLE_PASSWORD_URL = "https://account.apple.com/account/manage";
 /** Arka plan eşitleme aralığı. */
 const INTERVAL_MS = 5 * 60_000;
-const OAUTH_TIMEOUT_MS = 5 * 60_000;
 
 interface StoredAccount {
   account: string;
@@ -78,7 +69,6 @@ const failure = (e: unknown): { ok: false; code: CalendarErrorCode | "unknown"; 
   error: (e as Error).message,
 });
 
-const base64url = (b: Buffer) => b.toString("base64url");
 
 /** Yerel takvimin önbellekteki anahtarı: hesap gerektirmez, Origin'de kalır. */
 const LOCAL = "local";
@@ -227,51 +217,6 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     setTimeout(() => void queueSync().catch(() => undefined), 5_000).unref?.();
   }
 
-  // --- Google OAuth: geri dönüş adresi 127.0.0.1 üzerinde, PKCE ile ------------------------------
-  async function authorizeGoogle(clientId: string, clientSecret: string): Promise<string> {
-    const verifier = base64url(randomBytes(32));
-    const challenge = base64url(createHash("sha256").update(verifier).digest());
-    const state = base64url(randomBytes(16));
-    return new Promise<string>((resolve, reject) => {
-      let redirectUri = "";
-      const page = (title: string) =>
-        `<!doctype html><meta charset="utf-8"><title>Nularche</title><body style="font:16px system-ui;padding:40px;text-align:center"><h2>${title}</h2><p>${d("cal.closeTab")}</p></body>`;
-      const server = createServer(async (req, res) => {
-        const url = new URL(req.url ?? "/", redirectUri);
-        if (url.pathname !== "/") return res.writeHead(404).end();
-        res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-        if (url.searchParams.get("state") !== state) return res.end(page(d("cal.authFailed")));
-        const code = url.searchParams.get("code");
-        if (!code) {
-          res.end(page(d("cal.authFailed")));
-          finish(new CalendarError("auth", url.searchParams.get("error") ?? "access_denied"));
-          return;
-        }
-        try {
-          const refreshToken = await exchangeGoogleCode({ clientId, clientSecret, code, redirectUri, verifier }, { token: google.token });
-          res.end(page(d("cal.authDone")));
-          finish(null, refreshToken);
-        } catch (e) {
-          res.end(page(d("cal.authFailed")));
-          finish(e as Error);
-        }
-      });
-      const timeout = setTimeout(() => finish(new CalendarError("auth", d("cal.authTimeout"))), OAUTH_TIMEOUT_MS);
-      function finish(err: Error | null, token?: string) {
-        clearTimeout(timeout);
-        server.close();
-        if (err) reject(err);
-        else resolve(token!);
-      }
-      server.on("error", (e) => finish(e));
-      server.listen(0, "127.0.0.1", () => {
-        redirectUri = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-        const url = googleAuthUrl({ clientId, redirectUri, challenge, state }, google.auth);
-        if (!dryRun) void shell.openExternal(url);
-      });
-    });
-  }
-
   // --- IPC -----------------------------------------------------------------------------------------
   ipcMain.handle("nularche:calendar-status", async () => {
     const root = ctx.originRoot();
@@ -285,19 +230,22 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     const cache = root ? await readEventCache(root) : {};
     return {
       encryption: canEncrypt(),
+      googleOneClick: dryRun || !!builtInGoogleClient(),
       accounts,
       syncing: !!running,
       links: links.map(({ items, ...l }) => ({ ...l, count: l.dbId ? Object.keys(items).length : (cache[l.id]?.length ?? 0) })),
     };
   });
 
+  // Tek tıkla bağlanma: yerleşik Nularche istemcisiyle. Yerleşik istemci yoksa (yerel geliştirme derlemesi)
+  // kullanıcının kendi istemcisi verilebilir.
   ipcMain.handle("nularche:calendar-connect-google", async (_e, clientId: unknown, clientSecret: unknown) => {
-    if (typeof clientId !== "string" || !clientId.trim() || typeof clientSecret !== "string" || !clientSecret.trim()) {
-      return { ok: false, code: "invalid", error: d("cal.missingClient") };
-    }
+    const own = typeof clientId === "string" && clientId.trim() && typeof clientSecret === "string" && clientSecret.trim() ? { clientId: clientId.trim(), clientSecret: clientSecret.trim() } : null;
+    const client = own ?? builtInGoogleClient();
+    if (!client) return { ok: false, code: "invalid", error: d("cal.missingClient") };
     if (!canEncrypt()) return { ok: false, code: "invalid", error: d("ai.noEncryption") };
     try {
-      const creds = { clientId: clientId.trim(), clientSecret: clientSecret.trim(), refreshToken: await authorizeGoogle(clientId.trim(), clientSecret.trim()) };
+      const creds = { ...client, refreshToken: await authorizeGoogle(client, GOOGLE_SCOPES, (m) => new CalendarError("auth", m)) };
       const account = await new GoogleCalendar(creds, { token: google.token, api: google.api }).account();
       await saveAccount("google", { account, google: creds });
       return { ok: true, account };

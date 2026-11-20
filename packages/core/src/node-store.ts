@@ -16,6 +16,7 @@ import { childDirOf, containerDirOf, isFolderNote, notePathFor, ownerPathsOf, un
 import { extractLinks, relativeLink, resolveLink, rewriteLinks } from "./links.ts";
 import { parseNodeFile, revisionOf, serializeNodeFile, slugify, type Frontmatter } from "./node-file.ts";
 import { bodyFacts, fillTemplate, isLockedBody, plainText, renameTagInBody, tagKey } from "./note-text.ts";
+import { markForPurge } from "./drive-sync.ts";
 import { extractWikiLinks, wikiResolver } from "./wikilinks.ts";
 import { canvasFiles, rewriteCanvasFiles } from "./canvas.ts";
 import { rewriteWhiteboardFiles, whiteboardFiles } from "./whiteboard.ts";
@@ -731,7 +732,10 @@ export class NodeStore {
       else fm[key] = value;
     }
     const before = await readFile(abs, "utf8");
-    if (input.body !== undefined && input.body !== parsed.body) await this.snapshot(current.meta.id, before);
+    // Not şimdi kilitleniyorsa: şifresiz eski hâli geçmişe yazılmaz ve var olan şifresiz sürümler silinir.
+    const locking = input.body !== undefined && isLockedBody(input.body) && !isLockedBody(parsed.body);
+    if (locking) await this.purgePlaintextHistory(current.meta.id);
+    else if (input.body !== undefined && input.body !== parsed.body) await this.snapshot(current.meta.id, before);
     // Başlık değişince bağlantılar yeniden yazılmış olabilir; gövde verilmediyse diskteki güncel gövdeyi koru.
     await this.atomicWrite(abs, serializeNodeFile(fm, input.body ?? parsed.body));
     return this.read(current.meta.id);
@@ -1110,31 +1114,142 @@ export class NodeStore {
     return this.read(target.meta.id);
   }
 
-  // ---------------------------------------------------------------- Dosya geçmişi ("File recovery")
+  // ---------------------------------------------------------------- Dosya geçmişi ("File recovery") ve Epoch'lar
+  //
+  // Otomatik sürümler `.nularche/history/<id>/<zaman>.md` altında, bu bilgisayarın güvenlik ağıdır (Drive ile
+  // eşitlenmez). Epoch'lar (adlandırılmış sürümler) `.nularche/epochs/<id>/` altında, adlarıyla birlikte
+  // `labels.json` dosyasında durur ve kullanıcının içeriği olarak eşitlenir.
 
   private historyDir(id: string): string {
     if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", `Geçersiz id: ${id}`);
     return path.join(this.root, ".nularche", "history", id);
   }
 
+  private epochDir(id: string): string {
+    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", `Geçersiz id: ${id}`);
+    return path.join(this.root, ".nularche", "epochs", id);
+  }
+
   /** Değişmeden önceki dosyayı saklar; aynı not için en fazla beş dakikada bir. Gizli klasör Node taramasına girmez. */
   private async snapshot(id: string, text: string): Promise<void> {
     const dir = this.historyDir(id);
-    const entries = await this.history(id).catch(() => []);
-    const auto = entries.filter((e) => !e.label);
+    const auto = await this.autoHistory(id);
     if (auto[0] && Date.now() - auto[0].at < HISTORY_INTERVAL_MS) return;
     await mkdir(dir, { recursive: true });
     await writeFile(path.join(dir, `${Date.now()}.md`), text);
     for (const old of auto.slice(HISTORY_LIMIT - 1)) await rm(path.join(dir, `${old.at}.md`), { force: true });
   }
 
-  private async historyLabels(id: string): Promise<Record<string, string>> {
+  private async epochLabels(id: string): Promise<Record<string, string>> {
     try {
-      const data = JSON.parse(await readFile(path.join(this.historyDir(id), "labels.json"), "utf8"));
+      const data = JSON.parse(await readFile(path.join(this.epochDir(id), "labels.json"), "utf8"));
       return data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, string>) : {};
     } catch {
       return {};
     }
+  }
+
+  /**
+   * Önceki sürümlerde Epoch'lar otomatik geçmişle aynı klasörde, `labels.json` ile işaretli tutuluyordu. Adlandırılmış
+   * sürümleri `.nularche/epochs/` altına taşır; otomatik sürümler yerinde kalır. Tekrar çalıştırmak zararsızdır.
+   */
+  async migrateEpochs(): Promise<number> {
+    const base = path.join(this.root, ".nularche", "history");
+    let ids: string[];
+    try {
+      ids = await readdir(base);
+    } catch {
+      return 0;
+    }
+    let moved = 0;
+    for (const id of ids) {
+      if (!/^[\w-]{1,64}$/.test(id)) continue;
+      const legacy = path.join(base, id, "labels.json");
+      let labels: Record<string, string>;
+      try {
+        labels = JSON.parse(await readFile(legacy, "utf8"));
+      } catch {
+        continue;
+      }
+      const target = this.epochDir(id);
+      await mkdir(target, { recursive: true });
+      const merged = { ...(await this.epochLabels(id)) };
+      for (const [at, label] of Object.entries(labels ?? {})) {
+        if (!/^\d+$/.test(at) || typeof label !== "string") continue;
+        try {
+          await rename(path.join(base, id, `${at}.md`), path.join(target, `${at}.md`));
+          merged[at] = label;
+          moved++;
+        } catch (e) {
+          if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+        }
+      }
+      await this.atomicWrite(path.join(target, "labels.json"), JSON.stringify(merged, null, 2));
+      await rm(legacy, { force: true });
+    }
+    return moved;
+  }
+
+  /** Kilitlenen notun şifresiz bütün eski hâllerini siler: otomatik sürümler, Epoch'lar ve Nularche AI geri alma kopyaları. */
+  private async purgePlaintextHistory(id: string): Promise<void> {
+    // Drive ile eşitleniyorsa (ya da sonradan eşitlenirse) notun Drive'daki eski dosyası ve Epoch'ları kalıcı silinir.
+    const meta = (await this.loadAll()).get(id)?.meta;
+    await markForPurge(this.root, { replace: meta ? [meta.path] : [], prefixes: [`.nularche/epochs/${id}/`] });
+    await rm(this.historyDir(id), { recursive: true, force: true });
+    await rm(this.epochDir(id), { recursive: true, force: true });
+    await rm(path.join(this.root, ".nularche", "ai", "history", id.replace(/[^\w-]/g, "_")), { recursive: true, force: true });
+  }
+
+  /**
+   * Kilitli notların geçmişinde kalmış şifresiz sürümleri siler (kilitlenmeden önce alınmış olanlar). Açılışta bir kez
+   * çalışır; şifreli sürümler korunur. Silinen dosya sayısını döndürür.
+   */
+  async purgeLockedPlaintext(): Promise<number> {
+    let removed = 0;
+    for (const { meta, body } of (await this.loadAll()).values()) {
+      if (!isLockedBody(body)) continue;
+      const dirs = [this.historyDir(meta.id), this.epochDir(meta.id), path.join(this.root, ".nularche", "ai", "history", meta.id.replace(/[^\w-]/g, "_"))];
+      let found = 0;
+      for (const dir of dirs) {
+        let files: string[];
+        try {
+          files = await readdir(dir);
+        } catch {
+          continue;
+        }
+        for (const f of files.filter((n) => n.endsWith(".md"))) {
+          const text = await readFile(path.join(dir, f), "utf8").catch(() => "");
+          if (isLockedBody(parseNodeFile(text).body)) continue;
+          await rm(path.join(dir, f), { force: true });
+          found++;
+        }
+      }
+      // Şifresiz sürümü olan not bir zamanlar açıktı: Drive'daki dosyası da şifresiz geçmiş taşıyabilir.
+      if (found) await markForPurge(this.root, { replace: [meta.path], prefixes: [`.nularche/epochs/${meta.id}/`] });
+      removed += found;
+    }
+    return removed;
+  }
+
+  private async autoHistory(id: string): Promise<HistoryEntry[]> {
+    let files: string[];
+    try {
+      files = await readdir(this.historyDir(id));
+    } catch {
+      return [];
+    }
+    const out: HistoryEntry[] = [];
+    for (const f of files) {
+      const at = Number(/^(\d+)\.md$/.exec(f)?.[1]);
+      if (at) out.push({ at, size: (await stat(path.join(this.historyDir(id), f))).size });
+    }
+    return out.sort((a, b) => b.at - a.at);
+  }
+
+  /** Sürümün dosyası: Epoch ise epochs klasöründe, değilse otomatik geçmişte. */
+  private async entryFile(id: string, at: number): Promise<string> {
+    const labels = await this.epochLabels(id);
+    return path.join(String(at) in labels ? this.epochDir(id) : this.historyDir(id), `${at}.md`);
   }
 
   /**
@@ -1146,13 +1261,13 @@ export class NodeStore {
     const name = label.replace(/\s+/g, " ").trim().slice(0, 80) || new Date().toISOString().slice(0, 16).replace("T", " ");
     const entries = await this.history(meta.id);
     if (entries.filter((e) => e.label).length >= CHECKPOINT_LIMIT) throw new NodeError("invalid", `En fazla ${CHECKPOINT_LIMIT} kontrol noktası saklanır; önce birini silin.`);
-    const dir = this.historyDir(meta.id);
+    const dir = this.epochDir(meta.id);
     await mkdir(dir, { recursive: true });
     let at = Date.now();
     while (entries.some((e) => e.at === at)) at++;
     const text = await readFile(this.abs(meta.path), "utf8");
     await writeFile(path.join(dir, `${at}.md`), text);
-    const labels = await this.historyLabels(meta.id);
+    const labels = await this.epochLabels(meta.id);
     labels[String(at)] = name;
     await this.atomicWrite(path.join(dir, "labels.json"), JSON.stringify(labels, null, 2));
     return { at, size: Buffer.byteLength(text), label: name };
@@ -1162,30 +1277,23 @@ export class NodeStore {
   async deleteHistory(ref: string, at: number): Promise<void> {
     const { meta } = await this.find(ref);
     if (!Number.isSafeInteger(at)) throw new NodeError("invalid", "Geçersiz zaman.");
-    await rm(path.join(this.historyDir(meta.id), `${at}.md`), { force: true });
-    const labels = await this.historyLabels(meta.id);
+    const labels = await this.epochLabels(meta.id);
     if (String(at) in labels) {
+      await rm(path.join(this.epochDir(meta.id), `${at}.md`), { force: true });
       delete labels[String(at)];
-      await this.atomicWrite(path.join(this.historyDir(meta.id), "labels.json"), JSON.stringify(labels, null, 2));
-    }
+      await this.atomicWrite(path.join(this.epochDir(meta.id), "labels.json"), JSON.stringify(labels, null, 2));
+    } else await rm(path.join(this.historyDir(meta.id), `${at}.md`), { force: true });
   }
 
-  /** Notun anlık görüntüleri (en yeni önce). */
+  /** Notun anlık görüntüleri ve Epoch'ları (en yeni önce). */
   async history(ref: string): Promise<HistoryEntry[]> {
     const id = /^[\w-]{1,64}$/.test(ref) ? ref : (await this.find(ref)).meta.id;
-    let files: string[];
-    try {
-      files = await readdir(this.historyDir(id));
-    } catch {
-      return [];
-    }
-    const out: HistoryEntry[] = [];
-    const labels = files.includes("labels.json") ? await this.historyLabels(id) : {};
-    for (const f of files) {
-      const at = Number(/^(\d+)\.md$/.exec(f)?.[1]);
-      if (!at) continue;
-      const label = labels[String(at)];
-      out.push({ at, size: (await stat(path.join(this.historyDir(id), f))).size, ...(typeof label === "string" && label ? { label } : {}) });
+    const out = await this.autoHistory(id);
+    const labels = await this.epochLabels(id);
+    for (const [at, label] of Object.entries(labels)) {
+      const st = await stat(path.join(this.epochDir(id), `${at}.md`)).catch(() => null);
+      // Başka bir bilgisayardan adı gelmiş ama dosyası henüz eşitlenmemiş Epoch gösterilmez.
+      if (st && typeof label === "string" && label) out.push({ at: Number(at), size: st.size, label });
     }
     return out.sort((a, b) => b.at - a.at);
   }
@@ -1195,7 +1303,7 @@ export class NodeStore {
     const { meta } = await this.find(ref);
     if (!Number.isSafeInteger(at)) throw new NodeError("invalid", "Geçersiz zaman.");
     try {
-      return parseNodeFile(await readFile(path.join(this.historyDir(meta.id), `${at}.md`), "utf8")).body;
+      return parseNodeFile(await readFile(await this.entryFile(meta.id, at), "utf8")).body;
     } catch {
       throw new NodeError("not_found", "Anlık görüntü bulunamadı.");
     }
