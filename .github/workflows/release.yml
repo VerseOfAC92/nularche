@@ -14,6 +14,10 @@ permissions:
 jobs:
   macos:
     runs-on: macos-15
+    # Yerleşik Google istemcisi (Google Takvim ve Drive'a tek tıkla bağlanma); depoda değil, GitHub sırlarında.
+    env:
+      NULARCHE_GOOGLE_CLIENT_ID: ${{ secrets.NULARCHE_GOOGLE_CLIENT_ID }}
+      NULARCHE_GOOGLE_CLIENT_SECRET: ${{ secrets.NULARCHE_GOOGLE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -44,6 +48,10 @@ jobs:
   macos-intel:
     needs: macos
     runs-on: macos-15-intel
+    # Yerleşik Google istemcisi (Google Takvim ve Drive'a tek tıkla bağlanma); depoda değil, GitHub sırlarında.
+    env:
+      NULARCHE_GOOGLE_CLIENT_ID: ${{ secrets.NULARCHE_GOOGLE_CLIENT_ID }}
+      NULARCHE_GOOGLE_CLIENT_SECRET: ${{ secrets.NULARCHE_GOOGLE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -68,6 +76,10 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    # Yerleşik Google istemcisi (Google Takvim ve Drive'a tek tıkla bağlanma); depoda değil, GitHub sırlarında.
+    env:
+      NULARCHE_GOOGLE_CLIENT_ID: ${{ secrets.NULARCHE_GOOGLE_CLIENT_ID }}
+      NULARCHE_GOOGLE_CLIENT_SECRET: ${{ secrets.NULARCHE_GOOGLE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -98,6 +110,10 @@ jobs:
 
   linux:
     runs-on: ubuntu-24.04
+    # Yerleşik Google istemcisi (Google Takvim ve Drive'a tek tıkla bağlanma); depoda değil, GitHub sırlarında.
+    env:
+      NULARCHE_GOOGLE_CLIENT_ID: ${{ secrets.NULARCHE_GOOGLE_CLIENT_ID }}
+      NULARCHE_GOOGLE_CLIENT_SECRET: ${{ secrets.NULARCHE_GOOGLE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -24,3 +24,5 @@ export * from "./manuscript.ts";
 export * from "./comments.ts";
 export * from "./capture.ts";
 export * from "./backup.ts";
+export * from "./drive-sync.ts";
+export * from "./drive-google.ts";

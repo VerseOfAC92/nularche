@@ -15,6 +15,7 @@ import { usePref } from "./prefs.ts";
 import { BackgroundPicker } from "./focus/BackgroundPicker.tsx";
 import { HotkeyEditor, VaultSettings } from "./vault/VaultSettings.tsx";
 import type { MathMode } from "./editor/notes-extensions.ts";
+import { StorageSetup } from "./StorageSetup.tsx";
 import type { NodeMeta } from "./api.ts";
 import { StudioSettings } from "./studio/StudioSettings.tsx";
 import { runCommand } from "./commands.ts";
@@ -36,7 +37,7 @@ const CATEGORIES: Category[] = [
   { id: "writing", icon: "pencil", label: "settings.catWriting", hint: "settings.catWritingHint", keywords: "yazım spell kelime word hedef goal font yazı tipi matematik math düzenleyici editor okuma reading lore" },
   { id: "aura", icon: "music", label: "settings.catAura", hint: "settings.catAuraHint", keywords: "aura ses sound daktilo typewriter ortam ambience clepsydra zamanlayıcı timer odak focus arka plan background manzara" },
   { id: "automation", icon: "bolt", label: "settings.catAutomation", hint: "settings.catAutomationHint", keywords: "sigil kısaltma shortcut rite komut command conduit yakalama capture" },
-  { id: "origin", icon: "database", label: "settings.catOrigin", hint: "settings.catOriginHint", keywords: "origin klasör folder içe aktar import arşiv archive nla yedek backup ark dosya file açılış startup hariç excluded" },
+  { id: "origin", icon: "database", label: "settings.catOrigin", hint: "settings.catOriginHint", keywords: "depolama storage google drive eşitleme sync bulut cloud origin klasör folder içe aktar import arşiv archive nla yedek backup ark dosya file açılış startup hariç excluded" },
   { id: "keys", icon: "keyboard", label: "settings.catKeys", hint: "settings.catKeysHint", keywords: "kısayol shortcut hotkey klavye keyboard" },
   { id: "publish", icon: "world", label: "settings.catPublish", hint: "settings.catPublishHint", keywords: "yayınla publish site web" },
   { id: "calendar", icon: "calendar", label: "settings.catCalendar", hint: "settings.catCalendarHint", keywords: "takvim calendar google apple icloud" },
@@ -226,20 +227,8 @@ export function Settings({
     ),
     origin: () => (
       <>
-        <Card title="Origin" hint={desktop && info ? t("settings.originHint") : t("settings.originBrowser")}>
-          {desktop && info && (
-            <>
-              <code className="path">{info.originDir}</code>
-              <div className="row">
-                <button className="secondary" onClick={() => desktop!.revealOrigin()}>
-                  {t("settings.revealFolder")}
-                </button>
-                <button className="secondary" onClick={async () => (await desktop!.changeOrigin()) && onClose()}>
-                  {t("settings.openOtherOrigin")}
-                </button>
-              </div>
-            </>
-          )}
+        <Card title={t("storage.cardTitle")} hint={desktop ? t("storage.cardHint") : t("settings.originBrowser")}>
+          {desktop && <StorageSetup onToast={onToast} />}
         </Card>
         <Card title={t("ob.setFiles")}>
           <VaultSettings part="files" />

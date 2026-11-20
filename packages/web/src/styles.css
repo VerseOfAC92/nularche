@@ -1871,3 +1871,27 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .cal-dialog .field textarea:focus { border-color: var(--nlc-accent-primary); }
 /* Veritabanı sayfasında görünümün altındaki boş gövde yönerge göstermez (tıklayınca yazılabilir). */
 .page.page-db .editor .ProseMirror > p.is-empty:only-child::before { content: none; }
+
+/* Depolama seçimi (ilk açılış ve Ayarlar → Notlar ve Origin) */
+.storage-choice { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.storage-option { border: 1px solid var(--nlc-border-subtle); border-radius: 12px; padding: 14px 16px; background: var(--nlc-bg-surface); transition: border-color 0.15s, box-shadow 0.15s; }
+.storage-option.on { border-color: var(--nlc-accent-primary); box-shadow: 0 0 0 3px var(--nlc-accent-glow); }
+.storage-head { display: flex; align-items: flex-start; gap: 12px; }
+.storage-head b { font-size: 15px; }
+.storage-head p { margin: 3px 0 0; line-height: 1.45; }
+.storage-icon { flex: none; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--nlc-bg-secondary, rgba(127, 127, 127, 0.1)); color: var(--nlc-text-secondary); }
+.storage-option.on .storage-icon { color: var(--nlc-accent-primary); }
+.storage-option .storage-icon.drive { background: #fff; box-shadow: inset 0 0 0 1px var(--nlc-border-subtle); }
+.storage-body { margin: 12px 0 0 50px; display: flex; flex-direction: column; gap: 8px; }
+.storage-body .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.storage-body .path { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.storage-body p { margin: 0; }
+.storage-status { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.storage-status .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.storage-option .pill.on { display: inline-flex; align-items: center; gap: 4px; flex: none; color: var(--nlc-accent-primary); border-color: var(--nlc-accent-primary); }
+.onboarding .storage-choice { text-align: left; }
+
+/* Google ile giriş düğmesi: Google'ın marka kurallarına uygun beyaz düğme. */
+.google-btn { display: inline-flex; align-items: center; gap: 10px; height: 38px; padding: 0 16px 0 12px; border-radius: 19px; border: 1px solid #dadce0; background: #fff; color: #1f1f1f; font: 500 14px/1 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif; cursor: pointer; box-shadow: 0 1px 2px rgba(60, 64, 67, 0.12); transition: background 0.15s, box-shadow 0.15s; }
+.google-btn:hover:not(:disabled) { background: #f8faff; box-shadow: 0 1px 3px rgba(60, 64, 67, 0.25); }
+.google-btn:disabled { opacity: 0.75; cursor: progress; }

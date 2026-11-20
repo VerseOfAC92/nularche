@@ -252,6 +252,17 @@ export function App() {
     }
   }, []);
 
+  // Google Drive'dan değişiklik gelince: notlar dosya izleyicisiyle yenilenir, arayüz tercihleri yeniden okunur.
+  useEffect(
+    () =>
+      desktop?.onDriveSynced((info) => {
+        if (!info.downloaded) return;
+        void loadPrefs();
+        void refresh();
+      }),
+    [], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   useEffect(() => {
     // Açılışta gösterilecek görünüm ("Default file to open"): son açık sekme, günlük not ya da ana sayfa.
     void loadPrefs().then(() => {

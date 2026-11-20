@@ -4,12 +4,14 @@ import { STRINGS_15 } from "./strings15.ts";
 import { STRINGS_16 } from "./strings16.ts";
 import { STRINGS_17 } from "./strings17.ts";
 import { STRINGS_18 } from "./strings18.ts";
+import { STRINGS_19 } from "./strings19.ts";
 
 export const STRINGS = {
   ...STRINGS_15,
   ...STRINGS_16,
   ...STRINGS_17,
   ...STRINGS_18,
+  ...STRINGS_19,
   "action.expand": { tr: "Genişlet", en: "Expand" },
   "action.expand.do": { tr: "Notları açık, düzenli ve daha ayrıntılı bir metne dönüştür; uygun başlıklar ve listeler kullan, bilgi uydurma.", en: "Turn the notes into clear, organized and more detailed text; use suitable headings and lists, and do not invent facts." },
   "action.fix": { tr: "Düzelt", en: "Fix" },
@@ -284,9 +286,7 @@ export const STRINGS = {
   "settings.imported": { tr: "{count} Node içe aktarıldı (Shadow).", en: "{count} Nodes imported (Shadow)." },
   "settings.language": { tr: "Dil", en: "Language" },
   "settings.license": { tr: "MIT lisansı", en: "MIT licence" },
-  "settings.openOtherOrigin": { tr: "Başka Origin aç…", en: "Open another Origin…" },
   "settings.originBrowser": { tr: "Tarayıcı sürümünde Origin klasörü sunucunun NULARCHE_ORIGIN ayarıyla belirlenir.", en: "In the browser version, the Origin folder is set by the server's NULARCHE_ORIGIN setting." },
-  "settings.originHint": { tr: "Tüm Node'larınız bu klasörde düz Markdown (.md) dosyaları olarak durur; Time Machine, iCloud ya da git ile yedekleyebilirsiniz.", en: "All your Nodes live in this folder as plain Markdown (.md) files; you can back them up with Time Machine, iCloud or git." },
   "settings.revealFolder": { tr: "Klasörü göster", en: "Show folder" },
   "settings.themeDark": { tr: "Koyu", en: "Dark" },
   "settings.themeLight": { tr: "Açık", en: "Light" },

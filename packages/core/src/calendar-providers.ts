@@ -84,12 +84,17 @@ export async function exchangeGoogleCode(
   return body.refresh_token;
 }
 
-export function googleAuthUrl(input: { clientId: string; redirectUri: string; challenge: string; state: string }, base = GOOGLE_AUTH_URL): string {
+/** Google giriş adresi (PKCE). `scopes` verilmezse takvim izinleri istenir; Drive bağlantısı kendi iznini verir. */
+export function googleAuthUrl(
+  input: { clientId: string; redirectUri: string; challenge: string; state: string; scopes?: string[]; loginHint?: string },
+  base = GOOGLE_AUTH_URL,
+): string {
   const q = new URLSearchParams({
     client_id: input.clientId,
     redirect_uri: input.redirectUri,
     response_type: "code",
-    scope: GOOGLE_SCOPES.join(" "),
+    scope: (input.scopes ?? GOOGLE_SCOPES).join(" "),
+    ...(input.loginHint ? { login_hint: input.loginHint } : {}),
     code_challenge: input.challenge,
     code_challenge_method: "S256",
     state: input.state,

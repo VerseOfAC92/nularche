@@ -105,7 +105,22 @@ export interface ViewCalendar {
   events: CachedEvent[];
 }
 
+export interface DriveStatus {
+  /** Google ile tek tıkla bağlanma bu derlemede kullanılabilir mi. */
+  available: boolean;
+  encryption: boolean;
+  account: string | null;
+  /** Bu Origin Google Drive ile eşitleniyor mu. */
+  linked: boolean;
+  syncing: boolean;
+  lastSync: number | null;
+  lastError: { code: string; message: string } | null;
+  lastCounts: { uploaded: number; downloaded: number; deletedLocal: number; deletedRemote: number; conflicts: number } | null;
+}
+
 export interface CalendarStatus {
+  /** Google Takvim tek tıkla (yerleşik Nularche istemcisiyle) bağlanabilir mi. */
+  googleOneClick?: boolean;
   encryption: boolean;
   /** Bağlı hesapların görünen adı (e-posta / Apple Kimliği). */
   accounts: Partial<Record<CalendarProviderId, string>>;
@@ -159,7 +174,7 @@ export interface DesktopBridge {
   onAiConnected(cb: (client: AiClientRecord) => void): () => void;
   calendarStatus(): Promise<CalendarStatus>;
   /** Tarayıcıda Google girişini açar; kullanıcı izin verince hesabı kaydeder. */
-  calendarConnectGoogle(clientId: string, clientSecret: string): Promise<{ ok: true; account: string } | CalendarFailure>;
+  calendarConnectGoogle(clientId?: string, clientSecret?: string): Promise<{ ok: true; account: string } | CalendarFailure>;
   calendarConnectApple(appleId: string, password: string): Promise<{ ok: true; account: string } | CalendarFailure>;
   calendarDisconnect(provider: CalendarProviderId): Promise<void>;
   calendarCalendars(provider: CalendarProviderId): Promise<{ ok: true; calendars: { id: string; name: string; color?: string }[] } | CalendarFailure>;
@@ -180,6 +195,17 @@ export interface DesktopBridge {
   calendarHelp(which: CalendarProviderId): Promise<void>;
   /** Bir eşitleme bittiğinde. */
   onCalendarSynced(cb: () => void): () => void;
+  /** Depolama: Origin klasörü ve ilk açılışta depolama seçimi yapıldı mı. */
+  storageStatus(): Promise<{ originDir: string | null; chosen: boolean; resume: boolean }>;
+  /** `resume`: sihirbazda klasör değiştirildi, pencere yeniden yüklenince sihirbaz kaldığı yerden sürsün. */
+  storageChosen(resume?: boolean): Promise<void>;
+  driveStatus(): Promise<DriveStatus>;
+  /** Google ile tek tıkla giriş yapar ve bu Origin'i Google Drive ile eşitlemeye başlar. */
+  driveConnect(): Promise<{ ok: true; account: string; existing: boolean; error: string | null } | { ok: false; code: string; error: string }>;
+  /** Eşitlemeyi kapatır; dosyalar bu bilgisayarda ve Drive'da kalır. */
+  driveDisconnect(): Promise<void>;
+  driveSync(): Promise<{ ok: boolean; error?: string }>;
+  onDriveSynced(cb: (info: { syncing?: boolean; downloaded?: boolean }) => void): () => void;
   printPdf(name: string): Promise<string | null>;
   /** Otomatik yedekleme (2.0). */
   backupStatus(): Promise<BackupStatus>;

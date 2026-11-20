@@ -5,3 +5,6 @@ origin/
 dist-desktop/
 release/
 build/icon-source.png
+# Yerleşik Google istemcisi (Google Cloud'dan indirilen JSON); depoya girmez.
+google-client.json
+client_secret_*.json

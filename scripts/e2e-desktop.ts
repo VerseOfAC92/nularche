@@ -16,6 +16,7 @@ import { createServer } from "node:http";
 import { _electron as electron } from "playwright-core";
 import { projectRoot } from "../packages/core/src/config.ts";
 import { addProperty, defaultDatabase, serializeDatabase } from "../packages/core/src/database.ts";
+import { startFakeDrive } from "../packages/core/test/fake-drive.ts";
 
 const arg = (n: string) => (process.argv.includes(n) ? process.argv[process.argv.indexOf(n) + 1] : undefined);
 const root = projectRoot();
@@ -110,11 +111,16 @@ const caldav = createServer(async (req, res) => {
 await new Promise<void>((r) => caldav.listen(0, "127.0.0.1", () => r()));
 const caldavUrl = `http://127.0.0.1:${(caldav.address() as { port: number }).port}/`;
 
+// Google Drive ve Google girişi yerine sahte sunucu (tek tıkla bağlanma, yükleme, indirme).
+const fakeDrive = await startFakeDrive("me@gmail.com");
+
 const app = await electron.launch({
   executablePath: path.join(root, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"),
   // Sistem dilinden bağımsız olsun: ilk açılış Türkçe, sonra Ayarlar'dan İngilizceye geçilir.
   args: [root, "--lang=tr"],
-  env: { ...process.env, HOME: home, NULARCHE_USER_DATA: userData, NULARCHE_E2E: "1", NULARCHE_GEMINI_API: geminiUrl, NULARCHE_CALDAV: caldavUrl },
+  env: { ...process.env, HOME: home, NULARCHE_USER_DATA: userData, NULARCHE_E2E: "1", NULARCHE_GEMINI_API: geminiUrl, NULARCHE_CALDAV: caldavUrl,
+    NULARCHE_GOOGLE_AUTH: `${fakeDrive.url}/auth`, NULARCHE_GOOGLE_TOKEN: `${fakeDrive.url}/token`,
+    NULARCHE_DRIVE_API: `${fakeDrive.url}/drive/v3`, NULARCHE_DRIVE_UPLOAD: `${fakeDrive.url}/upload/drive/v3` },
 });
 const page = await app.firstWindow();
 app.process().stderr?.on("data", (d) => process.env.E2E_VERBOSE && process.stderr.write(d));
@@ -124,6 +130,20 @@ const shot = async (name: string) => shots && (await page.screenshot({ path: pat
 try {
   await page.getByText("Nularche'ye hoş geldiniz").waitFor({ timeout: 20_000 });
   await shot("1-hosgeldiniz");
+  await page.getByRole("button", { name: "İleri" }).click();
+  // Depolama: sistem uyarısı yerine sihirbaz adımı; Google ile tek tıkla bağlanınca Origin Drive'a eşitlenir.
+  await page.getByText("Notlarınız nerede saklansın?").waitFor();
+  assert.equal(await page.locator('[data-testid="storage-local"].on').count(), 1, "varsayılan bu bilgisayar olmalı");
+  await page.locator('[data-testid="storage-drive"] .google-btn').click();
+  await page.locator('[data-testid="storage-drive"].on').waitFor({ timeout: 15_000 });
+  const driveRoot = [...fakeDrive.files.values()].find((f) => f.appProperties.nularcheOrigin === "1");
+  assert.ok(driveRoot && fakeDrive.byPath(driveRoot.id, ".nularche/origin.json"), "Origin Drive'a yüklenmedi");
+  await shot("1a-depolama");
+  // Eşitlemeyi kapat: dosyalar iki tarafta da kalır.
+  page.once("dialog", (d) => void d.accept());
+  await page.locator('[data-testid="storage-drive"] button', { hasText: "eşitlemesini kapat" }).click();
+  await page.locator('[data-testid="storage-local"].on').waitFor({ timeout: 5_000 });
+  assert.ok(fakeDrive.byPath(driveRoot.id, ".nularche/origin.json"), "Drive'daki dosyalar silinmemeli");
   await page.getByRole("button", { name: "İleri" }).click();
   // 2.0: Nularche dili adımı tüm adları ve anlamlarını gösterir.
   await page.locator(".onboarding .glossary").waitFor();
@@ -523,4 +543,5 @@ try {
   await app.close();
   gemini.close();
   caldav.close();
+  await fakeDrive.close();
 }
