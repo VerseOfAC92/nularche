@@ -11,7 +11,7 @@ import { SnapshotError, SnapshotStore } from "../../core/src/snapshots.ts";
 import { citationSettings, findLibraryFiles, loadLibrary } from "../../core/src/citations-store.ts";
 import { readAnnotations, writeAnnotations } from "../../core/src/annotations.ts";
 import { runQuery } from "../../core/src/query.ts";
-import { Mnemos, type Grade } from "../../core/src/mnemos.ts";
+import { Anamnesis, type Grade } from "../../core/src/anamnesis.ts";
 import { writeDigest } from "../../core/src/vigil.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
@@ -114,7 +114,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
 
   // --- Anlık görüntüler: kilitlenen notun şifresiz sürümleri anlık görüntülerden de silinir.
   const snapshots = new SnapshotStore(store.root, { key: options.snapshotKey ?? null });
-  const mnemos = new Mnemos(store);
+  const anamnesis = new Anamnesis(store);
   store.lockPurgeHooks.add((ids) => snapshots.purgeNotes(ids));
   await store
     .list()
@@ -275,17 +275,17 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     const id = parts[1];
 
     if (parts[0] === "snapshots") return handleSnapshots(req, res, url, parts, method);
-    if (parts[0] === "mnemos") {
+    if (parts[0] === "anamnesis") {
       if (method === "GET" && !parts[1]) {
         const arche = url.searchParams.get("arche");
         const prefs = await readPrefs(store.root);
-        const newPerDay = Number(prefs.mnemosNewPerDay);
-        return send(res, 200, await mnemos.queue({ archeId: arche === null ? undefined : arche === "shadow" ? null : arche, newPerDay: Number.isInteger(newPerDay) && newPerDay >= 0 ? newPerDay : 20 }));
+        const newPerDay = Number(prefs.anamnesisNewPerDay);
+        return send(res, 200, await anamnesis.queue({ archeId: arche === null ? undefined : arche === "shadow" ? null : arche, newPerDay: Number.isInteger(newPerDay) && newPerDay >= 0 ? newPerDay : 20 }));
       }
       if (method === "POST" && parts[1] === "grade") {
         const b = await readJson(req);
         try {
-          return send(res, 200, await mnemos.grade(str(b.id) ?? "", Number(b.grade) as Grade));
+          return send(res, 200, await anamnesis.grade(str(b.id) ?? "", Number(b.grade) as Grade));
         } catch (e) {
           return send(res, 400, { error: "invalid", message: (e as Error).message });
         }

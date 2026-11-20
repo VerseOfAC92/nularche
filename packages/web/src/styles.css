@@ -1947,8 +1947,8 @@ button.status-pill:hover { color: var(--nlc-text-primary); border-color: var(--n
 .query-table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 .query-table th, .query-table td { border-bottom: 1px solid var(--nlc-border-subtle); padding: 4px 8px; text-align: left; }
 .query-big { font-size: 32px; font-weight: 600; }
-/* Mnemos */
-.mnemos .row { gap: 8px; }
+/* Anamnesis */
+.anamnesis .row { gap: 8px; }
 .mn-card { max-width: 680px; margin: 24px auto; padding: 28px 32px; border: 1px solid var(--nlc-border-subtle); border-radius: 16px; background: var(--nlc-bg-surface); display: flex; flex-direction: column; gap: 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06); }
 .mn-front { font-size: 22px; line-height: 1.45; }
 .mn-back { font-size: 18px; line-height: 1.5; }

@@ -1,4 +1,4 @@
-// Lectern: Origin'deki PDF'leri okuma ve işaretleme. Metin seçilip renkli vurgulanır, vurgulara yorum yazılır;
+// Lectio: Origin'deki PDF'leri okuma ve işaretleme. Metin seçilip renkli vurgulanır, vurgulara yorum yazılır;
 // vurgular tek tıkla bir nota aktarılır (her vurgu sayfasına dönen bir bağlantıyla). İşaretlemeler
 // `.nularche/annotations/` altında saklanır (bkz. core/src/annotations.ts). Sayfalar görünür olduklarında çizilir.
 
@@ -11,7 +11,7 @@ import { dirname, fileUrl, relative } from "../editor/paths.ts";
 import { t } from "../i18n/index.ts";
 import { getPref, setPref } from "../prefs.ts";
 import { Icon } from "../ui/Icon.tsx";
-import "./lectern.css";
+import "./lectio.css";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -38,16 +38,16 @@ const linkPath = (from: string, to: string) => relative(dirname(from), to).split
 export function quoteMarkdown(h: PdfHighlight, pdfPath: string, notePath: string | null): string {
   const target = notePath ? linkPath(notePath, pdfPath) : pdfPath.split("/").map(encodeURIComponent).join("/");
   const text = h.text.replace(/\s+/g, " ").trim();
-  const lines = [`> ${text} ^${h.id}`, ">", `> — [${t("lectern.pageShort", { n: h.page })}](${target}#page=${h.page}&hl=${h.id})`];
+  const lines = [`> ${text} ^${h.id}`, ">", `> — [${t("lectio.pageShort", { n: h.page })}](${target}#page=${h.page}&hl=${h.id})`];
   if (h.comment?.trim()) lines.push("", h.comment.trim());
   return lines.join("\n");
 }
 
-export default function LecternView({ path, page, highlight, nodes, onOpenNote, onChanged, onToast }: Props) {
+export default function LectioView({ path, page, highlight, nodes, onOpenNote, onChanged, onToast }: Props) {
   const [doc, setDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ann, setAnn] = useState<PdfAnnotations | null>(null);
-  const [zoom, setZoomState] = useState<number>(() => Number(getPref("lecternZoom", 1.25)) || 1.25);
+  const [zoom, setZoomState] = useState<number>(() => Number(getPref("lectioZoom", 1.25)) || 1.25);
   const [current, setCurrent] = useState(1);
   const [pending, setPending] = useState<{ page: number; rects: Rect[]; text: string; x: number; y: number } | null>(null);
   const [focus, setFocus] = useState<string | null>(highlight ?? null);
@@ -58,7 +58,7 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
 
   const setZoom = (z: number) => {
     setZoomState(z);
-    setPref("lecternZoom", z);
+    setPref("lectioZoom", z);
   };
 
   // Belgeyi ve işaretlemeleri yükle.
@@ -77,7 +77,7 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
         }
         if (!live) return;
         // Yakınlaştırma hiç seçilmediyse sayfa genişliğe sığdırılır.
-        if (getPref<number | null>("lecternZoom", null) === null && scroller.current && dims[0]) {
+        if (getPref<number | null>("lectioZoom", null) === null && scroller.current && dims[0]) {
           setZoomState(Math.min(2, Math.max(0.6, Math.floor(((scroller.current.clientWidth - 64) / dims[0].w) * 20) / 20)));
         }
         setSizes(dims);
@@ -99,7 +99,7 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
     async (next: PdfAnnotations) => {
       setAnn(next);
       const r = await fetch(`/api/annotations?path=${encodeURIComponent(path)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(next) });
-      if (!r.ok) onToast(t("lectern.saveFailed"));
+      if (!r.ok) onToast(t("lectio.saveFailed"));
     },
     [path, onToast],
   );
@@ -125,7 +125,7 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
     if (!el || !doc) return;
     let timer: number | undefined;
     const onScroll = () => {
-      const pages = [...el.querySelectorAll<HTMLElement>(".lectern-page")];
+      const pages = [...el.querySelectorAll<HTMLElement>(".lectio-page")];
       const mid = el.getBoundingClientRect().top + el.clientHeight / 3;
       const at = pages.find((p) => p.getBoundingClientRect().bottom > mid);
       const n = Number(at?.dataset.page ?? 1);
@@ -145,7 +145,7 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed || !sel.rangeCount) return setPending(null);
     const range = sel.getRangeAt(0);
-    const pageEl = (range.startContainer.parentElement ?? null)?.closest<HTMLElement>(".lectern-page");
+    const pageEl = (range.startContainer.parentElement ?? null)?.closest<HTMLElement>(".lectio-page");
     if (!pageEl) return setPending(null);
     const box = pageEl.getBoundingClientRect();
     const rects: Rect[] = [];
@@ -185,7 +185,7 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
   async function copyQuote(h: PdfHighlight | { text: string; page: number; id?: string }) {
     const full: PdfHighlight = { id: h.id ?? newId(), page: h.page, rects: [], text: h.text, color: "yellow", created: 0, ...("comment" in h && h.comment ? { comment: h.comment } : {}) };
     await navigator.clipboard.writeText(quoteMarkdown(full, path, null)).catch(() => undefined);
-    onToast(t("lectern.copied"));
+    onToast(t("lectio.copied"));
   }
 
   async function exportToNote() {
@@ -193,12 +193,12 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
     const existing = ann.noteId ? nodes.find((n) => n.id === ann.noteId) : undefined;
     if (existing) return onOpenNote(existing.id);
     const sorted = [...ann.highlights].sort((a, b) => a.page - b.page || a.rects[0][1] - b.rects[0][1]);
-    const created = await api.create(`${fileName(path).replace(/\.pdf$/i, "")} — ${t("lectern.notes")}`, SHADOW);
-    const body = [`${t("lectern.source")}: [${fileName(path)}](${linkPath(created.path, path)})`, ...sorted.map((h) => quoteMarkdown(h, path, created.path))].join("\n\n");
+    const created = await api.create(`${fileName(path).replace(/\.pdf$/i, "")} — ${t("lectio.notes")}`, SHADOW);
+    const body = [`${t("lectio.source")}: [${fileName(path)}](${linkPath(created.path, path)})`, ...sorted.map((h) => quoteMarkdown(h, path, created.path))].join("\n\n");
     await api.update(created.id, { body: `${body}\n`, fields: { icon: "📑" } });
     await save({ ...ann, noteId: created.id });
     onChanged();
-    onToast(t("lectern.noteCreated"));
+    onToast(t("lectio.noteCreated"));
     onOpenNote(created.id);
   }
 
@@ -214,32 +214,32 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
   const note = ann?.noteId ? nodes.find((n) => n.id === ann.noteId) : undefined;
 
   return (
-    <div className="lectern" data-testid="lectern">
-      <div className="topbar lectern-bar">
+    <div className="lectio" data-testid="lectio">
+      <div className="topbar lectio-bar">
         <div className="crumbs">
           <Icon name="file-type-pdf" size={16} /> <span title={path}>{fileName(path)}</span>
         </div>
         <div className="topbar-right">
           {doc && (
-            <span className="muted small" data-testid="lectern-page">
-              {t("lectern.pageOf", { n: current, total: doc.numPages })}
+            <span className="muted small" data-testid="lectio-page">
+              {t("lectio.pageOf", { n: current, total: doc.numPages })}
             </span>
           )}
-          <button className="icon-btn" title={t("lectern.zoomOut")} onClick={() => setZoom(ZOOMS[Math.max(0, ZOOMS.findIndex((z) => z >= zoom) - 1)])}>
+          <button className="icon-btn" title={t("lectio.zoomOut")} onClick={() => setZoom(ZOOMS[Math.max(0, ZOOMS.findIndex((z) => z >= zoom) - 1)])}>
             <Icon name="minus" size={14} />
           </button>
           <span className="muted small">{Math.round(zoom * 100)}%</span>
-          <button className="icon-btn" title={t("lectern.zoomIn")} onClick={() => setZoom(ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.findIndex((z) => z > zoom))] ?? zoom)}>
+          <button className="icon-btn" title={t("lectio.zoomIn")} onClick={() => setZoom(ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.findIndex((z) => z > zoom))] ?? zoom)}>
             <Icon name="plus" size={14} />
           </button>
-          <button className="secondary" onClick={() => void exportToNote()} disabled={!ann} data-testid="lectern-note">
-            <Icon name="notes" size={14} /> {note ? t("lectern.openNote") : t("lectern.toNote")}
+          <button className="secondary" onClick={() => void exportToNote()} disabled={!ann} data-testid="lectio-note">
+            <Icon name="notes" size={14} /> {note ? t("lectio.openNote") : t("lectio.toNote")}
           </button>
         </div>
       </div>
-      <div className="lectern-body">
-        <div className="lectern-pages" ref={scroller} onMouseUp={onMouseUp}>
-          {error && <p className="error-text">{t("lectern.openFailed", { error })}</p>}
+      <div className="lectio-body">
+        <div className="lectio-pages" ref={scroller} onMouseUp={onMouseUp}>
+          {error && <p className="error-text">{t("lectio.openFailed", { error })}</p>}
           {!doc && !error && <p className="muted">…</p>}
           {doc &&
             sizes.map((s, i) => (
@@ -254,29 +254,29 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
               />
             ))}
           {pending && (
-            <div className="lectern-pop" style={{ left: Math.max(8, pending.x - 120), top: pending.y + 6 }} onMouseUp={(e) => e.stopPropagation()}>
+            <div className="lectio-pop" style={{ left: Math.max(8, pending.x - 120), top: pending.y + 6 }} onMouseUp={(e) => e.stopPropagation()}>
               {COLORS.map((c) => (
-                <button key={c} className={`hl-dot hl-${c}`} title={t(`lectern.color.${c}` as never)} onClick={() => void addHighlight(c)} data-testid={`hl-${c}`} />
+                <button key={c} className={`hl-dot hl-${c}`} title={t(`lectio.color.${c}` as never)} onClick={() => void addHighlight(c)} data-testid={`hl-${c}`} />
               ))}
-              <button className="icon-btn" title={t("lectern.copyQuote")} onClick={() => void copyQuote(pending)}>
+              <button className="icon-btn" title={t("lectio.copyQuote")} onClick={() => void copyQuote(pending)}>
                 <Icon name="copy" size={14} />
               </button>
             </div>
           )}
         </div>
-        <aside className="lectern-side">
+        <aside className="lectio-side">
           <h4>
-            {t("lectern.highlights")} <span className="muted small">{list.length}</span>
+            {t("lectio.highlights")} <span className="muted small">{list.length}</span>
           </h4>
-          {!list.length && <p className="muted small">{t("lectern.empty")}</p>}
+          {!list.length && <p className="muted small">{t("lectio.empty")}</p>}
           {list.map((h) => (
-            <div key={h.id} className={`lectern-hl ${focus === h.id ? "on" : ""}`} data-testid="lectern-hl">
-              <button className="lectern-hl-text" onClick={() => (setFocus(h.id), goTo(h.page))}>
+            <div key={h.id} className={`lectio-hl ${focus === h.id ? "on" : ""}`} data-testid="lectio-hl">
+              <button className="lectio-hl-text" onClick={() => (setFocus(h.id), goTo(h.page))}>
                 <span className={`hl-bar hl-${h.color}`} />
-                <span className="muted small">{t("lectern.pageShort", { n: h.page })}</span> {h.text}
+                <span className="muted small">{t("lectio.pageShort", { n: h.page })}</span> {h.text}
               </button>
               <textarea
-                placeholder={t("lectern.comment")}
+                placeholder={t("lectio.comment")}
                 defaultValue={h.comment ?? ""}
                 rows={h.comment ? 2 : 1}
                 onBlur={(e) => e.target.value !== (h.comment ?? "") && updateHighlight(h.id, { comment: e.target.value })}
@@ -286,10 +286,10 @@ export default function LecternView({ path, page, highlight, nodes, onOpenNote, 
                   <button key={c} className={`hl-dot small hl-${c} ${h.color === c ? "on" : ""}`} onClick={() => updateHighlight(h.id, { color: c })} />
                 ))}
                 <span className="grow" />
-                <button className="icon-btn" title={t("lectern.copyQuote")} onClick={() => void copyQuote(h)}>
+                <button className="icon-btn" title={t("lectio.copyQuote")} onClick={() => void copyQuote(h)}>
                   <Icon name="copy" size={14} />
                 </button>
-                <button className="icon-btn" title={t("lectern.remove")} onClick={() => removeHighlight(h.id)}>
+                <button className="icon-btn" title={t("lectio.remove")} onClick={() => removeHighlight(h.id)}>
                   <Icon name="trash" size={14} />
                 </button>
               </div>
@@ -375,24 +375,24 @@ function PageView({
   return (
     <div
       ref={ref}
-      className="lectern-page"
+      className="lectio-page"
       data-page={n}
       style={{ width: size.w * zoom, height: size.h * zoom, ["--total-scale-factor" as string]: zoom, ["--scale-factor" as string]: zoom }}
     >
       <canvas ref={canvas} />
-      <div className="lectern-marks">
+      <div className="lectio-marks">
         {highlights.flatMap((h) =>
           h.rects.map((r, i) => (
             <div
               key={`${h.id}:${i}`}
-              className={`lectern-mark hl-${h.color} ${focus === h.id ? "on" : ""}`}
+              className={`lectio-mark hl-${h.color} ${focus === h.id ? "on" : ""}`}
               style={{ left: `${r[0] * 100}%`, top: `${r[1] * 100}%`, width: `${r[2] * 100}%`, height: `${r[3] * 100}%` }}
             />
           )),
         )}
       </div>
       <div ref={text} className="textLayer" />
-      <span className="lectern-num">{n}</span>
+      <span className="lectio-num">{n}</span>
     </div>
   );
 }

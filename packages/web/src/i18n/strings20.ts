@@ -5,7 +5,7 @@ export const STRINGS_20 = {
   "settings.catSecurity": { tr: "Güvenlik", en: "Security" },
   "settings.catSecurityHint": { tr: "Otomatik kilit, şifreli Arche'ler ve anlık görüntüler.", en: "Auto-lock, encrypted Arches and snapshots." },
 
-  "autoLock.title": { tr: "Otomatik kilit", en: "Auto-lock" },
+  "autoLock.title": { tr: "Custos — otomatik kilit", en: "Custos — auto-lock" },
   "autoLock.hint": {
     tr: "Açtığınız kilitli notlar ve şifreli Arche'ler bir süre işlem yapılmayınca kendiliğinden kapanır. Bilgisayar uyku moduna geçince ya da ekran kilitlenince her zaman hemen kapanır.",
     en: "Locked notes and encrypted Arches you opened close by themselves after a period of inactivity. They always close at once when the computer sleeps or the screen locks.",
@@ -18,7 +18,7 @@ export const STRINGS_20 = {
   "autoLock.none": { tr: "Şu an açık kilitli not yok.", en: "No locked notes are open." },
   "autoLock.now": { tr: "Hepsini şimdi kapat", en: "Close all now" },
 
-  "archeLock.title": { tr: "Aegis — şifreli Arche'ler", en: "Aegis — encrypted Arches" },
+  "archeLock.title": { tr: "Crypta — şifreli Arche'ler", en: "Crypta — encrypted Arches" },
   "archeLock.hint": {
     tr: "Bir Arche'nin bütün notları tek parolayla şifrelenir (AES-256). Parolayı oturum başına bir kez girersiniz; Arche'ye eklediğiniz yeni notlar da kendiliğinden şifrelenir. Başlıklar, özellikler ve ağaç yapısı görünür kalır. Parolayı unutursanız içerik kurtarılamaz.",
     en: "All notes in an Arche are encrypted with one password (AES-256). You enter it once per session, and new notes you add to the Arche are encrypted automatically. Titles, properties and the tree structure stay visible. If you forget the password, the content can't be recovered.",

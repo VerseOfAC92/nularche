@@ -1,11 +1,11 @@
 // Vigil: zamanlanmış otomasyonlar. Her gün, hafta ya da ay belirli bir saatte ya Nularche AI'a bir iş verilir
 // (ör. "geçen haftanın notlarını özetle") ya da Nularche'nin kendisi bir özet notu yazar (değişen ve yeni notlar,
-// açık görevler, Mnemos kartları). Tanımlar Origin'in tercihlerinde (`vigils`) durur ve eşitlenir; son çalışma
+// açık görevler, Anamnesis kartları). Tanımlar Origin'in tercihlerinde (`vigils`) durur ve eşitlenir; son çalışma
 // zamanı da orada tutulduğundan aynı Origin'i kullanan iki bilgisayar aynı işi iki kez yapmaz. Uygulama kapalıyken
 // kaçırılan çalışma, uygulama açılınca bir kez yapılır.
 
 import { relativeLink } from "./links.ts";
-import { Mnemos } from "./mnemos.ts";
+import { Anamnesis } from "./anamnesis.ts";
 import { SHADOW, type NodeMeta, type NodeStore } from "./node-store.ts";
 export * from "./vigil-schedule.ts";
 
@@ -15,7 +15,7 @@ const fmtDay = (t: number, lang: "tr" | "en") => new Date(t).toLocaleDateString(
 
 /**
  * Son `days` günün özetini yeni bir not olarak yazar (Shadow'a ya da verilen notun altına) ve notu döndürür:
- * yeni notlar, güncellenen notlar (Arche'lere göre), açık görevleri olan notlar ve Mnemos'ta bekleyen kartlar.
+ * yeni notlar, güncellenen notlar (Arche'lere göre), açık görevleri olan notlar ve Anamnesis'te bekleyen kartlar.
  */
 export async function writeDigest(store: NodeStore, options: { days: number; title: string; parentId?: string | null; lang: "tr" | "en"; now?: number }) {
   const now = options.now ?? Date.now();
@@ -24,8 +24,8 @@ export async function writeDigest(store: NodeStore, options: { days: number; tit
   const byId = new Map(all.map((n) => [n.id, n]));
   const L =
     options.lang === "tr"
-      ? { period: "Dönem", fresh: "Yeni notlar", changed: "Güncellenen notlar", tasks: "Açık görevleri olan notlar", cards: "Mnemos", cardsLine: "Tekrarı gelen {due} kart, {new} yeni kart.", none: "Bu dönemde değişiklik yok.", words: "kelime" }
-      : { period: "Period", fresh: "New notes", changed: "Updated notes", tasks: "Notes with open tasks", cards: "Mnemos", cardsLine: "{due} cards due, {new} new cards.", none: "No changes in this period.", words: "words" };
+      ? { period: "Dönem", fresh: "Yeni notlar", changed: "Güncellenen notlar", tasks: "Açık görevleri olan notlar", cards: "Anamnesis", cardsLine: "Tekrarı gelen {due} kart, {new} yeni kart.", none: "Bu dönemde değişiklik yok.", words: "kelime" }
+      : { period: "Period", fresh: "New notes", changed: "Updated notes", tasks: "Notes with open tasks", cards: "Anamnesis", cardsLine: "{due} cards due, {new} new cards.", none: "No changes in this period.", words: "words" };
   const parent = options.parentId && byId.has(options.parentId) ? options.parentId : SHADOW;
   const note = await store.create({ title: options.title, parentNodeId: parent });
   const link = (n: NodeMeta) => `[${n.title.replace(/[[\]]/g, "")}](${relativeLink(note.path, n.path)})`;
@@ -44,7 +44,7 @@ export async function writeDigest(store: NodeStore, options: { days: number; tit
   const withTasks = all.filter((n) => n.todos - n.done > 0 && !n.locked).sort((a, b) => b.todos - b.done - (a.todos - a.done));
   if (withTasks.length) lines.push(`## ${L.tasks}`, "", ...withTasks.slice(0, 20).map((n) => `- ${link(n)} — ${n.todos - n.done}`), "");
   try {
-    const q = await new Mnemos(store).queue({ newPerDay: 1_000_000, now });
+    const q = await new Anamnesis(store).queue({ newPerDay: 1_000_000, now });
     if (q.counts.total) lines.push(`## ${L.cards}`, "", L.cardsLine.replace("{due}", String(q.counts.due)).replace("{new}", String(q.counts.new)), "");
   } catch {
     // kartlar okunamadı: özet yine yazılır

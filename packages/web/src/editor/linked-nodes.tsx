@@ -3,6 +3,7 @@
 // Bu yapılar ayrı editör düğümleridir ve Markdown'a okundukları gibi yazılır: düz metin olsalardı Markdown yazıcısı
 // köşeli parantezleri ve ters eğik çizgileri kaçışlayıp (`\[\[Not\]\]`) dosyayı bozardı.
 
+import { citeLabel } from "../citations.ts";
 import { queryWidget } from "./query-widget.ts";
 import { findBlock, headingSection } from "../../../core/src/blocks.ts";
 import DOMPurify from "dompurify";
@@ -78,6 +79,22 @@ embedMarked.use({
         return m ? { type: "nlMath", raw: m[0], text: m[1] } : undefined;
       },
       renderer: (tok) => renderTex(String(tok.text), false),
+    },
+    {
+      // Atıf: gömmelerde de seçili stile göre biçimlenir.
+      name: "nlCite",
+      level: "inline",
+      start: (src: string) => {
+        const m = /\[(?!\^)[^[\]\n]*@/.exec(src);
+        return m ? m.index : -1;
+      },
+      tokenizer(src: string) {
+        const m = /^\[(?!\^)[^[\]\n]*?-?@[\p{L}\d_][^[\]\n]*\](?![([])/u.exec(src);
+        if (!m) return undefined;
+        const label = citeLabel(m[0]);
+        return label.text === m[0] ? undefined : { type: "nlCite", raw: m[0], text: label.text };
+      },
+      renderer: (tok) => `<span class="cite-chip">${String(tok.text).replace(/[<&]/g, (c) => (c === "<" ? "&lt;" : "&amp;"))}</span>`,
     },
     {
       name: "nlWiki",

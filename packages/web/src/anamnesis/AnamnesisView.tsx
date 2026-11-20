@@ -1,9 +1,9 @@
-// Mnemos: bilgi kartlarını tekrar ekranı (bkz. core/src/mnemos.ts). Kart önce sorusuyla gösterilir; cevap
+// Anamnesis: bilgi kartlarını tekrar ekranı (bkz. core/src/anamnesis.ts). Kart önce sorusuyla gösterilir; cevap
 // açılınca dört değerlendirmeden biri seçilir (1 Tekrar, 2 Zor, 3 İyi, 4 Kolay — klavyeden de). Düğmelerde kartın
 // bir sonraki soruluş zamanı yazar. Kartlar notlardaki `Soru :: Cevap` satırlarıdır.
 
 import { useCallback, useEffect, useState } from "react";
-import type { Grade, MnemosQueue } from "../../../core/src/mnemos.ts";
+import type { Grade, AnamnesisQueue } from "../../../core/src/anamnesis.ts";
 import type { NodeMeta } from "../api.ts";
 import { safeHtml } from "../editor/linked-nodes.tsx";
 import { t } from "../i18n/index.ts";
@@ -29,17 +29,17 @@ export function spanText(ms: number): string {
   return t("mn.year", { n: (Math.round((d / 365) * 10) / 10).toLocaleString() });
 }
 
-export function MnemosView({ nodes, changeTick, onOpen }: { nodes: NodeMeta[]; changeTick: number; onOpen: (id: string) => void }) {
-  const [arche, setArche] = usePref<string>("mnemosArche", "");
-  const [newPerDay, setNewPerDay] = usePref<number>("mnemosNewPerDay", 20);
-  const [data, setData] = useState<MnemosQueue | null>(null);
+export function AnamnesisView({ nodes, changeTick, onOpen }: { nodes: NodeMeta[]; changeTick: number; onOpen: (id: string) => void }) {
+  const [arche, setArche] = usePref<string>("anamnesisArche", "");
+  const [newPerDay, setNewPerDay] = usePref<number>("anamnesisNewPerDay", 20);
+  const [data, setData] = useState<AnamnesisQueue | null>(null);
   const [index, setIndex] = useState(0);
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    fetch(`/api/mnemos${arche ? `?arche=${encodeURIComponent(arche)}` : ""}`)
-      .then((r) => r.json() as Promise<MnemosQueue>)
+    fetch(`/api/anamnesis${arche ? `?arche=${encodeURIComponent(arche)}` : ""}`)
+      .then((r) => r.json() as Promise<AnamnesisQueue>)
       .then((d) => (setData(d), setIndex(0), setShown(false)))
       .catch(() => undefined);
   }, [arche]);
@@ -54,7 +54,7 @@ export function MnemosView({ nodes, changeTick, onOpen }: { nodes: NodeMeta[]; c
   const grade = async (g: Grade) => {
     if (!card || busy) return;
     setBusy(true);
-    await fetch("/api/mnemos/grade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: card.id, grade: g }) }).catch(() => undefined);
+    await fetch("/api/anamnesis/grade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: card.id, grade: g }) }).catch(() => undefined);
     setBusy(false);
     setShown(false);
     // "Tekrar" denen kart bu oturumun sonunda yeniden sorulur.
@@ -76,13 +76,13 @@ export function MnemosView({ nodes, changeTick, onOpen }: { nodes: NodeMeta[]; c
   const arches = nodes.filter((n) => n.parentNodeId === null && n.archeId === n.id && !n.template);
   const remaining = data ? data.queue.length - index : 0;
   return (
-    <div className="page mnemos" data-testid="mnemos">
+    <div className="page anamnesis" data-testid="anamnesis">
       <div className="note-list-head">
         <h1>
           <span className="note-list-icon">
             <Icon name="cards" size={26} />
           </span>
-          Mnemos
+          Anamnesis
           {data && <span className="note-count">{remaining}</span>}
         </h1>
         <div className="row">

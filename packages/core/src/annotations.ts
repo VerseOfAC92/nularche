@@ -1,4 +1,4 @@
-// Lectern (PDF okuyucu) işaretlemeleri: her PDF için `.nularche/annotations/<yolun özeti>.json`. Vurgular sayfa ve
+// Lectio (PDF okuyucu) işaretlemeleri: her PDF için `.nularche/annotations/<yolun özeti>.json`. Vurgular sayfa ve
 // sayfaya göre oranlı dikdörtgenlerle (0–1) saklanır; metin, renk ve isteğe bağlı yorum içerir. Dosya kullanıcının
 // içeriğidir ve Google Drive ile eşitlenir. PDF yeniden adlandırılınca işaretlemeleri de taşınır.
 

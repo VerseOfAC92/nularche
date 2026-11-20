@@ -436,8 +436,8 @@ export function Sidebar(props: SidebarProps) {
       <button className={`side-btn ${route.kind === "recent" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "recent" })}>
         <Icon name="clock" /> {t("list.recent")} {props.recentCount > 0 && <span className="badge">{Math.min(props.recentCount, 30)}</span>}
       </button>
-      <button className={`side-btn ${route.kind === "mnemos" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "mnemos" })} title={t("gloss.mnemos")}>
-        <Icon name="cards" /> Mnemos
+      <button className={`side-btn ${route.kind === "anamnesis" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "anamnesis" })} title={t("gloss.anamnesis")}>
+        <Icon name="cards" /> Anamnesis
       </button>
       <button className={`side-btn ${route.kind === "attachments" ? "active" : ""}`} onClick={() => props.onNavigate({ kind: "attachments" })}>
         <Icon name="paperclip" /> {t("att.title")}

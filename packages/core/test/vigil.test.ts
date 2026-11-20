@@ -37,5 +37,5 @@ test("Vigil: yerel özet notu yeni ve güncellenen notları bağlantılarıyla y
   assert.match(doc.body, /## Yeni notlar \(2\)/);
   assert.match(doc.body, /\[Yeni Bölüm\]\(\.\.\/Tez\/Yeni%20B%C3%B6l%C3%BCm\.md\)|\[Yeni Bölüm\]\([^)]+\)/);
   assert.match(doc.body, /Açık görevleri olan notlar/);
-  assert.match(doc.body, /Mnemos/);
+  assert.match(doc.body, /Anamnesis/);
 });

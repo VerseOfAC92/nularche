@@ -1,4 +1,4 @@
-// Ayarlar → Yazma → Canon (kaynakça): kaynak dosyaları (.bib / CSL-JSON) ve atıf stili. Atıflar notlarda
+// Ayarlar → Yazma → Fontes (kaynakça): kaynak dosyaları (.bib / CSL-JSON) ve atıf stili. Atıflar notlarda
 // `[@anahtar]` ile yapılır; dışa aktarmada (HTML, Word, site, Codex) seçilen stille biçimlenir ve kaynakça eklenir.
 
 import { useEffect, useRef, useState } from "react";

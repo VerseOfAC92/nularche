@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { cleanAnnotations, NodeStore, readAnnotations, writeAnnotations } from "../src/index.ts";
 
-test("Lectern işaretlemeleri: doğrulanır, saklanır, PDF yeniden adlandırılınca taşınır", async () => {
+test("Lectio işaretlemeleri: doğrulanır, saklanır, PDF yeniden adlandırılınca taşınır", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "nularche-ann-"));
   const store = new NodeStore(root);
   await store.ensureRoot();

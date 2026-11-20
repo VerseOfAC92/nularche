@@ -3,11 +3,11 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { extractCards, intervalDays, Mnemos, NodeStore, retrievability, review } from "../src/index.ts";
+import { extractCards, intervalDays, Anamnesis, NodeStore, retrievability, review } from "../src/index.ts";
 
 const DAY = 86_400_000;
 
-test("Mnemos: kartlar notlardan çıkarılır", () => {
+test("Anamnesis: kartlar notlardan çıkarılır", () => {
   const body = ["# Sözlük", "", "- Ephemeral :: geçici", "Başkent nedir? :: Ankara ^k1", "Mitoz ::: Hücre bölünmesi", "```", "kod :: değil", "```", "`a :: b` satır içi", "http://x.y düz metin", "- [ ] görev :: cevap"].join("\n");
   const cards = extractCards(body, { id: "n1", title: "Sözlük", archeId: null });
   assert.deepEqual(
@@ -36,12 +36,12 @@ test("FSRS: aralıklar büyür, unutma kısaltır, kolay daha uzun", () => {
   assert.ok((g3.due - g2.due) / DAY > 5);
 });
 
-test("Mnemos: kuyruk, günlük yeni kart sınırı ve değerlendirme", async () => {
+test("Anamnesis: kuyruk, günlük yeni kart sınırı ve değerlendirme", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "nularche-mn-"));
   const store = new NodeStore(root);
   await store.ensureRoot();
   await store.create({ title: "Kartlar", body: Array.from({ length: 5 }, (_, i) => `Soru ${i} :: Cevap ${i}`).join("\n") });
-  const mn = new Mnemos(store);
+  const mn = new Anamnesis(store);
   let q = await mn.queue({ newPerDay: 3 });
   assert.equal(q.counts.total, 5);
   assert.equal(q.queue.length, 3);

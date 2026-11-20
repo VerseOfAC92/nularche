@@ -1,5 +1,5 @@
-// Mnemos: notlardan bilgi kartları ve aralıklı tekrar. Notta `Soru :: Cevap` satırı bir kart, `Terim ::: Tanım`
-// iki yönlü iki kart olur (kod blokları hariç). Kartların tekrar durumu `.nularche/mnemos.json` dosyasındadır ve
+// Anamnesis: notlardan bilgi kartları ve aralıklı tekrar. Notta `Soru :: Cevap` satırı bir kart, `Terim ::: Tanım`
+// iki yönlü iki kart olur (kod blokları hariç). Kartların tekrar durumu `.nularche/anamnesis.json` dosyasındadır ve
 // Google Drive ile eşitlenir; kartın kimliği notun kimliği ve soru metninden türetilir (not taşınsa da korunur).
 //
 // Zamanlama FSRS-5 algoritmasıyla yapılır (açık yayımlanmış formüller, varsayılan ağırlıklar, hedef hatırlama
@@ -127,23 +127,23 @@ export function extractCards(body: string, note: { id: string; title: string; ar
 
 // ------------------------------------------------------------------ depo
 
-interface MnemosFile {
+interface AnamnesisFile {
   v: 1;
   cards: Record<string, CardState>;
   /** Gün (YYYY-MM-DD) → o gün ilk kez gösterilen yeni kart sayısı. */
   introduced?: Record<string, number>;
 }
 
-export interface MnemosQueue {
+export interface AnamnesisQueue {
   /** Şimdi sorulacak kartlar: önce vadesi gelenler (en eskiden), sonra günlük sınır içinde yeni kartlar. */
   queue: (Card & { state?: CardState; next: Record<Grade, number> })[];
   counts: { total: number; due: number; new: number; learning: number; reviewedToday: number };
 }
 
-const fileOf = (root: string) => path.join(root, ".nularche", "mnemos.json");
+const fileOf = (root: string) => path.join(root, ".nularche", "anamnesis.json");
 const today = (now = Date.now()) => new Date(now).toISOString().slice(0, 10);
 
-export class Mnemos {
+export class Anamnesis {
   private chain: Promise<unknown> = Promise.resolve();
   private readonly store: NodeStore;
 
@@ -157,16 +157,16 @@ export class Mnemos {
     return next;
   }
 
-  private async load(): Promise<MnemosFile> {
+  private async load(): Promise<AnamnesisFile> {
     try {
-      const d = JSON.parse(await readFile(fileOf(this.store.root), "utf8")) as MnemosFile;
+      const d = JSON.parse(await readFile(fileOf(this.store.root), "utf8")) as AnamnesisFile;
       return d && typeof d.cards === "object" ? { v: 1, cards: d.cards, introduced: d.introduced ?? {} } : { v: 1, cards: {} };
     } catch {
       return { v: 1, cards: {}, introduced: {} };
     }
   }
 
-  private async save(d: MnemosFile): Promise<void> {
+  private async save(d: AnamnesisFile): Promise<void> {
     const file = fileOf(this.store.root);
     await mkdir(path.dirname(file), { recursive: true });
     const tmp = `${file}.${randomUUID()}.tmp`;
@@ -187,7 +187,7 @@ export class Mnemos {
     return out;
   }
 
-  async queue(options: { archeId?: string | null; newPerDay?: number; now?: number } = {}): Promise<MnemosQueue> {
+  async queue(options: { archeId?: string | null; newPerDay?: number; now?: number } = {}): Promise<AnamnesisQueue> {
     const now = options.now ?? Date.now();
     const data = await this.load();
     const cards = await this.cards(options.archeId);

@@ -48,12 +48,12 @@ import { nodeIconName } from "./ui/node-icon.ts";
 import { CalendarPage } from "./calendar/CalendarPage.tsx";
 import { migrateCalendarArche } from "./calendar/CalendarSync.tsx";
 
-import { lecternHash, parseLecternHash } from "./lectern/link.ts";
+import { lectioHash, parseLectioHash } from "./lectio/link.ts";
 import { ORIGIN_CHANGED } from "./editor/query-widget.ts";
-import { MnemosView } from "./mnemos/MnemosView.tsx";
+import { AnamnesisView } from "./anamnesis/AnamnesisView.tsx";
 import { installVigilRunner } from "./vigil/runner.ts";
 /** PDF okuyucu (pdf.js büyük olduğundan ilk açılışta yüklenir). */
-const LecternView = lazy(() => import("./lectern/LecternView.tsx"));
+const LectioView = lazy(() => import("./lectio/LectioView.tsx"));
 
 export type Route =
   | { kind: "home" }
@@ -63,20 +63,20 @@ export type Route =
   | { kind: "notes" }
   | { kind: "recent" }
   | { kind: "attachments" }
-  | { kind: "mnemos" }
+  | { kind: "anamnesis" }
   | { kind: "graph" }
   | { kind: "calendar" }
   | { kind: "tag"; tag: string }
   | { kind: "smart"; id: string }
   | { kind: "list"; id: string }
-  | { kind: "lectern"; path: string; page?: number; hl?: string };
+  | { kind: "lectio"; path: string; page?: number; hl?: string };
 
 function parseHash(): Route {
-  const lec = parseLecternHash(location.hash);
-  if (lec) return { kind: "lectern", ...lec };
+  const lec = parseLectioHash(location.hash);
+  if (lec) return { kind: "lectio", ...lec };
   const h = decodeURIComponent(location.hash.slice(1));
   if (!h) return { kind: "home" };
-  if (h === "shadow" || h === "trash" || h === "notes" || h === "recent" || h === "attachments" || h === "mnemos" || h === "graph" || h === "calendar") return { kind: h };
+  if (h === "shadow" || h === "trash" || h === "notes" || h === "recent" || h === "attachments" || h === "anamnesis" || h === "graph" || h === "calendar") return { kind: h };
   const m = /^(tag|smart|list):(.+)$/.exec(h);
   if (m) return m[1] === "tag" ? { kind: "tag", tag: m[2] } : { kind: m[1] as "smart" | "list", id: m[2] };
   return { kind: "node", id: h };
@@ -93,8 +93,8 @@ function routeHash(r: Route): string {
     case "smart":
     case "list":
       return `${r.kind}:${encodeURIComponent(r.id)}`;
-    case "lectern":
-      return lecternHash(r.path, r.page, r.hl);
+    case "lectio":
+      return lectioHash(r.path, r.page, r.hl);
     default:
       return r.kind;
   }
@@ -498,12 +498,12 @@ export function App() {
 
   const openPath = useCallback(
     (p: string) => {
-      // PDF bağlantısı (`dosya.pdf#page=3&hl=…`): Lectern'de açılır.
+      // PDF bağlantısı (`dosya.pdf#page=3&hl=…`): Lectio'da açılır.
       const pdf = /^(.+\.pdf)(?:#(.*))?$/i.exec(p);
       if (pdf) {
         const q = new URLSearchParams(pdf[2] ?? "");
         const page = Number(q.get("page")) || undefined;
-        return navigate({ kind: "lectern", path: pdf[1], ...(page ? { page } : {}), ...(q.get("hl") ? { hl: q.get("hl")! } : {}) });
+        return navigate({ kind: "lectio", path: pdf[1], ...(page ? { page } : {}), ...(q.get("hl") ? { hl: q.get("hl")! } : {}) });
       }
       const n = nodes.find((x) => x.path === p);
       if (n) navigate({ kind: "node", id: n.id });
@@ -557,7 +557,7 @@ export function App() {
       registerCommand("view.allNotes", () => navigate({ kind: "notes" })),
       registerCommand("view.recent", () => navigate({ kind: "recent" })),
       registerCommand("view.attachments", () => navigate({ kind: "attachments" })),
-      registerCommand("view.mnemos", () => navigate({ kind: "mnemos" })),
+      registerCommand("view.anamnesis", () => navigate({ kind: "anamnesis" })),
       registerCommand("view.list", () => navigate({ kind: "notes" })),
       registerCommand("view.gallery", () => navigate({ kind: "notes" })),
       registerCommand("app.importMarkdown", () => void importNotes(false)),
@@ -902,12 +902,12 @@ export function App() {
               />
             );
           })()}
-        {route.kind === "lectern" && (
+        {route.kind === "lectio" && (
           <Suspense fallback={<div className="page" />}>
-            <LecternView key={route.path} path={route.path} page={route.page} highlight={route.hl} nodes={nodes} onOpenNote={openNode} onChanged={refresh} onToast={showToast} />
+            <LectioView key={route.path} path={route.path} page={route.page} highlight={route.hl} nodes={nodes} onOpenNote={openNode} onChanged={refresh} onToast={showToast} />
           </Suspense>
         )}
-        {route.kind === "mnemos" && <MnemosView nodes={nodes} changeTick={changeTick} onOpen={openNode} />}
+        {route.kind === "anamnesis" && <AnamnesisView nodes={nodes} changeTick={changeTick} onOpen={openNode} />}
         {route.kind === "attachments" && <AttachmentBrowser changeTick={changeTick} onOpen={openNode} onToast={showToast} />}
         {route.kind === "shadow" && (
           <ShadowView nodes={nodes} changeTick={changeTick} onOpen={(id) => navigate({ kind: "node", id })} onChanged={refresh} onToast={showToast} />

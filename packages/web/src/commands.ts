@@ -191,7 +191,7 @@ export const MENU: Group[] = [
       c("view.allNotes", "list.allNotes"),
       c("view.recent", "list.recent"),
       c("view.attachments", "att.title"),
-      c("view.mnemos", "mn.menu"),
+      c("view.anamnesis", "mn.menu"),
       "-",
       c("view.list", "list.asList"),
       c("view.gallery", "list.asGallery"),
