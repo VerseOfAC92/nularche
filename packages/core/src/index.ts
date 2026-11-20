@@ -34,3 +34,4 @@ export * from "./blocks.ts";
 export * from "./citations.ts";
 export * from "./citations-store.ts";
 export * from "./annotations.ts";
+export * from "./query.ts";

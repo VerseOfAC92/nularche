@@ -49,6 +49,7 @@ import { CalendarPage } from "./calendar/CalendarPage.tsx";
 import { migrateCalendarArche } from "./calendar/CalendarSync.tsx";
 
 import { lecternHash, parseLecternHash } from "./lectern/link.ts";
+import { ORIGIN_CHANGED } from "./editor/query-widget.ts";
 /** PDF okuyucu (pdf.js büyük olduğundan ilk açılışta yüklenir). */
 const LecternView = lazy(() => import("./lectern/LecternView.tsx"));
 
@@ -312,6 +313,7 @@ export function App() {
     es.addEventListener("change", () => {
       refresh();
       setChangeTick((t) => t + 1);
+      window.dispatchEvent(new Event(ORIGIN_CHANGED));
     });
     es.addEventListener("ai", () => setAiTick((t) => t + 1));
     es.addEventListener("comments", () => commentsChanged());

@@ -61,4 +61,11 @@ export const STRINGS_21 = {
   "lectern.color.blue": { tr: "Mavi", en: "Blue" },
   "lectern.color.pink": { tr: "Pembe", en: "Pink" },
   "lectern.color.purple": { tr: "Mor", en: "Purple" },
+  "query.count": { tr: "{n} sonuç", en: "{n} results" },
+  "query.empty": { tr: "Sorguya uyan not yok.", en: "No notes match this query." },
+  "query.noTasks": { tr: "Açık görev yok.", en: "No open tasks." },
+  "query.note": { tr: "Not", en: "Note" },
+  "query.more": { tr: "+{n} sonuç daha (limit: ile artırın)", en: "+{n} more (raise it with limit:)" },
+  "query.slash": { tr: "Speculum (canlı sorgu)", en: "Speculum (live query)" },
+  "query.slashHint": { tr: "Etikete, Arche'ye ya da özelliğe göre canlı not listesi", en: "Live list of notes by tag, Arche or property" },
 } as const;

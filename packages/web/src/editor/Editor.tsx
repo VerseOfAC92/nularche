@@ -298,6 +298,14 @@ const commands = (): Command[] => [
       if (src) e.chain().focus().setYoutubeVideo({ src }).run();
     },
   },
+  {
+    group: t("ed.g.basic"),
+    label: t("query.slash"),
+    hint: t("query.slashHint"),
+    icon: "◎",
+    keywords: "speculum query sorgu canlı live liste list dataview tablo table",
+    run: (e) => void runCommand("insert.query"),
+  },
 ];
 
 function linkContent(node: Pick<NodeMeta, "title" | "path">) {

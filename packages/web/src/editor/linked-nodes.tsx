@@ -3,6 +3,7 @@
 // Bu yapılar ayrı editör düğümleridir ve Markdown'a okundukları gibi yazılır: düz metin olsalardı Markdown yazıcısı
 // köşeli parantezleri ve ters eğik çizgileri kaçışlayıp (`\[\[Not\]\]`) dosyayı bozardı.
 
+import { queryWidget } from "./query-widget.ts";
 import { findBlock, headingSection } from "../../../core/src/blocks.ts";
 import DOMPurify from "dompurify";
 import { Extension, InputRule, mergeAttributes, Node, type MarkdownToken } from "@tiptap/core";
@@ -458,6 +459,10 @@ function vaultDecorations(doc: PMNode): DecorationSet {
       if (String(node.attrs.language).toLowerCase() === "mermaid") {
         const code = node.textContent;
         decos.push(Decoration.widget(pos + node.nodeSize, () => mermaidWidget(code), { side: -1, key: `mermaid:${code}` }));
+      }
+      if (String(node.attrs.language).toLowerCase() === "query") {
+        const code = node.textContent;
+        decos.push(Decoration.widget(pos + node.nodeSize, () => queryWidget(code), { side: -1, key: `query:${code}` }));
       }
       return false;
     }

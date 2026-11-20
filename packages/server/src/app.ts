@@ -10,6 +10,7 @@ import { NodeError, NodeStore } from "../../core/src/node-store.ts";
 import { SnapshotError, SnapshotStore } from "../../core/src/snapshots.ts";
 import { citationSettings, findLibraryFiles, loadLibrary } from "../../core/src/citations-store.ts";
 import { readAnnotations, writeAnnotations } from "../../core/src/annotations.ts";
+import { runQuery } from "../../core/src/query.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
 import { AI_DIR, AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
@@ -271,6 +272,10 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     const id = parts[1];
 
     if (parts[0] === "snapshots") return handleSnapshots(req, res, url, parts, method);
+    if (parts[0] === "query" && method === "POST") {
+      const b = await readJson(req);
+      return send(res, 200, await runQuery(store, str(b.query) ?? "", { selfId: str(b.selfId) }));
+    }
     if (parts[0] === "citations" && method === "GET") {
       // Kaynakça: kayıtlar (CSL-JSON), seçili stil, okunamayan dosyalar ve Origin'deki aday dosyalar.
       const settings = await citationSettings(store.root);
