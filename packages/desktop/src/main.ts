@@ -22,7 +22,7 @@ import { attachContextMenu } from "./context-menu.ts";
 import { registerBackupIpc, type OriginBackup } from "./backup.ts";
 import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
 import { loadOrigin, type Origin } from "../../core/src/origin.ts";
-import { SESSION_COOKIE, startServer, type RunningServer } from "../../server/src/app.ts";
+import { startServer, type RunningServer } from "../../server/src/app.ts";
 
 /** Bu çalıştırmanın yerel API oturum anahtarı (her açılışta yeni; diske yazılmaz). */
 const SESSION_TOKEN = randomBytes(32).toString("base64url");
@@ -303,12 +303,17 @@ async function openOrigin(originDir: string): Promise<void> {
     webDist: webDist(),
     port: 0,
     token: SESSION_TOKEN,
-    snapshotKey: await snapshotKey().catch(() => null),
+    // Anahtar açılışta beklenmez: anahtar zinciri izin isterse açılış takılmasın; ilk anlık görüntüde istenir.
+    snapshotKey: () => snapshotKey().catch(() => null),
     autoSnapshotMinutes: 15,
     onAiActivity: () => aiHooks?.onActivity(),
   });
-  // Oturum anahtarı yalnızca bu uygulamanın penceresine çerez olarak verilir (HttpOnly: sayfa betikleri de okuyamaz).
-  await session.defaultSession.cookies.set({ url: server.url, name: SESSION_COOKIE, value: SESSION_TOKEN, httpOnly: true, sameSite: "strict" });
+  // Oturum anahtarı bu uygulamanın pencerelerinden yerel sunucuya giden her isteğe başlık olarak eklenir; sayfa
+  // betikleri anahtarı göremez. (Çerez kullanılmaz: macOS'ta çerez deposu anahtar zinciri izni ister.)
+  const base = server.url;
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: [`${base}/*`] }, (details, callback) => {
+    callback({ requestHeaders: { ...details.requestHeaders, "x-nularche-token": SESSION_TOKEN } });
+  });
   origin = await loadOrigin(server.store.root);
   await aiHooks?.resetBaseline();
   calendarHooks?.onOriginChanged();

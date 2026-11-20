@@ -79,25 +79,47 @@ export class SnapshotError extends Error {
 
 export class SnapshotStore {
   readonly dir: string;
-  private readonly key: Buffer | null;
+  private key: Buffer | null = null;
+  private keyReady: Promise<void> | null;
+  private keySource: (() => Promise<Uint8Array | null>) | null;
   private busy: Promise<unknown> = Promise.resolve();
 
   readonly root: string;
 
-  constructor(root: string, options: { key?: Uint8Array | null } = {}) {
+  constructor(root: string, options: { key?: Uint8Array | null | (() => Promise<Uint8Array | null>) } = {}) {
     this.root = root;
     this.dir = path.join(root, ".nularche", "snapshots");
-    this.key = options.key ? Buffer.from(options.key) : null;
+    if (typeof options.key === "function") {
+      // Anahtar ilk gerektiğinde alınır (masaüstünde anahtar zinciri izni isteyebilir; açılış beklemez).
+      this.keySource = options.key;
+      this.keyReady = null;
+    } else {
+      this.keySource = null;
+      this.setKey(options.key ?? null);
+      this.keyReady = Promise.resolve();
+    }
+  }
+
+  private setKey(k: Uint8Array | null): void {
+    this.key = k ? Buffer.from(k) : null;
     if (this.key && this.key.length !== 32) throw new SnapshotError("key", "Anlık görüntü anahtarı 32 bayt olmalı.");
   }
 
-  get encrypted(): boolean {
+  /** Anahtarı (gerekirse) yükler; her genel işlem bundan önce çağrılır. */
+  private ready(): Promise<void> {
+    this.keyReady ??= this.keySource!().then((k) => this.setKey(k));
+    return this.keyReady;
+  }
+
+  async isEncrypted(): Promise<boolean> {
+    await this.ready();
     return !!this.key;
   }
 
   /** İşlemler sırayla yürür (iki anlık görüntü aynı anda nesne yazmasın / temizlemesin). */
   private serial<T>(fn: () => Promise<T>): Promise<T> {
-    const next = this.busy.then(fn, fn);
+    const run = () => this.ready().then(fn);
+    const next = this.busy.then(run, run);
     this.busy = next.catch(() => undefined);
     return next;
   }
@@ -280,12 +302,14 @@ export class SnapshotStore {
   }
 
   async list(): Promise<SnapshotSummary[]> {
+    await this.ready();
     const all = await this.manifests();
     return all.map((m, i) => summarize(m, all[i - 1])).reverse();
   }
 
   /** Anlık görüntüdeki dosyalar ve şimdiki hâle göre durumları (bugün olup o an olmayanlar "added"). */
   async files(id: string): Promise<SnapshotFile[]> {
+    await this.ready();
     const m = await this.readManifest(id);
     const now = new Map((await this.scan()).map((f) => [f.path, f]));
     const out: SnapshotFile[] = [];
@@ -306,6 +330,7 @@ export class SnapshotStore {
 
   /** Anlık görüntüdeki bir dosyanın içeriği (önizleme). */
   async read(id: string, file: string): Promise<Buffer> {
+    await this.ready();
     const m = await this.readManifest(id);
     const f = m.files.find((x) => x.path === file);
     if (!f) throw new SnapshotError("not_found", `Bu anlık görüntüde yok: ${file}`);
@@ -318,6 +343,7 @@ export class SnapshotStore {
    * böylece geri yükleme de geri alınabilir.
    */
   async restore(id: string, options: { paths?: string[]; beforeLabel?: string } = {}): Promise<{ restored: number; removed: number; before: string | null }> {
+    await this.ready();
     const m = await this.readManifest(id);
     const before = await this.create({ label: options.beforeLabel ?? "Geri yüklemeden önce" });
     return this.serial(async () => {
@@ -378,9 +404,10 @@ export class SnapshotStore {
    * Kilitlenen notların eski sürümlerini siler: verilen notların şifresiz içerikli kayıtları bütün anlık görüntülerden
    * çıkarılır, artık kullanılmayan nesneler silinir. Silinen kayıt sayısını döndürür.
    */
-  purgeNotes(ids: Iterable<string>): Promise<number> {
+  async purgeNotes(ids: Iterable<string>): Promise<number> {
     const target = new Set(ids);
-    if (!target.size) return Promise.resolve(0);
+    // Anlık görüntü yoksa anahtar istenmez.
+    if (!target.size || !(await this.ids()).length) return 0;
     return this.serial(async () => {
       let dropped = 0;
       const plainCache = new Map<string, boolean>();

@@ -37,8 +37,9 @@ export interface ServerOptions {
   /** Nularche AI etkinliği değiştiğinde (ör. masaüstünde "✓ Bağlandı" bildirimi için). */
   onAiActivity?: () => void;
   /**
-   * Oturum anahtarı: verilirse her istek `nularche_session` çerezini ya da `x-nularche-token` başlığını taşımalıdır.
-   * Masaüstü uygulaması her açılışta rastgele bir anahtar üretip yalnızca kendi penceresine çerez olarak verir; böylece
+   * Oturum anahtarı: verilirse her istek `x-nularche-token` başlığını taşımalıdır. Masaüstü uygulaması her açılışta
+   * rastgele bir anahtar üretir ve yalnızca kendi pencerelerinin bu sunucuya giden isteklerine başlık olarak ekler
+   * (çerez kullanılmaz: macOS'ta çerez deposu anahtar zinciri izni ister ve açılışı bekletir); böylece
    * bilgisayardaki başka bir kullanıcı ya da program 127.0.0.1 üzerinden notlara erişemez. Verilmezse (tarayıcı
    * sürümü, testler) yalnızca Host ve Origin denetimi uygulanır.
    */
@@ -47,12 +48,10 @@ export interface ServerOptions {
    * Anlık görüntü anahtarı (32 bayt): verilirse anlık görüntüler şifrelenir. Masaüstü uygulaması bunu işletim sisteminin
    * anahtar zincirinde korur; Origin'e ya da Drive'a yazılmaz.
    */
-  snapshotKey?: Uint8Array | null;
+  snapshotKey?: Uint8Array | null | (() => Promise<Uint8Array | null>);
   /** Otomatik anlık görüntü aralığı (dakika). Verilmezse otomatik anlık görüntü alınmaz (testler, tarayıcı). */
   autoSnapshotMinutes?: number;
 }
-
-export const SESSION_COOKIE = "nularche_session";
 
 /**
  * Arayüzün içerik güvenlik politikası: betikler yalnızca uygulamanın kendi dosyalarından, bağlantılar yalnızca yerel
@@ -84,12 +83,7 @@ function sameToken(a: string, b: string): boolean {
 
 function requestToken(req: IncomingMessage): string {
   const header = req.headers["x-nularche-token"];
-  if (typeof header === "string" && header) return header;
-  for (const part of (req.headers.cookie ?? "").split(";")) {
-    const [k, ...v] = part.trim().split("=");
-    if (k === SESSION_COOKIE) return decodeURIComponent(v.join("="));
-  }
-  return "";
+  return typeof header === "string" ? header : "";
 }
 
 export interface RunningServer {
@@ -116,7 +110,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const snapshots = new SnapshotStore(store.root, { key: options.snapshotKey ?? null });
   const anamnesis = new Anamnesis(store);
   store.lockPurgeHooks.add((ids) => snapshots.purgeNotes(ids));
-  await store
+  // Açılışı bekletmez (anahtar gerekebilir).
+  void store
     .list()
     .then((all) => snapshots.purgeNotes(all.filter((n) => n.locked).map((n) => n.id)))
     .catch(() => 0);
@@ -233,7 +228,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   async function handleSnapshots(req: IncomingMessage, res: ServerResponse, url: URL, parts: string[], method: string): Promise<void> {
     try {
       const [, sid, action] = parts;
-      if (!sid && method === "GET") return send(res, 200, { snapshots: await snapshots.list(), encrypted: snapshots.encrypted });
+      if (!sid && method === "GET") return send(res, 200, { snapshots: await snapshots.list(), encrypted: await snapshots.isEncrypted() });
       if (!sid && method === "POST") {
         const b = await readJson(req);
         return send(res, 201, await snapshots.create({ label: str(b.label) ?? "" }));

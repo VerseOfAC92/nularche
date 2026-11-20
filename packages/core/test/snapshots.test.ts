@@ -146,3 +146,18 @@ test("anlık görüntü: geçersiz yol ve kimlik reddedilir", async () => {
   await assert.rejects(snaps.read(s.id, "../a.md"), /yok/);
   await assert.rejects(snaps.restore(s.id, { paths: ["../dışarı.md"] }).then(() => stat(path.join(root, "..", "dışarı.md"))));
 });
+
+test("anlık görüntü: anahtar ilk gerektiğinde istenir; anlık görüntü yokken temizlik anahtar istemez", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "nularche-snap-"));
+  let asked = 0;
+  const key = randomBytes(32);
+  const snaps = new SnapshotStore(root, { key: async () => (asked++, key) });
+  assert.equal(await snaps.purgeNotes(["x"]), 0);
+  assert.equal(asked, 0, "açılıştaki temizlik anahtar istemez");
+  await writeFile(path.join(root, "a.md"), "gizli-metin");
+  await snaps.create();
+  assert.equal(asked, 1);
+  assert.equal(await snaps.isEncrypted(), true);
+  await snaps.list();
+  assert.equal(asked, 1, "bir kez istenir");
+});

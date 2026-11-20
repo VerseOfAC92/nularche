@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { exportPageHtml, NodeStore, safeUrl, sanitizeRawHtml } from "../src/index.ts";
-import { APP_CSP, SESSION_COOKIE, startServer } from "../../server/src/app.ts";
+import { APP_CSP, startServer } from "../../server/src/app.ts";
 
 test("ham HTML: yalnızca Nularche'nin güvenli etiketleri geçer, gerisi metin olarak kaçırılır", () => {
   assert.equal(sanitizeRawHtml('<span style="color: #f85149">kırmızı</span>'), '<span style="color: #f85149">kırmızı</span>');
@@ -70,8 +70,9 @@ test("yerel API: oturum anahtarı olmadan erişilemez; arayüz sıkı içerik g�
     assert.equal((await fetch(`${server.url}/api/nodes`, { headers: { "x-nularche-token": "wrong" } })).status, 401);
     assert.equal((await fetch(`${server.url}/files/a.png`)).status, 401, "ekler de korunur");
     assert.equal((await fetch(`${server.url}/api/nodes`, { headers: { "x-nularche-token": "gizli-anahtar" } })).status, 200);
-    const page = await fetch(`${server.url}/`, { headers: { cookie: `${SESSION_COOKIE}=gizli-anahtar` } });
-    assert.equal(page.status, 200, "çerezle arayüz açılır");
+    assert.equal((await fetch(`${server.url}/`, { headers: { cookie: "nularche_session=gizli-anahtar" } })).status, 401, "çerez kabul edilmez");
+    const page = await fetch(`${server.url}/`, { headers: { "x-nularche-token": "gizli-anahtar" } });
+    assert.equal(page.status, 200, "başlıkla arayüz açılır");
     assert.equal(page.headers.get("content-security-policy"), APP_CSP);
     assert.match(APP_CSP, /script-src 'self'(;|$)/, "satır içi betik yok");
     assert.match(APP_CSP, /object-src 'none'/);
