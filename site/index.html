@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nularche · Local-first, AI-native notes</title>
+<meta name="description" content="Nularche is a free, open-source notes app for macOS, Windows and Linux. Your notes stay as plain Markdown files in a folder you own, optionally synced through your own Google Drive.">
+<meta property="og:title" content="Nularche · Local-first, AI-native notes">
+<meta property="og:description" content="Notes, databases, a writing studio, a whiteboard and research tools in plain Markdown. Free and open source.">
+<meta property="og:image" content="https://nularche.verseofac.com/assets/atrium.png">
+<link rel="icon" href="/assets/logo.png">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/"><img src="/assets/logo.png" alt="" width="32" height="32"> Nularche</a>
+  <nav>
+    <a href="#features">Features</a>
+    <a href="#google">Google data</a>
+    <a href="/privacy">Privacy</a>
+    <a href="https://github.com/VerseOfAC92/nularche">GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <p class="kicker">From zero point to first principles</p>
+      <h1>Your notes. Your machine. <em>Your AI.</em></h1>
+      <p class="lede">Nularche is a free, open-source notes app for macOS, Windows and Linux. Your notes are plain Markdown files in a folder you own, and its AI works with the Claude, ChatGPT or Gemini account you already have.</p>
+      <div class="btns">
+        <a class="btn primary" href="https://github.com/VerseOfAC92/nularche/releases/latest">Download Nularche 3.0</a>
+        <a class="btn" href="https://github.com/VerseOfAC92/nularche">Source code</a>
+      </div>
+      <p class="small">No Nularche account, no Nularche server, no analytics. MIT licence.</p>
+    </div>
+    <img class="shot" src="/assets/atrium.png" alt="The Nularche Atrium: continue writing, daily goal, projects, open tasks and a scheduled digest" width="1440" height="900">
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>Everything in plain Markdown</h2>
+      <p class="intro">Every part of Nularche has its own name in the Nularche language, explained the first time you open the app.</p>
+      <div class="grid">
+        <div class="card"><h3>Notes and structure</h3><p>Top-level areas (<span class="term">Arches</span>) with nested pages, an inbox (<span class="term">Shadow</span>), tags, smart folders, links, backlinks and a graph.</p></div>
+        <div class="card"><h3>Databases</h3><p>Table, Board, Calendar, Gallery, List and Timeline views with formulas, relations and filters. Every row is a page.</p></div>
+        <div class="card"><h3>Writing studio</h3><p><span class="term">Codex</span> manuscripts, <span class="term">Axis</span> outlines, <span class="term">Mosaic</span> card boards and a <span class="term">Lore</span> story bible, with word goals and exports to Word, RTF and HTML.</p></div>
+        <div class="card"><h3>Whiteboard</h3><p><span class="term">Tabula</span>: pressure-sensitive pens, sticky notes, over 130 diagram shapes and about 4,800 icons.</p></div>
+        <div class="card"><h3>Research</h3><p><span class="term">Fontes</span> citations and bibliographies, the <span class="term">Lectio</span> PDF reader with highlights, and block links (<span class="term">Tessera</span>).</p></div>
+        <div class="card"><h3>Using what you know</h3><p>Live queries (<span class="term">Speculum</span>), flashcards with spaced repetition (<span class="term">Anamnesis</span>) and scheduled automations (<span class="term">Vigil</span>).</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="pair">
+        <div>
+          <h2>Security you can check</h2>
+          <ul class="ticks">
+            <li><b>Locked notes</b> and <b>encrypted Arches</b> (<span class="term">Crypta</span>): AES-256 with a password that is never stored.</li>
+            <li><b>Auto-lock</b> (<span class="term">Custos</span>) when you step away, the computer sleeps or the screen locks.</li>
+            <li><b>Encrypted snapshots</b> (<span class="term">Strata</span>) of your whole notes folder that you can restore.</li>
+            <li>Open source: anyone can read exactly what the app does.</li>
+          </ul>
+        </div>
+        <img class="shot" src="/assets/security.png" alt="Settings → Security: auto-lock, encrypted Arches and snapshots" width="1440" height="900" loading="lazy">
+      </div>
+      <div class="pair">
+        <img class="shot" src="/assets/lectio.png" alt="The Lectio PDF reader with coloured highlights and comments" width="1440" height="900" loading="lazy">
+        <div>
+          <h2>Read, highlight, write</h2>
+          <p class="small">Highlight PDFs and turn the highlights into notes that link back to the page, cite your sources with <code>[@key]</code>, and export a whole manuscript with its bibliography.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="google">
+    <div class="wrap">
+      <h2>How Nularche uses Google data</h2>
+      <p class="intro">Connecting Google is optional. Nularche works fully on your computer without it.</p>
+      <div class="pair">
+        <div class="google">
+          <h3>Google Drive (storage and sync)</h3>
+          <p>If you choose to keep your notes in Google Drive, Nularche asks only for the <code>drive.file</code> permission. It can see and change only the Nularche folder and the files it creates, never your other files. It uses this access solely to keep your notes in sync between your computers. With end-to-end encryption on, files are encrypted on your computer before upload, so not even Google can read them.</p>
+          <h3>Google Calendar</h3>
+          <p>If you connect Google Calendar, Nularche reads your calendars to show them on its Calendar page and creates, edits or deletes events only when you do so in Nularche.</p>
+          <p class="small">Nularche talks to Google directly from your computer. Your Google data is never sent to us or anyone else, never used for advertising, never sold and never used to train AI models. Nularche's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements. Read the full <a href="/privacy">privacy policy</a>.</p>
+        </div>
+        <img class="shot" src="/assets/storage.png" alt="Settings → Notes and Origin: this computer or Google Drive, with end-to-end encryption" width="1440" height="900" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="pair">
+        <img class="shot" src="/assets/codex.png" alt="A Codex manuscript with chapters, word goal and export" width="1440" height="900" loading="lazy">
+        <img class="shot" src="/assets/tabula.png" alt="A Tabula whiteboard with a flowchart, sticky notes and drawings" width="1440" height="900" loading="lazy">
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Get Nularche</h2>
+      <p class="intro">Free for macOS (Apple Silicon and Intel), Windows (64- and 32-bit) and Linux (Debian/Ubuntu). Every installer is installed and tested on its own operating system before release.</p>
+      <div class="btns">
+        <a class="btn primary" href="https://github.com/VerseOfAC92/nularche/releases/latest">Download</a>
+        <a class="btn" href="https://github.com/VerseOfAC92/nularche#install-from-the-terminal">Install from the terminal</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>© 2026 VerseOfAC · <a href="/privacy">Privacy policy</a> · <a href="https://github.com/VerseOfAC92/nularche">Source code</a> · <a href="mailto:verseofac@gmail.com">verseofac@gmail.com</a></p>
+  <p lang="tr">Nularche, notlarınızı kendi bilgisayarınızda düz Markdown dosyaları olarak tutan, açık kaynaklı ve ücretsiz bir not uygulamasıdır. <a href="/privacy">Gizlilik politikası (Türkçe özeti sayfanın sonunda)</a></p>
+</footer>
+</body>
+</html>
