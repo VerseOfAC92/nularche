@@ -7,16 +7,27 @@
 <meta name="description" content="Nularche is a free, open-source, local-first notes app for macOS, Windows and Linux. Your notes stay as plain Markdown files in a folder you own; its AI works with the Claude, ChatGPT or Gemini account you already have.">
 <meta property="og:title" content="Nularche · From zero point to first principles">
 <meta property="og:description" content="Notes, databases, a writing studio, a whiteboard, research tools and flashcards in plain Markdown. Free, open source, local-first.">
-<meta property="og:image" content="https://nularche.verseofac.com/assets/atrium.png">
-<meta name="theme-color" content="#070f1f">
+<meta property="og:image" content="https://nularche.verseofac.com/assets/hero.png">
+<meta name="theme-color" content="#e6d9f2">
 <link rel="icon" href="/assets/logo.png">
+<link rel="preload" href="/assets/fonts/nularche-font.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 </head>
 <body>
+<svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-laptop" viewBox="0 0 24 24"><path d="M4 6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v9H4zM2 18h20"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5 1.5A3.75 3.75 0 0 1 17.5 18z"/></symbol>
+  <symbol id="i-server-off" viewBox="0 0 24 24"><path d="M4 5h16v6H4zM4 13h16v6H4zM3 3l18 18"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></symbol>
+  <symbol id="i-seed" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8" opacity=".35"/></symbol>
+  <symbol id="i-root" viewBox="0 0 24 24"><path d="M12 3l7 9-7 9-7-9z"/></symbol>
+  <symbol id="i-web" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="12" cy="10" r="2"/><path d="M6.6 7.2 10.4 9M17.4 7.2 13.6 9M12 12v4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 120 60"><path d="M4 8c30 4 60 18 92 40M96 48l-14-2M96 48l-3-13"/></symbol>
+</svg>
 <a class="skip" href="#main" data-i18n="skip">Skip to content</a>
 <header class="bar">
-  <a class="brand" href="/"><img src="/assets/logo.png" alt="" width="32" height="32"> Nularche</a>
+  <a class="brand" href="/"><img src="/assets/logo.png" alt="" width="36" height="36"> Nularche</a>
   <nav aria-label="Main">
     <a href="#idea" data-i18n="nav.idea">Idea</a>
     <a href="#try" data-i18n="nav.try">Try it</a>
@@ -32,68 +43,76 @@
 
 <main id="main">
   <section class="hero">
-    <canvas class="graph" aria-hidden="true"></canvas>
-    <div class="wrap hero-inner">
+    <div class="hills" aria-hidden="true"></div>
+    <div class="wrap hero-center">
+      <img class="medallion" src="/assets/logo.png" alt="" width="88" height="88">
       <p class="kicker" data-i18n="hero.kicker">From zero point to first principles</p>
-      <h1><span data-i18n="hero.t1">Your notes.</span> <span data-i18n="hero.t2">Your machine.</span> <em data-i18n="hero.t3">Your AI.</em></h1>
+      <h1><span data-i18n="hero.t1">Your notes.</span> <span data-i18n="hero.t2">Your machine.</span><br><em data-i18n="hero.t3">Your AI.</em></h1>
       <p class="lede" data-i18n="hero.lede">Nularche is a free, open-source notes app that keeps everything you know as plain Markdown files in a folder you own, and lets the AI you already use help you think, write and remember.</p>
       <div class="btns">
         <a class="btn primary" href="#download" data-download-primary data-i18n="hero.download">Download Nularche 3.0</a>
         <a class="btn" href="#try" data-i18n="hero.try">Try it here</a>
       </div>
-      <ul class="facts" aria-label="At a glance">
-        <li data-i18n="fact.1">No account</li>
-        <li data-i18n="fact.2">No Nularche server</li>
-        <li data-i18n="fact.3">No subscription</li>
-        <li data-i18n="fact.4">MIT open source</li>
-      </ul>
-      <p class="hint" data-i18n="hero.hint">Move your pointer: every dot is a note, every line a link.</p>
+      <p class="facts"><span data-i18n="fact.1">No account</span><i>·</i><span data-i18n="fact.2">No Nularche server</span><i>·</i><span data-i18n="fact.3">No subscription</span><i>·</i><span data-i18n="fact.4">MIT open source</span></p>
+    </div>
+    <div class="wrap stage">
+      <figure class="hero-shot reveal">
+        <div class="window"><img src="/assets/hero.png" alt="The Nularche Atrium over the Lavender Hills background" width="1440" height="900"></div>
+        <figcaption class="note note-a"><span data-i18n="hero.note1">your home: goals, projects, quick capture</span><svg class="arrow"><use href="#i-arrow"/></svg></figcaption>
+        <figcaption class="note note-b"><svg class="arrow flip"><use href="#i-arrow"/></svg><span data-i18n="hero.note2">every page is a plain .md file</span></figcaption>
+      </figure>
     </div>
   </section>
 
   <section id="idea" class="idea">
     <div class="wrap">
-      <p class="kicker" data-i18n="idea.kicker">The idea</p>
-      <h2 data-i18n="idea.title">Null + Arche: start clean, build on first principles</h2>
-      <div class="steps">
-        <article class="step reveal">
-          <span class="num">∅</span>
+      <header class="sec-head">
+        <p class="kicker" data-i18n="idea.kicker">The idea</p>
+        <h2 data-i18n="idea.title">Null + Arche: start clean, build on first principles</h2>
+      </header>
+      <div class="principles">
+        <article class="reveal">
+          <span class="numeral">I</span>
           <h3 data-i18n="idea.1.t">Zero point</h3>
           <p data-i18n="idea.1.p">Nothing between you and your thoughts: no account, no lock-in, no feed. Just a folder of Markdown files that any editor can open, today and in twenty years.</p>
         </article>
-        <article class="step reveal">
-          <span class="num">◇</span>
+        <article class="reveal">
+          <span class="numeral">II</span>
           <h3 data-i18n="idea.2.t">Arche</h3>
           <p data-i18n="idea.2.p">Give every area of your life its own root, an Arche, and let pages, databases, manuscripts and boards grow from it.</p>
         </article>
-        <article class="step reveal">
-          <span class="num">✦</span>
+        <article class="reveal">
+          <span class="numeral">III</span>
           <h3 data-i18n="idea.3.t">A web of knowledge</h3>
           <p data-i18n="idea.3.p">Links, citations, live queries and flashcards turn notes into knowledge you can find, cite, reuse and remember.</p>
         </article>
       </div>
-      <div class="mission reveal">
-        <div>
-          <h3 data-i18n="mission.vision.t">Vision</h3>
-          <p data-i18n="mission.vision.p">Knowledge that belongs to the person who wrote it: readable without any app, private by default and useful for a lifetime.</p>
-        </div>
-        <div>
-          <h3 data-i18n="mission.mission.t">Mission</h3>
-          <p data-i18n="mission.mission.p">Build a complete, beautiful notes studio on plain files, with AI you already own, no subscription and nothing to trust but code anyone can read.</p>
-        </div>
+      <div class="manifesto reveal">
+        <blockquote>
+          <p class="mv-label" data-i18n="mission.vision.t">Vision</p>
+          <p class="mv-text" data-i18n="mission.vision.p">Knowledge that belongs to the person who wrote it: readable without any app, private by default and useful for a lifetime.</p>
+        </blockquote>
+        <blockquote>
+          <p class="mv-label" data-i18n="mission.mission.t">Mission</p>
+          <p class="mv-text" data-i18n="mission.mission.p">Build a complete, beautiful notes studio on plain files, with AI you already own, no subscription and nothing to trust but code anyone can read.</p>
+        </blockquote>
       </div>
     </div>
   </section>
 
   <section id="try" class="try">
     <div class="wrap">
-      <p class="kicker" data-i18n="try.kicker">Try it here</p>
-      <h2 data-i18n="try.title">Write like you do in Nularche</h2>
-      <p class="intro" data-i18n="try.intro">Type on the left. Nularche reads plain Markdown and turns links, tags, citations and flashcards into something you can use. Nothing you type leaves this page.</p>
-      <div class="playground">
-        <label class="pg-input">
-          <span class="pg-label" data-i18n="try.yours">Your note</span>
-          <textarea spellcheck="false" data-demo-input>## Memory and the archive #research
+      <header class="sec-head">
+        <p class="kicker" data-i18n="try.kicker">Try it here</p>
+        <h2 data-i18n="try.title">Write like you do in Nularche</h2>
+        <p class="intro" data-i18n="try.intro">Type on the left. Nularche reads plain Markdown and turns links, tags, citations and flashcards into something you can use. Nothing you type leaves this page.</p>
+      </header>
+      <div class="app-window">
+        <div class="titlebar"><span></span><span></span><span></span><b>Nularche</b></div>
+        <div class="playground">
+          <label class="pg-input">
+            <span class="pg-label" data-i18n="try.yours">Your note</span>
+            <textarea spellcheck="false" data-demo-input>## Memory and the archive #research
 
 Collective memory is a practice of the present [@halbwachs1992, p. 38]. See [[Chapter 2]] for archives.
 
@@ -101,14 +120,15 @@ What shapes what we remember? :: The archive
 Lieu de mémoire ::: A place where memory crystallises
 
 - [ ] Add the Nora chapter</textarea>
-        </label>
-        <div class="pg-output" aria-live="polite">
-          <span class="pg-label" data-i18n="try.sees">What Nularche sees</span>
-          <div class="pg-render" data-demo-render></div>
-          <div class="pg-cards">
-            <span class="pg-label" data-i18n="try.cards">Anamnesis flashcards</span>
-            <div data-demo-cards></div>
+          </label>
+          <div class="pg-output" aria-live="polite">
+            <span class="pg-label" data-i18n="try.sees">What Nularche sees</span>
+            <div class="pg-render" data-demo-render></div>
           </div>
+        </div>
+        <div class="pg-cards">
+          <span class="pg-label" data-i18n="try.cards">Anamnesis flashcards</span>
+          <div data-demo-cards></div>
         </div>
       </div>
       <div class="chips">
@@ -123,8 +143,10 @@ Lieu de mémoire ::: A place where memory crystallises
 
   <section id="features" class="features">
     <div class="wrap">
-      <p class="kicker" data-i18n="feat.kicker">Everything in one studio</p>
-      <h2 data-i18n="feat.title">One app for thinking, writing and remembering</h2>
+      <header class="sec-head">
+        <p class="kicker" data-i18n="feat.kicker">Everything in one studio</p>
+        <h2 data-i18n="feat.title">One app for thinking, writing and remembering</h2>
+      </header>
       <div class="tabs" role="tablist" aria-label="Features">
         <button role="tab" aria-selected="true" aria-controls="tab-panel" data-tab="organise" data-i18n="feat.t.organise">Organise</button>
         <button role="tab" aria-selected="false" aria-controls="tab-panel" data-tab="write" data-i18n="feat.t.write">Write</button>
@@ -141,12 +163,13 @@ Lieu de mémoire ::: A place where memory crystallises
             <li>Tabula: a whiteboard with pressure-sensitive pens, 130+ diagram shapes and ~4,800 icons.</li>
           </ul>
         </div>
-        <img class="shot" data-tab-img src="/assets/project.png" alt="A project page with an embedded task board" width="1440" height="900">
+        <div class="window"><img data-tab-img src="/assets/organise.png" alt="The sidebar with Arches grouped into Archipelagos over the Lavender Hills" width="1440" height="900"></div>
       </div>
     </div>
   </section>
 
   <section id="privacy" class="privacy">
+    <div class="night" aria-hidden="true"></div>
     <div class="wrap">
       <p class="kicker" data-i18n="priv.kicker">Your data</p>
       <h2 data-i18n="priv.title">See exactly where your notes go</h2>
@@ -156,23 +179,25 @@ Lieu de mémoire ::: A place where memory crystallises
         <button role="radio" aria-checked="false" data-mode="e2e" data-i18n="priv.m.e2e">Drive + end-to-end encryption</button>
       </div>
       <div class="flow" data-flow="local">
-        <div class="node you"><span class="ico">💻</span><b data-i18n="priv.you">Your computer</b><code>Plan.md</code></div>
-        <div class="pipe"><span class="packet" data-packet>Plan.md</span></div>
-        <div class="node cloud"><span class="ico">☁️</span><b data-i18n="priv.drive">Your Google Drive</b><code data-drive-sees>—</code></div>
-        <div class="node us"><span class="ico">🚫</span><b data-i18n="priv.us">Nularche servers</b><span data-i18n="priv.none">There are none</span></div>
+        <div class="node you"><svg class="icon"><use href="#i-laptop"/></svg><b data-i18n="priv.you">Your computer</b><code>Plan.md</code></div>
+        <div class="pipe"><span class="packet"><svg class="lock"><use href="#i-lock"/></svg><span data-packet></span></span></div>
+        <div class="node cloud"><svg class="icon"><use href="#i-cloud"/></svg><b data-i18n="priv.drive">Your Google Drive</b><code data-drive-sees>—</code></div>
+        <div class="node us"><svg class="icon"><use href="#i-server-off"/></svg><b data-i18n="priv.us">Nularche servers</b><span data-i18n="priv.none">There are none</span></div>
       </div>
       <p class="flow-caption" data-flow-caption>Your notes stay in a folder on this computer. Nothing is uploaded.</p>
-    </div>
-  </section>
 
-  <section id="google" class="google-sec">
-    <div class="wrap">
-      <h2 data-i18n="g.title">How Nularche uses Google data</h2>
-      <div class="google">
-        <h3>Google Drive</h3>
-        <p data-i18n="g.drive">If you choose to keep your notes in Google Drive, Nularche asks only for the drive.file permission. It can see and change only the Nularche folder and the files it creates, never your other files, and uses this access solely to keep your notes in sync between your computers. With end-to-end encryption on, files are encrypted on your computer before upload, so not even Google can read them.</p>
-        <h3>Google Calendar</h3>
-        <p data-i18n="g.cal">If you connect Google Calendar, Nularche reads your calendars to show them on its Calendar page and creates, edits or deletes events only when you do so in Nularche.</p>
+      <div id="google" class="google">
+        <h3 data-i18n="g.title">How Nularche uses Google data</h3>
+        <div class="google-cols">
+          <div>
+            <h4>Google Drive</h4>
+            <p data-i18n="g.drive">If you choose to keep your notes in Google Drive, Nularche asks only for the drive.file permission. It can see and change only the Nularche folder and the files it creates, never your other files, and uses this access solely to keep your notes in sync between your computers. With end-to-end encryption on, files are encrypted on your computer before upload, so not even Google can read them.</p>
+          </div>
+          <div>
+            <h4>Google Calendar</h4>
+            <p data-i18n="g.cal">If you connect Google Calendar, Nularche reads your calendars to show them on its Calendar page and creates, edits or deletes events only when you do so in Nularche.</p>
+          </div>
+        </div>
         <p class="small" data-i18n="g.policy">Nularche talks to Google directly from your computer. Your Google data is never sent to us or anyone else, never used for advertising, never sold and never used to train AI models. Nularche's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.</p>
         <p class="small"><a href="/privacy" data-i18n="g.read">Read the full privacy policy</a></p>
       </div>
@@ -181,18 +206,23 @@ Lieu de mémoire ::: A place where memory crystallises
 
   <section id="language" class="language">
     <div class="wrap">
-      <p class="kicker" data-i18n="lang.kicker">The Nularche language</p>
-      <h2 data-i18n="lang.title">Every part has its own name</h2>
-      <p class="intro" data-i18n="lang.intro">Tap a card to see what it means.</p>
+      <header class="sec-head">
+        <p class="kicker" data-i18n="lang.kicker">The Nularche language</p>
+        <h2 data-i18n="lang.title">Every part has its own name</h2>
+        <p class="intro" data-i18n="lang.intro">Tap a card to see what it means.</p>
+      </header>
       <div class="cards" data-glossary></div>
     </div>
   </section>
 
   <section id="download" class="download">
+    <div class="hills low" aria-hidden="true"></div>
     <div class="wrap">
-      <p class="kicker" data-i18n="dl.kicker">Free for everyone</p>
-      <h2 data-i18n="dl.title">Get Nularche</h2>
-      <p class="intro" data-i18n="dl.intro">Every installer is installed and tested on its own operating system before release. Updating keeps your notes and settings.</p>
+      <header class="sec-head">
+        <p class="kicker" data-i18n="dl.kicker">Free for everyone</p>
+        <h2 data-i18n="dl.title">Get Nularche</h2>
+        <p class="intro" data-i18n="dl.intro">Every installer is installed and tested on its own operating system before release. Updating keeps your notes and settings.</p>
+      </header>
       <div class="platforms">
         <a class="platform" data-os="mac-arm" href="https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-macOS-AppleSilicon.dmg"><b>macOS</b><span>Apple Silicon</span></a>
         <a class="platform" data-os="mac-intel" href="https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-macOS-Intel.dmg"><b>macOS</b><span>Intel</span></a>
@@ -200,12 +230,12 @@ Lieu de mémoire ::: A place where memory crystallises
         <a class="platform" data-os="win-x86" href="https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-Windows-x86-Setup.exe"><b>Windows</b><span>32-bit</span></a>
         <a class="platform" data-os="linux" href="https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-Linux-amd64.deb"><b>Linux</b><span>Debian / Ubuntu</span></a>
       </div>
-      <p class="small" data-detected></p>
+      <p class="detected" data-detected></p>
       <div class="terminal">
         <span class="pg-label" data-i18n="dl.terminal">Or from the terminal (macOS and Linux)</span>
         <div class="term-row"><code data-term>curl -fsSL https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.sh | bash</code><button type="button" class="chip" data-copy data-i18n="dl.copy">Copy</button></div>
       </div>
-      <p class="small"><a href="https://github.com/VerseOfAC92/nularche" data-i18n="dl.source">Source code on GitHub</a> · <a href="https://github.com/VerseOfAC92/nularche/releases/latest" data-i18n="dl.notes">Release notes</a> · <span class="soon" data-i18n="dl.web">Nularche in your browser: coming soon</span></p>
+      <p class="small links"><a href="https://github.com/VerseOfAC92/nularche" data-i18n="dl.source">Source code on GitHub</a> · <a href="https://github.com/VerseOfAC92/nularche/releases/latest" data-i18n="dl.notes">Release notes</a> · <span class="soon" data-i18n="dl.web">Nularche in your browser: coming soon</span></p>
     </div>
   </section>
 </main>
