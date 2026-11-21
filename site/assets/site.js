@@ -59,7 +59,9 @@
     "mission.mission.p": "Düz dosyalar üzerinde eksiksiz ve güzel bir not stüdyosu kurmak; zaten sahip olduğunuz yapay zekâyla, aboneliksiz ve güvenmeniz gereken tek şey herkesin okuyabildiği kod olacak şekilde.",
     "try.kicker": "Burada deneyin",
     "try.title": "Nularche'deki gibi yazın",
-    "try.intro": "Sağa Nularche'de yazdığınız gibi yazın: satırı başlık için # ile, görev için - [ ] ile başlatın ya da Soru :: Cevap yazın. Solda Nularche'nin kaydettiği düz Markdown dosyası var; onu herhangi bir düzenleyici açabilir. Yazdığınız hiçbir şey bu sayfadan çıkmaz.",
+    "try.intro": "Sağa Nularche'de yazdığınız gibi yazın: başlık, liste, görev, kalın, vurgu ve daha fazlası için / yazın ya da metni seçip biçimlendirin. Solda Nularche'nin kaydettiği düz Markdown dosyası var; onu herhangi bir düzenleyici açabilir. Yazdığınız hiçbir şey bu sayfadan çıkmaz.",
+    "try.hint": "komutlar için / yazın, biçimlendirmek için metni seçin",
+    "try.slash": "/ komutlar",
     "try.yours": "Nularche'de",
     "try.file": "Markdown dosyası",
     "try.cards": "Anamnesis bilgi kartları",
@@ -157,13 +159,16 @@
   };
   /**
    * Nularche'deki gibi yazılan küçük editör. Belge bloklardan oluşur ({t: tür, x: görev bitti mi, s: düz metin});
-   * soldaki Markdown dosyası her değişiklikte bu bloklardan üretilir. Satır başı kuralları ("# ", "- ", "- [ ] ",
-   * "> ") Nularche'deki gibi blok türüne dönüşür; [[bağlantı]], #etiket, [@atıf] ve Soru :: Cevap satırları
-   * imlecin olmadığı bloklarda işlenmiş görünür. HTML hiçbir yerde yorumlanmaz.
+   * soldaki Markdown dosyası her değişiklikte bu bloklardan üretilir. Nularche'deki gibi:
+   * - "/" komut menüsü (başlık, liste, görev, alıntı, kalın, italik, vurgu, üstü çizili, kod, bağlantı, etiket, atıf,
+   *   Anamnesis kartı),
+   * - metin seçilince biçim çubuğu ve kısayollar (⌘B, ⌘I, ⌘⇧H, ⌘⇧S, ⌘E),
+   * - satır başı kuralları ("# ", "- ", "- [ ] ", "> ").
+   * Biçim işaretleri (**, ==, [[ ]] …) yalnızca imlecin olduğu blokta görünür. HTML hiçbir yerde yorumlanmaz.
    */
   const SAMPLE = `# Memory and the archive
 
-Collective memory is a practice of the present [@halbwachs1992, p. 38]. See [[Chapter 2]] for archives. #research
+Collective memory is a **practice of the present** [@halbwachs1992, p. 38]. See [[Chapter 2]] for ==archives==. #research
 
 What shapes what we remember? :: The archive
 
@@ -173,6 +178,7 @@ Lieu de mémoire ::: A place where memory crystallises
   const CARD = /^(.*?\S)\s+(:{2,3})\s+(\S.*)$/;
   const MAX_BLOCKS = 200;
   const MAX_CHARS = 2000;
+  const FORMATS = { bold: ["**", "**"], italic: ["*", "*"], highlight: ["==", "=="], strike: ["~~", "~~"], code: ["`", "`"] };
   let doc = [];
   const history = [];
   const future = [];
@@ -203,24 +209,32 @@ Lieu de mémoire ::: A place where memory crystallises
   }
 
   /** Satır içi işaretler: ham metin korunur, işaret karakterleri .mk içinde (imleç başka bloktayken gizlenir). */
+  const INLINE =
+    /\[\[([^\]\n]{1,80})\]\]|\[(-?@[^\]\n]{1,120})\]|(^|\s)(#[\p{L}\d_/-]{1,40})|\*\*([^*\n]+?)\*\*|==([^=\n]+?)==|~~([^~\n]+?)~~|`([^`\n]+?)`|(?<![*\w])\*([^*\s][^*\n]*?)\*(?![*\w])/gu;
   function decorate(text) {
     const out = [];
-    const re = /\[\[([^\]\n]{1,80})\]\]|\[(-?@[^\]\n]{1,120})\]|(^|\s)(#[\p{L}\d_/-]{1,40})/gu;
     let last = 0;
     const mk = (s) => el("span", "mk", s);
-    for (const m of text.matchAll(re)) {
+    const wrap = (tag, cls, open, inner, close, plain) => {
+      const w = el(tag, cls);
+      w.append(mk(open), ...(plain ? [inner] : decorate(inner)), mk(close));
+      return w;
+    };
+    for (const m of text.matchAll(INLINE)) {
       const start = m.index + (m[3] ? m[3].length : 0);
       out.push(document.createTextNode(text.slice(last, start)));
-      if (m[1]) {
-        const a = el("span", "d-link");
-        a.append(mk("[["), m[1], mk("]]"));
-        out.push(a);
-      } else if (m[2]) {
+      if (m[1]) out.push(wrap("span", "d-link", "[[", m[1], "]]", true));
+      else if (m[2]) {
         const c = el("span", "d-cite");
         c.dataset.label = citeLabel(m[2]);
         c.append(el("span", "raw", `[${m[2]}]`));
         out.push(c);
-      } else out.push(el("span", "d-tag", m[4]));
+      } else if (m[4]) out.push(el("span", "d-tag", m[4]));
+      else if (m[5]) out.push(wrap("strong", "f-b", "**", m[5], "**"));
+      else if (m[6]) out.push(wrap("mark", "f-h", "==", m[6], "=="));
+      else if (m[7]) out.push(wrap("s", "f-s", "~~", m[7], "~~"));
+      else if (m[8]) out.push(wrap("code", "f-c", "`", m[8], "`", true));
+      else out.push(wrap("em", "f-i", "*", m[9], "*"));
       last = m.index + m[0].length;
     }
     out.push(document.createTextNode(text.slice(last)));
@@ -248,55 +262,75 @@ Lieu de mémoire ::: A place where memory crystallises
       const at = b.s.indexOf(card[2], card[1].length);
       d.append(...decorate(b.s.slice(0, at)), el("span", "sep", card[2]), ...decorate(b.s.slice(at + card[2].length)));
     } else d.append(...decorate(b.s));
-    if (!b.s) d.append(el("br"));
+    if (!b.s) {
+      d.classList.add("empty");
+      d.dataset.ph = t("Type / for commands…", "Komutlar için / yazın…");
+      d.append(el("br"));
+    }
     return d;
   }
 
+  // ---- seçim: blok sırası ve blok içindeki karakter konumu
   const editor = () => $("[data-demo-editor]");
-  function caret() {
-    const ed = editor();
-    const sel = getSelection();
-    if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return null;
-    const node = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
-    const block = node.closest(".b");
-    if (!block || block.parentElement !== ed) return null;
+  const host = () => $(".pg-editor");
+  function blockOf(node) {
+    const e = node && (node.nodeType === 1 ? node : node.parentElement);
+    const b = e?.closest(".b");
+    return b && b.parentElement === editor() ? b : null;
+  }
+  function offsetIn(block, node, off) {
     const r = document.createRange();
     r.setStart(block, 0);
-    r.setEnd(sel.anchorNode, sel.anchorOffset);
-    return { i: [...ed.children].indexOf(block), o: r.toString().length, collapsed: sel.isCollapsed };
+    r.setEnd(node, off);
+    return r.toString().length;
   }
-  function place(i, o) {
-    const block = editor().children[Math.max(0, Math.min(i, doc.length - 1))];
-    if (!block) return;
+  function sel() {
+    const s = getSelection();
+    if (!s.rangeCount) return null;
+    const r = s.getRangeAt(0);
+    const bs = blockOf(r.startContainer);
+    const be = blockOf(r.endContainer);
+    if (!bs || !be) return null;
+    const kids = [...editor().children];
+    return { i: kids.indexOf(bs), o: offsetIn(bs, r.startContainer, r.startOffset), j: kids.indexOf(be), e: offsetIn(be, r.endContainer, r.endOffset), collapsed: r.collapsed };
+  }
+  const caret = () => {
+    const s = sel();
+    return s && { i: s.i, o: s.o, collapsed: s.collapsed };
+  };
+  function point(block, o) {
     const walk = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
     let left = o;
     let n;
-    const r = document.createRange();
-    r.setStart(block, 0);
+    let lastN = null;
     while ((n = walk.nextNode())) {
-      if (left <= n.length) {
-        r.setStart(n, left);
-        break;
-      }
+      if (left <= n.length) return [n, left];
       left -= n.length;
-      r.setStart(n, n.length);
+      lastN = n;
     }
-    r.collapse(true);
-    const sel = getSelection();
-    sel.removeAllRanges();
-    sel.addRange(r);
+    return lastN ? [lastN, lastN.length] : [block, 0];
+  }
+  function place(i, o, e = o) {
+    const block = editor().children[Math.max(0, Math.min(i, doc.length - 1))];
+    if (!block) return;
+    const r = document.createRange();
+    r.setStart(...point(block, o));
+    r.setEnd(...point(block, e));
+    const s = getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
     markActive();
   }
   function markActive() {
-    const ed = editor();
     const c = caret();
-    [...ed.children].forEach((b, i) => b.classList.toggle("active", !!c && c.i === i));
+    [...editor().children].forEach((b, i) => b.classList.toggle("active", !!c && c.i === i));
   }
   function draw(at) {
     const ed = editor();
     if (!doc.length) doc = [{ t: "p", s: "" }];
     ed.replaceChildren(...doc.map(blockEl));
-    if (at) place(at.i, at.o);
+    ed.classList.toggle("blank", doc.length === 1 && !doc[0].s && doc[0].t === "p");
+    if (at) place(at.i, at.o, at.e ?? at.o);
     output();
   }
   function snapshot(at) {
@@ -306,10 +340,9 @@ Lieu de mémoire ::: A place where memory crystallises
   }
   /** Tarayıcının bloklarda yaptığı değişikliği belgeye geri okur. */
   function readDom() {
-    const ed = editor();
     const blocks = [];
-    for (const n of [...ed.childNodes]) {
-      const text = n.textContent.replace(/ /g, " ").replace(/\n/g, "").slice(0, MAX_CHARS);
+    for (const n of [...editor().childNodes]) {
+      const text = n.textContent.replace(/\u00a0/g, " ").replace(/\n/g, "").slice(0, MAX_CHARS);
       if (n.nodeType === 1 && n.classList.contains("b")) blocks.push({ t: n.dataset.t || "p", x: n.dataset.x === "1", s: text });
       else if (text) blocks.push({ t: "p", s: text });
     }
@@ -327,18 +360,217 @@ Lieu de mémoire ::: A place where memory crystallises
   function inputRules(c) {
     const b = doc[c.i];
     if (!b || (b.t !== "p" && !(b.t === "li" && /^\[( |x)?\]\s/i.test(b.s)))) return c;
-    for (const [re, t, n] of RULES) {
+    for (const [re, kind, n] of RULES) {
       const m = re.exec(b.s);
       if (!m) continue;
       const cut = n || m[0].length;
       if (c.o < cut) return c;
-      b.t = t;
-      if (t === "task") b.x = /x/i.test(m[0]);
+      b.t = kind;
+      if (kind === "task") b.x = /x/i.test(m[0]);
       b.s = b.s.slice(cut);
       return { i: c.i, o: c.o - cut };
     }
     return c;
   }
+
+  // ---- biçimlendirme (seçim çubuğu, kısayollar ve "/" menüsü aynı işlevi kullanır)
+  const FORMAT_LABEL = {
+    bold: () => t("Bold", "Kalın"),
+    italic: () => t("Italic", "İtalik"),
+    highlight: () => t("Highlight", "Vurgula"),
+    strike: () => t("Strikethrough", "Üstü çizili"),
+    code: () => t("Inline code", "Satır içi kod"),
+  };
+  function toggleFormat(kind, record = true) {
+    const s = sel();
+    if (!s || s.i !== s.j) return;
+    const [a, z] = FORMATS[kind];
+    const b = doc[s.i];
+    if (record) snapshot({ i: s.i, o: s.o });
+    const { o, e } = s;
+    if (o === e) {
+      const ph = kind === "code" ? "code" : t("text", "metin");
+      b.s = b.s.slice(0, o) + a + ph + z + b.s.slice(o);
+      return draw({ i: s.i, o: o + a.length, e: o + a.length + ph.length });
+    }
+    const before = b.s.slice(0, o);
+    const mid = b.s.slice(o, e);
+    const after = b.s.slice(e);
+    if (before.endsWith(a) && after.startsWith(z)) {
+      b.s = before.slice(0, -a.length) + mid + after.slice(z.length);
+      return draw({ i: s.i, o: o - a.length, e: e - a.length });
+    }
+    if (mid.length > a.length + z.length && mid.startsWith(a) && mid.endsWith(z)) {
+      b.s = before + mid.slice(a.length, mid.length - z.length) + after;
+      return draw({ i: s.i, o, e: e - a.length - z.length });
+    }
+    b.s = before + a + mid + z + after;
+    draw({ i: s.i, o: o + a.length, e: e + a.length });
+  }
+  let bubble = null;
+  function updateBubble() {
+    if (!bubble) return;
+    const s = sel();
+    const show = !!s && !s.collapsed && s.i === s.j && document.activeElement === editor();
+    bubble.hidden = !show;
+    if (!show) return;
+    const r = getSelection().getRangeAt(0).getBoundingClientRect();
+    const box = host().getBoundingClientRect();
+    const w = bubble.offsetWidth;
+    bubble.style.left = `${Math.max(8, Math.min(box.width - w - 8, r.left - box.left + r.width / 2 - w / 2))}px`;
+    bubble.style.top = `${r.top - box.top - bubble.offsetHeight - 10}px`;
+  }
+  function buildBubble() {
+    bubble = el("div", "bubble");
+    bubble.setAttribute("role", "toolbar");
+    bubble.hidden = true;
+    const icons = { bold: "B", italic: "I", highlight: "H", strike: "S", code: "</>" };
+    const keys = { bold: "⌘B", italic: "⌘I", highlight: "⌘⇧H", strike: "⌘⇧S", code: "⌘E" };
+    for (const kind of Object.keys(FORMATS)) {
+      const btn = el("button", `bb-${kind}`, icons[kind]);
+      btn.type = "button";
+      btn.dataset.fmt = kind;
+      btn.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        toggleFormat(kind);
+      });
+      bubble.append(btn);
+    }
+    const label = () =>
+      bubble.querySelectorAll("button").forEach((b) => {
+        b.title = `${FORMAT_LABEL[b.dataset.fmt]()} (${keys[b.dataset.fmt]})`;
+        b.setAttribute("aria-label", b.title);
+      });
+    label();
+    bubble.relabel = label;
+    host().append(bubble);
+  }
+
+  // ---- "/" komut menüsü
+  let slash = null; // { i, start, end, idx, items }
+  let menu = null;
+  let dismissed = null;
+  function commands() {
+    const basic = t("Basic", "Temel");
+    const fmt = t("Format", "Biçim");
+    const nul = "Nularche";
+    return [
+      { g: basic, k: "h1", label: t("Heading 1", "Başlık 1"), hint: t("Large heading", "Büyük başlık"), md: "#" },
+      { g: basic, k: "h2", label: t("Heading 2", "Başlık 2"), hint: t("Medium heading", "Orta başlık"), md: "##" },
+      { g: basic, k: "h3", label: t("Heading 3", "Başlık 3"), hint: t("Small heading", "Küçük başlık"), md: "###" },
+      { g: basic, k: "li", label: t("Bulleted list", "Madde listesi"), hint: t("Simple list", "Basit liste"), md: "-" },
+      { g: basic, k: "task", label: t("To-do list", "Yapılacaklar"), hint: t("Checkboxes", "Onay kutuları"), md: "[ ]" },
+      { g: basic, k: "quote", label: t("Quote", "Alıntı"), hint: t("Quote block", "Alıntı bloğu"), md: ">" },
+      { g: fmt, k: "bold", label: FORMAT_LABEL.bold(), hint: "⌘B", md: "**" },
+      { g: fmt, k: "italic", label: FORMAT_LABEL.italic(), hint: "⌘I", md: "*" },
+      { g: fmt, k: "highlight", label: FORMAT_LABEL.highlight(), hint: "⌘⇧H", md: "==" },
+      { g: fmt, k: "strike", label: FORMAT_LABEL.strike(), hint: "⌘⇧S", md: "~~" },
+      { g: fmt, k: "code", label: FORMAT_LABEL.code(), hint: "⌘E", md: "`" },
+      { g: nul, k: "link", label: t("Node link", "Node bağlantısı"), hint: t("Link to another page", "Başka bir sayfaya bağlan"), md: "[[ ]]" },
+      { g: nul, k: "tag", label: t("Tag", "Etiket"), hint: t("Group notes by topic", "Notları konuya göre topla"), md: "#" },
+      { g: nul, k: "cite", label: t("Citation", "Atıf"), hint: t("Fontes: cite a source", "Fontes: kaynak göster"), md: "[@]" },
+      { g: nul, k: "card", label: t("Anamnesis card", "Anamnesis kartı"), hint: t("Question :: Answer", "Soru :: Cevap"), md: "::" },
+    ];
+  }
+  const fold = (s) => s.toLocaleLowerCase("tr").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ı/g, "i");
+  function checkSlash() {
+    const c = caret();
+    const focused = document.activeElement === editor();
+    const m = c && c.collapsed && focused ? /(?:^|\s)\/([\p{L}\d]{0,20})$/u.exec(doc[c.i]?.s.slice(0, c.o) ?? "") : null;
+    if (!m) return closeSlash();
+    const start = c.o - m[1].length - 1;
+    if (dismissed && dismissed.i === c.i && dismissed.start === start) return closeSlash();
+    const q = fold(m[1]);
+    const items = commands().filter((x) => !q || fold(x.label).includes(q) || x.k.startsWith(q));
+    if (!items.length) return closeSlash();
+    const sameQuery = slash && slash.i === c.i && slash.start === start && slash.q === q;
+    slash = { i: c.i, start, end: c.o, q, idx: sameQuery ? Math.min(slash.idx, items.length - 1) : 0, items };
+    renderSlash();
+  }
+  function closeSlash() {
+    slash = null;
+    if (menu) menu.hidden = true;
+  }
+  function renderSlash() {
+    if (!menu) {
+      menu = el("div", "slash");
+      menu.setAttribute("role", "listbox");
+      host().append(menu);
+    }
+    menu.replaceChildren();
+    let group = "";
+    slash.items.forEach((cmd, n) => {
+      if (cmd.g !== group) {
+        group = cmd.g;
+        menu.append(el("div", "sl-group", group));
+      }
+      const item = el("div", "sl-item");
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", String(n === slash.idx));
+      item.append(el("span", "sl-md", cmd.md), el("span", "sl-label", cmd.label), el("span", "sl-hint", cmd.hint));
+      item.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        runCommand(cmd);
+      });
+      item.addEventListener("mousemove", () => {
+        if (slash && slash.idx !== n) {
+          slash.idx = n;
+          renderSlash();
+        }
+      });
+      menu.append(item);
+    });
+    menu.hidden = false;
+    const r = getSelection().getRangeAt(0).getBoundingClientRect();
+    const box = host().getBoundingClientRect();
+    menu.style.left = `${Math.max(8, Math.min(box.width - menu.offsetWidth - 8, r.left - box.left))}px`;
+    menu.style.top = `${r.bottom - box.top + 8}px`;
+    menu.querySelector("[aria-selected='true']")?.scrollIntoView({ block: "nearest" });
+  }
+  function runCommand(cmd) {
+    if (!slash) return;
+    const { i, start, end } = slash;
+    closeSlash();
+    snapshot({ i, o: end });
+    const b = doc[i];
+    b.s = b.s.slice(0, start) + b.s.slice(end);
+    const o = start;
+    if (/^(h[1-3]|li|task|quote)$/.test(cmd.k)) {
+      b.t = cmd.k;
+      if (cmd.k === "task") b.x = false;
+      return draw({ i, o });
+    }
+    if (FORMATS[cmd.k]) {
+      draw({ i, o });
+      return toggleFormat(cmd.k, false);
+    }
+    const put = (text, selFrom, selTo) => {
+      b.s = b.s.slice(0, o) + text + b.s.slice(o);
+      draw({ i, o: o + selFrom, e: o + selTo });
+    };
+    if (cmd.k === "link") {
+      const w = t("Page", "Sayfa");
+      return put(`[[${w}]]`, 2, 2 + w.length);
+    }
+    if (cmd.k === "tag") {
+      const w = t("idea", "fikir");
+      return put(`#${w}`, 1, 1 + w.length);
+    }
+    if (cmd.k === "cite") return put("[@nora1989]", 11, 11);
+    if (cmd.k === "card") {
+      const q = t("Question", "Soru");
+      const text = `${q} :: ${t("Answer", "Cevap")}`;
+      if (!b.s.trim()) {
+        b.t = "p";
+        b.s = text;
+        return draw({ i, o: 0, e: q.length });
+      }
+      doc.splice(i + 1, 0, { t: "p", s: text });
+      return draw({ i: i + 1, o: 0, e: q.length });
+    }
+  }
+
+  // ---- olaylar
   function onInput(e) {
     if (e.isComposing) return;
     const before = structuredClone(doc);
@@ -347,10 +579,36 @@ Lieu de mémoire ::: A place where memory crystallises
     history.push({ doc: before, at: c });
     future.length = 0;
     draw(inputRules(c));
+    checkSlash();
   }
   function onKey(e) {
+    if (slash) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const n = slash.items.length;
+        slash.idx = (slash.idx + (e.key === "ArrowDown" ? 1 : n - 1)) % n;
+        return renderSlash();
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        return runCommand(slash.items[slash.idx]);
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        dismissed = { i: slash.i, start: slash.start };
+        return closeSlash();
+      }
+    }
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && e.key.toLowerCase() === "z") {
+    const key = e.key.toLowerCase();
+    if (mod) {
+      const fmt = !e.shiftKey && key === "b" ? "bold" : !e.shiftKey && key === "i" ? "italic" : e.shiftKey && key === "h" ? "highlight" : e.shiftKey && (key === "s" || key === "x") ? "strike" : !e.shiftKey && key === "e" ? "code" : null;
+      if (fmt) {
+        e.preventDefault();
+        return toggleFormat(fmt);
+      }
+    }
+    if (mod && key === "z") {
       e.preventDefault();
       const from = e.shiftKey ? future : history;
       const to = e.shiftKey ? history : future;
@@ -361,7 +619,7 @@ Lieu de mémoire ::: A place where memory crystallises
       draw(s.at);
       return;
     }
-    if (mod && e.key.toLowerCase() === "y") return e.preventDefault();
+    if (mod && key === "y") return e.preventDefault();
     let c = caret();
     if (!c) return;
     if (e.key === "Enter") {
@@ -457,7 +715,7 @@ Lieu de mémoire ::: A place where memory crystallises
     const pre = $("[data-demo-md]");
     const lines = md.split("\n");
     const frag = [];
-    const re = /\[\[[^\]\n]+\]\]|\[-?@[^\]\n]+\]|(?<=^|\s)#[\p{L}\d_/-]+|\s:{2,3}\s/gu;
+    const re = /\[\[[^\]\n]+\]\]|\[-?@[^\]\n]+\]|(?<=^|\s)#[\p{L}\d_/-]+|\s:{2,3}\s|\*\*[^*\n]+?\*\*|==[^=\n]+?==|~~[^~\n]+?~~|`[^`\n]+?`|(?<![*\w])\*[^*\s][^*\n]*?\*(?![*\w])/gu;
     lines.forEach((line, n) => {
       const m = /^(#{1,3} |\s*[-*+] \[[ xX]\] |\s*[-*+] |> )/.exec(line);
       const row = el("span", m && m[1].startsWith("#") ? "m-h" : "");
@@ -470,7 +728,8 @@ Lieu de mémoire ::: A place where memory crystallises
       for (const x of rest.matchAll(re)) {
         row.append(rest.slice(last, x.index));
         const v = x[0];
-        row.append(el("span", v.startsWith("[[") ? "m-link" : v.startsWith("[") ? "m-cite" : v.startsWith("#") ? "m-tag" : "m-card", v));
+        const cls = v.startsWith("[[") ? "m-link" : v.startsWith("[") ? "m-cite" : v.startsWith("#") ? "m-tag" : /^\s:/.test(v) ? "m-card" : "m-fmt";
+        row.append(el("span", cls, v));
         last = x.index + v.length;
       }
       row.append(rest.slice(last));
@@ -479,7 +738,7 @@ Lieu de mémoire ::: A place where memory crystallises
     });
     pre.replaceChildren(...frag);
     const h = doc.find((b) => /^h[1-3]$/.test(b.t) && b.s.trim());
-    const name = (h ? h.s.trim() : t("Untitled", "Adsız")).replace(/[\\/:*?"<>|#^[\]]/g, "").slice(0, 60) || t("Untitled", "Adsız");
+    const name = (h ? h.s.trim().replace(/[*=~`]/g, "") : t("Untitled", "Adsız")).replace(/[\\/:*?"<>|#^[\]]/g, "").slice(0, 60) || t("Untitled", "Adsız");
     $("[data-demo-name]").textContent = `${name}.md`;
     cards();
   }
@@ -504,20 +763,32 @@ Lieu de mémoire ::: A place where memory crystallises
   }
   function renderDemo() {
     if (!editor()) return;
-    const focused = editor().contains(document.activeElement) || document.activeElement === editor();
-    draw(focused ? caret() : null);
+    const focused = document.activeElement === editor();
+    draw(focused ? sel() && { i: sel().i, o: sel().o } : null);
+    bubble?.relabel();
+    closeSlash();
   }
   function demo() {
     const ed = editor();
     if (!ed) return;
     doc = parseMd(SAMPLE);
+    buildBubble();
     ed.addEventListener("input", onInput);
     ed.addEventListener("compositionend", onInput);
     ed.addEventListener("keydown", onKey);
     ed.addEventListener("paste", onPaste);
     ed.addEventListener("drop", (e) => e.preventDefault());
     ed.addEventListener("mousedown", onPointer);
-    document.addEventListener("selectionchange", markActive);
+    ed.addEventListener("blur", () => {
+      closeSlash();
+      if (bubble) bubble.hidden = true;
+    });
+    document.addEventListener("selectionchange", () => {
+      if (!editor().contains(getSelection().anchorNode)) return;
+      markActive();
+      updateBubble();
+      if (slash) checkSlash();
+    });
     $$("[data-insert]").forEach((btn) =>
       btn.addEventListener("click", () => {
         const add = btn.dataset.insert;
@@ -526,17 +797,21 @@ Lieu de mémoire ::: A place where memory crystallises
         const b = doc[c.i];
         if (btn.dataset.block) {
           const nb = { t: btn.dataset.block, x: false, s: add };
-          if (!b.s.trim() && b.t === "p") doc[c.i] = nb;
+          const reuse = !b.s.trim() && b.t === "p";
+          if (reuse) doc[c.i] = nb;
           else doc.splice(c.i + 1, 0, nb);
-          const i = !b.s.trim() && b.t === "p" ? c.i : c.i + 1;
           ed.focus();
-          return draw({ i, o: add.length });
+          return draw({ i: reuse ? c.i : c.i + 1, o: add.length });
         }
         const before = b.s.slice(0, c.o);
         const sep = before && !/\s$/.test(before) ? " " : "";
         b.s = `${before}${sep}${add}${b.s.slice(c.o)}`;
         ed.focus();
         draw({ i: c.i, o: c.o + sep.length + add.length });
+        if (add === "/") {
+          dismissed = null;
+          checkSlash();
+        }
       }),
     );
   }
