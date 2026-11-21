@@ -24,6 +24,10 @@ jobs:
       - name: Site pages are in sync with PRIVACY.md and screenshots
         run: node scripts/build-site.ts --check
       - run: npm test
+      - name: Core tests on the web platform layer (in-memory files, browser crypto)
+        run: npm run test:web-platform
+      - name: Core builds for the browser without Node modules
+        run: npm run check:web-platform
       - run: npm run mcp:smoke
       - run: npm run build
       - run: node scripts/build-desktop.ts
