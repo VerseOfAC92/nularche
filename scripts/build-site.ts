@@ -21,6 +21,11 @@ export const SITE_IMAGES: Record<string, string> = {
   "assets/codex.png": "docs/screenshots/codex-light.png",
   "assets/tabula.png": "docs/screenshots/tabula-lavender.png",
   "assets/storage.png": "docs/screenshots/storage-light.png",
+  "assets/fontes.png": "docs/screenshots/fontes-light.png",
+  "assets/speculum.png": "docs/screenshots/speculum-dark.png",
+  "assets/anamnesis.png": "docs/screenshots/anamnesis-light.png",
+  "assets/mosaic.png": "docs/screenshots/mosaic-dark.png",
+  "assets/project.png": "docs/screenshots/project-dark.png",
 };
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
