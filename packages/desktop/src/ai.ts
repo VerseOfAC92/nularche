@@ -8,8 +8,7 @@ import { promisify } from "node:util";
 import { app, BrowserWindow, clipboard, ipcMain, safeStorage, shell } from "electron";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { checkGeminiKey, runGeminiAgent, transcribeAudio } from "../../core/src/ai-agent.ts";
-import { NodeStore } from "../../core/src/node-store.ts";
+import { createAutoService, type AutoSettings } from "../../server/src/auto-service.ts";
 import { AiActivity, type AiClientRecord } from "../../core/src/ai-activity.ts";
 import {
   applyConnection,
@@ -32,18 +31,11 @@ const run = promisify(execFile);
 /** Uçtan uca testlerde dış uygulama/tarayıcı açılmaz ve hiçbir uygulama kapatılmaz. */
 const dryRun = !!process.env.NULARCHE_E2E;
 
-export interface AiSettings {
+export interface AiSettings extends AutoSettings {
   aiProvider?: ProviderId;
   /** Sağlayıcı başına tercih edilen açma yolu (ör. ChatGPT için masaüstü uygulaması ya da Codex). */
   aiLaunchers?: Partial<Record<ProviderId, LauncherId>>;
   onboarded?: boolean;
-  /** Otomatik mod: istekler kullanıcının Gemini API anahtarıyla arka planda işlenir. */
-  autoMode?: boolean;
-  /** En son cevap veren (tercih edilen) model. */
-  geminiModel?: string;
-  /** Anahtarla kullanılabilen modeller, deneme sırasıyla; ne zaman alındığı. */
-  geminiModels?: string[];
-  geminiModelsAt?: number;
 }
 
 export interface AiContext {
@@ -209,172 +201,43 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
     }
   });
 
-  // --- Otomatik mod (Gemini API anahtarı) -------------------------------------------------------
+  // --- Otomatik mod (Gemini API anahtarı): işlemler web sürümüyle ortak (server/src/auto-service.ts) ---------
   const keyFile = () => path.join(ctx.configDir(), "gemini-key.bin");
   // Uçtan uca testlerde gerçek Anahtar Zinciri kullanılmaz.
   const canEncrypt = () => dryRun || safeStorage.isEncryptionAvailable();
-  const encrypt = (k: string) => (dryRun ? Buffer.from(k) : safeStorage.encryptString(k));
-  async function readKey(): Promise<string | null> {
-    try {
-      const buf = await readFile(keyFile());
-      if (dryRun) return buf.toString("utf8");
-      return safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(buf) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  ipcMain.handle("nularche:auto-status", async () => ({
-    enabled: !!ctx.settings().autoMode,
-    hasKey: !!(await readKey()),
-    model: ctx.settings().geminiModel ?? null,
-    encryption: canEncrypt(),
-  }));
-
-  ipcMain.handle("nularche:auto-set-key", async (_e, key: unknown) => {
-    if (typeof key !== "string" || !key.trim()) return { ok: false, error: d("ai.emptyKey") };
-    if (!canEncrypt()) return { ok: false, error: d("ai.noEncryption") };
-    try {
-      const { model, models } = await checkGeminiKey(key.trim());
-      await mkdir(ctx.configDir(), { recursive: true });
-      await writeFile(keyFile(), encrypt(key.trim()), { mode: 0o600 });
-      await ctx.save({ geminiModel: model, geminiModels: models, geminiModelsAt: Date.now(), autoMode: true });
-      return { ok: true, model };
-    } catch (err) {
-      return { ok: false, error: (err as Error).message };
-    }
+  const auto = createAutoService({
+    originRoot: ctx.originRoot,
+    settings: ctx.settings,
+    save: ctx.save,
+    text: (k) => d(k),
+    api: process.env.NULARCHE_GEMINI_API || undefined,
+    key: {
+      available: canEncrypt,
+      async read() {
+        try {
+          const buf = await readFile(keyFile());
+          if (dryRun) return buf.toString("utf8");
+          return safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(buf) : null;
+        } catch {
+          return null;
+        }
+      },
+      async write(key) {
+        await mkdir(ctx.configDir(), { recursive: true });
+        await writeFile(keyFile(), dryRun ? Buffer.from(key) : safeStorage.encryptString(key), { mode: 0o600 });
+      },
+      remove: () => rm(keyFile(), { force: true }),
+    },
   });
 
-  ipcMain.handle("nularche:auto-clear", async () => {
-    await rm(keyFile(), { force: true });
-    await ctx.save({ autoMode: false, geminiModel: undefined });
-  });
-
-  ipcMain.handle("nularche:auto-enable", async (_e, enabled: unknown) => {
-    await ctx.save({ autoMode: !!enabled });
-  });
-
-  /** Model listesi: önce en son çalışan model, sonra diğerleri; liste eski ya da yoksa yenilenir. */
-  async function modelOrder(key: string): Promise<string[]> {
-    const st = ctx.settings();
-    let models = st.geminiModels ?? [];
-    if (!models.length || Date.now() - (st.geminiModelsAt ?? 0) > 24 * 3600_000) {
-      try {
-        models = (await checkGeminiKey(key)).models;
-        await ctx.save({ geminiModels: models, geminiModelsAt: Date.now() });
-      } catch {
-        // Liste alınamazsa elimizdekiyle devam edilir.
-      }
-    }
-    const preferred = st.geminiModel;
-    return preferred ? [preferred, ...models.filter((m) => m !== preferred)] : models;
-  }
-
-  // İstekler sırayla işlenir (aynı Node'a eşzamanlı düzenleme olmasın).
-  let queue: Promise<unknown> = Promise.resolve();
-  /** İşlenmekte olan isteklerin iptal tetikleyicileri. */
-  const running = new Map<string, AbortController>();
-
-  async function processRequest(requestId: string): Promise<{ ok: boolean; status?: string; error?: string }> {
-    const root = ctx.originRoot();
-    if (!root) return { ok: false, error: d("ai.noOrigin") };
-    const activity = new AiActivity(root);
-    const key = await readKey();
-    if (!key) {
-      // İstek askıda kalmasın: ne yapılması gerektiğini cevap olarak yaz.
-      await activity
-        .completeRequest(requestId, d("ai.keyMissingReply"), true)
-        .catch(() => undefined);
-      return { ok: false, error: d("ai.noKey") };
-    }
-    const abort = new AbortController();
-    running.set(requestId, abort);
-    try {
-      const { request, model } = await runGeminiAgent({
-        store: new NodeStore(root),
-        activity,
-        requestId,
-        apiKey: key,
-        models: await modelOrder(key),
-        signal: abort.signal,
-      });
-      if (model && model !== ctx.settings().geminiModel) await ctx.save({ geminiModel: model });
-      return { ok: request.status === "done", status: request.status };
-    } catch (err) {
-      await activity.completeRequest(requestId, `Beklenmeyen hata: ${(err as Error).message}`, true).catch(() => undefined);
-      return { ok: false, error: (err as Error).message };
-    } finally {
-      running.delete(requestId);
-    }
-  }
-
-  const enqueue = (requestId: string) => {
-    const run = queue.then(() => processRequest(requestId));
-    queue = run.catch(() => undefined);
-    return run;
-  };
-
-  ipcMain.handle("nularche:auto-run", async (_e, requestId: unknown) => {
-    if (typeof requestId !== "string") return { ok: false, error: d("ai.badRequest") };
-    return enqueue(requestId);
-  });
-
-  // İptal: önce istek iptal olarak işaretlenir (sonradan gelen cevap yazılmaz), sonra süren Gemini çağrısı kesilir.
-  ipcMain.handle("nularche:auto-cancel", async (_e, requestId: unknown, reply: unknown) => {
-    const root = ctx.originRoot();
-    if (typeof requestId !== "string" || !root) return { ok: false, error: d("ai.badRequest") };
-    try {
-      await new AiActivity(root).cancelRequest(requestId, typeof reply === "string" && reply ? reply : "—");
-    } catch (err) {
-      return { ok: false, error: (err as Error).message };
-    }
-    running.get(requestId)?.abort();
-    return { ok: true };
-  });
-
-  ipcMain.handle("nularche:auto-retry", async (_e, requestId: unknown) => {
-    const root = ctx.originRoot();
-    if (typeof requestId !== "string" || !root) return { ok: false, error: d("ai.badRequest") };
-    try {
-      await new AiActivity(root).retryRequest(requestId);
-    } catch (err) {
-      return { ok: false, error: (err as Error).message };
-    }
-    return enqueue(requestId);
-  });
-
-  // Ses kaydını yazıya dökme / özetleme (Otomatik mod anahtarıyla, yalnızca kullanıcı isteyince).
-  const AUDIO_MIME: Record<string, string> = { ".webm": "audio/webm", ".m4a": "audio/mp4", ".mp4": "audio/mp4", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".oga": "audio/ogg", ".aac": "audio/aac", ".flac": "audio/flac" };
-  ipcMain.handle("nularche:transcribe", async (_e, rel: unknown, mode: unknown, language: unknown) => {
-    const root = ctx.originRoot();
-    if (!root || typeof rel !== "string") return { ok: false, error: d("ai.badRequest") };
-    const key = await readKey();
-    if (!key || !ctx.settings().autoMode) return { ok: false, needsAuto: true };
-    let file: string;
-    try {
-      file = new NodeStore(root).abs(rel);
-    } catch (err) {
-      return { ok: false, error: (err as Error).message };
-    }
-    const mime = AUDIO_MIME[path.extname(file).toLowerCase()];
-    if (!mime) return { ok: false, error: d("ai.badRequest") };
-    try {
-      const data = new Uint8Array(await readFile(file));
-      if (data.length > 18 * 1024 * 1024) return { ok: false, error: d("ai.audioTooLarge") };
-      const { text, model } = await transcribeAudio({
-        apiKey: key,
-        models: await modelOrder(key),
-        data,
-        mime,
-        mode: mode === "summary" ? "summary" : "transcript",
-        language: language === "en" ? "en" : "tr",
-      });
-      if (model !== ctx.settings().geminiModel) await ctx.save({ geminiModel: model });
-      return { ok: true, text };
-    } catch (err) {
-      return { ok: false, error: (err as Error).message };
-    }
-  });
+  ipcMain.handle("nularche:auto-status", () => auto.status());
+  ipcMain.handle("nularche:auto-set-key", (_e, key: unknown) => auto.setKey(key));
+  ipcMain.handle("nularche:auto-clear", () => auto.clear());
+  ipcMain.handle("nularche:auto-enable", (_e, enabled: unknown) => auto.enable(enabled));
+  ipcMain.handle("nularche:auto-run", (_e, requestId: unknown) => auto.run(requestId));
+  ipcMain.handle("nularche:auto-cancel", (_e, requestId: unknown, reply: unknown) => auto.cancel(requestId, reply));
+  ipcMain.handle("nularche:auto-retry", (_e, requestId: unknown) => auto.retry(requestId));
+  ipcMain.handle("nularche:transcribe", (_e, rel: unknown, mode: unknown, language: unknown) => auto.transcribe(rel, mode, language));
 
   ipcMain.handle("nularche:ai-download", (_e, url: unknown) => {
     if (typeof url === "string" && ALLOWED_DOWNLOADS.has(url) && !dryRun) return shell.openExternal(url);

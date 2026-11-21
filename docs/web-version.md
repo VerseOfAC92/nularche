@@ -80,6 +80,22 @@ the web version starts each session with the primary calendar. Apple Calendar (C
 browser and stays in the desktop app. Settings → Notes and Origin shows the Drive connection, its encryption and the
 last sync, with a Sync now button.
 
+**Nularche AI.** The web version uses the same Gemini automatic mode as the desktop app
+(`server/src/auto-service.ts`, shared with the desktop's IPC): the user pastes their own Gemini API key under
+Settings → AI, requests are processed in the browser and the reply appears in the Nularche AI window. The key is kept
+only in the tab's memory and is entered again in the next session. AI apps that need a desktop launcher (Claude,
+ChatGPT, Codex) are not offered on the web. Which file change notifies the interface ("ai", "comments", "change") is
+decided by one shared rule (`api.ts` `changeEventFor`) for both the desktop file watcher and the in-memory files.
+
+**Lock and sign out.** The sidebar has Lock and Sign out. Both send pending changes to Drive, wipe the tab's memory
+and return to the sign-in window; Sign out also revokes the Google grant. The session locks itself after a period of
+inactivity (15 minutes by default, 5 to 240 in Settings → Security). Closing the tab while changes are not yet in
+Drive asks for confirmation.
+
+**Headers.** `site/_headers` is generated from `scripts/site-headers.ts`. The homepage keeps its strict policy; `/app`
+gets its own Content Security Policy that allows only Google sign-in, the Drive and Calendar APIs, the Gemini API and
+YouTube embeds, plus `Cross-Origin-Opener-Policy: same-origin-allow-popups` for the sign-in popup.
+
 Nothing is written to the computer: no notes, keys or tokens in local storage, IndexedDB or caches. Only the
 interface language is remembered.
 
@@ -94,8 +110,5 @@ interface language is remembered.
 
 ## Next steps
 
-1. Security in the browser: idle lock, a sign-out and lock button in the app, a "Trust this device" choice, strict
-   CSP for `/app`.
-2. Feature coverage: hide or adapt desktop-only parts (AI connections, file pickers, updates), Gemini AI in the
-   browser.
-3. Publishing at `/app` and an "Open in browser" button on the homepage.
+1. Publishing at `/app` (the build is not part of the static site yet) and an "Open in browser" button on the homepage.
+2. A real Google sign-in check after publishing (the automated checks use fake Google services).

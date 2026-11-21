@@ -11,9 +11,9 @@ import { Readable } from "node:stream";
 import { NodeStore } from "../../core/src/node-store.ts";
 import { SnapshotStore } from "../../core/src/snapshots.ts";
 import { Anamnesis } from "../../core/src/anamnesis.ts";
-import { AI_DIR, AiActivity } from "../../core/src/ai-activity.ts";
+import { AiActivity } from "../../core/src/ai-activity.ts";
 import { CommentStore } from "../../core/src/comments.ts";
-import { createApi, EventHub, MIME } from "./api.ts";
+import { changeNotifier, createApi, EventHub, MIME } from "./api.ts";
 
 const HOST = "127.0.0.1";
 
@@ -160,35 +160,10 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   // --- Canlı bildirim: Origin'de (AI araçları dahil) bir dosya değişince istemcilere haber ver.
   const events = new EventHub();
   const api = createApi({ store, activity, comments, anamnesis, events, snapshots });
-  let pending: NodeJS.Timeout | undefined;
-  let pendingAi: NodeJS.Timeout | undefined;
-  const aiPrefix = AI_DIR.split("/").join(path.sep);
-  const commentsPrefix = [".nularche", "comments"].join(path.sep);
-  let pendingComments: NodeJS.Timeout | undefined;
+  // Hangi değişikliğin hangi olayla bildirileceği web sürümüyle ortaktır (api.ts changeEventFor).
+  const notifier = changeNotifier(events, (event) => event === "ai" && options.onAiActivity?.());
   const watcher = watch(store.root, { recursive: true }, (_event, filename) => {
-    const name = filename?.toString() ?? "";
-    // Nularche AI etkinliği (istekler, bağlanan istemciler) ayrı bir olay olarak bildirilir.
-    if (name.startsWith(aiPrefix)) {
-      clearTimeout(pendingAi);
-      pendingAi = setTimeout(() => {
-        events.emit("ai");
-        options.onAiActivity?.();
-      }, 100);
-      return;
-    }
-    // Yorumlar gizli klasördedir; açık görünümler ayrı bir olayla yenilenir.
-    if (name.startsWith(commentsPrefix)) {
-      clearTimeout(pendingComments);
-      pendingComments = setTimeout(() => {
-        events.emit("comments");
-      }, 120);
-      return;
-    }
-    if (name.split(path.sep).some((seg) => seg.startsWith("."))) return; // .trash, geçici dosyalar
-    clearTimeout(pending);
-    pending = setTimeout(() => {
-      events.emit("change");
-    }, 150);
+    notifier.notify((filename?.toString() ?? "").split(path.sep).join("/"));
   });
 
   async function serveStatic(res: ServerResponse, url: URL): Promise<void> {
@@ -257,6 +232,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     close: async () => {
       clearTimeout(snapshotTimer);
       watcher.close();
+      notifier.close();
       events.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },

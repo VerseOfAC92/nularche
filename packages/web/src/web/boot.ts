@@ -8,6 +8,7 @@ import { startHost } from "../../../web-platform/src/host.ts";
 import type { SyncStatus } from "../../../web-platform/src/session.ts";
 import type { WebDriveStatus, WebSession } from "../desktop.ts";
 import "../studio/fonts/nularche-font.css";
+import { createWebAi } from "./ai-web.ts";
 import { createWebCalendar } from "./calendar-web.ts";
 import { showSignIn, type SignInProvider } from "./signin.ts";
 import "./signin.css";
@@ -19,7 +20,7 @@ declare global {
   }
 }
 
-export async function bootWeb(provider: SignInProvider, options: { calendarEndpoints?: GoogleEndpoints } = {}): Promise<WebSession> {
+export async function bootWeb(provider: SignInProvider, options: { calendarEndpoints?: GoogleEndpoints; geminiApi?: string } = {}): Promise<WebSession> {
   await startHost("/app/sw.js", "/app/");
   let drive: WebDriveStatus = { state: "starting" };
   const listeners = new Set<() => void>();
@@ -32,12 +33,14 @@ export async function bootWeb(provider: SignInProvider, options: { calendarEndpo
   if (after) history.replaceState(null, "", "/app/");
   const { origin, signed } = await showSignIn(provider, onStatus, after === "locked" || after === "signed-out" ? after : null);
   const calendar = createWebCalendar({ originRoot: () => origin.store.root, google: signed.calendar, endpoints: options.calendarEndpoints });
+  const ai = createWebAi({ originRoot: () => origin.store.root, api: options.geminiApi });
   // Takvim bağlanamazsa (ör. izin verilmedi ya da ağ hatası) notlar yine açılır; Ayarlar'dan yeniden denenebilir.
   await calendar.autoConnect().catch((err) => console.warn("Google Takvim bağlanamadı:", err));
   const session: WebSession = {
     account: signed.account,
     encrypted: origin.root.encrypted,
     calendar: calendar.bridge,
+    ai: ai.bridge,
     driveStatus: () => drive,
     onDriveStatus(cb) {
       listeners.add(cb);
@@ -53,6 +56,7 @@ export async function bootWeb(provider: SignInProvider, options: { calendarEndpo
   async function end(how: "locked" | "signed-out") {
     removeEventListener("beforeunload", warn);
     calendar.close();
+    ai.close();
     await origin.close({ flush: true });
     if (how === "signed-out") await signed.signOut().catch(() => undefined);
     location.replace(`/app/?ended=${how}`);

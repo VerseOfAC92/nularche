@@ -7,7 +7,8 @@ export const SITE_CSP = "default-src 'none'; script-src 'self'; img-src 'self' d
 
 /**
  * Web sürümü: masaüstü arayüzünün kuralları (server/src/app.ts APP_CSP) ve Google'a giden yollar: oturum açma
- * (accounts.google.com, GIS betiği ve penceresi), Drive ve Takvim API'leri (www.googleapis.com, Drive yüklemeleri de).
+ * (accounts.google.com, GIS betiği ve penceresi), Drive ve Takvim API'leri (www.googleapis.com, Drive yüklemeleri de) ve
+ * Nularche AI için Gemini API (generativelanguage.googleapis.com, kullanıcının kendi anahtarıyla).
  * Notlardaki görseller ve ekler /files üzerinden service worker'dan gelir ('self').
  */
 export const APP_CSP = [
@@ -17,7 +18,7 @@ export const APP_CSP = [
   "img-src 'self' data: blob: https:",
   "media-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/",
+  "connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/ https://generativelanguage.googleapis.com",
   "worker-src 'self' blob:",
   "frame-src https://accounts.google.com/gsi/ https://www.youtube-nocookie.com https://www.youtube.com",
   "object-src 'none'",

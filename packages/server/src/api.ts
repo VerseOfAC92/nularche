@@ -13,7 +13,7 @@ import { runQuery } from "../../core/src/query.ts";
 import { type Anamnesis, type Grade } from "../../core/src/anamnesis.ts";
 import { writeDigest } from "../../core/src/vigil.ts";
 import { loadOrigin } from "../../core/src/origin.ts";
-import { type AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
+import { AI_DIR, type AiActivity, isReplyLanguage } from "../../core/src/ai-activity.ts";
 import { exportMarkdownZip, exportPageHtml, exportSite, zipFiles } from "../../core/src/export.ts";
 import type { ProviderId } from "../../core/src/ai-clients.ts";
 import { exportPageDocument } from "../../core/src/export-doc.ts";
@@ -24,6 +24,42 @@ import type { CommentStore } from "../../core/src/comments.ts";
 import { CAPTURE_KINDS, captureText, promoteCapture, readCaptureConfig, writeCaptureConfig, type CaptureKind } from "../../core/src/capture.ts";
 
 export type ApiEvent = "change" | "ai" | "comments";
+
+/**
+ * Origin'de değişen bir dosyanın (Origin köküne göre, "/" ayraçlı yol) arayüze hangi olayla bildirileceği: Nularche AI
+ * kaydı "ai", yorumlar "comments", notlar "change"; diğer gizli ve geçici dosyalar (.trash, eşitleme durumu) bildirilmez.
+ * Masaüstü (dosya izleyici) ve web sürümü (bellek içi dosya sistemi) aynı kuralı kullanır.
+ */
+export function changeEventFor(rel: string): ApiEvent | null {
+  if (rel === AI_DIR || rel.startsWith(`${AI_DIR}/`)) return "ai";
+  if (rel.startsWith(".nularche/comments/")) return "comments";
+  if (rel.split("/").some((seg) => seg.startsWith("."))) return null;
+  return "change";
+}
+
+/** Art arda gelen aynı türden değişiklikleri kısa bir beklemeyle tek bildirime toplar. */
+export function changeNotifier(events: EventHub, onEvent?: (event: ApiEvent) => void): { notify(rel: string): void; close(): void } {
+  const delay: Record<ApiEvent, number> = { ai: 100, comments: 120, change: 150 };
+  const timers = new Map<ApiEvent, ReturnType<typeof setTimeout>>();
+  return {
+    notify(rel) {
+      const event = changeEventFor(rel);
+      if (!event) return;
+      clearTimeout(timers.get(event));
+      const timer = setTimeout(() => {
+        timers.delete(event);
+        events.emit(event);
+        onEvent?.(event);
+      }, delay[event]);
+      (timer as { unref?: () => void }).unref?.();
+      timers.set(event, timer);
+    },
+    close() {
+      for (const t of timers.values()) clearTimeout(t);
+      timers.clear();
+    },
+  };
+}
 
 const encoder = new TextEncoder();
 

@@ -8,7 +8,7 @@ import { Anamnesis } from "../../core/src/anamnesis.ts";
 import { CommentStore } from "../../core/src/comments.ts";
 import { deriveKeys, keyCheck, syncable, syncOrigin, type DriveApi, type DriveKeys, type DriveSyncReport, type RootInfo } from "../../core/src/drive-sync.ts";
 import { NodeStore } from "../../core/src/node-store.ts";
-import { createApi, EventHub } from "../../server/src/api.ts";
+import { changeNotifier, createApi, EventHub } from "../../server/src/api.ts";
 import { setApiHandler } from "./host.ts";
 import { vfs } from "./vfs.ts";
 
@@ -130,9 +130,11 @@ export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveK
       void sync().catch(() => undefined);
     }, pushDelay);
   };
+  // Arayüze bildirim: masaüstündeki dosya izleyicisiyle aynı kural (Nularche AI → "ai", yorumlar → "comments").
+  const notifier = changeNotifier(events);
   const unsubscribe = vfs.onChange((change) => {
     if (closed) return;
-    events.emit("change");
+    if (change.path.startsWith(`${dir}/`)) notifier.notify(change.path.slice(dir.length + 1));
     // Eşitlenmeyen dosyalar (eşitleme durumu, yerel önbellekler) göndermeyi tetiklemez. Eşitleme sürerken gelen
     // değişiklik (kullanıcı ya da indirilen dosya) bitince bir tur daha çalıştırır; ikinci tur yeni bir şey indirmediği
     // için döngü oluşmaz.
@@ -158,6 +160,7 @@ export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveK
       closed = true;
       if (pullTimer) clearInterval(pullTimer);
       unsubscribe();
+      notifier.close();
       setApiHandler(null);
       events.close();
       vfs.clear();

@@ -81,3 +81,14 @@ test("API: canlı bildirimler akış olarak gelir ve iptal edilince kapanır", a
   abort.abort();
   assert.equal((await reader.read()).done, true);
 });
+
+test("API: değişen dosyanın arayüz olayı masaüstü ve web için aynı kuralla seçilir", async () => {
+  const { changeEventFor } = await import("../../server/src/api.ts");
+  assert.equal(changeEventFor("Plan.md"), "change");
+  assert.equal(changeEventFor("Arche/Alt/Not.md"), "change");
+  assert.equal(changeEventFor(".nularche/ai/requests/abc.json"), "ai", "Nularche AI cevabı ayrı olayla bildirilir");
+  assert.equal(changeEventFor(".nularche/comments/x.json"), "comments");
+  assert.equal(changeEventFor(".nularche/drive-sync.json"), null, "eşitleme durumu bildirilmez");
+  assert.equal(changeEventFor(".trash/Plan.md"), null);
+  assert.equal(changeEventFor("Plan.md.1234.tmp"), "change");
+});

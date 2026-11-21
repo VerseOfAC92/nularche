@@ -288,11 +288,15 @@ export type CalendarBridge = Pick<
   | "onCalendarSynced"
 >;
 
+/** Nularche AI otomatik modunun (Gemini) köprü yüzü: masaüstünde preload, web sürümünde tarayıcı (web/ai-web.ts). */
+export type AutoBridge = Required<Pick<DesktopBridge, "autoStatus" | "autoSetKey" | "autoClear" | "autoEnable" | "autoRun" | "autoRetry" | "autoCancel" | "transcribe">>;
+
 /** Web sürümünün açık oturumu (web/boot.ts kurar; masaüstünde yoktur). */
 export interface WebSession {
   account: string;
   encrypted: boolean;
   calendar: CalendarBridge;
+  ai: AutoBridge;
   /** Notların Drive ile eşitlenme durumu. */
   driveStatus(): WebDriveStatus;
   onDriveStatus(cb: () => void): () => void;
@@ -306,6 +310,13 @@ export type WebDriveStatus = { state: "syncing" } | { state: "idle"; at: number 
 
 export const webSession: WebSession | undefined = (window as unknown as { nularcheWeb?: WebSession }).nularcheWeb;
 export const calendarBridge: CalendarBridge | undefined = desktop ?? webSession?.calendar;
+export const autoBridge: AutoBridge | undefined = (desktop as AutoBridge | undefined) ?? webSession?.ai;
+
+/** Dış bağlantıyı açar: masaüstünde sistem tarayıcısında, web'de yeni sekmede. */
+export function openExternal(url: string): void {
+  if (desktop) void desktop.aiDownload(url);
+  else window.open(url, "_blank", "noopener,noreferrer");
+}
 
 export async function copyText(text: string): Promise<void> {
   if (desktop) return desktop.copy(text);

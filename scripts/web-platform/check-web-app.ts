@@ -4,7 +4,7 @@
 // Drive'a gitmesi ve hiçbir notun ağa ya da tarayıcı depolamasına yazılmaması. Google yerine sahte Drive ve Takvim
 // kullanılır; derleme, service worker ve uygulama üretimdekiyle aynıdır. `--shots <klasör>` ekran görüntülerini kaydeder.
 
-import { createServer, request as httpRequest } from "node:http";
+import { createServer, request as httpRequest, type Server } from "node:http";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -26,6 +26,17 @@ const PASS = "mor dağlarda uzun bir yürüyüş";
 // 1. Masaüstü uygulaması gibi: şifreli kök ve bir not.
 const fake = await startFakeDrive("deneme@example.com");
 const cal = await startFakeGoogleCalendar("deneme@example.com");
+// Sahte Gemini: model listesi ve her isteğe kısa bir metin cevap; gelen anahtar kaydedilir.
+const geminiKeys: string[] = [];
+const gemini: Server = createServer(async (req, res) => {
+  for await (const _ of req);
+  geminiKeys.push(String(req.headers["x-goog-api-key"] ?? ""));
+  res.setHeader("content-type", "application/json");
+  if (req.url?.startsWith("/models?")) return res.end(JSON.stringify({ models: [{ name: "models/gemini-test-flash", supportedGenerationMethods: ["generateContent"] }] }));
+  res.end(JSON.stringify({ candidates: [{ content: { role: "model", parts: [{ text: "Webden Gemini cevabı." }] }, finishReason: "STOP" }] }));
+});
+await new Promise<void>((r) => gemini.listen(0, "127.0.0.1", () => r()));
+const geminiUrl = `http://127.0.0.1:${(gemini.address() as { port: number }).port}`;
 const soon = Date.now() + 3600_000;
 cal.events.set("t1", { id: "t1", etag: '"t1"', summary: "Takvim toplantısı", start: { dateTime: new Date(soon).toISOString() }, end: { dateTime: new Date(soon + 1800_000).toISOString() } });
 const desk = await mkdtemp(path.join(tmpdir(), "nularche-desk-"));
@@ -53,7 +64,13 @@ try {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     // Sahte Google hizmetleri aynı kaynaktan (Drive: /fake, Takvim: /fakecal) sunulur.
-    const target = url.pathname.startsWith("/fake/") ? { prefix: "/fake", base: fake.url } : url.pathname.startsWith("/fakecal/") ? { prefix: "/fakecal", base: cal.url } : null;
+    const target = url.pathname.startsWith("/fake/")
+      ? { prefix: "/fake", base: fake.url }
+      : url.pathname.startsWith("/fakecal/")
+        ? { prefix: "/fakecal", base: cal.url }
+        : url.pathname.startsWith("/fakegemini/")
+          ? { prefix: "/fakegemini", base: geminiUrl }
+          : null;
     if (target) {
       const to = new URL(target.base);
       const proxied = httpRequest({ host: to.hostname, port: to.port, method: req.method, path: url.pathname.slice(target.prefix.length) + url.search, headers: req.headers }, (r) => {
@@ -153,6 +170,23 @@ try {
     if (shots) await page.screenshot({ path: path.join(shots, "5-ayarlar-drive.png") });
     await page.keyboard.press("Escape");
 
+    // Nularche AI (Gemini): anahtar Ayarlar'da girilir, istek tarayıcıda işlenir, cevap pencerede görünür.
+    await page.getByText("Ayarlar", { exact: true }).first().click();
+    await page.getByRole("tab", { name: "Yapay zekâ" }).click();
+    await page.getByPlaceholder(/Anahtarı buraya yapıştırın/).fill("AIza-web-test");
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+    await page.getByText("Otomatik mod açık", { exact: true }).waitFor({ timeout: 10_000 });
+    check(geminiKeys.includes("AIza-web-test"), "Gemini anahtarı doğrulandı");
+    if (shots) await page.screenshot({ path: path.join(shots, "6-yapay-zeka.png") });
+    await page.keyboard.press("Escape");
+    await page.getByText("Masaüstü planı").first().click();
+    await page.locator(".claude-btn").click();
+    await page.getByRole("button", { name: /Düzelt/ }).click();
+    await page.getByText("Webden Gemini cevabı.").first().waitFor({ timeout: 20_000 });
+    check(true, "Nularche AI isteği Gemini ile tarayıcıda işlendi ve cevap göründü");
+    if (shots) await page.screenshot({ path: path.join(shots, "7-nularche-ai.png") });
+    await page.locator(".nai-panel .icon-btn").last().click().catch(() => undefined);
+
     // Web'de yeni not: arayüzün kullandığı API ile.
     const created = await page.evaluate(async () => {
       const r = await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Web notu", parentNodeId: null, body: "tarayıcıda yazıldı" }) });
@@ -169,10 +203,12 @@ try {
     check(![...fake.files.values()].some((f) => f.name.includes("Web notu") || f.data.toString("latin1").includes("tarayıcıda yazıldı")), "Drive'da not adı ve içeriği açık metin değil");
     const stored = await page.evaluate(async () => {
       const ls = Object.keys(localStorage).join(",");
+      const values = Object.keys(localStorage).map((k) => localStorage.getItem(k) ?? "").join("\n") + document.cookie;
       const dbs = (await indexedDB.databases?.())?.length ?? 0;
       const caches = (await globalThis.caches?.keys())?.length ?? 0;
-      return { ls, dbs, caches };
+      return { ls, dbs, caches, values };
     });
+    check(!stored.values.includes("AIza-web-test") && !stored.values.includes("web-token") && !stored.values.includes(PASS), "Gemini anahtarı, Google belirteci ve parola tarayıcı depolamasında ya da çerezde yok");
     check(stored.dbs === 0 && stored.caches === 0 && !/node|note|origin|key/i.test(stored.ls), `tarayıcı depolamasında not ya da anahtar yok (localStorage: ${stored.ls || "boş"})`);
     check(!network.some((p) => p.startsWith("/api/") || p.startsWith("/files/")), "hiçbir /api ya da /files isteği ağa gitmedi");
     check(errors.length === 0, `sayfada hata yok${errors.length ? `: ${errors.join("; ")}` : ""}`);
@@ -199,6 +235,7 @@ try {
 } finally {
   await fake.close();
   await cal.close();
+  gemini.close();
   await rm(desk, { recursive: true, force: true });
   await rm(out, { recursive: true, force: true });
 }

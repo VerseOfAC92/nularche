@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePref } from "../prefs.ts";
 import { api, type AiRequest } from "../api.ts";
-import { copyText, desktop } from "../desktop.ts";
+import { autoBridge, copyText, desktop, webSession } from "../desktop.ts";
 import { AiSetup, isProviderConnected, preferredLauncher, useAiStatus } from "./AiSetup.tsx";
 import { useAutoStatus } from "./AutoModeSetup.tsx";
 import { NularcheMark } from "./NularcheMark.tsx";
@@ -79,7 +79,8 @@ export function NularcheAI({
   const provider = autoOn ? "gemini" : (status?.provider ?? null);
   const ai = autoOn ? "Gemini" : provider ? PROVIDER_LABEL[provider] : "AI";
   const connected = autoOn || !!(status && provider && isProviderConnected(status, provider));
-  const needsSetup = !!desktop && !autoOn && (!status || !provider || !connected);
+  // Web sürümünde yalnızca Gemini (otomatik mod) çalışır: anahtar girilene kadar kurulum gösterilir.
+  const needsSetup = webSession ? !autoOn : !!desktop && !autoOn && (!status || !provider || !connected);
   const ordered = useMemo(() => [...requests].reverse().slice(-30), [requests]);
   const selection = useSelection && context.selection?.trim() ? context.selection.trim() : undefined;
 
@@ -92,10 +93,10 @@ export function NularcheAI({
       setText("");
       const prompt = requestPrompt(req);
       // Modu gönderimden hemen önce yeniden denetle (ayar az önce değişmiş olabilir).
-      const current = desktop ? await desktop.autoStatus() : null;
-      if (desktop && current?.enabled && current.hasKey) {
+      const current = autoBridge ? await autoBridge.autoStatus() : null;
+      if (autoBridge && current?.enabled && current.hasKey) {
         // Otomatik mod: istek arka planda işlenir; ilerleme ve cevap canlı olarak bu pencerede görünür.
-        const res = await desktop.autoRun(req.id);
+        const res = await autoBridge.autoRun(req.id);
         if (!res.ok && res.error) onToast(res.error);
       } else if (desktop && status && provider) {
         const res = await desktop.aiOpen(preferredLauncher(status, provider), prompt);
@@ -120,7 +121,7 @@ export function NularcheAI({
   async function cancel(r: AiRequest) {
     try {
       // Masaüstünde süren Gemini çağrısı da kesilir; diğer durumlarda istek iptal olarak işaretlenir.
-      const res = desktop?.autoCancel ? await desktop.autoCancel(r.id, t("nai.cancelled")) : (await api.aiCancel(r.id, t("nai.cancelled")), { ok: true });
+      const res = autoBridge ? await autoBridge.autoCancel(r.id, t("nai.cancelled")) : (await api.aiCancel(r.id, t("nai.cancelled")), { ok: true });
       if (!res.ok && "error" in res && res.error) onToast(res.error);
       setRequests((await api.aiState()).requests);
     } catch (e) {
@@ -211,11 +212,11 @@ export function NularcheAI({
                       <Icon name="x" size={14} /> {t("nai.cancel")}
                     </button>
                   )}
-                  {desktop && autoOn && (r.status === "failed" || (r.status !== "done" && Date.now() - r.createdAt > 60_000)) && (
+                  {autoBridge && autoOn && (r.status === "failed" || (r.status !== "done" && Date.now() - r.createdAt > 60_000)) && (
                     <button
                       className="nai-copy"
                       onClick={async () => {
-                        const res = await desktop!.autoRetry(r.id);
+                        const res = await autoBridge!.autoRetry(r.id);
                         if (!res.ok && res.error) onToast(res.error);
                       }}
                     >
