@@ -3,120 +3,253 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nularche · Local-first, AI-native notes</title>
-<meta name="description" content="Nularche is a free, open-source notes app for macOS, Windows and Linux. Your notes stay as plain Markdown files in a folder you own, optionally synced through your own Google Drive.">
-<meta property="og:title" content="Nularche · Local-first, AI-native notes">
-<meta property="og:description" content="Notes, databases, a writing studio, a whiteboard and research tools in plain Markdown. Free and open source.">
-<meta property="og:image" content="https://nularche.verseofac.com/assets/atrium.png">
+<title>Nularche · From zero point to first principles</title>
+<meta name="description" content="Nularche is a free, open-source, local-first notes app for macOS, Windows and Linux. Your notes stay as plain Markdown files in a folder you own; its AI works with the Claude, ChatGPT or Gemini account you already have.">
+<meta property="og:title" content="Nularche · From zero point to first principles">
+<meta property="og:description" content="Notes, databases, a writing studio, a whiteboard, research tools and flashcards in plain Markdown. Free, open source, local-first.">
+<meta property="og:image" content="https://nularche.verseofac.com/assets/hero.png">
+<meta name="theme-color" content="#f4ecdf">
 <link rel="icon" href="/assets/logo.png">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="preload" href="/assets/fonts/nularche-font.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/site.css?v=3cb229f713">
+<script src="/assets/site.js?v=e8343bdddc" defer></script>
 </head>
 <body>
+<svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-laptop" viewBox="0 0 24 24"><path d="M4 6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v9H4zM2 18h20"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5 1.5A3.75 3.75 0 0 1 17.5 18z"/></symbol>
+  <symbol id="i-server-off" viewBox="0 0 24 24"><path d="M4 5h16v6H4zM4 13h16v6H4zM3 3l18 18"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></symbol>
+  <symbol id="i-seed" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8" opacity=".35"/></symbol>
+  <symbol id="i-root" viewBox="0 0 24 24"><path d="M12 3l7 9-7 9-7-9z"/></symbol>
+  <symbol id="i-web" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="12" cy="10" r="2"/><path d="M6.6 7.2 10.4 9M17.4 7.2 13.6 9M12 12v4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 120 60"><path d="M4 8c30 4 60 18 92 40M96 48l-14-2M96 48l-3-13"/></symbol>
+</svg>
+<div class="backdrop" aria-hidden="true">
+  <div class="bd-cool"></div>
+  <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g class="bd-circuit"><path d="M160 120 L180 -80 L60 -100 L200 -120"/><path d="M300 820 L320 720 L340 760"/><path d="M500 80 L380 100 L400 20 L280 0"/><path d="M260 1100 L280 1260 L120 1240 L140 1200"/><path d="M160 880 L180 840 L280 860 L120 880"/><path d="M180 1260 L200 1300 L220 1440 L400 1460"/><path d="M200 620 L220 680 L60 700"/><path d="M100 740 L120 780 L220 800 L240 980"/><path d="M380 700 L320 680 L340 540"/><path d="M-40 100 L-20 160 L120 180 L300 200"/><path d="M0 260 L160 240 L40 220 L60 140"/><path d="M40 380 L60 420 L80 560 L40 580"/><path d="M260 140 L360 120 L380 260 L400 420 L420 580"/><path d="M440 1020 L460 820 L480 760 L440 780"/><path d="M80 1280 L200 1260 L100 1240 L260 1220"/><path d="M360 620 L260 600 L160 620 L300 640 L320 460"/><path d="M40 -200 L60 -40 L80 140"/><path d="M300 60 L180 40 L20 20"/><path d="M80 480 L200 500 L220 360 L240 520 L260 360"/><path d="M340 -260 L500 -280 L520 -100"/><path d="M20 1160 L100 1140 L120 940"/><path d="M340 1020 L360 1160 L380 1020 L400 860 L300 880"/><path d="M380 340 L580 320 L600 180 L500 160"/><path d="M20 740 L-40 760 L-20 880 L60 900"/><path d="M300 900 L320 1020 L340 940 L360 900"/><path d="M440 200 L460 400 L640 420 L480 400"/><path d="M0 420 L20 460 L-80 440"/><path d="M300 800 L320 640 L340 520 L520 540"/><path d="M80 480 L100 400 L120 440 L0 460"/><path d="M240 0 L260 180 L280 340 L300 220 L320 120"/><path d="M480 60 L620 40 L820 60"/><path d="M400 480 L320 500 L440 520"/><path d="M140 280 L280 260 L220 240 L160 260"/><path d="M200 -220 L160 -240 L180 -40 L200 60"/><g class="bd-pads"><circle cx="200" cy="-120" r="5"/><circle cx="160" cy="120" r="5"/><circle cx="340" cy="760" r="5"/><circle cx="300" cy="820" r="5"/><circle cx="280" cy="0" r="5"/><circle cx="140" cy="1200" r="5"/><circle cx="120" cy="880" r="5"/><circle cx="160" cy="880" r="5"/><circle cx="400" cy="1460" r="5"/><circle cx="180" cy="1260" r="5"/><circle cx="60" cy="700" r="5"/><circle cx="200" cy="620" r="5"/><circle cx="240" cy="980" r="5"/><circle cx="340" cy="540" r="5"/><circle cx="380" cy="700" r="5"/><circle cx="300" cy="200" r="5"/><circle cx="-40" cy="100" r="5"/><circle cx="60" cy="140" r="5"/><circle cx="40" cy="580" r="5"/><circle cx="420" cy="580" r="5"/><circle cx="440" cy="780" r="5"/><circle cx="440" cy="1020" r="5"/><circle cx="260" cy="1220" r="5"/><circle cx="80" cy="1280" r="5"/><circle cx="320" cy="460" r="5"/><circle cx="360" cy="620" r="5"/><circle cx="80" cy="140" r="5"/><circle cx="40" cy="-200" r="5"/><circle cx="20" cy="20" r="5"/><circle cx="300" cy="60" r="5"/><circle cx="260" cy="360" r="5"/><circle cx="520" cy="-100" r="5"/><circle cx="120" cy="940" r="5"/><circle cx="20" cy="1160" r="5"/><circle cx="300" cy="880" r="5"/><circle cx="340" cy="1020" r="5"/><circle cx="500" cy="160" r="5"/><circle cx="60" cy="900" r="5"/><circle cx="20" cy="740" r="5"/><circle cx="360" cy="900" r="5"/><circle cx="300" cy="900" r="5"/><circle cx="480" cy="400" r="5"/><circle cx="440" cy="200" r="5"/><circle cx="-80" cy="440" r="5"/><circle cx="0" cy="420" r="5"/><circle cx="520" cy="540" r="5"/><circle cx="0" cy="460" r="5"/><circle cx="80" cy="480" r="5"/><circle cx="320" cy="120" r="5"/><circle cx="820" cy="60" r="5"/><circle cx="440" cy="520" r="5"/><circle cx="400" cy="480" r="5"/><circle cx="160" cy="260" r="5"/><circle cx="200" cy="60" r="5"/><rect x="140" y="180" width="70" height="48" rx="4"/><rect x="300" y="620" width="90" height="60" rx="4"/><rect x="60" y="980" width="60" height="44" rx="4"/><rect x="380" y="1220" width="80" height="54" rx="4"/></g></g>
+    <g class="bd-geo">
+      <circle cx="1110" cy="430" r="300"/><circle cx="1110" cy="430" r="270"/><path d="M1410 430 L1392 430 M1409.6 445.7 L1401.6 445.3 M1408.4 461.4 L1400.4 460.5 M1406.3 476.9 L1398.4 475.7 M1403.4 492.4 L1395.6 490.7 M1399.8 507.6 L1392.1 505.6 M1395.3 522.7 L1387.7 520.2 M1390.1 537.5 L1382.6 534.6 M1384.1 552 L1376.8 548.8 M1377.3 566.2 L1370.2 562.6 M1369.8 580 L1354.2 571 M1361.6 593.4 L1354.9 589 M1352.7 606.3 L1346.2 601.6 M1343.1 618.8 L1336.9 613.8 M1332.9 630.7 L1327 625.4 M1322.1 642.1 L1316.5 636.5 M1310.7 652.9 L1305.4 647 M1298.8 663.1 L1293.8 656.9 M1286.3 672.7 L1281.6 666.2 M1273.4 681.6 L1269 674.9 M1260 689.8 L1251 674.2 M1246.2 697.3 L1242.6 690.2 M1232 704.1 L1228.8 696.8 M1217.5 710.1 L1214.6 702.6 M1202.7 715.3 L1200.2 707.7 M1187.6 719.8 L1185.6 712.1 M1172.4 723.4 L1170.7 715.6 M1156.9 726.3 L1155.7 718.4 M1141.4 728.4 L1140.5 720.4 M1125.7 729.6 L1125.3 721.6 M1110 730 L1110 712 M1094.3 729.6 L1094.7 721.6 M1078.6 728.4 L1079.5 720.4 M1063.1 726.3 L1064.3 718.4 M1047.6 723.4 L1049.3 715.6 M1032.4 719.8 L1034.4 712.1 M1017.3 715.3 L1019.8 707.7 M1002.5 710.1 L1005.4 702.6 M988 704.1 L991.2 696.8 M973.8 697.3 L977.4 690.2 M960 689.8 L969 674.2 M946.6 681.6 L951 674.9 M933.7 672.7 L938.4 666.2 M921.2 663.1 L926.2 656.9 M909.3 652.9 L914.6 647 M897.9 642.1 L903.5 636.5 M887.1 630.7 L893 625.4 M876.9 618.8 L883.1 613.8 M867.3 606.3 L873.8 601.6 M858.4 593.4 L865.1 589 M850.2 580 L865.8 571 M842.7 566.2 L849.8 562.6 M835.9 552 L843.2 548.8 M829.9 537.5 L837.4 534.6 M824.7 522.7 L832.3 520.2 M820.2 507.6 L827.9 505.6 M816.6 492.4 L824.4 490.7 M813.7 476.9 L821.6 475.7 M811.6 461.4 L819.6 460.5 M810.4 445.7 L818.4 445.3 M810 430 L828 430 M810.4 414.3 L818.4 414.7 M811.6 398.6 L819.6 399.5 M813.7 383.1 L821.6 384.3 M816.6 367.6 L824.4 369.3 M820.2 352.4 L827.9 354.4 M824.7 337.3 L832.3 339.8 M829.9 322.5 L837.4 325.4 M835.9 308 L843.2 311.2 M842.7 293.8 L849.8 297.4 M850.2 280 L865.8 289 M858.4 266.6 L865.1 271 M867.3 253.7 L873.8 258.4 M876.9 241.2 L883.1 246.2 M887.1 229.3 L893 234.6 M897.9 217.9 L903.5 223.5 M909.3 207.1 L914.6 213 M921.2 196.9 L926.2 203.1 M933.7 187.3 L938.4 193.8 M946.6 178.4 L951 185.1 M960 170.2 L969 185.8 M973.8 162.7 L977.4 169.8 M988 155.9 L991.2 163.2 M1002.5 149.9 L1005.4 157.4 M1017.3 144.7 L1019.8 152.3 M1032.4 140.2 L1034.4 147.9 M1047.6 136.6 L1049.3 144.4 M1063.1 133.7 L1064.3 141.6 M1078.6 131.6 L1079.5 139.6 M1094.3 130.4 L1094.7 138.4 M1110 130 L1110 148 M1125.7 130.4 L1125.3 138.4 M1141.4 131.6 L1140.5 139.6 M1156.9 133.7 L1155.7 141.6 M1172.4 136.6 L1170.7 144.4 M1187.6 140.2 L1185.6 147.9 M1202.7 144.7 L1200.2 152.3 M1217.5 149.9 L1214.6 157.4 M1232 155.9 L1228.8 163.2 M1246.2 162.7 L1242.6 169.8 M1260 170.2 L1251 185.8 M1273.4 178.4 L1269 185.1 M1286.3 187.3 L1281.6 193.8 M1298.8 196.9 L1293.8 203.1 M1310.7 207.1 L1305.4 213 M1322.1 217.9 L1316.5 223.5 M1332.9 229.3 L1327 234.6 M1343.1 241.2 L1336.9 246.2 M1352.7 253.7 L1346.2 258.4 M1361.6 266.6 L1354.9 271 M1369.8 280 L1354.2 289 M1377.3 293.8 L1370.2 297.4 M1384.1 308 L1376.8 311.2 M1390.1 322.5 L1382.6 325.4 M1395.3 337.3 L1387.7 339.8 M1399.8 352.4 L1392.1 354.4 M1403.4 367.6 L1395.6 369.3 M1406.3 383.1 L1398.4 384.3 M1408.4 398.6 L1400.4 399.5 M1409.6 414.3 L1401.6 414.7"/>
+      <polygon points="1110,160 1343.8,565 876.2,565"/><polygon points="1239.9,505 1110,580 980.1,505 980.1,355 1110,280 1239.9,355"/><circle cx="1110" cy="430" r="150" stroke-dasharray="4 10"/>
+      <path d="M750 430 H1470 M1110 70 V790" stroke-dasharray="2 12"/>
+    </g>
+    <path class="bd-spiral" d="M980 980 A34 34 0 0 1 1014 1014 A55.012 55.012 0 0 1 959 1069 A89.009416 89.009416 0 0 1 870 980 A144.017235088 144.017235088 0 0 1 1014 836 A233.01988637238404 233.01988637238404 0 0 1 1247 1069 A377.0261761505174 377.0261761505174 0 0 1 870 1446 A610.0283530115372 610.0283530115372 0 0 1 260 836"/>
+    <g class="bd-gear"><polygon points="866,170 875.5,177.3 874.1,184.5 862.5,187.6 859.8,193 864.4,204.1 859.6,209.6 848,206.5 843,209.8 841.4,221.7 834.5,224.1 826,215.6 820,216 812.7,225.5 805.5,224.1 802.4,212.5 797,209.8 785.9,214.4 780.4,209.6 783.5,198 780.2,193 768.3,191.4 765.9,184.5 774.4,176 774,170 764.5,162.7 765.9,155.5 777.5,152.4 780.2,147 775.6,135.9 780.4,130.4 792,133.5 797,130.2 798.6,118.3 805.5,115.9 814,124.4 820,124 827.3,114.5 834.5,115.9 837.6,127.5 843,130.2 854.1,125.6 859.6,130.4 856.5,142 859.8,147 871.7,148.6 874.1,155.5 865.6,164"/><circle cx="820" cy="170" r="20.7"/></g><g class="bd-gear"><polygon points="933,232 942.3,239.4 940.1,246.5 928.3,247.6 924.8,251.8 926.1,263.6 919.5,267.1 910.5,259.5 905,260 897.6,269.3 890.5,267.1 889.4,255.3 885.2,251.8 873.4,253.1 869.9,246.5 877.5,237.5 877,232 867.7,224.6 869.9,217.5 881.7,216.4 885.2,212.2 883.9,200.4 890.5,196.9 899.5,204.5 905,204 912.4,194.7 919.5,196.9 920.6,208.7 924.8,212.2 936.6,210.9 940.1,217.5 932.5,226.5"/><circle cx="905" cy="232" r="12.6"/></g>
+  </svg>
+</div>
+<a class="skip" href="#main" data-i18n="skip">Skip to content</a>
 <header class="bar">
-  <a class="brand" href="/"><img src="/assets/logo.png" alt="" width="32" height="32"> Nularche</a>
-  <nav>
-    <a href="#features">Features</a>
-    <a href="#google">Google data</a>
-    <a href="/privacy">Privacy</a>
-    <a href="https://github.com/VerseOfAC92/nularche">GitHub</a>
+  <a class="brand" href="/"><img src="/assets/logo.png" alt="" width="36" height="36"> Nularche</a>
+  <nav aria-label="Main">
+    <a href="#idea" data-i18n="nav.idea">Idea</a>
+    <a href="#try" data-i18n="nav.try">Try it</a>
+    <a href="#features" data-i18n="nav.features">Features</a>
+    <a href="#privacy" data-i18n="nav.privacy">Your data</a>
+    <a href="#download" data-i18n="nav.download">Download</a>
   </nav>
+  <div class="bar-actions">
+    <button class="lang" type="button" data-lang-toggle aria-label="Language: switch to Turkish">TR</button>
+    <a class="btn small primary" href="#download" data-i18n="nav.get">Get Nularche</a>
+  </div>
 </header>
 
-<main>
-  <div class="wrap hero">
-    <div>
-      <p class="kicker">From zero point to first principles</p>
-      <h1>Your notes. Your machine. <em>Your AI.</em></h1>
-      <p class="lede">Nularche is a free, open-source notes app for macOS, Windows and Linux. Your notes are plain Markdown files in a folder you own, and its AI works with the Claude, ChatGPT or Gemini account you already have.</p>
+<main id="main">
+  <section class="hero">
+    <div class="wrap hero-center">
+      <img class="medallion" src="/assets/logo.png" alt="" width="88" height="88">
+      <p class="kicker" data-i18n="hero.kicker">From zero point to first principles</p>
+      <h1><span data-i18n="hero.t1">Your notes.</span> <span data-i18n="hero.t2">Your machine.</span> <em data-i18n="hero.t3">Your AI.</em></h1>
+      <p class="lede" data-i18n="hero.lede">Nularche is a free, open-source notes app that keeps everything you know as plain Markdown files in a folder you own, and lets the AI you already use help you think, write and remember.</p>
       <div class="btns">
-        <a class="btn primary" href="https://github.com/VerseOfAC92/nularche/releases/latest">Download Nularche 3.0</a>
-        <a class="btn" href="https://github.com/VerseOfAC92/nularche">Source code</a>
+        <a class="btn primary" href="#download" data-download-primary data-i18n="hero.download">Download Nularche 3.0</a>
+        <a class="btn" href="#try" data-i18n="hero.try">Try it here</a>
       </div>
-      <p class="small">No Nularche account, no Nularche server, no analytics. MIT licence.</p>
+      <p class="facts"><span data-i18n="fact.1">No account</span><i>·</i><span data-i18n="fact.2">No Nularche server</span><i>·</i><span data-i18n="fact.3">No subscription</span><i>·</i><span data-i18n="fact.4">MIT open source</span></p>
     </div>
-    <img class="shot" src="/assets/atrium.png" alt="The Nularche Atrium: continue writing, daily goal, projects, open tasks and a scheduled digest" width="1440" height="900">
-  </div>
+    <div class="wrap stage">
+      <figure class="hero-shot reveal">
+        <div class="window"><img src="/assets/hero.png" alt="The Nularche Atrium over the Lavender Hills background" width="1440" height="900"></div>
+        <figcaption class="note note-a"><span data-i18n="hero.note1">your home: goals, projects, quick capture</span><svg class="arrow"><use href="#i-arrow"/></svg></figcaption>
+        <figcaption class="note note-b"><svg class="arrow flip"><use href="#i-arrow"/></svg><span data-i18n="hero.note2">every page is a plain .md file</span></figcaption>
+      </figure>
+    </div>
+  </section>
 
-  <section id="features">
+  <section id="idea" class="idea">
     <div class="wrap">
-      <h2>Everything in plain Markdown</h2>
-      <p class="intro">Every part of Nularche has its own name in the Nularche language, explained the first time you open the app.</p>
-      <div class="grid">
-        <div class="card"><h3>Notes and structure</h3><p>Top-level areas (<span class="term">Arches</span>) with nested pages, an inbox (<span class="term">Shadow</span>), tags, smart folders, links, backlinks and a graph.</p></div>
-        <div class="card"><h3>Databases</h3><p>Table, Board, Calendar, Gallery, List and Timeline views with formulas, relations and filters. Every row is a page.</p></div>
-        <div class="card"><h3>Writing studio</h3><p><span class="term">Codex</span> manuscripts, <span class="term">Axis</span> outlines, <span class="term">Mosaic</span> card boards and a <span class="term">Lore</span> story bible, with word goals and exports to Word, RTF and HTML.</p></div>
-        <div class="card"><h3>Whiteboard</h3><p><span class="term">Tabula</span>: pressure-sensitive pens, sticky notes, over 130 diagram shapes and about 4,800 icons.</p></div>
-        <div class="card"><h3>Research</h3><p><span class="term">Fontes</span> citations and bibliographies, the <span class="term">Lectio</span> PDF reader with highlights, and block links (<span class="term">Tessera</span>).</p></div>
-        <div class="card"><h3>Using what you know</h3><p>Live queries (<span class="term">Speculum</span>), flashcards with spaced repetition (<span class="term">Anamnesis</span>) and scheduled automations (<span class="term">Vigil</span>).</p></div>
+      <header class="sec-head">
+        <p class="kicker" data-i18n="idea.kicker">The idea</p>
+        <h2 data-i18n="idea.title">Null + Arche: start clean, build on first principles</h2>
+      </header>
+      <div class="principles">
+        <article class="reveal">
+          <span class="numeral">I</span>
+          <h3 data-i18n="idea.1.t">Zero point</h3>
+          <p data-i18n="idea.1.p">Nothing between you and your thoughts: no account, no lock-in, no feed. Just a folder of Markdown files that any editor can open, today and in twenty years.</p>
+        </article>
+        <article class="reveal">
+          <span class="numeral">II</span>
+          <h3 data-i18n="idea.2.t">Arche</h3>
+          <p data-i18n="idea.2.p">Give every area of your life its own root, an Arche, and let pages, databases, manuscripts and boards grow from it.</p>
+        </article>
+        <article class="reveal">
+          <span class="numeral">III</span>
+          <h3 data-i18n="idea.3.t">A web of knowledge</h3>
+          <p data-i18n="idea.3.p">Links, citations, live queries and flashcards turn notes into knowledge you can find, cite, reuse and remember.</p>
+        </article>
+      </div>
+      <div class="manifesto reveal">
+        <blockquote>
+          <p class="mv-label" data-i18n="mission.vision.t">Vision</p>
+          <p class="mv-text" data-i18n="mission.vision.p">Knowledge that belongs to the person who wrote it: readable without any app, private by default and useful for a lifetime.</p>
+        </blockquote>
+        <blockquote>
+          <p class="mv-label" data-i18n="mission.mission.t">Mission</p>
+          <p class="mv-text" data-i18n="mission.mission.p">Build a complete, beautiful notes studio on plain files, with AI you already own, no subscription and nothing to trust but code anyone can read.</p>
+        </blockquote>
       </div>
     </div>
   </section>
 
-  <section>
+  <section id="try" class="try">
     <div class="wrap">
-      <div class="pair">
-        <div>
-          <h2>Security you can check</h2>
-          <ul class="ticks">
-            <li><b>Locked notes</b> and <b>encrypted Arches</b> (<span class="term">Crypta</span>): AES-256 with a password that is never stored.</li>
-            <li><b>Auto-lock</b> (<span class="term">Custos</span>) when you step away, the computer sleeps or the screen locks.</li>
-            <li><b>Encrypted snapshots</b> (<span class="term">Strata</span>) of your whole notes folder that you can restore.</li>
-            <li>Open source: anyone can read exactly what the app does.</li>
+      <header class="sec-head">
+        <p class="kicker" data-i18n="try.kicker">Try it here</p>
+        <h2 data-i18n="try.title">Write like you do in Nularche</h2>
+        <p class="intro" data-i18n="try.intro">Write on the right, the way you do in Nularche: type / for headings, lists, tasks, bold, highlight and more, or select text to format it. On the left is the plain Markdown file Nularche saves, which any editor can open. Nothing you type leaves this page.</p>
+      </header>
+      <div class="app-window">
+        <div class="titlebar"><span></span><span></span><span></span><b>Nularche</b></div>
+        <div class="playground">
+          <div class="pg-file">
+            <span class="pg-label"><span data-i18n="try.file">The Markdown file</span> · <code data-demo-name>Memory and the archive.md</code></span>
+            <pre class="md" data-demo-md aria-live="polite"></pre>
+          </div>
+          <div class="pg-editor">
+            <span class="pg-label"><span data-i18n="try.yours">In Nularche</span> · <span class="pg-hint" data-i18n="try.hint">type / for commands, select text to format</span></span>
+            <div class="ed" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Note editor" data-demo-editor></div>
+          </div>
+        </div>
+        <div class="pg-cards">
+          <span class="pg-label" data-i18n="try.cards">Anamnesis flashcards</span>
+          <div data-demo-cards></div>
+        </div>
+      </div>
+      <div class="chips">
+        <button type="button" class="chip accent" data-insert="/" data-i18n="try.slash">/ commands</button>
+        <button type="button" class="chip" data-insert="**bold**">**bold**</button>
+        <button type="button" class="chip" data-insert="==highlight==">==highlight==</button>
+        <button type="button" class="chip" data-insert="[[Thesis]]">[[link]]</button>
+        <button type="button" class="chip" data-insert="#idea">#tag</button>
+        <button type="button" class="chip" data-insert="[@nora1989]">[@citation]</button>
+        <button type="button" class="chip" data-insert="Term ::: Definition" data-block="p">Q :: A</button>
+        <button type="button" class="chip" data-insert="Next step" data-block="task">- [ ] task</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="features">
+    <div class="wrap">
+      <header class="sec-head">
+        <p class="kicker" data-i18n="feat.kicker">Everything in one studio</p>
+        <h2 data-i18n="feat.title">One app for thinking, writing and remembering</h2>
+      </header>
+      <div class="tabs" role="tablist" aria-label="Features">
+        <button role="tab" aria-selected="true" aria-controls="tab-panel" data-tab="organise" data-i18n="feat.t.organise">Organise</button>
+        <button role="tab" aria-selected="false" aria-controls="tab-panel" data-tab="write" data-i18n="feat.t.write">Write</button>
+        <button role="tab" aria-selected="false" aria-controls="tab-panel" data-tab="research" data-i18n="feat.t.research">Research</button>
+        <button role="tab" aria-selected="false" aria-controls="tab-panel" data-tab="remember" data-i18n="feat.t.remember">Remember</button>
+        <button role="tab" aria-selected="false" aria-controls="tab-panel" data-tab="protect" data-i18n="feat.t.protect">Protect</button>
+      </div>
+      <div class="tab-panel" id="tab-panel" role="tabpanel">
+        <div class="tab-text">
+          <h3 data-tab-title>Notes, databases and boards</h3>
+          <ul class="ticks" data-tab-list>
+            <li>Arches with nested pages, a Shadow inbox, tags, smart folders, backlinks and a graph.</li>
+            <li>Databases with Table, Board, Calendar, Gallery, List and Timeline views; every row is a page.</li>
+            <li>Tabula: a whiteboard with pressure-sensitive pens, 130+ diagram shapes and ~4,800 icons.</li>
           </ul>
         </div>
-        <img class="shot" src="/assets/security.png" alt="Settings → Security: auto-lock, encrypted Arches and snapshots" width="1440" height="900" loading="lazy">
+        <div class="window"><img data-tab-img src="/assets/organise.png" alt="The sidebar with Arches grouped into Archipelagos over the Lavender Hills" width="1440" height="900"></div>
       </div>
-      <div class="pair">
-        <img class="shot" src="/assets/lectio.png" alt="The Lectio PDF reader with coloured highlights and comments" width="1440" height="900" loading="lazy">
-        <div>
-          <h2>Read, highlight, write</h2>
-          <p class="small">Highlight PDFs and turn the highlights into notes that link back to the page, cite your sources with <code>[@key]</code>, and export a whole manuscript with its bibliography.</p>
+    </div>
+  </section>
+
+  <section id="privacy" class="privacy">
+    <div class="wrap">
+      <header class="sec-head">
+        <p class="kicker" data-i18n="priv.kicker">Your data</p>
+        <h2 data-i18n="priv.title">See exactly where your notes go</h2>
+      </header>
+      <div class="segmented" role="radiogroup" aria-label="Storage mode">
+        <button role="radio" aria-checked="true" data-mode="local" data-i18n="priv.m.local">This computer</button>
+        <button role="radio" aria-checked="false" data-mode="drive" data-i18n="priv.m.drive">Google Drive</button>
+        <button role="radio" aria-checked="false" data-mode="e2e" data-i18n="priv.m.e2e">Drive + end-to-end encryption</button>
+      </div>
+      <div class="flow" data-flow="local">
+        <div class="node you"><svg class="icon"><use href="#i-laptop"/></svg><b data-i18n="priv.you">Your computer</b><code>Plan.md</code></div>
+        <div class="pipe"><span class="packet"><svg class="lock"><use href="#i-lock"/></svg><span data-packet></span></span></div>
+        <div class="node cloud"><svg class="icon"><use href="#i-cloud"/></svg><b data-i18n="priv.drive">Your Google Drive</b><code data-drive-sees>—</code></div>
+        <div class="node us"><svg class="icon"><use href="#i-server-off"/></svg><b data-i18n="priv.us">Nularche servers</b><span data-i18n="priv.none">There are none</span></div>
+      </div>
+      <p class="flow-caption" data-flow-caption>Your notes stay in a folder on this computer. Nothing is uploaded.</p>
+
+      <div id="google" class="google">
+        <h3 data-i18n="g.title">How Nularche uses Google data</h3>
+        <div class="google-cols">
+          <div>
+            <h4>Google Drive</h4>
+            <p data-i18n="g.drive">If you choose to keep your notes in Google Drive, Nularche asks only for the drive.file permission. It can see and change only the Nularche folder and the files it creates, never your other files, and uses this access solely to keep your notes in sync between your computers. With end-to-end encryption on, files are encrypted on your computer before upload, so not even Google can read them.</p>
+          </div>
+          <div>
+            <h4>Google Calendar</h4>
+            <p data-i18n="g.cal">If you connect Google Calendar, Nularche reads your calendars to show them on its Calendar page and creates, edits or deletes events only when you do so in Nularche.</p>
+          </div>
         </div>
+        <p class="small" data-i18n="g.policy">Nularche talks to Google directly from your computer. Your Google data is never sent to us or anyone else, never used for advertising, never sold and never used to train AI models. Nularche's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.</p>
+        <p class="small"><a href="/privacy" data-i18n="g.read">Read the full privacy policy</a></p>
       </div>
     </div>
   </section>
 
-  <section id="google">
+  <section id="language" class="language">
     <div class="wrap">
-      <h2>How Nularche uses Google data</h2>
-      <p class="intro">Connecting Google is optional. Nularche works fully on your computer without it.</p>
-      <div class="pair">
-        <div class="google">
-          <h3>Google Drive (storage and sync)</h3>
-          <p>If you choose to keep your notes in Google Drive, Nularche asks only for the <code>drive.file</code> permission. It can see and change only the Nularche folder and the files it creates, never your other files. It uses this access solely to keep your notes in sync between your computers. With end-to-end encryption on, files are encrypted on your computer before upload, so not even Google can read them.</p>
-          <h3>Google Calendar</h3>
-          <p>If you connect Google Calendar, Nularche reads your calendars to show them on its Calendar page and creates, edits or deletes events only when you do so in Nularche.</p>
-          <p class="small">Nularche talks to Google directly from your computer. Your Google data is never sent to us or anyone else, never used for advertising, never sold and never used to train AI models. Nularche's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements. Read the full <a href="/privacy">privacy policy</a>.</p>
-        </div>
-        <img class="shot" src="/assets/storage.png" alt="Settings → Notes and Origin: this computer or Google Drive, with end-to-end encryption" width="1440" height="900" loading="lazy">
-      </div>
+      <header class="sec-head">
+        <p class="kicker" data-i18n="lang.kicker">The Nularche language</p>
+        <h2 data-i18n="lang.title">Every part has its own name</h2>
+        <p class="intro" data-i18n="lang.intro">Tap a card to see what it means.</p>
+      </header>
+      <div class="cards" data-glossary></div>
     </div>
   </section>
 
-  <section>
+  <section id="download" class="download">
     <div class="wrap">
-      <div class="pair">
-        <img class="shot" src="/assets/codex.png" alt="A Codex manuscript with chapters, word goal and export" width="1440" height="900" loading="lazy">
-        <img class="shot" src="/assets/tabula.png" alt="A Tabula whiteboard with a flowchart, sticky notes and drawings" width="1440" height="900" loading="lazy">
+      <header class="sec-head">
+        <p class="kicker" data-i18n="dl.kicker">Free for everyone</p>
+        <h2 data-i18n="dl.title">Get Nularche</h2>
+        <p class="intro" data-i18n="dl.intro">Every installer is installed and tested on its own operating system before release. Updating keeps your notes and settings.</p>
+      </header>
+      <div class="platforms">
+        <a class="platform" data-os="mac-arm" href="https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-macOS-AppleSilicon.dmg"><b>macOS</b><span>Apple Silicon</span></a>
+        <a class="platform" data-os="mac-intel" href="https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-macOS-Intel.dmg"><b>macOS</b><span>Intel</span></a>
+        <a class="platform" data-os="win-x64" href="https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-Windows-x64-Setup.exe"><b>Windows</b><span>64-bit</span></a>
+        <a class="platform" data-os="win-x86" href="https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-Windows-x86-Setup.exe"><b>Windows</b><span>32-bit</span></a>
+        <a class="platform" data-os="linux" href="https://github.com/VerseOfAC92/nularche/releases/latest/download/Nularche-Linux-amd64.deb"><b>Linux</b><span>Debian / Ubuntu</span></a>
       </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="wrap">
-      <h2>Get Nularche</h2>
-      <p class="intro">Free for macOS (Apple Silicon and Intel), Windows (64- and 32-bit) and Linux (Debian/Ubuntu). Every installer is installed and tested on its own operating system before release.</p>
-      <div class="btns">
-        <a class="btn primary" href="https://github.com/VerseOfAC92/nularche/releases/latest">Download</a>
-        <a class="btn" href="https://github.com/VerseOfAC92/nularche#install-from-the-terminal">Install from the terminal</a>
+      <p class="detected" data-detected></p>
+      <div class="terminal">
+        <span class="pg-label" data-i18n="dl.terminal">Or from the terminal (macOS and Linux)</span>
+        <div class="term-row"><code data-term>curl -fsSL https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.sh | bash</code><button type="button" class="chip" data-copy data-i18n="dl.copy">Copy</button></div>
       </div>
+      <p class="small links"><a href="https://github.com/VerseOfAC92/nularche" data-i18n="dl.source">Source code on GitHub</a> · <a href="https://github.com/VerseOfAC92/nularche/releases/latest" data-i18n="dl.notes">Release notes</a> · <span class="soon" data-i18n="dl.web">Nularche in your browser: coming soon</span></p>
     </div>
   </section>
 </main>
 
 <footer class="foot">
-  <p>© 2026 VerseOfAC · <a href="/privacy">Privacy policy</a> · <a href="https://github.com/VerseOfAC92/nularche">Source code</a> · <a href="mailto:verseofac@gmail.com">verseofac@gmail.com</a></p>
-  <p lang="tr">Nularche, notlarınızı kendi bilgisayarınızda düz Markdown dosyaları olarak tutan, açık kaynaklı ve ücretsiz bir not uygulamasıdır. <a href="/privacy">Gizlilik politikası (Türkçe özeti sayfanın sonunda)</a></p>
+  <p>© 2026 VerseOfAC · <a href="/privacy" data-i18n="foot.privacy">Privacy policy</a> · <a href="https://github.com/VerseOfAC92/nularche" data-i18n="foot.source">Source code</a> · <a href="mailto:verseofac@gmail.com">verseofac@gmail.com</a></p>
 </footer>
 </body>
 </html>
