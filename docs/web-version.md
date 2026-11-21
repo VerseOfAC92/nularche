@@ -31,10 +31,17 @@ app keeps using Node itself, so nothing changes there.
   produce the same bytes as Node, so files encrypted on the desktop open on the web and the other way round.
 - `npm run check:web-platform` builds `core-entry.ts` for the browser and fails if any Node module is left in the bundle.
 
+## One API, two transports
+
+`packages/server/src/api.ts` handles every `/api/…` and `/files/…` route as a standard `Request` → `Response`
+function, with live updates (`/api/events`, Server-Sent Events) from an `EventHub`. On the desktop,
+`packages/server/src/app.ts` is a thin Node HTTP adapter: it checks Host, Origin and the session secret, serves the
+built interface, watches the Origin folder and forwards everything else to the handler. In the browser the same handler
+will run in the page, fed by the in-memory file system. `packages/core/test/api-handler.test.ts` runs on both platforms.
+
 ## Next steps
 
-1. Run the local API (`packages/server`) as a fetch-style request handler so the same routes serve the desktop
-   (Node HTTP) and the browser (through a service worker that forwards `/api` and `/files` requests to the page).
+1. A service worker that forwards the page's `/api` and `/files` requests to the handler running in the page.
 2. Sign-in window (Google Identity Services, `drive.file`), passphrase unlock, Drive sync into the in-memory files.
 3. Security in the browser: nothing persisted unless "Trust this device" is on, idle lock, sign-out that clears
    everything, strict CSP.

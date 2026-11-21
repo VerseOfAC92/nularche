@@ -15,3 +15,4 @@ export { exportPageHtml } from "../../core/src/export.ts";
 export { compileManuscript } from "../../core/src/manuscript.ts";
 export { CommentStore } from "../../core/src/comments.ts";
 export { vfs } from "./vfs.ts";
+export { createApi, EventHub } from "../../server/src/api.ts";
