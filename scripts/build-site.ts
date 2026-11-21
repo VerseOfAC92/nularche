@@ -1,8 +1,10 @@
-// nularche.verseofac.com için statik site dosyalarını üretir: gizlilik sayfası PRIVACY.md'den, görseller
+// nularche.verseofac.com için statik site dosyalarını üretir: gizlilik sayfası PRIVACY.md'den, ana sayfadaki stil ve
+// betik adreslerinin sürüm damgası, görseller
 // docs/screenshots ve build/icon.png'den. Ana sayfa (site/index.html) elle yazılır. Üretilen dosyalar depoya
 // işlenir; Cloudflare Pages `site/` klasörünü derleme yapmadan yayınlar. `--check` yalnızca güncel olup
 // olmadıklarını denetler (CI).
 
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Marked } from "marked";
@@ -27,7 +29,7 @@ export const SITE_IMAGES: Record<string, string> = {
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
-export function privacyPage(markdown: string): string {
+export function privacyPage(markdown: string, css = "/assets/site.css"): string {
   const marked = new Marked({ gfm: true });
   const body = String(marked.parse(markdown, { async: false }));
   const updated = /\*Last updated: ([^*]+)\*/.exec(markdown)?.[1] ?? "";
@@ -39,7 +41,7 @@ export function privacyPage(markdown: string): string {
 <title>Privacy Policy · Nularche</title>
 <meta name="description" content="How Nularche handles your data, including Google Drive and Google Calendar. Last updated: ${esc(updated)}.">
 <link rel="icon" href="/assets/logo.png">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="${css}">
 </head>
 <body class="doc">
 <header class="bar"><a class="brand" href="/"><img src="/assets/logo.png" alt="" width="32" height="32"> Nularche</a><nav><a href="/">Home</a><a href="https://github.com/VerseOfAC92/nularche/releases/latest">Download</a></nav></header>
@@ -59,8 +61,20 @@ function sceneFile(id: string): string {
   return decodeURIComponent(url.replace(/^url\("data:image\/svg\+xml;charset=utf-8,/, "").replace(/"\)$/, ""));
 }
 
+/**
+ * Önbellek: stil ve betik dosyalarının adresine içeriklerinin özeti eklenir (`site.css?v=…`). Dosya değişince adres de
+ * değişir; siteyi daha önce açmış tarayıcılar eski dosyayı kullanmaz.
+ */
+const stamp = async (rel: string) => `/${rel}?v=${createHash("sha256").update(await readFile(path.join(site, rel))).digest("hex").slice(0, 10)}`;
+const CSS = await stamp("assets/site.css");
+const JS = await stamp("assets/site.js");
+const index = (await readFile(path.join(site, "index.html"), "utf8"))
+  .replace(/\/assets\/site\.css(\?v=\w+)?/g, CSS)
+  .replace(/\/assets\/site\.js(\?v=\w+)?/g, JS);
+
 const outputs: [string, string | Buffer][] = [
-  ["privacy/index.html", privacyPage(await readFile(path.join(root, "PRIVACY.md"), "utf8"))],
+  ["index.html", index],
+  ["privacy/index.html", privacyPage(await readFile(path.join(root, "PRIVACY.md"), "utf8"), CSS)],
   ["assets/scene-lavender.svg", sceneFile("lavender")],
   ["assets/scene-night.svg", sceneFile("night")],
 ];
