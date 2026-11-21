@@ -28,6 +28,8 @@ jobs:
         run: npm run test:web-platform
       - name: Core builds for the browser without Node modules
         run: npm run check:web-platform
+      - name: Service worker forwards /api and /files to the in-page API (headless Chrome)
+        run: npm run check:web-bridge
       - run: npm run mcp:smoke
       - run: npm run build
       - run: node scripts/build-desktop.ts

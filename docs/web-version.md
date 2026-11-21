@@ -39,10 +39,24 @@ function, with live updates (`/api/events`, Server-Sent Events) from an `EventHu
 built interface, watches the Origin folder and forwards everything else to the handler. In the browser the same handler
 will run in the page, fed by the in-memory file system. `packages/core/test/api-handler.test.ts` runs on both platforms.
 
+In the browser there is no server. A service worker (`packages/web-platform/src/service-worker.ts`) catches the
+page's own `/api/…` and `/files/…` requests and hands each one, over a `MessageChannel`, to the page that made it
+(`bridge.ts`, `host.ts`). The page runs the handler on the in-memory files and streams the response back in chunks, so
+`fetch`, uploads, `EventSource("/api/events")`, `<img src="/files/…">` and pdf.js work exactly as on the desktop. The
+service worker touches nothing else, caches nothing and stores nothing; notes live only in the page's memory. Page
+navigations (opening a `/files/…` address directly) are left to the network. Until the Origin is unlocked, or after
+it locks, the page answers `503`.
+
+- `packages/web-platform/test/bridge.test.ts` covers the protocol: JSON and binary bodies, a 5 MB upload, `204`,
+  errors, the `503` lock answer, a timeout when the page does not answer, live events and cancellation reaching the
+  handler.
+- `npm run check:web-bridge` (also in CI) builds the service worker and a small page, opens it in headless Chrome and
+  checks the whole path: notes API, live events, an image attachment, a 4 MB round trip, that no `/api` or `/files`
+  request reaches the network, and that navigations do.
+
 ## Next steps
 
-1. A service worker that forwards the page's `/api` and `/files` requests to the handler running in the page.
-2. Sign-in window (Google Identity Services, `drive.file`), passphrase unlock, Drive sync into the in-memory files.
-3. Security in the browser: nothing persisted unless "Trust this device" is on, idle lock, sign-out that clears
+1. Sign-in window (Google Identity Services, `drive.file`), passphrase unlock, Drive sync into the in-memory files.
+2. Security in the browser: nothing persisted unless "Trust this device" is on, idle lock, sign-out that clears
    everything, strict CSP.
-4. Feature coverage, then publishing at `/app`.
+3. Feature coverage, then publishing at `/app`.

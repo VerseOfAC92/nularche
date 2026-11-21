@@ -23,6 +23,7 @@
     "test": "node --test \"packages/core/test/*.test.ts\" \"packages/web-platform/test/*.test.ts\" && vitest run",
     "test:web-platform": "node scripts/web-platform/test.mjs",
     "check:web-platform": "node scripts/web-platform/check-bundle.ts",
+    "check:web-bridge": "node scripts/web-platform/check-bridge.ts",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write packages scripts",
     "connect": "node scripts/connect-ai.ts",

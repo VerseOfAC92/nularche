@@ -14,5 +14,6 @@ export { loadLibrary, citationSettings } from "../../core/src/citations-store.ts
 export { exportPageHtml } from "../../core/src/export.ts";
 export { compileManuscript } from "../../core/src/manuscript.ts";
 export { CommentStore } from "../../core/src/comments.ts";
+export { AiActivity } from "../../core/src/ai-activity.ts";
 export { vfs } from "./vfs.ts";
 export { createApi, EventHub } from "../../server/src/api.ts";
