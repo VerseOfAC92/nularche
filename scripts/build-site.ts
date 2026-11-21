@@ -9,7 +9,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Marked } from "marked";
 import { projectRoot } from "../packages/core/src/config.ts";
-import { sceneUrl } from "../packages/web/src/focus/scenes.ts";
 
 const root = projectRoot();
 const site = path.join(root, "site");
@@ -54,13 +53,6 @@ ${body}
 `;
 }
 
-/** Uygulamanın kendi manzaraları (odak modundaki çizimlerle aynı kod): Lavanta tepeleri ve Gece gökyüzü. */
-function sceneFile(id: string): string {
-  const url = sceneUrl(id);
-  if (!url) throw new Error(`Manzara yok: ${id}`);
-  return decodeURIComponent(url.replace(/^url\("data:image\/svg\+xml;charset=utf-8,/, "").replace(/"\)$/, ""));
-}
-
 /**
  * Önbellek: stil ve betik dosyalarının adresine içeriklerinin özeti eklenir (`site.css?v=…`). Dosya değişince adres de
  * değişir; siteyi daha önce açmış tarayıcılar eski dosyayı kullanmaz.
@@ -75,8 +67,6 @@ const index = (await readFile(path.join(site, "index.html"), "utf8"))
 const outputs: [string, string | Buffer][] = [
   ["index.html", index],
   ["privacy/index.html", privacyPage(await readFile(path.join(root, "PRIVACY.md"), "utf8"), CSS)],
-  ["assets/scene-lavender.svg", sceneFile("lavender")],
-  ["assets/scene-night.svg", sceneFile("night")],
 ];
 for (const [to, from] of Object.entries(SITE_IMAGES)) outputs.push([to, await readFile(path.join(root, from))]);
 
