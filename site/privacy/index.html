@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy · Nularche</title>
+<meta name="description" content="How Nularche handles your data, including Google Drive and Google Calendar. Last updated: 20 November 2026 (storage and encryption).">
+<link rel="icon" href="/assets/logo.png">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body class="doc">
+<header class="bar"><a class="brand" href="/"><img src="/assets/logo.png" alt="" width="32" height="32"> Nularche</a><nav><a href="/">Home</a><a href="https://github.com/VerseOfAC92/nularche/releases/latest">Download</a></nav></header>
+<main class="prose">
+<h1>Nularche Privacy Policy</h1>
+<p><em>Last updated: 20 November 2026 (storage and encryption)</em></p>
+<p>Nularche is a free, open-source notes app that runs on your own computer. It is made by VerseOfAC
+(<a href="mailto:verseofac@gmail.com">verseofac@gmail.com</a>). This policy explains what happens to your data when you use Nularche, including
+when you connect Google Drive or Google Calendar.</p>
+<h2>The short version</h2>
+<ul>
+<li>Nularche has <strong>no servers, no accounts and no analytics</strong>. We never receive your notes, files,
+calendars, passwords or Google data.</li>
+<li>Everything Nularche stores is on <strong>your computer</strong>, in the folder you choose, as ordinary files.</li>
+<li>When you connect Google Drive, Google Calendar, Apple iCloud Calendar or an AI service, Nularche on your
+computer talks <strong>directly</strong> to that service. Nothing passes through us.</li>
+</ul>
+<h2>Data stored on your computer</h2>
+<ul>
+<li><strong>Notes, attachments and settings</strong> are plain files in your Nularche folder (your &quot;Origin&quot;).</li>
+<li><strong>Sign-in tokens</strong> for Google and app-specific passwords for Apple are encrypted with your operating
+system&#39;s credential store (Keychain on macOS, DPAPI on Windows, libsecret on Linux) and stay on that
+computer. They are never written to your notes folder or sent anywhere except to the service they belong to.</li>
+<li><strong>AI keys</strong> you enter (for example a Gemini API key) are stored the same way.</li>
+</ul>
+<p>You can delete all of this at any time by disconnecting the account in Settings and deleting your Nularche
+folder.</p>
+<h2>Google Drive</h2>
+<p>If you choose Google Drive as storage, Nularche asks for the <code>drive.file</code> permission only. With it,
+Nularche can see and change <strong>only the Nularche folder and the files it creates</strong> in your Drive. It cannot
+see any other file in your Drive.</p>
+<p>Nularche uses this access solely to keep your Nularche folder on your computer and the Nularche folder in your
+Drive in sync, so that the same notes appear on your other computers. Files you delete in Nularche are moved
+to your Drive trash; you can restore them from there.</p>
+<p>Only your own content is synced (notes, attachments, settings, comments, named versions, PDF highlights and
+flashcard review state). Automatic version history, encrypted snapshots, AI records and calendar caches stay on each
+computer. Locked notes stay encrypted in Drive, and when you lock
+a note its unencrypted earlier copies are deleted from Drive for good. If you turn on end-to-end encryption, every file
+is encrypted on your computer with a key derived from your passphrase before it is uploaded; the passphrase is never
+stored or sent anywhere, and without it neither Google nor we can read the files.</p>
+<h2>Google Calendar</h2>
+<p>If you connect Google Calendar, Nularche asks for permission to read your calendar list and to read and change
+events. Nularche uses this access solely to show your calendars on its Calendar page and to create, edit or
+delete events when you do so in Nularche. If you choose to sync a Nularche table with a calendar, dated rows
+and events are kept in step. Event data stays on your computer (in your Nularche folder) and in your Google
+Calendar.</p>
+<h2>Use of Google user data</h2>
+<p>Nularche&#39;s use and transfer of information received from Google APIs adheres to the
+<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>,
+including the Limited Use requirements. In particular:</p>
+<ul>
+<li>Google user data is used only to provide the Drive and Calendar features you turn on, inside the app on your
+computer.</li>
+<li>Google user data is <strong>not</strong> transferred to us or to anyone else, <strong>not</strong> used for advertising, <strong>not</strong> sold,
+and <strong>not</strong> used to train AI models.</li>
+<li>No person reads your Google data. Nularche has no servers, so there is no one at Nularche who could.</li>
+</ul>
+<h2>Apple iCloud Calendar</h2>
+<p>If you connect an Apple iCloud calendar, Nularche uses the app-specific password you create to talk to
+Apple&#39;s calendar server (CalDAV) directly from your computer, for the same purposes as Google Calendar above.</p>
+<h2>AI features</h2>
+<p>Nularche AI works with the AI service you choose. In automatic mode, the text of your request and the
+notes involved are sent from your computer to Google&#39;s Gemini API with your own key. In subscription mode,
+your Claude, ChatGPT or Gemini app reads and edits notes through a local connection on your computer. Those
+services handle data under their own privacy policies. Nularche never sends your notes to an AI service unless
+you make a request.</p>
+<h2>Other connections</h2>
+<ul>
+<li>Nularche checks GitHub for new versions of the app. This request contains no personal data.</li>
+<li>YouTube videos you embed in a note are loaded from YouTube&#39;s privacy-enhanced domain when you view the note.</li>
+</ul>
+<h2>Children</h2>
+<p>Nularche is not directed at children under 13 and does not knowingly collect their data. Nularche does not
+collect anyone&#39;s data.</p>
+<h2>Changes and contact</h2>
+<p>Changes to this policy are published in this file, with the date at the top. Questions: <a href="mailto:verseofac@gmail.com">verseofac@gmail.com</a>.</p>
+<hr>
+<h2>Nularche Gizlilik Politikası (Türkçe özet)</h2>
+<ul>
+<li>Nularche&#39;nin <strong>sunucusu, hesabı ve analitiği yoktur</strong>. Notlarınız, dosyalarınız, takvimleriniz, parolalarınız
+ve Google verileriniz bize hiçbir zaman gelmez.</li>
+<li>Nularche her şeyi <strong>kendi bilgisayarınızda</strong>, seçtiğiniz klasörde, düz dosyalar olarak tutar.</li>
+<li>Google ve Apple giriş bilgileri işletim sisteminizin parola deposunda şifreli olarak yalnızca o bilgisayarda
+durur.</li>
+<li><strong>Google Drive:</strong> Nularche yalnızca <code>drive.file</code> iznini ister; Drive&#39;ınızda yalnızca kendi oluşturduğu
+Nularche klasörünü görür, diğer dosyalarınıza erişemez. Bu erişimi yalnızca notlarınızı bilgisayarlarınız
+arasında eşitlemek için kullanır. PDF vurguları ve bilgi kartı tekrar durumu da eşitlenir; şifreli anlık görüntüler (Strata) ve otomatik sürüm geçmişi
+bilgisayarda kalır. Kilitli notlar Drive&#39;da da şifreli kalır; isteğe bağlı uçtan uca şifreleme açılırsa
+her dosya yüklenmeden önce yalnızca sizin bildiğiniz parolayla şifrelenir.</li>
+<li><strong>Google Takvim:</strong> Takvimlerinizi Nularche&#39;nin Takvim ekranında göstermek ve sizin oluşturduğunuz, düzenlediğiniz
+ya da sildiğiniz etkinlikleri takviminize yazmak için kullanılır.</li>
+<li>Google&#39;dan alınan veriler, Google API Hizmetleri Kullanıcı Verileri Politikası&#39;na (Sınırlı Kullanım
+koşulları dahil) uygun olarak yalnızca bu özellikler için kullanılır; kimseye aktarılmaz, reklam için
+kullanılmaz, satılmaz ve yapay zekâ eğitiminde kullanılmaz.</li>
+<li>Sorularınız için: <a href="mailto:verseofac@gmail.com">verseofac@gmail.com</a></li>
+</ul>
+
+</main>
+<footer class="foot"><p>© 2026 VerseOfAC · <a href="/">Nularche</a> · <a href="https://github.com/VerseOfAC92/nularche">Source code</a> · <a href="mailto:verseofac@gmail.com">verseofac@gmail.com</a></p></footer>
+</body>
+</html>
