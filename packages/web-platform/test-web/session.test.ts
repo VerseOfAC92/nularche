@@ -71,7 +71,9 @@ test("web oturumu: parola doğrulanır, notlar belleğe iner, değişiklik şifr
   await until(() => !!findWeb());
   const uploaded = findWeb()!;
   assert.ok(!uploaded.name.includes("Webden") && !uploaded.data.toString("latin1").includes("tarayıcıda"), "Drive'da ad ve içerik şifreli");
-  assert.ok(statuses.includes("syncing") && statuses.at(-1) === "idle");
+  // Yükleme sırasında gelen değişiklik bir tur daha eşitleme başlatır; o tur da bitince durum "idle" olur.
+  await until(() => statuses.at(-1) === "idle");
+  assert.ok(statuses.includes("syncing"));
 
   await origin.close();
   assert.equal(origin.store.root, originDir(root), "Origin, Drive'daki klasörün adını taşır");

@@ -32,6 +32,8 @@ jobs:
         run: npm run check:web-bridge
       - name: Web version end to end with a fake Google Drive (headless Chrome)
         run: npm run check:web-app
+      - name: Google sign-in in the production web entry (stubbed Google, headless Chrome)
+        run: npm run check:web-google
       - run: npm run mcp:smoke
       - run: npm run build
       - run: node scripts/build-desktop.ts
