@@ -54,9 +54,37 @@ it locks, the page answers `503`.
   checks the whole path: notes API, live events, an image attachment, a 4 MB round trip, that no `/api` or `/files`
   request reaches the network, and that navigations do.
 
+## Signing in and opening notes
+
+`packages/web/app.html` is the web version's page (`npm run build:web` builds it with the service worker into
+`packages/web/dist-web`, served at `/app/`). It opens a Nularche sign-in window (`packages/web/src/web/signin.ts`):
+
+1. **Continue with Google.** Google Identity Services gives a short-lived access token for `drive.file` only
+   (`google-auth.ts`). There is no refresh token and no client secret; the token lives in memory. The Drive client
+   (`core/src/drive-google.ts`) takes it as `{ accessToken }` and asks for a fresh one once when Google answers `401`.
+2. **Find the Origin.** The newest Nularche root folder in Drive, the same choice the desktop app makes.
+3. **Passphrase.** For an end-to-end encrypted root the passphrase is checked against the root's key check before
+   anything is downloaded; a wrong passphrase is refused without touching any file.
+4. **Load.** `web-platform/src/session.ts` downloads and decrypts the notes into the in-memory file system, starts the
+   shared API on them and connects it to the service worker. The app interface loads only then. Edits are sent back
+   to Drive two seconds after the last change (encrypted for an encrypted root); Drive is checked for changes every
+   minute. Closing the session sends pending changes and wipes the memory.
+
+Nothing is written to the computer: no notes, keys or tokens in local storage, IndexedDB or caches. Only the
+interface language is remembered.
+
+- `packages/web-platform/test-web/session.test.ts` (run by `npm run test:web-platform`) covers the session with a fake
+  Drive: passphrase required, wrong and right passphrase, notes arriving in memory, a web edit uploaded encrypted,
+  a change made elsewhere arriving, and the memory being empty after closing.
+- `npm run check:web-app` (also in CI) builds the real web version with a fake Drive in place of Google, opens it in
+  headless Chrome and goes through the sign-in window, a wrong and a right passphrase, the app showing a note written
+  on the desktop, a new note reaching Drive encrypted, no `/api` or `/files` request reaching the network and nothing
+  stored in the browser.
+
 ## Next steps
 
-1. Sign-in window (Google Identity Services, `drive.file`), passphrase unlock, Drive sync into the in-memory files.
-2. Security in the browser: nothing persisted unless "Trust this device" is on, idle lock, sign-out that clears
-   everything, strict CSP.
-3. Feature coverage, then publishing at `/app`.
+1. Security in the browser: idle lock, a sign-out and lock button in the app, a "Trust this device" choice, strict
+   CSP for `/app`.
+2. Feature coverage: hide or adapt desktop-only parts (AI connections, file pickers, updates), Gemini AI in the
+   browser.
+3. Publishing at `/app` and an "Open in browser" button on the homepage.

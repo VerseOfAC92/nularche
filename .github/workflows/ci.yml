@@ -30,6 +30,8 @@ jobs:
         run: npm run check:web-platform
       - name: Service worker forwards /api and /files to the in-page API (headless Chrome)
         run: npm run check:web-bridge
+      - name: Web version end to end with a fake Google Drive (headless Chrome)
+        run: npm run check:web-app
       - run: npm run mcp:smoke
       - run: npm run build
       - run: node scripts/build-desktop.ts

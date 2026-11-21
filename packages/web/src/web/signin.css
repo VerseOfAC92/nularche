@@ -1,0 +1,157 @@
+/* Web sürümünün giriş penceresi: ana sayfanın parşömen ve çelik mavisi dünyasında, Nularche Font ile. */
+.nw-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow-y: auto;
+  background: radial-gradient(120% 90% at 85% 10%, #fbf6ec 0%, #f6efe3 45%, #eadfcb 100%);
+  font-family: "Nularche Font", "Segoe Print", cursive;
+  color: #1c2636;
+}
+.nw-card {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 40px 36px 32px;
+  border-radius: 22px;
+  background: rgba(255, 252, 246, 0.82);
+  border: 1px solid rgba(44, 90, 132, 0.18);
+  box-shadow: 0 40px 90px rgba(20, 34, 54, 0.18);
+  backdrop-filter: blur(14px);
+  text-align: center;
+}
+.nw-lang {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  cursor: pointer;
+  border: 1px solid rgba(44, 90, 132, 0.18);
+  background: transparent;
+  border-radius: 999px;
+  padding: 2px 12px;
+  font: 17px "Nularche Font", cursive;
+  color: #4f5a6c;
+}
+.nw-logo {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.6), 0 0 0 7px rgba(168, 117, 58, 0.35), 0 16px 40px rgba(20, 34, 54, 0.3);
+}
+.nw-head h1 {
+  margin: 16px 0 2px;
+  font: 400 46px/1.1 "Nularche Font", cursive;
+  color: #15202f;
+}
+.nw-tagline {
+  margin: 0 0 26px;
+  font-size: 22px;
+  color: #23808e;
+}
+.nw-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.nw-note {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.45;
+  color: #4f5a6c;
+}
+.nw-account {
+  margin: 0;
+  font-size: 18px;
+  color: #2c5a84;
+}
+.nw-error {
+  margin: 0;
+  font-size: 18px;
+  color: #a23b2a;
+}
+.nw-google,
+.nw-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 20px;
+  border-radius: 999px;
+  cursor: pointer;
+  font: 22px "Nularche Font", cursive;
+  text-decoration: none;
+}
+.nw-google {
+  background: #fff;
+  color: #1f1f1f;
+  border: 1px solid #c8ccd2;
+  box-shadow: 0 6px 18px rgba(20, 34, 54, 0.1);
+}
+.nw-google:hover {
+  box-shadow: 0 10px 24px rgba(20, 34, 54, 0.16);
+}
+/* Google'ın renkli "G" işareti (marka yönergelerindeki biçimiyle). */
+.nw-g {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.nw-primary {
+  background: #2c5a84;
+  color: #fff;
+  border: 0;
+  box-shadow: 0 10px 26px rgba(44, 90, 132, 0.3);
+}
+.nw-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.nw-input {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(44, 90, 132, 0.3);
+  background: #fff;
+  font: 16px ui-monospace, Menlo, monospace;
+  color: #1c2636;
+}
+.nw-input:focus-visible,
+.nw-google:focus-visible,
+.nw-primary:focus-visible,
+.nw-text:focus-visible {
+  outline: 2px solid #2c5a84;
+  outline-offset: 3px;
+}
+.nw-text,
+.nw-link {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: 18px "Nularche Font", cursive;
+  color: #2c5a84;
+}
+.nw-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(44, 90, 132, 0.18);
+  border-top-color: #a8753a;
+  animation: nw-spin 0.9s linear infinite;
+}
+@keyframes nw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nw-spinner {
+    animation-duration: 3s;
+  }
+}

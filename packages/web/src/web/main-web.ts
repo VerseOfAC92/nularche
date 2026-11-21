@@ -1,0 +1,13 @@
+// Üretim girişi: Google ile oturum açan web sürümü.
+
+import { GoogleDrive } from "../../../core/src/drive-google.ts";
+import { bootWeb } from "./boot.ts";
+import { signInWithGoogle } from "./google-auth.ts";
+
+void bootWeb({
+  async signIn() {
+    const google = await signInWithGoogle();
+    const drive = new GoogleDrive({ accessToken: (force) => google.accessToken(force) });
+    return { drive, account: await drive.account(), signOut: () => google.signOut() };
+  },
+});

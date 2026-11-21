@@ -391,7 +391,7 @@ export function Sidebar(props: SidebarProps) {
       onMouseLeave={hidden ? peekLeave : undefined}
     >
       <div className="brand">
-        <img src="/logo.png" alt="" />
+        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" />
         <div>
           <strong>Nularche</strong>
           <small title={props.originName}>Origin · {props.originName}</small>

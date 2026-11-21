@@ -41,7 +41,7 @@ export function Onboarding({ aiTick, onToast, onDone }: { aiTick: number; onToas
 
         {step === 0 && (
           <div className="wizard-body center">
-            <img src="/logo.png" alt="" className="wizard-logo" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" className="wizard-logo" />
             <h2>{t("onb.welcomeTitle")}</h2>
             <p className="muted">{t("onb.welcomeText")}</p>
           </div>
