@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Marked } from "marked";
 import { projectRoot } from "../packages/core/src/config.ts";
+import { sceneUrl } from "../packages/web/src/focus/scenes.ts";
 
 const root = projectRoot();
 const site = path.join(root, "site");
@@ -15,17 +16,13 @@ const check = process.argv.includes("--check");
 /** Ana sayfadaki görseller: yayın adı → kaynak. */
 export const SITE_IMAGES: Record<string, string> = {
   "assets/logo.png": "packages/web/public/logo.png",
-  "assets/atrium.png": "docs/screenshots/vigil-atrium-lavender.png",
+  "assets/hero.png": "docs/screenshots/atrium-lavender.png",
+  "assets/fonts/nularche-font.woff2": "packages/web/src/studio/fonts/nularche-font.woff2",
   "assets/security.png": "docs/screenshots/security-light.png",
   "assets/lectio.png": "docs/screenshots/lectio-light.png",
   "assets/codex.png": "docs/screenshots/codex-light.png",
-  "assets/tabula.png": "docs/screenshots/tabula-lavender.png",
-  "assets/storage.png": "docs/screenshots/storage-light.png",
-  "assets/fontes.png": "docs/screenshots/fontes-light.png",
-  "assets/speculum.png": "docs/screenshots/speculum-dark.png",
   "assets/anamnesis.png": "docs/screenshots/anamnesis-light.png",
-  "assets/mosaic.png": "docs/screenshots/mosaic-dark.png",
-  "assets/project.png": "docs/screenshots/project-dark.png",
+  "assets/organise.png": "docs/screenshots/archipelago-lavender.png",
 };
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -55,7 +52,18 @@ ${body}
 `;
 }
 
-const outputs: [string, string | Buffer][] = [["privacy/index.html", privacyPage(await readFile(path.join(root, "PRIVACY.md"), "utf8"))]];
+/** Uygulamanın kendi manzaraları (odak modundaki çizimlerle aynı kod): Lavanta tepeleri ve Gece gökyüzü. */
+function sceneFile(id: string): string {
+  const url = sceneUrl(id);
+  if (!url) throw new Error(`Manzara yok: ${id}`);
+  return decodeURIComponent(url.replace(/^url\("data:image\/svg\+xml;charset=utf-8,/, "").replace(/"\)$/, ""));
+}
+
+const outputs: [string, string | Buffer][] = [
+  ["privacy/index.html", privacyPage(await readFile(path.join(root, "PRIVACY.md"), "utf8"))],
+  ["assets/scene-lavender.svg", sceneFile("lavender")],
+  ["assets/scene-night.svg", sceneFile("night")],
+];
 for (const [to, from] of Object.entries(SITE_IMAGES)) outputs.push([to, await readFile(path.join(root, from))]);
 
 let stale = 0;

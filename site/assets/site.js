@@ -1,4 +1,4 @@
-// nularche.verseofac.com etkileşimleri: dil (EN/TR), canlı bilgi ağı, deneme editörü, özellik sekmeleri, veri akışı,
+// nularche.verseofac.com etkileşimleri: dil (EN/TR), tepelerde derinlik, deneme editörü, özellik sekmeleri, veri akışı,
 // Nularche dili kartları ve işletim sistemine göre indirme. Dış kaynak yok; JavaScript kapalıyken sayfa İngilizce
 // metinleriyle eksiksiz okunur. Kullanıcının yazdığı hiçbir şey sayfadan çıkmaz.
 (() => {
@@ -43,7 +43,8 @@
     "fact.2": "Nularche sunucusu yok",
     "fact.3": "Abonelik yok",
     "fact.4": "MIT açık kaynak",
-    "hero.hint": "İmleci gezdirin: her nokta bir not, her çizgi bir bağlantı.",
+    "hero.note1": "eviniz: hedefler, projeler, hızlı yakalama",
+    "hero.note2": "her sayfa düz bir .md dosyası",
     "idea.kicker": "Fikir",
     "idea.title": "Null + Arche: temiz başla, ilk ilkeler üzerine kur",
     "idea.1.t": "Sıfır noktası",
@@ -118,97 +119,26 @@
     detectOs();
   }
 
-  // ------------------------------------------------------------------ canlı bilgi ağı
-  function graph() {
-    const canvas = $(".graph");
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    let w = 0;
-    let h = 0;
-    let dpr = 1;
-    const mouse = { x: -1e4, y: -1e4 };
-    const nodes = [];
-    const resize = () => {
-      dpr = Math.min(2, devicePixelRatio || 1);
-      w = canvas.clientWidth;
-      h = canvas.clientHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const want = Math.round(Math.min(110, (w * h) / 12000));
-      while (nodes.length < want) nodes.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25, r: 1 + Math.random() * 2.2, hub: Math.random() < 0.08 });
-      nodes.length = want;
-    };
-    const draw = () => {
-      ctx.clearRect(0, 0, w, h);
-      const R = 150;
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i];
-        for (let j = i + 1; j < nodes.length; j++) {
-          const b = nodes[j];
-          const d = Math.hypot(a.x - b.x, a.y - b.y);
-          if (d < R) {
-            ctx.strokeStyle = `rgba(110, 220, 235, ${0.22 * (1 - d / R)})`;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.stroke();
+  // ------------------------------------------------------------------ tepelerde derinlik
+  function hills() {
+    if (reduced) return;
+    const layers = $$(".hills");
+    let ticking = false;
+    addEventListener(
+      "scroll",
+      () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          for (const l of layers) {
+            const r = l.parentElement.getBoundingClientRect();
+            if (r.bottom > 0 && r.top < innerHeight) l.style.transform = "translateY(" + Math.round(-r.top * 0.12) + "px)";
           }
-        }
-        const dm = Math.hypot(a.x - mouse.x, a.y - mouse.y);
-        if (dm < 190) {
-          ctx.strokeStyle = `rgba(160, 140, 255, ${0.45 * (1 - dm / 190)})`;
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(mouse.x, mouse.y);
-          ctx.stroke();
-        }
-      }
-      for (const n of nodes) {
-        ctx.fillStyle = n.hub ? "rgba(190, 170, 255, 0.95)" : "rgba(160, 235, 245, 0.75)";
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.hub ? n.r + 1.5 : n.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    };
-    const step = () => {
-      for (const n of nodes) {
-        const dx = mouse.x - n.x;
-        const dy = mouse.y - n.y;
-        const d = Math.hypot(dx, dy);
-        if (d < 190 && d > 1) {
-          n.vx += (dx / d) * 0.012;
-          n.vy += (dy / d) * 0.012;
-        }
-        n.vx = Math.max(-0.6, Math.min(0.6, n.vx * 0.995));
-        n.vy = Math.max(-0.6, Math.min(0.6, n.vy * 0.995));
-        n.x += n.vx;
-        n.y += n.vy;
-        if (n.x < 0 || n.x > w) n.vx *= -1;
-        if (n.y < 0 || n.y > h) n.vy *= -1;
-      }
-      draw();
-      if (visible) requestAnimationFrame(step);
-    };
-    let visible = true;
-    addEventListener("resize", resize);
-    const hero = canvas.parentElement;
-    hero.addEventListener("pointermove", (e) => {
-      const r = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - r.left;
-      mouse.y = e.clientY - r.top;
-      if (reduced) draw();
-    });
-    hero.addEventListener("pointerleave", () => ((mouse.x = -1e4), (mouse.y = -1e4)));
-    resize();
-    if (reduced) return draw();
-    new IntersectionObserver(([e]) => {
-      const was = visible;
-      visible = e.isIntersecting;
-      if (visible && !was) requestAnimationFrame(step);
-    }).observe(canvas);
-    requestAnimationFrame(step);
+          ticking = false;
+        });
+      },
+      { passive: true },
+    );
   }
 
   // ------------------------------------------------------------------ deneme editörü
@@ -327,8 +257,8 @@
   // ------------------------------------------------------------------ özellik sekmeleri
   const TABS = {
     organise: {
-      img: "/assets/project.png",
-      alt: ["A project page with an embedded task board", "Gömülü görev panosu olan bir proje sayfası"],
+      img: "/assets/organise.png",
+      alt: ["The sidebar with Arches grouped into Archipelagos over the Lavender Hills", "Lavanta tepeleri üzerinde Archipelago'lara ayrılmış Arche'lerle kenar çubuğu"],
       title: ["Notes, databases and boards", "Notlar, veritabanları ve panolar"],
       items: [
         ["Arches with nested pages, a Shadow inbox, tags, smart folders, backlinks and a graph.", "İç içe sayfalı Arche'ler, Shadow gelen kutusu, etiketler, akıllı klasörler, geri bağlantılar ve grafik."],
@@ -437,6 +367,7 @@
     const box = $("[data-flow]");
     box.dataset.flow = mode;
     $("[data-packet]").textContent = f.packet;
+    $(".packet").hidden = !f.packet;
     $("[data-drive-sees]").textContent = f.drive[i];
     $("[data-flow-caption]").textContent = f.caption[i];
   }
@@ -544,7 +475,7 @@
     store.set("nlc-lang", lang);
     applyLang();
   });
-  graph();
+  hills();
   demo();
   tabs();
   flow();
