@@ -11,8 +11,8 @@
 <meta name="theme-color" content="#f4ecdf">
 <link rel="icon" href="/assets/logo.png">
 <link rel="preload" href="/assets/fonts/nularche-font.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/site.css?v=b4aac41999">
-<script src="/assets/site.js?v=f098b8d458" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=3cb229f713">
+<script src="/assets/site.js?v=e8343bdddc" defer></script>
 </head>
 <body>
 <svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -117,7 +117,7 @@
       <header class="sec-head">
         <p class="kicker" data-i18n="try.kicker">Try it here</p>
         <h2 data-i18n="try.title">Write like you do in Nularche</h2>
-        <p class="intro" data-i18n="try.intro">Write on the right, the way you do in Nularche: start a line with # for a heading or - [ ] for a task, or write Question :: Answer. On the left is the plain Markdown file Nularche saves, which any editor can open. Nothing you type leaves this page.</p>
+        <p class="intro" data-i18n="try.intro">Write on the right, the way you do in Nularche: type / for headings, lists, tasks, bold, highlight and more, or select text to format it. On the left is the plain Markdown file Nularche saves, which any editor can open. Nothing you type leaves this page.</p>
       </header>
       <div class="app-window">
         <div class="titlebar"><span></span><span></span><span></span><b>Nularche</b></div>
@@ -127,7 +127,7 @@
             <pre class="md" data-demo-md aria-live="polite"></pre>
           </div>
           <div class="pg-editor">
-            <span class="pg-label" data-i18n="try.yours">In Nularche</span>
+            <span class="pg-label"><span data-i18n="try.yours">In Nularche</span> · <span class="pg-hint" data-i18n="try.hint">type / for commands, select text to format</span></span>
             <div class="ed" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Note editor" data-demo-editor></div>
           </div>
         </div>
@@ -137,6 +137,9 @@
         </div>
       </div>
       <div class="chips">
+        <button type="button" class="chip accent" data-insert="/" data-i18n="try.slash">/ commands</button>
+        <button type="button" class="chip" data-insert="**bold**">**bold**</button>
+        <button type="button" class="chip" data-insert="==highlight==">==highlight==</button>
         <button type="button" class="chip" data-insert="[[Thesis]]">[[link]]</button>
         <button type="button" class="chip" data-insert="#idea">#tag</button>
         <button type="button" class="chip" data-insert="[@nora1989]">[@citation]</button>
