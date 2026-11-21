@@ -9,3 +9,5 @@ build/icon-source.png
 google-client.json
 client_secret_*.json
 dist-web/
+# Web sürümü Cloudflare Pages derlemesinde üretilir (npm run build:pages).
+site/app/

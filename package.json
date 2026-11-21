@@ -25,6 +25,7 @@
     "check:web-platform": "node scripts/web-platform/check-bundle.ts",
     "check:web-bridge": "node scripts/web-platform/check-bridge.ts",
     "build:web": "node scripts/build-web.ts",
+    "build:pages": "node scripts/build-site.ts --check && node scripts/build-web.ts --out site/app",
     "check:web-app": "node scripts/web-platform/check-web-app.ts",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write packages scripts",
