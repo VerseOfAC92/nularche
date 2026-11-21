@@ -20,7 +20,13 @@
     "smoke:packaged": "node scripts/smoke-packaged.ts",
     "mcp": "node packages/mcp/src/index.ts",
     "mcp:smoke": "node scripts/mcp-smoke.ts",
-    "test": "node --test \"packages/core/test/*.test.ts\" && vitest run",
+    "test": "node --test \"packages/core/test/*.test.ts\" \"packages/web-platform/test/*.test.ts\" && vitest run",
+    "test:web-platform": "node scripts/web-platform/test.mjs",
+    "check:web-platform": "node scripts/web-platform/check-bundle.ts",
+    "check:web-bridge": "node scripts/web-platform/check-bridge.ts",
+    "build:web": "node scripts/build-web.ts",
+    "build:pages": "node scripts/build-site.ts --check && node scripts/build-web.ts --out site/app",
+    "check:web-app": "node scripts/web-platform/check-web-app.ts",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write packages scripts",
     "connect": "node scripts/connect-ai.ts",
@@ -52,6 +58,7 @@
     "@tiptap/starter-kit": "^3.32.0",
     "@tiptap/suggestion": "^3.32.0",
     "@types/node": "^26.6.5",
+    "@types/path-browserify": "^1.0.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
@@ -97,8 +104,12 @@
     "notion-alternative"
   ],
   "dependencies": {
+    "@noble/ciphers": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "buffer": "^6.0.3",
     "dompurify": "^3.2.6",
     "marked": "17.0.6",
+    "path-browserify": "^1.0.1",
     "pdfjs-dist": "^6.4.299"
   }
 }

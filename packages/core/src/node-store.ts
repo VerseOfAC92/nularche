@@ -1157,8 +1157,20 @@ export class NodeStore {
     const auto = await this.autoHistory(id);
     if (auto[0] && Date.now() - auto[0].at < HISTORY_INTERVAL_MS) return;
     await mkdir(dir, { recursive: true });
-    await writeFile(path.join(dir, `${Date.now()}.md`), text);
+    await writeFile(path.join(dir, `${await this.freeHistoryTime(id)}.md`), text);
     for (const old of auto.slice(HISTORY_LIMIT - 1)) await rm(path.join(dir, `${old.at}.md`), { force: true });
+  }
+
+  /**
+   * Yeni bir geçmiş kaydı için zaman: otomatik sürümler ve Epoch'lar aynı zaman alanını paylaşır (geçmiş listesi ve
+   * `entryFile` kaydı zamanıyla bulur), bu yüzden ikisinde de kullanılmamış ilk milisaniye seçilir.
+   */
+  private async freeHistoryTime(id: string): Promise<number> {
+    const used = new Set((await this.history(id)).map((e) => e.at));
+    for (const at of Object.keys(await this.epochLabels(id))) used.add(Number(at));
+    let at = Date.now();
+    while (used.has(at)) at++;
+    return at;
   }
 
   private async epochLabels(id: string): Promise<Record<string, string>> {
@@ -1295,8 +1307,7 @@ export class NodeStore {
     if (entries.filter((e) => e.label).length >= CHECKPOINT_LIMIT) throw new NodeError("invalid", `En fazla ${CHECKPOINT_LIMIT} kontrol noktası saklanır; önce birini silin.`);
     const dir = this.epochDir(meta.id);
     await mkdir(dir, { recursive: true });
-    let at = Date.now();
-    while (entries.some((e) => e.at === at)) at++;
+    const at = await this.freeHistoryTime(meta.id);
     const text = await readFile(this.abs(meta.path), "utf8");
     await writeFile(path.join(dir, `${at}.md`), text);
     const labels = await this.epochLabels(meta.id);

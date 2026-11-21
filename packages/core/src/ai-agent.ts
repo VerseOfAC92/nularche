@@ -14,8 +14,8 @@ const numbered = (body: string) =>
     .map((b, i) => `[${i}]\n${b}`)
     .join("\n\n");
 
-// Testlerde sahte bir Gemini sunucusu kullanılabilir.
-const API = process.env.NULARCHE_GEMINI_API || "https://generativelanguage.googleapis.com/v1beta";
+/** Gemini API kökü; testlerde sahte bir sunucu verilebilir (`api` seçeneği). */
+export const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
 export const AUTO_CLIENT = "nularche-auto (Gemini)";
 
 type Fetch = typeof fetch;
@@ -34,13 +34,13 @@ export const CALL_TIMEOUT_MS = 180_000;
 /** Bir isteğin tüm model denemeleriyle birlikte üst süresi. */
 export const REQUEST_DEADLINE_MS = 8 * 60_000;
 
-async function call(fetchImpl: Fetch, apiKey: string, path: string, body?: unknown, signal?: AbortSignal): Promise<any> {
+async function call(fetchImpl: Fetch, api: string, apiKey: string, path: string, body?: unknown, signal?: AbortSignal): Promise<any> {
   const timeout = AbortSignal.timeout(CALL_TIMEOUT_MS);
   const abort = signal ? AbortSignal.any([signal, timeout]) : timeout;
   let res: Response;
   let data: any;
   try {
-    res = await fetchImpl(`${API}/${path}`, {
+    res = await fetchImpl(`${api}/${path}`, {
       method: body === undefined ? "GET" : "POST",
       headers: { "x-goog-api-key": apiKey, ...(body === undefined ? {} : { "content-type": "application/json" }) },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -101,8 +101,8 @@ export function pickGeminiModel(models: GeminiModel[]): string | null {
 }
 
 /** Anahtarı doğrular ve modelleri deneme sırasıyla döndürür. */
-export async function checkGeminiKey(apiKey: string, fetchImpl: Fetch = fetch): Promise<{ model: string; models: string[] }> {
-  const data = await call(fetchImpl, apiKey, "models?pageSize=200");
+export async function checkGeminiKey(apiKey: string, fetchImpl: Fetch = fetch, api = GEMINI_API): Promise<{ model: string; models: string[] }> {
+  const data = await call(fetchImpl, api, apiKey, "models?pageSize=200");
   const models = rankGeminiModels(data.models ?? []);
   if (!models.length) throw new AgentError("model", "Bu anahtarla kullanılabilen bir Gemini modeli bulunamadı.");
   return { model: models[0], models };
@@ -260,6 +260,8 @@ export interface AgentOptions {
   /** Deneme sırasına göre modeller; ilki tercih edilen (en son çalışan) modeldir. */
   models: string[];
   fetchImpl?: Fetch;
+  /** Gemini API kökü (varsayılan GEMINI_API). */
+  api?: string;
   maxSteps?: number;
   /** Yoğunluk hatasında aynı modeli yeniden denemeden önce bekleme (ms). */
   retryDelayMs?: number;
@@ -302,7 +304,7 @@ async function buildIntro(o: AgentOptions, req: AiRequest): Promise<string> {
 async function converse(o: AgentOptions, req: AiRequest, model: string, fetchImpl: Fetch, signal: AbortSignal): Promise<string> {
   const contents: any[] = [{ role: "user", parts: [{ text: await buildIntro(o, req) }] }];
   for (let step = 0; step < (o.maxSteps ?? 12); step++) {
-    const data = await call(fetchImpl, o.apiKey, `models/${encodeURIComponent(model)}:generateContent`, {
+    const data = await call(fetchImpl, o.api ?? GEMINI_API, o.apiKey, `models/${encodeURIComponent(model)}:generateContent`, {
       systemInstruction: { parts: [{ text: `${SYSTEM}\n${replyLanguageRule(req)}${req.readOnly ? `\n${READ_ONLY_RULE}` : ""}` }] },
       contents,
       tools: [{ functionDeclarations: req.readOnly ? TOOLS.filter((t) => !WRITE_TOOLS.has(t.name)) : TOOLS }],
@@ -409,6 +411,7 @@ export async function transcribeAudio(o: {
   mode: "transcript" | "summary";
   language: "tr" | "en";
   fetchImpl?: Fetch;
+  api?: string;
 }): Promise<{ text: string; model: string }> {
   const fetchImpl = o.fetchImpl ?? fetch;
   const prompt =
@@ -418,7 +421,7 @@ export async function transcribeAudio(o: {
   let last: AgentError | null = null;
   for (const model of o.models) {
     try {
-      const data = await call(fetchImpl, o.apiKey, `models/${encodeURIComponent(model)}:generateContent`, {
+      const data = await call(fetchImpl, o.api ?? GEMINI_API, o.apiKey, `models/${encodeURIComponent(model)}:generateContent`, {
         contents: [{ role: "user", parts: [{ inline_data: { mime_type: o.mime, data: Buffer.from(o.data).toString("base64") } }, { text: prompt }] }],
         generationConfig: { temperature: 0.2 },
       });

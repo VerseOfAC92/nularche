@@ -16,7 +16,7 @@ import { TEXT_COLORS } from "./text-colors.ts";
 import { buildExtensions } from "./extensions.ts";
 import { CALLOUT_KINDS, type CalloutKind } from "./markdown-extensions.ts";
 import { fileUrl, fromEditorMarkdown, toEditorMarkdown, vaultPathFromUrl } from "./paths.ts";
-import { desktop } from "../desktop.ts";
+import { autoBridge, desktop } from "../desktop.ts";
 import { getLang } from "../i18n/index.ts";
 import { modPressed } from "../shortcuts.tsx";
 import { registerEditorUi, runCommand, setActiveEditor } from "../commands.ts";
@@ -718,11 +718,11 @@ export function Editor(props: EditorProps) {
   const mediaHost: MediaHost = {
     transcribe: async (src, mode) => {
       const path = vaultPathFromUrl(src);
-      if (!desktop || !path) {
+      if (!autoBridge || !path) {
         propsRef.current.onToast?.(t("media.desktopOnly"));
         return null;
       }
-      const res = await desktop.transcribe(path, mode, getLang());
+      const res = await autoBridge.transcribe(path, mode, getLang());
       if (!res.ok) {
         propsRef.current.onError(res.needsAuto ? t("media.needAuto") : (res.error ?? "error"));
         return null;

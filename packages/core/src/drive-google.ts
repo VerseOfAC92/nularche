@@ -28,11 +28,11 @@ export class DriveError extends Error {
   }
 }
 
-export interface DriveCredentials {
-  clientId: string;
-  clientSecret: string;
-  refreshToken: string;
-}
+/**
+ * Masaüstü: yenileme belirteciyle kendi erişim belirtecini alır. Web: erişim belirtecini tarayıcıdaki Google oturum
+ * açma penceresi verir (yenileme belirteci ve istemci sırrı yoktur); `force` süresi dolan belirtecin yenisini ister.
+ */
+export type DriveCredentials = { clientId: string; clientSecret: string; refreshToken: string } | { accessToken: (force?: boolean) => Promise<string> };
 
 export interface DriveEndpoints {
   token?: string;
@@ -104,7 +104,8 @@ export class GoogleDrive implements DriveApi {
     this.tokenUrl = endpoints.token ?? TOKEN_URL;
   }
 
-  private async token(): Promise<string> {
+  private async token(force = false): Promise<string> {
+    if ("accessToken" in this.creds) return this.creds.accessToken(force);
     if (this.access && this.access.until > Date.now()) return this.access.token;
     let res: Response;
     try {
@@ -130,8 +131,14 @@ export class GoogleDrive implements DriveApi {
   }
 
   private async call(url: string, init: RequestInit = {}): Promise<Response> {
-    const headers = { authorization: `Bearer ${await this.token()}`, ...(init.headers as Record<string, string>) };
-    return request(this.f, url, { ...init, headers });
+    const send = async (force: boolean) => request(this.f, url, { ...init, headers: { authorization: `Bearer ${await this.token(force)}`, ...(init.headers as Record<string, string>) } });
+    try {
+      return await send(false);
+    } catch (e) {
+      // Web: erişim belirtecinin süresi dolmuş olabilir; bir kez yenisiyle denenir.
+      if ("accessToken" in this.creds && e instanceof DriveError && e.status === 401) return send(true);
+      throw e;
+    }
   }
 
   private async json<T>(url: string, init: RequestInit = {}): Promise<T> {

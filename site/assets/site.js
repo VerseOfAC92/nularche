@@ -39,6 +39,7 @@
     "hero.lede": "Nularche, bildiğiniz her şeyi kendi klasörünüzde düz Markdown dosyaları olarak tutan, ücretsiz ve açık kaynaklı bir not uygulamasıdır. Zaten kullandığınız yapay zekâ düşünmenize, yazmanıza ve hatırlamanıza yardım eder.",
     "hero.download": "Nularche 3.0'ı indirin",
     "hero.try": "Burada deneyin",
+    "hero.web": "Tarayıcıda aç",
     "fact.1": "Hesap yok",
     "fact.2": "Nularche sunucusu yok",
     "fact.3": "Abonelik yok",
@@ -96,7 +97,7 @@
     "dl.copy": "Kopyala",
     "dl.source": "GitHub'da kaynak kod",
     "dl.notes": "Sürüm notları",
-    "dl.web": "Tarayıcıda Nularche: yakında",
+    "dl.web": "Nularche'yi tarayıcıda açın",
     "foot.privacy": "Gizlilik politikası",
     "foot.source": "Kaynak kod",
   };

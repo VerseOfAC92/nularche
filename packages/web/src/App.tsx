@@ -1051,7 +1051,7 @@ export function App() {
 function Welcome({ onCreate, onShadow }: { onCreate: (p: ParentTarget) => void; onShadow: () => void }) {
   return (
     <div className="welcome">
-      <img src="/logo.png" alt="Nularche" />
+      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Nularche" />
       <h1>Nularche</h1>
       <div className="phonetic">/ˈnʌl.ɑːrk/ · nul-ark</div>
       <p className="muted">{t("welcome.tagline")}</p>

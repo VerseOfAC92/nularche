@@ -3,7 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { NodeMeta } from "./api.ts";
 import { decryptArche, encryptArche } from "./archeCrypt.ts";
-import { DEFAULT_LOCK_TIMEOUT, LOCK_TIMEOUTS, lockNow } from "./autoLock.ts";
+import { DEFAULT_LOCK_TIMEOUT, DEFAULT_WEB_LOCK_TIMEOUT, LOCK_TIMEOUTS, lockNow, WEB_LOCK_TIMEOUTS } from "./autoLock.ts";
+import { webSession } from "./desktop.ts";
 import { t } from "./i18n/index.ts";
 import { forgetArche, isArcheUnlocked, onLockChange, openLockedCount, unlockArche } from "./lock.ts";
 import { usePref } from "./prefs.ts";
@@ -30,10 +31,36 @@ function useLockTick(): number {
 export function SecuritySettings({ nodes, onToast, onChanged }: { nodes: NodeMeta[]; onToast: (msg: string) => void; onChanged: () => void }) {
   return (
     <>
+      {webSession && <WebLockCard />}
       <AutoLockCard />
       <ArcheLockCard nodes={nodes} onToast={onToast} onChanged={onChanged} />
       <SnapshotSettings onToast={onToast} onChanged={onChanged} />
     </>
+  );
+}
+
+/** Web sürümü: oturumun hareketsizlikte kilitlenme süresi (her zaman açık) ve hemen kilitleme. */
+function WebLockCard() {
+  const [minutes, setMinutes] = usePref<number>("webLockTimeout", DEFAULT_WEB_LOCK_TIMEOUT);
+  return (
+    <Card title={t("web.idleTitle")} hint={t("web.idleHint")}>
+      <label className="row">
+        <span>{t("autoLock.after")}</span>
+        <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} data-testid="web-lock-timeout">
+          {WEB_LOCK_TIMEOUTS.map((m) => (
+            <option key={m} value={m}>
+              {t("autoLock.minutes", { n: m })}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="row">
+        <span className="muted small grow">{webSession!.account}</span>
+        <button className="secondary" onClick={() => void webSession!.lock()}>
+          <Icon name="lock" size={14} /> {t("web.lock")}
+        </button>
+      </div>
+    </Card>
   );
 }
 

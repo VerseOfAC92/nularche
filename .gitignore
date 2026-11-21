@@ -8,3 +8,6 @@ build/icon-source.png
 # Yerleşik Google istemcisi (Google Cloud'dan indirilen JSON); depoya girmez.
 google-client.json
 client_secret_*.json
+dist-web/
+# Web sürümü Cloudflare Pages derlemesinde üretilir (npm run build:pages).
+site/app/

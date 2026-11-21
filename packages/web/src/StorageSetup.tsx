@@ -3,7 +3,7 @@
 // durumda da çalışma kopyasıdır; Google Drive seçilince Drive'daki Nularche klasörüyle iki yönlü eşitlenir.
 
 import { useCallback, useEffect, useState } from "react";
-import { desktop, type DriveStatus } from "./desktop.ts";
+import { desktop, webSession, type DriveStatus } from "./desktop.ts";
 import { locale, t } from "./i18n/index.ts";
 import { GoogleSignIn } from "./calendar/CalendarSync.tsx";
 import { Icon } from "./ui/Icon.tsx";
@@ -339,5 +339,47 @@ function Unlock({ onDone }: { onDone: (msg: string) => void }) {
       </div>
       {error && <p className="warn small">{error}</p>}
     </form>
+  );
+}
+
+/** Web sürümünde Google Drive: notlar girişte Drive'dan açıldığı için bağlantı her zaman kuruludur; durum ve elle eşitleme. */
+export function WebDriveCard() {
+  const session = webSession!;
+  const [status, setStatus] = useState(session.driveStatus());
+  useEffect(() => session.onDriveStatus(() => setStatus(session.driveStatus())), [session]);
+  const line =
+    status.state === "syncing" || status.state === "starting"
+      ? t("web.drive.syncing")
+      : status.state === "error"
+        ? t("web.drive.error", { error: status.message.split("\n")[0].slice(0, 160) })
+        : t("web.drive.synced", { time: new Date(status.at).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) });
+  return (
+    <div className="storage-choice" data-testid="web-drive">
+      <div className="storage-option on">
+        <div className="storage-head">
+          <span className="storage-icon drive">
+            <DriveMark />
+          </span>
+          <div className="grow">
+            <b>{t("web.drive.title")}</b>
+            <p className="muted small">{t("web.drive.connected", { account: session.account })}</p>
+          </div>
+          <span className="pill on">
+            <Icon name={session.encrypted ? "lock" : "check"} size={13} /> {session.encrypted ? t("web.drive.encrypted") : t("web.drive.plain")}
+          </span>
+        </div>
+        <div className="storage-body">
+          <div className="storage-status">
+            <Icon name={status.state === "error" ? "alert-triangle" : status.state === "idle" ? "cloud-check" : "refresh"} size={16} className={status.state === "syncing" ? "spin" : ""} />
+            <span className={`grow small ${status.state === "error" ? "warn" : "muted"}`}>{line}</span>
+          </div>
+          <div className="row">
+            <button className="secondary" disabled={status.state === "syncing"} onClick={() => void session.syncNow()}>
+              <Icon name="refresh" size={15} /> {t("web.drive.syncNow")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -6,7 +6,7 @@
 //   4. Bağlantı doğrulandı: AI aracı Nularche'ye ilk bağlandığında otomatik algılanır
 
 import { useCallback, useEffect, useState } from "react";
-import { copyText, desktop, type AiStatus, type ConnectionStatus, type LauncherId, type ProviderId } from "../desktop.ts";
+import { copyText, desktop, webSession, type AiStatus, type ConnectionStatus, type LauncherId, type ProviderId } from "../desktop.ts";
 import { AutoModeSetup } from "./AutoModeSetup.tsx";
 import { ago, t } from "../i18n/index.ts";
 import { Icon } from "../ui/Icon.tsx";
@@ -47,6 +47,15 @@ export function AiSetup({ tick = 0, compact = false, onToast }: { tick?: number;
     return () => clearInterval(timer);
   }, [refresh]);
 
+  if (!desktop && webSession) {
+    // Web sürümü: AI araçlarının masaüstü uygulamaları açılamaz; Nularche AI, Gemini anahtarıyla çalışır.
+    return (
+      <div className={`ai-setup ${compact ? "compact" : ""}`}>
+        <div className="ai-mode-title"><Icon name="bolt" /> {t("ais.autoTitle")}</div>
+        <AutoModeSetup onToast={onToast} onChanged={refresh} />
+      </div>
+    );
+  }
   if (!desktop) {
     return (
       <div className="ai-setup">

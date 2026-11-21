@@ -2,7 +2,7 @@
 // anahtarı alır ve bir kez Nularche'ye yapıştırır. Sonrasında Nularche AI istekleri arka planda işlenir.
 
 import { useCallback, useEffect, useState } from "react";
-import { desktop } from "../desktop.ts";
+import { autoBridge, openExternal, webSession } from "../desktop.ts";
 import { t } from "../i18n/index.ts";
 import { Icon } from "../ui/Icon.tsx";
 
@@ -17,7 +17,7 @@ const announce = () => window.dispatchEvent(new Event(AUTO_EVENT));
 export function useAutoStatus(tick = 0): [AutoStatus | null, () => Promise<void>] {
   const [status, setStatus] = useState<AutoStatus | null>(null);
   const refresh = useCallback(async () => {
-    if (desktop) setStatus(await desktop.autoStatus());
+    if (autoBridge) setStatus(await autoBridge.autoStatus());
   }, []);
   useEffect(() => {
     void refresh();
@@ -36,12 +36,12 @@ export function AutoModeSetup({ onToast, onChanged }: { onToast: (msg: string) =
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!desktop || !status) return null;
+  if (!autoBridge || !status) return null;
 
   async function save() {
     setBusy(true);
     setError(null);
-    const res = await desktop!.autoSetKey(key);
+    const res = await autoBridge!.autoSetKey(key);
     setBusy(false);
     if (res.ok) {
       setKey("");
@@ -64,7 +64,7 @@ export function AutoModeSetup({ onToast, onChanged }: { onToast: (msg: string) =
           <button
             className="secondary"
             onClick={() =>
-              desktop!
+              autoBridge!
                 .autoEnable(!status.enabled)
                 .then(refresh)
                 .then(() => (announce(), onChanged?.()))
@@ -76,7 +76,7 @@ export function AutoModeSetup({ onToast, onChanged }: { onToast: (msg: string) =
             className="secondary"
             onClick={() =>
               confirm(t("auto.removeConfirm")) &&
-              desktop!
+              autoBridge!
                 .autoClear()
                 .then(refresh)
                 .then(() => (announce(), onChanged?.()))
@@ -92,10 +92,11 @@ export function AutoModeSetup({ onToast, onChanged }: { onToast: (msg: string) =
   return (
     <div className="auto-box">
       <p className="muted small">{t("auto.intro")}</p>
+      {webSession && <p className="muted small">{t("auto.webKeyNote")}</p>}
       <div className="ai-row">
         <span className="ai-step-no">a</span>
         <span className="ai-row-name">{t("auto.stepA")}</span>
-        <button className="primary" onClick={() => desktop!.aiDownload(GEMINI_KEY_URL)}>
+        <button className="primary" onClick={() => openExternal(GEMINI_KEY_URL)}>
           {t("auto.getKey")}
         </button>
       </div>
