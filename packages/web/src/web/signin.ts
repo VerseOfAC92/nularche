@@ -50,6 +50,8 @@ const TEXT = {
   ],
   download: ["Get the desktop app", "Masaüstü uygulamasını indirin"],
   failed: ["Something went wrong:", "Bir sorun oluştu:"],
+  locked_notice: ["Nularche is locked. Your notes were removed from this tab's memory; sign in to open them again.", "Nularche kilitlendi. Notlarınız bu sekmenin belleğinden silindi; yeniden açmak için giriş yapın."],
+  signed_out_notice: ["You are signed out. Nothing from your notes is left in this browser.", "Çıkış yaptınız. Bu tarayıcıda notlarınızdan hiçbir şey kalmadı."],
 } as const;
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
@@ -60,7 +62,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 };
 
 /** Giriş penceresini gösterir; notlar açılınca pencereyi kaldırıp oturumu döndürür. */
-export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) => void): Promise<OpenedSession> {
+export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) => void, ended: "locked" | "signed-out" | null = null): Promise<OpenedSession> {
   let lang: Lang = getLang();
   const tx = (k: keyof typeof TEXT) => TEXT[k][lang === "tr" ? 1 : 0];
 
@@ -91,6 +93,7 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
       const body = el("section", "nw-body");
 
       if (state.step === "start" || state.step === "error") {
+        if (state.step === "start" && ended) body.append(el("p", "nw-notice", tx(ended === "locked" ? "locked_notice" : "signed_out_notice")));
         if (state.step === "error") body.append(el("p", "nw-error", `${tx("failed")} ${state.message}`));
         const g = el("button", "nw-google");
         g.type = "button";

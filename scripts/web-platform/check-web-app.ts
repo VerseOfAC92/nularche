@@ -16,6 +16,7 @@ import { NodeStore } from "../../packages/core/src/node-store.ts";
 import { startFakeDrive } from "../../packages/core/test/fake-drive.ts";
 import { startFakeGoogleCalendar } from "../../packages/core/test/fake-google-calendar.ts";
 import { buildWeb } from "../build-web.ts";
+import { APP_HEADERS } from "../site-headers.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const shotsArg = process.argv.indexOf("--shots");
@@ -71,7 +72,8 @@ try {
         if (!file.startsWith(out)) throw new Error("dışarı");
         const body = await readFile(file);
         const type = rel.endsWith(".js") ? "text/javascript" : rel.endsWith(".css") ? "text/css" : rel.endsWith(".png") ? "image/png" : rel.endsWith(".woff2") ? "font/woff2" : rel.endsWith(".html") ? "text/html" : "application/octet-stream";
-        res.writeHead(200, { "content-type": type, "cache-control": "no-store" });
+        // Yayındaki /app başlıklarıyla (CSP dahil): kurallar uygulamayı ya da Google bağlantılarını engellememeli.
+        res.writeHead(200, { "content-type": type, "cache-control": "no-store", ...Object.fromEntries(APP_HEADERS) });
         return res.end(body);
       } catch {
         if (!path.extname(rel)) {
@@ -90,7 +92,9 @@ try {
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, locale: "tr-TR" });
     const errors: string[] = [];
+    const csp: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
+    page.on("console", (m) => /Content Security Policy|Refused to (load|connect|execute|apply|frame)/i.test(m.text()) && csp.push(m.text()));
     await page.goto(`${base}/app/`);
     await page.waitForSelector(".nw-google");
     if (shots) await page.screenshot({ path: path.join(shots, "1-giris.png") });
@@ -172,6 +176,22 @@ try {
     check(stored.dbs === 0 && stored.caches === 0 && !/node|note|origin|key/i.test(stored.ls), `tarayıcı depolamasında not ya da anahtar yok (localStorage: ${stored.ls || "boş"})`);
     check(!network.some((p) => p.startsWith("/api/") || p.startsWith("/files/")), "hiçbir /api ya da /files isteği ağa gitmedi");
     check(errors.length === 0, `sayfada hata yok${errors.length ? `: ${errors.join("; ")}` : ""}`);
+    check(csp.length === 0, `güvenlik kuralı (CSP) ihlali yok${csp.length ? `: ${csp.slice(0, 3).join(" | ")}` : ""}`);
+
+    // Kilitle: bekleyen değişiklik gönderilir, sayfa giriş penceresine döner ve bellekte not kalmaz.
+    check(await page.getByTestId("web-session").isVisible(), "kenar çubuğunda Kilitle ve Çıkış düğmeleri var");
+    await page.evaluate(async () => {
+      await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Kilit öncesi", parentNodeId: null, body: "hemen kilitlendi" }) });
+    });
+    await page.getByTestId("web-session").getByText("Kilitle").click();
+    await page.waitForSelector(".nw-notice", { timeout: 20_000 });
+    check(/kilitlendi/i.test((await page.locator(".nw-notice").textContent()) ?? ""), "kilitleyince giriş penceresi açılıyor ve bunu bildiriyor");
+    check(
+      [...fake.files.values()].some((f) => !f.trashed && f.name.endsWith(".nlce") && decryptFile(keys, new Uint8Array(f.data)).rel.includes("Kilit")),
+      "kilitlemeden hemen önceki değişiklik Drive'a gönderildi",
+    );
+    check(await page.evaluate(() => !("nularcheWeb" in window)), "kilitten sonra sayfada oturum kalmadı");
+    check(page.url().endsWith("/app/"), "adres temizlendi");
   } finally {
     await browser.close();
     server.close();

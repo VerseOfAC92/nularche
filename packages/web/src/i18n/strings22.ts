@@ -19,4 +19,10 @@ export const STRINGS_22 = {
   "web.drive.synced": { tr: "Son eşitleme: {time}", en: "Last synced: {time}" },
   "web.drive.error": { tr: "Eşitleme hatası: {error}", en: "Sync error: {error}" },
   "web.drive.syncNow": { tr: "Şimdi eşitle", en: "Sync now" },
+  "web.lock": { tr: "Kilitle", en: "Lock" },
+  "web.lockHint": { tr: "Değişiklikleri gönderir ve notları bu sekmenin belleğinden siler", en: "Sends your changes and removes your notes from this tab's memory" },
+  "web.signOut": { tr: "Çıkış yap", en: "Sign out" },
+  "web.signOutConfirm": { tr: "Çıkış yapılsın mı? Değişiklikler gönderilir, notlar bu tarayıcıdan silinir ve Google oturumu kapanır.", en: "Sign out? Your changes are sent, your notes are removed from this browser and the Google session ends." },
+  "web.idleTitle": { tr: "Bu tarayıcıda kilitle", en: "Lock in this browser" },
+  "web.idleHint": { tr: "Bu süre hareketsiz kalınca web oturumu kilitlenir: değişiklikler gönderilir, notlar bellekten silinir.", en: "After this much inactivity the web session locks: changes are sent and your notes are removed from memory." },
 } as const;

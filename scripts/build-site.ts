@@ -4,6 +4,7 @@
 // işlenir; Cloudflare Pages `site/` klasörünü derleme yapmadan yayınlar. `--check` yalnızca güncel olup
 // olmadıklarını denetler (CI).
 
+import { headersFile } from "./site-headers.ts";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -65,6 +66,7 @@ const index = (await readFile(path.join(site, "index.html"), "utf8"))
   .replace(/\/assets\/site\.js(\?v=\w+)?/g, JS);
 
 const outputs: [string, string | Buffer][] = [
+  ["_headers", headersFile()],
   ["index.html", index],
   ["privacy/index.html", privacyPage(await readFile(path.join(root, "PRIVACY.md"), "utf8"), CSS)],
 ];

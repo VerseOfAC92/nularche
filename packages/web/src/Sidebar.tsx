@@ -19,7 +19,7 @@ import { peekEnter, peekLeave, usePeek } from "./sidebarPeek.ts";
 import { Icon } from "./ui/Icon.tsx";
 import { nodeIconName } from "./ui/node-icon.ts";
 import { addContextItems } from "./contextMenu.ts";
-import { desktop } from "./desktop.ts";
+import { desktop, webSession } from "./desktop.ts";
 
 const DRAG_TYPE = "application/x-nularche-node";
 
@@ -561,6 +561,16 @@ export function Sidebar(props: SidebarProps) {
         <button className="side-btn" onClick={props.onOpenSettings}>
           <Icon name="settings" /> {t("settings.title")}
         </button>
+        {webSession && (
+          <div className="side-web" data-testid="web-session">
+            <button className="side-btn" onClick={() => void webSession!.lock()} title={t("web.lockHint")}>
+              <Icon name="lock" /> {t("web.lock")}
+            </button>
+            <button className="side-btn" onClick={() => confirm(t("web.signOutConfirm")) && void webSession!.signOut()} title={webSession.account}>
+              <Icon name="logout" /> {t("web.signOut")}
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

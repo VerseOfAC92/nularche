@@ -297,6 +297,9 @@ export interface WebSession {
   driveStatus(): WebDriveStatus;
   onDriveStatus(cb: () => void): () => void;
   syncNow(): Promise<void>;
+  /** Değişiklikleri gönderir, notları ve anahtarları bellekten siler; yeniden açmak için giriş gerekir. */
+  lock(): Promise<void>;
+  /** Kilitler ve Google oturumunu da kapatır (izin geri alınır). */
   signOut(): Promise<void>;
 }
 export type WebDriveStatus = { state: "syncing" } | { state: "idle"; at: number } | { state: "error"; message: string } | { state: "starting" };

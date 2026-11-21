@@ -59,6 +59,8 @@ export interface WebOrigin {
   readonly store: NodeStore;
   /** Bekleyen değişiklikleri hemen Drive'a gönderir ve Drive'daki değişiklikleri çeker. */
   sync(): Promise<DriveSyncReport | null>;
+  /** Drive'a henüz gönderilmemiş değişiklik ya da süren eşitleme var mı (sekme kapatılırken uyarı için). */
+  pending(): boolean;
   /** Bekleyen değişiklikler gönderildikten sonra (`flush`) belleği temizler; oturum kullanılamaz hâle gelir. */
   close(options?: { flush?: boolean }): Promise<void>;
 }
@@ -145,6 +147,7 @@ export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveK
     root,
     store,
     sync,
+    pending: () => !closed && (!!pushTimer || !!running),
     async close({ flush = true } = {}) {
       if (closed) return;
       if (pushTimer) {

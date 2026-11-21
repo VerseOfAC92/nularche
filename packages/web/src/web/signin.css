@@ -67,6 +67,15 @@
   font-size: 18px;
   color: #2c5a84;
 }
+.nw-notice {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(44, 90, 132, 0.08);
+  font-size: 18px;
+  line-height: 1.4;
+  color: #2c5a84;
+}
 .nw-error {
   margin: 0;
   font-size: 18px;
