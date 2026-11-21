@@ -524,7 +524,10 @@ Lieu de mémoire ::: A place where memory crystallises
     const r = getSelection().getRangeAt(0).getBoundingClientRect();
     const box = host().getBoundingClientRect();
     menu.style.left = `${Math.max(8, Math.min(box.width - menu.offsetWidth - 8, r.left - box.left))}px`;
-    menu.style.top = `${r.bottom - box.top + 8}px`;
+    // Pencerenin altında yer yoksa menü imlecin üstünde açılır (pencere taşan içeriği keser).
+    const frame = host().closest(".app-window").getBoundingClientRect();
+    const below = frame.bottom - r.bottom - 12;
+    menu.style.top = below >= menu.offsetHeight || below >= r.top - frame.top ? `${r.bottom - box.top + 8}px` : `${r.top - box.top - menu.offsetHeight - 8}px`;
     menu.querySelector("[aria-selected='true']")?.scrollIntoView({ block: "nearest" });
   }
   function runCommand(cmd) {
@@ -576,6 +579,8 @@ Lieu de mémoire ::: A place where memory crystallises
     const before = structuredClone(doc);
     const c = caret() || { i: doc.length - 1, o: 0 };
     doc = readDom();
+    // Her şey silindiyse (tümünü seçip silmek) kalan boş satır düz paragraftır; eski başlık türü taşınmaz.
+    if (doc.length <= 1 && !doc[0]?.s) doc = [{ t: "p", s: "" }];
     history.push({ doc: before, at: c });
     future.length = 0;
     draw(inputRules(c));
