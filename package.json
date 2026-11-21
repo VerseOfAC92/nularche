@@ -27,6 +27,7 @@
     "build:web": "node scripts/build-web.ts",
     "build:pages": "node scripts/build-site.ts --check && node scripts/build-web.ts --out site/app",
     "check:web-app": "node scripts/web-platform/check-web-app.ts",
+    "check:web-google": "node scripts/web-platform/check-web-google.ts",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write packages scripts",
     "connect": "node scripts/connect-ai.ts",

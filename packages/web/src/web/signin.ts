@@ -17,10 +17,15 @@ export interface SignedIn {
   account: string;
   signOut(): Promise<void>;
   calendar: GoogleCalendarAccess | null;
+  /** Oturum yenilemesi bir tıklama gerektirdiğinde (Safari) çağrılacak işlevi kaydeder. */
+  onGestureNeeded?(cb: (resume: () => void) => void): void;
 }
 
 /** Oturum açma sağlayıcısı: üretimde Google (GIS), denetimlerde sahte Drive ve Takvim. */
 export interface SignInProvider {
+  /** Giriş penceresi görünürken çalışır (ör. Google betiğini yükler); bitene kadar düğme bekler. */
+  prepare?(): Promise<void>;
+  /** Düğme tıklamasında, beklemeden çağrılır: Google penceresi aynı anda açılmalıdır (Safari). */
   signIn(): Promise<SignedIn>;
 }
 
@@ -50,6 +55,20 @@ const TEXT = {
   ],
   download: ["Get the desktop app", "Masaüstü uygulamasını indirin"],
   failed: ["Something went wrong:", "Bir sorun oluştu:"],
+  preparing: ["Connecting to Google…", "Google'a bağlanılıyor…"],
+  e_popup_closed: ["The Google window was closed before you finished. Try again.", "Google penceresi işlem bitmeden kapatıldı. Yeniden deneyin."],
+  e_popup_failed_to_open: [
+    "Your browser blocked the Google window. Try again; if it is still blocked, allow pop-ups for nularche.verseofac.com.",
+    "Tarayıcınız Google penceresini engelledi. Yeniden deneyin; yine engellenirse nularche.verseofac.com için açılır pencerelere izin verin.",
+  ],
+  e_drive_denied: [
+    "Nularche needs Google Drive access to open your notes. Try again and keep the Drive permission ticked.",
+    "Notlarınızı açabilmek için Google Drive izni gerekli. Yeniden deneyin ve Drive iznini işaretli bırakın.",
+  ],
+  e_network: ["Google sign-in could not be reached. Check your connection and try again.", "Google girişine ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin."],
+  e_access_denied: ["Google access was not allowed.", "Google erişimine izin verilmedi."],
+  reauth: ["Your Google session needs renewing to keep syncing.", "Eşitlemenin sürmesi için Google oturumunun yenilenmesi gerekiyor."],
+  reauth_btn: ["Renew", "Yenile"],
   locked_notice: ["Nularche is locked. Your notes were removed from this tab's memory; sign in to open them again.", "Nularche kilitlendi. Notlarınız bu sekmenin belleğinden silindi; yeniden açmak için giriş yapın."],
   signed_out_notice: ["You are signed out. Nothing from your notes is left in this browser.", "Çıkış yaptınız. Bu tarayıcıda notlarınızdan hiçbir şey kalmadı."],
 } as const;
@@ -72,7 +91,16 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
   shade.append(card);
   document.body.append(shade);
 
-  let state: { step: "start" } | { step: "busy"; text: keyof typeof TEXT } | { step: "passphrase"; error?: string } | { step: "none" } | { step: "error"; message: string } = { step: "start" };
+  let state: { step: "start" } | { step: "busy"; text: keyof typeof TEXT } | { step: "passphrase"; error?: string } | { step: "none" } | { step: "error"; error: unknown } = { step: "start" };
+  /** Hazırlık (Google betiği) bitti mi; bitene kadar düğme bekler. Hata olursa gösterilir. */
+  let ready = !provider.prepare;
+  /** Hata kodu kullanıcının dilinde; bilinmeyen hatalarda Google'ın iletisi. */
+  const describe = (err: unknown): string => {
+    const code = (err as { code?: unknown })?.code;
+    const key = typeof code === "string" ? (`e_${code}` as keyof typeof TEXT) : null;
+    if (key && key in TEXT) return tx(key);
+    return `${tx("failed")} ${err instanceof Error ? err.message : String(err)}`;
+  };
   let signed: SignedIn | null = null;
   let root: OriginRoot | null = null;
 
@@ -94,12 +122,13 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
 
       if (state.step === "start" || state.step === "error") {
         if (state.step === "start" && ended) body.append(el("p", "nw-notice", tx(ended === "locked" ? "locked_notice" : "signed_out_notice")));
-        if (state.step === "error") body.append(el("p", "nw-error", `${tx("failed")} ${state.message}`));
+        if (state.step === "error") body.append(el("p", "nw-error", describe(state.error)));
         const g = el("button", "nw-google");
         g.type = "button";
+        g.disabled = !ready;
         const mark = el("span", "nw-g");
         mark.setAttribute("aria-hidden", "true");
-        g.append(mark, el("span", undefined, tx("google")));
+        g.append(mark, el("span", undefined, tx(ready ? "google" : "preparing")));
         g.addEventListener("click", () => void begin());
         body.append(g, el("p", "nw-note", tx("privacy")));
         const policy = el("a", "nw-link", tx("policy"));
@@ -151,6 +180,7 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
 
     async function begin() {
       try {
+        // Beklemeden: Google penceresi bu tıklamayla aynı anda açılmalı.
         signed = await provider.signIn();
         set({ step: "busy", text: "finding" });
         root = await findOrigin(signed.drive);
@@ -158,7 +188,7 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
         await open(null);
       } catch (err) {
         if (err instanceof OpenError && err.code === "no_origin") return set({ step: "none" });
-        set({ step: "error", message: err instanceof Error ? err.message : String(err) });
+        set({ step: "error", error: err });
       }
     }
     async function unlock(pass: string) {
@@ -168,7 +198,7 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
         await open(pass);
       } catch (err) {
         if (err instanceof OpenError && err.code === "wrong_passphrase") return set({ step: "passphrase", error: tx("wrong") });
-        set({ step: "error", message: err instanceof Error ? err.message : String(err) });
+        set({ step: "error", error: err });
       }
     }
     async function open(pass: string | null) {
@@ -185,5 +215,35 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
       set({ step: "start" });
     }
     render();
+    provider.prepare?.().then(
+      () => {
+        ready = true;
+        render();
+      },
+      (err) => {
+        ready = true;
+        set({ step: "error", error: err });
+      },
+    );
   });
+}
+
+/**
+ * Google oturumu yenilenirken tarayıcı pencereyi engellediğinde (Safari) sayfanın altında küçük bir çubuk gösterir;
+ * "Yenile" tıklaması pencereyi açar ve bekleyen eşitleme sürer.
+ */
+export function showGestureBar(resume: () => void): void {
+  if (document.querySelector(".nw-reauth")) return;
+  const lang: Lang = getLang();
+  const tx = (k: "reauth" | "reauth_btn") => TEXT[k][lang === "tr" ? 1 : 0];
+  const bar = el("div", "nw-reauth");
+  bar.setAttribute("role", "alert");
+  const btn = el("button", "nw-primary", tx("reauth_btn"));
+  btn.type = "button";
+  btn.addEventListener("click", () => {
+    bar.remove();
+    resume();
+  });
+  bar.append(el("span", undefined, tx("reauth")), btn);
+  document.body.append(bar);
 }

@@ -164,3 +164,32 @@
     animation-duration: 3s;
   }
 }
+
+.nw-google:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+/* Google oturumunun yenilenmesi tıklama istediğinde (Safari) sayfanın altında görünen çubuk. */
+.nw-reauth {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  z-index: 1100;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100% - 32px);
+  padding: 10px 12px 10px 18px;
+  border-radius: 16px;
+  background: #fffaf1;
+  border: 1px solid rgba(44, 90, 132, 0.25);
+  box-shadow: 0 16px 40px rgba(20, 34, 54, 0.2);
+  font: 18px "Nularche Font", cursive;
+  color: #1c2636;
+}
+.nw-reauth .nw-primary {
+  width: auto;
+  padding: 6px 18px;
+  font-size: 18px;
+}

@@ -10,7 +10,7 @@ import type { WebDriveStatus, WebSession } from "../desktop.ts";
 import "../studio/fonts/nularche-font.css";
 import { createWebAi } from "./ai-web.ts";
 import { createWebCalendar } from "./calendar-web.ts";
-import { showSignIn, type SignInProvider } from "./signin.ts";
+import { showGestureBar, showSignIn, type SignInProvider } from "./signin.ts";
 import "./signin.css";
 
 declare global {
@@ -32,6 +32,8 @@ export async function bootWeb(provider: SignInProvider, options: { calendarEndpo
   const after = new URLSearchParams(location.search).get("ended");
   if (after) history.replaceState(null, "", "/app/");
   const { origin, signed } = await showSignIn(provider, onStatus, after === "locked" || after === "signed-out" ? after : null);
+  // Safari: süresi dolan Google oturumu tıklamayla yenilenir; o zamana kadar Drive ve Takvim istekleri bekler.
+  signed.onGestureNeeded?.((resume) => showGestureBar(resume));
   const calendar = createWebCalendar({ originRoot: () => origin.store.root, google: signed.calendar, endpoints: options.calendarEndpoints });
   const ai = createWebAi({ originRoot: () => origin.store.root, api: options.geminiApi });
   // Takvim bağlanamazsa (ör. izin verilmedi ya da ağ hatası) notlar yine açılır; Ayarlar'dan yeniden denenebilir.
