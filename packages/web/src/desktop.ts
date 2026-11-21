@@ -270,6 +270,40 @@ export interface BackupStatus {
 
 export const desktop: DesktopBridge | undefined = (window as unknown as { nularche?: DesktopBridge }).nularche;
 
+/** Takvim ekranlarının kullandığı köprü yüzü: masaüstünde preload, web sürümünde tarayıcıdaki takvim (web/calendar-web.ts). */
+export type CalendarBridge = Pick<
+  DesktopBridge,
+  | "calendarStatus"
+  | "calendarConnectGoogle"
+  | "calendarConnectApple"
+  | "calendarDisconnect"
+  | "calendarCalendars"
+  | "calendarLink"
+  | "calendarEvents"
+  | "calendarEventSave"
+  | "calendarEventDelete"
+  | "calendarUnlink"
+  | "calendarSync"
+  | "calendarHelp"
+  | "onCalendarSynced"
+>;
+
+/** Web sürümünün açık oturumu (web/boot.ts kurar; masaüstünde yoktur). */
+export interface WebSession {
+  account: string;
+  encrypted: boolean;
+  calendar: CalendarBridge;
+  /** Notların Drive ile eşitlenme durumu. */
+  driveStatus(): WebDriveStatus;
+  onDriveStatus(cb: () => void): () => void;
+  syncNow(): Promise<void>;
+  signOut(): Promise<void>;
+}
+export type WebDriveStatus = { state: "syncing" } | { state: "idle"; at: number } | { state: "error"; message: string } | { state: "starting" };
+
+export const webSession: WebSession | undefined = (window as unknown as { nularcheWeb?: WebSession }).nularcheWeb;
+export const calendarBridge: CalendarBridge | undefined = desktop ?? webSession?.calendar;
+
 export async function copyText(text: string): Promise<void> {
   if (desktop) return desktop.copy(text);
   await navigator.clipboard.writeText(text);

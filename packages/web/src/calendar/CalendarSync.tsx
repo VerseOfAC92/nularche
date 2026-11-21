@@ -1,9 +1,10 @@
 // Takvim eşitleme arayüzü: Ayarlar'da Google / Apple hesap bağlantısı, veritabanı araç çubuğunda
-// veritabanını bir takvime bağlama. İşin kendisi masaüstü sürecindedir (desktop/src/calendar.ts);
-// tarayıcıda (köprü yokken) bu bileşenler görünmez.
+// veritabanını bir takvime bağlama. İşin kendisi ortak takvim servisindedir (server/src/calendar-service.ts):
+// masaüstünde ana süreçte, web sürümünde tarayıcıda (web/calendar-web.ts);
+// köprü yokken (ör. geliştirme sunucusunda) bu bileşenler görünmez.
 
 import { useCallback, useEffect, useState } from "react";
-import { desktop, type CalendarErrorCode, type CalendarLinkStatus, type CalendarProviderId, type CalendarStatus } from "../desktop.ts";
+import { calendarBridge, type CalendarErrorCode, type CalendarLinkStatus, type CalendarProviderId, type CalendarStatus } from "../desktop.ts";
 import { locale, t, type StringKey } from "../i18n/index.ts";
 import type { Database, View } from "../database/model.ts";
 import { api, type NodeMeta } from "../api.ts";
@@ -19,11 +20,11 @@ export const errorText = (code: CalendarErrorCode, detail?: string) => {
 export function useCalendarStatus(): [CalendarStatus | null, () => Promise<void>] {
   const [status, setStatus] = useState<CalendarStatus | null>(null);
   const refresh = useCallback(async () => {
-    if (desktop) setStatus(await desktop.calendarStatus());
+    if (calendarBridge) setStatus(await calendarBridge.calendarStatus());
   }, []);
   useEffect(() => {
     void refresh();
-    return desktop?.onCalendarSynced(() => void refresh());
+    return calendarBridge?.onCalendarSynced(() => void refresh());
   }, [refresh]);
   return [status, refresh];
 }
@@ -42,7 +43,7 @@ function SyncNow({ status, refresh, onToast }: { status: CalendarStatus; refresh
       disabled={busy || status.syncing || !status.links.length}
       onClick={async () => {
         setBusy(true);
-        const res = await desktop!.calendarSync();
+        const res = await calendarBridge!.calendarSync();
         setBusy(false);
         await refresh();
         onToast(res.ok ? t("cal.synced") : t("cal.syncedWithErrors", { count: res.errors.length }));
@@ -104,7 +105,7 @@ function GoogleConnect({ onDone }: { onDone: (account: string) => void }) {
       <div className="ai-row">
         <span className="ai-step-no">a</span>
         <span className="ai-row-name">{t("cal.googleStepA")}</span>
-        <button className="secondary" onClick={() => desktop!.calendarHelp("google")}>
+        <button className="secondary" onClick={() => calendarBridge!.calendarHelp("google")}>
           {t("cal.googleConsole")}
         </button>
       </div>
@@ -118,7 +119,7 @@ function GoogleConnect({ onDone }: { onDone: (account: string) => void }) {
           onClick={async () => {
             setBusy(true);
             setError(null);
-            const res = await desktop!.calendarConnectGoogle(clientId, secret);
+            const res = await calendarBridge!.calendarConnectGoogle(clientId, secret);
             setBusy(false);
             if (res.ok) onDone(res.account);
             else setError(res.code === "invalid" ? res.error : res.code === "auth" ? t("cal.err.signIn") : errorText(res.code, res.error));
@@ -143,7 +144,7 @@ function AppleConnect({ onDone }: { onDone: (account: string) => void }) {
       <div className="ai-row">
         <span className="ai-step-no">a</span>
         <span className="ai-row-name">{t("cal.appleStepA")}</span>
-        <button className="secondary" onClick={() => desktop!.calendarHelp("apple")}>
+        <button className="secondary" onClick={() => calendarBridge!.calendarHelp("apple")}>
           {t("cal.appleAccount")}
         </button>
       </div>
@@ -157,7 +158,7 @@ function AppleConnect({ onDone }: { onDone: (account: string) => void }) {
           onClick={async () => {
             setBusy(true);
             setError(null);
-            const res = await desktop!.calendarConnectApple(appleId, password);
+            const res = await calendarBridge!.calendarConnectApple(appleId, password);
             setBusy(false);
             if (res.ok) onDone(res.account);
             else setError(res.code === "invalid" ? res.error : res.code === "auth" ? t("cal.err.signIn") : errorText(res.code, res.error));
@@ -178,17 +179,17 @@ function AccountCalendars({ provider, status, refresh, onToast }: { provider: Ca
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   useEffect(() => {
-    void desktop!.calendarCalendars(provider).then((res) => (res.ok ? setCalendars(res.calendars) : setError(errorText(res.code, res.error))));
+    void calendarBridge!.calendarCalendars(provider).then((res) => (res.ok ? setCalendars(res.calendars) : setError(errorText(res.code, res.error))));
   }, [provider]);
   const linkOf = (id: string) => status.links.find((l) => !l.dbId && l.provider === provider && l.calendarId === id);
   const toggle = async (c: { id: string; name: string }) => {
     setBusy(c.id);
     const link = linkOf(c.id);
     if (link) {
-      await desktop!.calendarUnlink(link.id);
+      await calendarBridge!.calendarUnlink(link.id);
     } else {
       // Görüntüleme bağlantısı: etkinlikler Takvim ekranında gösterilir, not ya da veritabanı oluşturulmaz.
-      const res = await desktop!.calendarLink({ provider, calendarId: c.id, calendarName: c.name });
+      const res = await calendarBridge!.calendarLink({ provider, calendarId: c.id, calendarName: c.name });
       if (!res.ok) setError(errorText(res.code, res.error));
       else onToast(res.errors.length ? t("cal.syncedWithErrors", { count: res.errors.length }) : t("cal.calendarOn", { calendar: c.name }));
     }
@@ -219,7 +220,7 @@ function AccountCalendars({ provider, status, refresh, onToast }: { provider: Ca
 export function CalendarAccounts({ onToast, titleOf }: { onToast: (msg: string) => void; titleOf: (nodeId: string) => string | undefined }) {
   const [status, refresh] = useCalendarStatus();
   const [open, setOpen] = useState<CalendarProviderId | null>(null);
-  if (!desktop) return <p className="muted">{t("cal.browserOnly")}</p>;
+  if (!calendarBridge) return <p className="muted">{t("cal.browserOnly")}</p>;
   if (!status) return null;
   if (!status.encryption) return <p className="warn small">{t("cal.noEncryption")}</p>;
 
@@ -243,7 +244,7 @@ export function CalendarAccounts({ onToast, titleOf }: { onToast: (msg: string) 
                   className="secondary"
                   onClick={async () => {
                     if (!confirm(t("cal.disconnectConfirm", { provider: providerName(p) }))) return;
-                    await desktop!.calendarDisconnect(p);
+                    await calendarBridge!.calendarDisconnect(p);
                     await refresh();
                   }}
                 >
@@ -254,7 +255,7 @@ export function CalendarAccounts({ onToast, titleOf }: { onToast: (msg: string) 
             {account ? (
               <AccountCalendars provider={p} status={status} refresh={refresh} onToast={onToast} />
             ) : p === "google" && status.googleOneClick ? (
-              <GoogleSignIn label={t("cal.googleOneClick")} run={() => desktop!.calendarConnectGoogle()} onDone={(a) => (onToast(t("cal.connected", { account: a })), void refresh())} />
+              <GoogleSignIn label={t("cal.googleOneClick")} run={() => calendarBridge!.calendarConnectGoogle()} onDone={(a) => (onToast(t("cal.connected", { account: a })), void refresh())} />
             ) : open === p ? (
               p === "google" ? (
                 <GoogleConnect onDone={(a) => (setOpen(null), onToast(t("cal.connected", { account: a })), void refresh())} />
@@ -309,7 +310,7 @@ export function DatabaseCalendarSync({ dbId, db, view, onToast }: { dbId: string
     if (!chosen) return;
     setCalendars(null);
     setError(null);
-    void desktop!.calendarCalendars(chosen).then((res) => {
+    void calendarBridge!.calendarCalendars(chosen).then((res) => {
       if (res.ok) {
         setCalendars(res.calendars);
         setCalendarId(res.calendars[0]?.id ?? "");
@@ -317,7 +318,7 @@ export function DatabaseCalendarSync({ dbId, db, view, onToast }: { dbId: string
     });
   }, [chosen]);
 
-  if (!desktop || !status) return null;
+  if (!calendarBridge || !status) return null;
   const links = status.links.filter((l) => l.dbId === dbId);
   const propName = (id: string) => dateProps.find((p) => p.id === id)?.name ?? id;
 
@@ -334,7 +335,7 @@ export function DatabaseCalendarSync({ dbId, db, view, onToast }: { dbId: string
             className="secondary small"
             onClick={async () => {
               if (!confirm(t("cal.unlinkConfirm", { calendar: l.calendarName }))) return;
-              await desktop!.calendarUnlink(l.id);
+              await calendarBridge!.calendarUnlink(l.id);
               await refresh();
             }}
           >
@@ -387,7 +388,7 @@ export function DatabaseCalendarSync({ dbId, db, view, onToast }: { dbId: string
             onClick={async () => {
               setBusy(true);
               setError(null);
-              const res = await desktop!.calendarLink({
+              const res = await calendarBridge!.calendarLink({
                 dbId,
                 provider: chosen!,
                 calendarId,
@@ -416,8 +417,8 @@ export function DatabaseCalendarSync({ dbId, db, view, onToast }: { dbId: string
  * veritabanlarını içeriyorsa çöpe taşır (Çöp'ten geri getirilebilir). Kullanıcının kendi veritabanı bağlantılarına dokunmaz.
  */
 export async function migrateCalendarArche(nodes: NodeMeta[]): Promise<boolean> {
-  if (!desktop) return false;
-  const status = await desktop.calendarStatus();
+  if (!calendarBridge) return false;
+  const status = await calendarBridge.calendarStatus();
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const names = new Set(["Takvimler", "Calendars"]);
   const folders = new Map<string, Set<string>>();
@@ -425,9 +426,9 @@ export async function migrateCalendarArche(nodes: NodeMeta[]): Promise<boolean> 
     const db = l.dbId ? byId.get(l.dbId) : undefined;
     const parent = db?.parentNodeId ? byId.get(db.parentNodeId) : undefined;
     if (!db || !parent || parent.parentNodeId !== null || !names.has(parent.title)) continue;
-    const res = await desktop.calendarLink({ provider: l.provider, calendarId: l.calendarId, calendarName: l.calendarName });
+    const res = await calendarBridge.calendarLink({ provider: l.provider, calendarId: l.calendarId, calendarName: l.calendarName });
     if (!res.ok) continue;
-    await desktop.calendarUnlink(l.id);
+    await calendarBridge.calendarUnlink(l.id);
     folders.set(parent.id, (folders.get(parent.id) ?? new Set()).add(db.id));
   }
   for (const [id, dbs] of folders) {

@@ -50,11 +50,11 @@ export const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 export const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const GOOGLE_API = "https://www.googleapis.com/calendar/v3";
 
-export interface GoogleCredentials {
-  clientId: string;
-  clientSecret: string;
-  refreshToken: string;
-}
+/**
+ * Masaüstü: yenileme belirteciyle kendi erişim belirtecini alır. Web: erişim belirtecini tarayıcıdaki Google oturum
+ * açma penceresi verir (Drive ile aynı oturum); `force` süresi dolan belirtecin yenisini ister.
+ */
+export type GoogleCredentials = { clientId: string; clientSecret: string; refreshToken: string } | { accessToken: (force?: boolean) => Promise<string> };
 
 export interface GoogleEndpoints {
   token?: string;
@@ -198,7 +198,8 @@ export class GoogleCalendar implements CalendarProvider {
     this.tokenUrl = endpoints.token ?? GOOGLE_TOKEN_URL;
   }
 
-  private async token(): Promise<string> {
+  private async token(force = false): Promise<string> {
+    if ("accessToken" in this.creds) return this.creds.accessToken(force);
     if (this.access && this.access.until > Date.now()) return this.access.token;
     let res: Response;
     try {
@@ -224,12 +225,22 @@ export class GoogleCalendar implements CalendarProvider {
   }
 
   private async call(pathAndQuery: string, init: RequestInit = {}): Promise<Response> {
-    const headers = {
-      authorization: `Bearer ${await this.token()}`,
-      ...(init.body ? { "content-type": "application/json" } : {}),
-      ...(init.headers as Record<string, string>),
-    };
-    return request(this.f, `${this.api}${pathAndQuery}`, { ...init, headers });
+    const send = async (force: boolean) =>
+      request(this.f, `${this.api}${pathAndQuery}`, {
+        ...init,
+        headers: {
+          authorization: `Bearer ${await this.token(force)}`,
+          ...(init.body ? { "content-type": "application/json" } : {}),
+          ...(init.headers as Record<string, string>),
+        },
+      });
+    try {
+      return await send(false);
+    } catch (e) {
+      // Web: erişim belirtecinin süresi dolmuş olabilir; bir kez yenisiyle denenir.
+      if ("accessToken" in this.creds && e instanceof CalendarError && e.status === 401) return send(true);
+      throw e;
+    }
   }
 
   private cal = (id: string) => `/calendars/${encodeURIComponent(id)}/events`;

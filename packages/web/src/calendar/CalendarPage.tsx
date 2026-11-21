@@ -6,7 +6,7 @@
 import { cleanVigils, upcomingRuns, type Vigil } from "../../../core/src/vigil-schedule.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type NodeMeta } from "../api.ts";
-import { desktop, type ViewCalendar } from "../desktop.ts";
+import { calendarBridge, type ViewCalendar } from "../desktop.ts";
 import { locale, t } from "../i18n/index.ts";
 import { setPref, usePref } from "../prefs.ts";
 import { runCommand } from "../commands.ts";
@@ -33,10 +33,10 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
   // Not dışı takvimler (yerel Nularche takvimi ve görüntülenen hesap takvimleri); masaüstü uygulamasında.
   const [views, setViews] = useState<ViewCalendar[]>([]);
   useEffect(() => {
-    if (!desktop) return;
-    const load = () => void desktop!.calendarEvents().then((r) => setViews(r.calendars), () => undefined);
+    if (!calendarBridge) return;
+    const load = () => void calendarBridge!.calendarEvents().then((r) => setViews(r.calendars), () => undefined);
     load();
-    return desktop.onCalendarSynced(load);
+    return calendarBridge.onCalendarSynced(load);
   }, []);
 
   const sources = useMemo(() => calendarSources(nodes, status?.links ?? [], views), [nodes, status, views]);
@@ -53,8 +53,8 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
   };
   const remove = async (e: CalEvent) => {
     const view = e.source.type === "view" ? e.source.viewId : null;
-    if (!desktop || !view || !e.view) return;
-    const res = await desktop.calendarEventDelete(view, e.view.id);
+    if (!calendarBridge || !view || !e.view) return;
+    const res = await calendarBridge.calendarEventDelete(view, e.view.id);
     if (!res.ok) return onToast(errorText(res.code, res.error));
     setDraft(null);
     setDetail(null);
@@ -74,9 +74,9 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
       : new Date(cursor).toLocaleDateString(locale(), { month: "long", year: "numeric" });
 
   const sync = async () => {
-    if (!desktop) return;
+    if (!calendarBridge) return;
     setSyncing(true);
-    const res = await desktop.calendarSync();
+    const res = await calendarBridge.calendarSync();
     setSyncing(false);
     await refreshStatus();
     onToast(res.ok ? t("cal.synced") : t("cal.syncedWithErrors", { count: res.errors.length }));
@@ -112,7 +112,7 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
           <button className="primary small-btn" onClick={() => setDraft({ date: isoDay(Math.max(cursor, today)), allDay: true })}>
             <Icon name="plus" size={15} /> {t("cal.newEvent")}
           </button>
-          {desktop && !!status?.links.length && (
+          {calendarBridge && !!status?.links.length && (
             <button className="icon-btn" onClick={() => void sync()} disabled={syncing || status.syncing} title={t("cal.syncNow")}>
               <Icon name="refresh" className={syncing || status.syncing ? "spin" : ""} />
             </button>
@@ -150,12 +150,12 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
           onClose={() => setDraft(null)}
           onDelete={remove}
           onSave={async (form, source, existing) => {
-            if (source?.type === "view" && desktop) {
+            if (source?.type === "view" && calendarBridge) {
               // Düzenlemede yalnızca değişen ayrıntılar gönderilir (Google'ın HTML açıklaması gibi alanlar korunur).
               const before = existing?.view;
               const changed = <T,>(next: T, prev: T) => (existing && next === prev ? undefined : next);
               const alarm = form.alarm === "" ? null : Number(form.alarm);
-              const res = await desktop.calendarEventSave(source.viewId, before?.id ?? null, {
+              const res = await calendarBridge.calendarEventSave(source.viewId, before?.id ?? null, {
                 title: form.title || t("cal.untitledEvent"),
                 when: eventTime(form),
                 description: changed(form.description, before?.description ?? ""),
@@ -167,7 +167,7 @@ export function CalendarPage({ nodes, onOpen, onChanged, onToast }: { nodes: Nod
             } else if (source?.type === "db") {
               await api.create(form.title || t("cal.untitledEvent"), source.dbId, "", { props: { [source.dateProp]: eventValue(form) } });
               await onChanged();
-              if (desktop && source.kind !== "local") void desktop.calendarSync().then(() => refreshStatus());
+              if (calendarBridge && source.kind !== "local") void calendarBridge.calendarSync().then(() => refreshStatus());
             } else return;
             setDraft(null);
             onToast(existing ? t("cal.saved") : t("cal.created", { calendar: source.name }));

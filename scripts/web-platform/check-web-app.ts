@@ -1,6 +1,7 @@
 // Web sürümünü uçtan uca, görünmez (headless) Chrome'da denetler: giriş penceresi, şifreli Origin için parola
-// (yanlış ve doğru), notların Drive'dan belleğe inmesi, uygulama arayüzünün açılması, web'de yapılan değişikliğin
-// şifreli olarak Drive'a gitmesi ve hiçbir notun ağa ya da tarayıcı depolamasına yazılmaması. Google yerine sahte Drive
+// (yanlış ve doğru), notların Drive'dan belleğe inmesi, uygulama arayüzünün açılması, aynı Google oturumuyla Google
+// Takvim'in kendiliğinden bağlanıp etkinliklerin Takvim ekranında görünmesi, web'de yapılan değişikliğin şifreli olarak
+// Drive'a gitmesi ve hiçbir notun ağa ya da tarayıcı depolamasına yazılmaması. Google yerine sahte Drive ve Takvim
 // kullanılır; derleme, service worker ve uygulama üretimdekiyle aynıdır. `--shots <klasör>` ekran görüntülerini kaydeder.
 
 import { createServer, request as httpRequest } from "node:http";
@@ -13,6 +14,7 @@ import { GoogleDrive } from "../../packages/core/src/drive-google.ts";
 import { decryptFile, deriveKeys, keyCheck, newSalt, syncOrigin } from "../../packages/core/src/drive-sync.ts";
 import { NodeStore } from "../../packages/core/src/node-store.ts";
 import { startFakeDrive } from "../../packages/core/test/fake-drive.ts";
+import { startFakeGoogleCalendar } from "../../packages/core/test/fake-google-calendar.ts";
 import { buildWeb } from "../build-web.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -22,6 +24,9 @@ const PASS = "mor dağlarda uzun bir yürüyüş";
 
 // 1. Masaüstü uygulaması gibi: şifreli kök ve bir not.
 const fake = await startFakeDrive("deneme@example.com");
+const cal = await startFakeGoogleCalendar("deneme@example.com");
+const soon = Date.now() + 3600_000;
+cal.events.set("t1", { id: "t1", etag: '"t1"', summary: "Takvim toplantısı", start: { dateTime: new Date(soon).toISOString() }, end: { dateTime: new Date(soon + 1800_000).toISOString() } });
 const desk = await mkdtemp(path.join(tmpdir(), "nularche-desk-"));
 const out = await mkdtemp(path.join(tmpdir(), "nularche-web-"));
 const failures: string[] = [];
@@ -44,13 +49,15 @@ try {
 
   // 3. Sunucu: /app (tek sayfa), /fake → sahte Drive. /api ve /files ağa gelirse kaydedilir (gelmemeli).
   const network: string[] = [];
-  const fakeUrl = new URL(fake.url);
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
-    if (url.pathname.startsWith("/fake/")) {
-      const proxied = httpRequest({ host: fakeUrl.hostname, port: fakeUrl.port, method: req.method, path: url.pathname.slice(5) + url.search, headers: req.headers }, (r) => {
+    // Sahte Google hizmetleri aynı kaynaktan (Drive: /fake, Takvim: /fakecal) sunulur.
+    const target = url.pathname.startsWith("/fake/") ? { prefix: "/fake", base: fake.url } : url.pathname.startsWith("/fakecal/") ? { prefix: "/fakecal", base: cal.url } : null;
+    if (target) {
+      const to = new URL(target.base);
+      const proxied = httpRequest({ host: to.hostname, port: to.port, method: req.method, path: url.pathname.slice(target.prefix.length) + url.search, headers: req.headers }, (r) => {
         const headers = { ...r.headers };
-        if (headers.location) headers.location = headers.location.replace(fake.url, `http://${req.headers.host}/fake`);
+        if (headers.location) headers.location = headers.location.replace(target.base, `http://${req.headers.host}${target.prefix}`);
         res.writeHead(r.statusCode ?? 500, headers);
         r.pipe(res);
       });
@@ -113,6 +120,35 @@ try {
     check(brand.text.includes("Origin · Nularche"), "Origin adı Drive'daki klasörün adı (Nularche)");
     if (shots) await page.screenshot({ path: path.join(shots, "3-uygulama.png") });
 
+    // Google Takvim: aynı oturumla kendiliğinden bağlandı, birincil takvim Takvim ekranında.
+    const calStatus = await page.evaluate(async () => {
+      const s = await window.nularcheWeb!.calendar.calendarStatus();
+      return { google: s.accounts.google ?? null, links: s.links.map((l) => [l.provider, l.calendarId, l.dbId ?? null]) };
+    });
+    check(calStatus.google === "deneme@example.com", "Google Takvim hesabı girişle kendiliğinden bağlandı");
+    check(calStatus.links.length === 1 && calStatus.links[0][0] === "google" && calStatus.links[0][1] === "deneme@example.com" && calStatus.links[0][2] === null, "birincil takvim görüntülemeye eklendi");
+    await page.getByText("Takvim", { exact: true }).first().click();
+    await page.getByText("Takvim toplantısı").first().waitFor({ timeout: 15_000 });
+    check(true, "Google Takvim'deki etkinlik Takvim ekranında görünüyor");
+    if (shots) await page.screenshot({ path: path.join(shots, "4-takvim.png") });
+    const added = await page.evaluate(async () => {
+      const c = window.nularcheWeb!.calendar;
+      const view = (await c.calendarEvents()).calendars.find((v) => v.provider === "google")!;
+      const start = Date.now() + 2 * 86_400_000;
+      const r = await c.calendarEventSave(view.id, null, { title: "Webden etkinlik", when: { allDay: false, start, end: start + 3600_000 } });
+      return r.ok;
+    });
+    check(added && [...cal.events.values()].some((e) => e.summary === "Webden etkinlik"), "web'den eklenen etkinlik Google Takvim'e yazıldı");
+
+    // Ayarlar → Notlar ve Origin: Google Drive bağlı olarak görünür.
+    await page.getByText("Ayarlar", { exact: true }).first().click();
+    await page.getByText("Notlar ve Origin", { exact: true }).first().click();
+    const driveCard = page.getByTestId("web-drive");
+    await driveCard.waitFor({ timeout: 10_000 });
+    check(/deneme@example\.com/.test((await driveCard.textContent()) ?? "") && /Uçtan uca şifreli/.test((await driveCard.textContent()) ?? ""), "Ayarlar'da Google Drive bağlı ve şifreli görünüyor");
+    if (shots) await page.screenshot({ path: path.join(shots, "5-ayarlar-drive.png") });
+    await page.keyboard.press("Escape");
+
     // Web'de yeni not: arayüzün kullandığı API ile.
     const created = await page.evaluate(async () => {
       const r = await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Web notu", parentNodeId: null, body: "tarayıcıda yazıldı" }) });
@@ -142,6 +178,7 @@ try {
   }
 } finally {
   await fake.close();
+  await cal.close();
   await rm(desk, { recursive: true, force: true });
   await rm(out, { recursive: true, force: true });
 }

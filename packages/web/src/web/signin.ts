@@ -5,15 +5,28 @@ import type { DriveApi } from "../../../core/src/drive-sync.ts";
 import { findOrigin, OpenError, openOrigin, unlockKeys, type OriginRoot, type SyncStatus, type WebOrigin } from "../../../web-platform/src/session.ts";
 import { getLang, setLang, type Lang } from "../i18n/index.ts";
 
-/** Oturum açma sağlayıcısı: üretimde Google (GIS), denetimlerde sahte Drive. */
+/** Google oturumunun Takvim yüzü: aynı erişim belirteci; Takvim izni girişte verilmemiş olabilir. */
+export interface GoogleCalendarAccess {
+  accessToken(force?: boolean): Promise<string>;
+  granted(): boolean;
+  request(): Promise<boolean>;
+}
+
+export interface SignedIn {
+  drive: DriveApi;
+  account: string;
+  signOut(): Promise<void>;
+  calendar: GoogleCalendarAccess | null;
+}
+
+/** Oturum açma sağlayıcısı: üretimde Google (GIS), denetimlerde sahte Drive ve Takvim. */
 export interface SignInProvider {
-  signIn(): Promise<{ drive: DriveApi; account: string; signOut(): Promise<void> }>;
+  signIn(): Promise<SignedIn>;
 }
 
 export interface OpenedSession {
   origin: WebOrigin;
-  account: string;
-  signOut(): Promise<void>;
+  signed: SignedIn;
 }
 
 const TEXT = {
@@ -58,7 +71,7 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
   document.body.append(shade);
 
   let state: { step: "start" } | { step: "busy"; text: keyof typeof TEXT } | { step: "passphrase"; error?: string } | { step: "none" } | { step: "error"; message: string } = { step: "start" };
-  let signed: { drive: DriveApi; account: string; signOut(): Promise<void> } | null = null;
+  let signed: SignedIn | null = null;
   let root: OriginRoot | null = null;
 
   return new Promise<OpenedSession>((resolve) => {
@@ -160,8 +173,7 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
       set({ step: "busy", text: "opening" });
       const origin = await openOrigin(signed!.drive, root!, keys, { onStatus });
       shade.remove();
-      const s = signed!;
-      resolve({ origin, account: s.account, signOut: () => s.signOut() });
+      resolve({ origin, signed: signed! });
     }
     async function restart() {
       await signed?.signOut().catch(() => undefined);

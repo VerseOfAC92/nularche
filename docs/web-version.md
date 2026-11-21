@@ -59,8 +59,10 @@ it locks, the page answers `503`.
 `packages/web/app.html` is the web version's page (`npm run build:web` builds it with the service worker into
 `packages/web/dist-web`, served at `/app/`). It opens a Nularche sign-in window (`packages/web/src/web/signin.ts`):
 
-1. **Continue with Google.** Google Identity Services gives a short-lived access token for `drive.file` only
-   (`google-auth.ts`). There is no refresh token and no client secret; the token lives in memory. The Drive client
+1. **Continue with Google.** One Google sign-in connects both Google Drive and Google Calendar. Google Identity
+   Services gives a short-lived access token for `drive.file` (only Nularche's own folder) and the two Calendar
+   scopes the desktop app uses (events, calendar list) (`google-auth.ts`). Drive is required; if the user unticks
+   Calendar on Google's consent screen, the notes still open and Calendar can be allowed later from Settings. There is no refresh token and no client secret; the token lives in memory. The Drive client
    (`core/src/drive-google.ts`) takes it as `{ accessToken }` and asks for a fresh one once when Google answers `401`.
 2. **Find the Origin.** The newest Nularche root folder in Drive, the same choice the desktop app makes.
 3. **Passphrase.** For an end-to-end encrypted root the passphrase is checked against the root's key check before
@@ -70,6 +72,14 @@ it locks, the page answers `503`.
    to Drive two seconds after the last change (encrypted for an encrypted root); Drive is checked for changes every
    minute. Closing the session sends pending changes and wipes the memory.
 
+**Google Calendar.** When Calendar was allowed, the account is connected right after the notes open and the
+primary calendar is shown on the Calendar page (`web/calendar-web.ts`). The calendar logic is shared with the desktop
+app (`server/src/calendar-service.ts`); only where the account is kept differs: the desktop keeps it in the system
+keychain, the web version only in memory. Calendar links are per device (`.nularche/calendar.json` is not synced), so
+the web version starts each session with the primary calendar. Apple Calendar (CalDAV) cannot be reached from a
+browser and stays in the desktop app. Settings → Notes and Origin shows the Drive connection, its encryption and the
+last sync, with a Sync now button.
+
 Nothing is written to the computer: no notes, keys or tokens in local storage, IndexedDB or caches. Only the
 interface language is remembered.
 
@@ -78,7 +88,8 @@ interface language is remembered.
   a change made elsewhere arriving, and the memory being empty after closing.
 - `npm run check:web-app` (also in CI) builds the real web version with a fake Drive in place of Google, opens it in
   headless Chrome and goes through the sign-in window, a wrong and a right passphrase, the app showing a note written
-  on the desktop, a new note reaching Drive encrypted, no `/api` or `/files` request reaching the network and nothing
+  on the desktop, Google Calendar connected by the same sign-in with an event on the Calendar page and a new event
+  written back, Drive shown as connected in Settings, a new note reaching Drive encrypted, no `/api` or `/files` request reaching the network and nothing
   stored in the browser.
 
 ## Next steps

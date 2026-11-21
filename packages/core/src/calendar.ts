@@ -242,7 +242,7 @@ export async function readCalendarState(root: string): Promise<CalendarState> {
 export async function writeCalendarState(root: string, state: CalendarState): Promise<void> {
   const file = path.join(root, CALENDAR_STATE_FILE);
   await mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
+  const tmp = `${file}.${randomUUID()}.tmp`;
   await writeFile(tmp, JSON.stringify(state, null, 2));
   await rename(tmp, file);
 }
@@ -544,7 +544,7 @@ export async function readEventCache(root: string): Promise<Record<string, Cache
 export async function writeEventCache(root: string, cache: Record<string, CachedEvent[]>): Promise<void> {
   const file = path.join(root, CALENDAR_EVENTS_FILE);
   await mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
+  const tmp = `${file}.${randomUUID()}.tmp`;
   await writeFile(tmp, JSON.stringify(cache));
   await rename(tmp, file);
 }

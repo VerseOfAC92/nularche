@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AiSetup } from "./ai/AiSetup.tsx";
 import { CalendarAccounts } from "./calendar/CalendarSync.tsx";
-import { desktop } from "./desktop.ts";
+import { desktop, webSession } from "./desktop.ts";
 import { getTheme, setTheme, type ThemeChoice } from "./theme.ts";
 import { setLang, t, useLang, type StringKey } from "./i18n/index.ts";
 import { exportNode } from "./exporting.ts";
@@ -15,7 +15,7 @@ import { usePref } from "./prefs.ts";
 import { BackgroundPicker } from "./focus/BackgroundPicker.tsx";
 import { HotkeyEditor, VaultSettings } from "./vault/VaultSettings.tsx";
 import type { MathMode } from "./editor/notes-extensions.ts";
-import { StorageSetup } from "./StorageSetup.tsx";
+import { StorageSetup, WebDriveCard } from "./StorageSetup.tsx";
 import { SecuritySettings } from "./SecuritySettings.tsx";
 import { CitationSettings } from "./CitationSettings.tsx";
 import { VigilSettings } from "./vigil/VigilSettings.tsx";
@@ -233,8 +233,8 @@ export function Settings({
     ),
     origin: () => (
       <>
-        <Card title={t("storage.cardTitle")} hint={desktop ? t("storage.cardHint") : t("settings.originBrowser")}>
-          {desktop && <StorageSetup onToast={onToast} />}
+        <Card title={t("storage.cardTitle")} hint={desktop ? t("storage.cardHint") : webSession ? undefined : t("settings.originBrowser")}>
+          {desktop ? <StorageSetup onToast={onToast} /> : webSession ? <WebDriveCard /> : null}
         </Card>
         <Card title={t("ob.setFiles")}>
           <VaultSettings part="files" />
