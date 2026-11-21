@@ -1,4 +1,4 @@
-// nularche.verseofac.com etkileşimleri: dil (EN/TR), tepelerde derinlik, deneme editörü, özellik sekmeleri, veri akışı,
+// nularche.verseofac.com etkileşimleri: dil (EN/TR), kaydırmayla hareket eden arka plan, deneme editörü, özellik sekmeleri, veri akışı,
 // Nularche dili kartları ve işletim sistemine göre indirme. Dış kaynak yok; JavaScript kapalıyken sayfa İngilizce
 // metinleriyle eksiksiz okunur. Kullanıcının yazdığı hiçbir şey sayfadan çıkmaz.
 (() => {
@@ -59,9 +59,9 @@
     "mission.mission.p": "Düz dosyalar üzerinde eksiksiz ve güzel bir not stüdyosu kurmak; zaten sahip olduğunuz yapay zekâyla, aboneliksiz ve güvenmeniz gereken tek şey herkesin okuyabildiği kod olacak şekilde.",
     "try.kicker": "Burada deneyin",
     "try.title": "Nularche'deki gibi yazın",
-    "try.intro": "Sola yazın. Nularche düz Markdown okur; bağlantıları, etiketleri, atıfları ve bilgi kartlarını kullanılabilir hâle getirir. Yazdığınız hiçbir şey bu sayfadan çıkmaz.",
-    "try.yours": "Notunuz",
-    "try.sees": "Nularche'nin gördüğü",
+    "try.intro": "Sağa Nularche'de yazdığınız gibi yazın: satırı başlık için # ile, görev için - [ ] ile başlatın ya da Soru :: Cevap yazın. Solda Nularche'nin kaydettiği düz Markdown dosyası var; onu herhangi bir düzenleyici açabilir. Yazdığınız hiçbir şey bu sayfadan çıkmaz.",
+    "try.yours": "Nularche'de",
+    "try.file": "Markdown dosyası",
     "try.cards": "Anamnesis bilgi kartları",
     "feat.kicker": "Her şey tek stüdyoda",
     "feat.title": "Düşünmek, yazmak ve hatırlamak için tek uygulama",
@@ -119,26 +119,28 @@
     detectOs();
   }
 
-  // ------------------------------------------------------------------ tepelerde derinlik
-  function hills() {
+  // ------------------------------------------------------------------ arka plan
+  /** Sayfanın tek arka planı kaydırmayla hareket eder: kaydırma oranı (0–1) köke --p olarak yazılır. */
+  function backdrop() {
     if (reduced) return;
-    const layers = $$(".hills");
+    const root = document.documentElement;
     let ticking = false;
+    const update = () => {
+      const max = Math.max(1, root.scrollHeight - innerHeight);
+      root.style.setProperty("--p", Math.min(1, Math.max(0, scrollY / max)).toFixed(4));
+      ticking = false;
+    };
     addEventListener(
       "scroll",
       () => {
         if (ticking) return;
         ticking = true;
-        requestAnimationFrame(() => {
-          for (const l of layers) {
-            const r = l.parentElement.getBoundingClientRect();
-            if (r.bottom > 0 && r.top < innerHeight) l.style.transform = "translateY(" + Math.round(-r.top * 0.12) + "px)";
-          }
-          ticking = false;
-        });
+        requestAnimationFrame(update);
       },
       { passive: true },
     );
+    addEventListener("resize", update, { passive: true });
+    update();
   }
 
   // ------------------------------------------------------------------ deneme editörü
@@ -153,103 +155,388 @@
     if (text !== undefined) e.textContent = text;
     return e;
   };
-  /** Satır içi parçalar: [[bağlantı]], #etiket, [@atıf] ve düz metin (DOM düğümleri; HTML yorumlanmaz). */
-  function inline(text) {
+  /**
+   * Nularche'deki gibi yazılan küçük editör. Belge bloklardan oluşur ({t: tür, x: görev bitti mi, s: düz metin});
+   * soldaki Markdown dosyası her değişiklikte bu bloklardan üretilir. Satır başı kuralları ("# ", "- ", "- [ ] ",
+   * "> ") Nularche'deki gibi blok türüne dönüşür; [[bağlantı]], #etiket, [@atıf] ve Soru :: Cevap satırları
+   * imlecin olmadığı bloklarda işlenmiş görünür. HTML hiçbir yerde yorumlanmaz.
+   */
+  const SAMPLE = `# Memory and the archive
+
+Collective memory is a practice of the present [@halbwachs1992, p. 38]. See [[Chapter 2]] for archives. #research
+
+What shapes what we remember? :: The archive
+
+Lieu de mémoire ::: A place where memory crystallises
+
+- [ ] Add the Nora chapter`;
+  const CARD = /^(.*?\S)\s+(:{2,3})\s+(\S.*)$/;
+  const MAX_BLOCKS = 200;
+  const MAX_CHARS = 2000;
+  let doc = [];
+  const history = [];
+  const future = [];
+
+  function parseMd(md) {
     const out = [];
-    const re = /\[\[([^\]\n]{1,80})\]\]|\[(-?@[^\]\n]{1,120})\]|(^|\s)#([\p{L}\d_/-]{1,40})/gu;
+    for (const raw of md.replace(/\r/g, "").split("\n")) {
+      const line = raw.replace(/\t/g, "  ").slice(0, MAX_CHARS);
+      if (!line.trim()) continue;
+      let m;
+      if ((m = /^(#{1,3})\s+(.*)$/.exec(line))) out.push({ t: `h${m[1].length}`, s: m[2] });
+      else if ((m = /^\s*[-*+] \[( |x|X)\]\s?(.*)$/.exec(line))) out.push({ t: "task", x: m[1] !== " ", s: m[2] });
+      else if ((m = /^\s*[-*+]\s+(.*)$/.exec(line))) out.push({ t: "li", s: m[1] });
+      else if ((m = /^>\s?(.*)$/.exec(line))) out.push({ t: "quote", s: m[1] });
+      else out.push({ t: "p", s: line });
+    }
+    return out.slice(0, MAX_BLOCKS);
+  }
+  const listy = (b) => b.t === "li" || b.t === "task";
+  function toMd(blocks) {
+    let md = "";
+    blocks.forEach((b, i) => {
+      const prefix = { h1: "# ", h2: "## ", h3: "### ", li: "- ", quote: "> ", p: "" }[b.t] ?? (b.x ? "- [x] " : "- [ ] ");
+      if (i) md += listy(b) && listy(blocks[i - 1]) ? "\n" : "\n\n";
+      md += prefix + b.s;
+    });
+    return md + "\n";
+  }
+
+  /** Satır içi işaretler: ham metin korunur, işaret karakterleri .mk içinde (imleç başka bloktayken gizlenir). */
+  function decorate(text) {
+    const out = [];
+    const re = /\[\[([^\]\n]{1,80})\]\]|\[(-?@[^\]\n]{1,120})\]|(^|\s)(#[\p{L}\d_/-]{1,40})/gu;
     let last = 0;
+    const mk = (s) => el("span", "mk", s);
     for (const m of text.matchAll(re)) {
       const start = m.index + (m[3] ? m[3].length : 0);
       out.push(document.createTextNode(text.slice(last, start)));
-      if (m[1]) out.push(el("span", "d-link", m[1]));
-      else if (m[2]) {
-        const parts = m[2].split(";").map((p) => p.trim());
-        const label = parts
-          .map((p) => {
-            const mm = /^(-?)@([\w:.-]+)(?:,\s*(.+))?$/.exec(p);
-            if (!mm) return p;
-            const it = LIB[mm[2]];
-            if (!it) return `?${mm[2]}`;
-            return [mm[1] ? "" : it[0], it[1], mm[3] ? (lang === "tr" ? mm[3].replace(/^p\./, "s.") : mm[3]) : ""].filter(Boolean).join(", ");
-          })
-          .join("; ");
-        out.push(el("span", "d-cite", `(${label})`));
-      } else out.push(el("span", "d-tag", `#${m[4]}`));
+      if (m[1]) {
+        const a = el("span", "d-link");
+        a.append(mk("[["), m[1], mk("]]"));
+        out.push(a);
+      } else if (m[2]) {
+        const c = el("span", "d-cite");
+        c.dataset.label = citeLabel(m[2]);
+        c.append(el("span", "raw", `[${m[2]}]`));
+        out.push(c);
+      } else out.push(el("span", "d-tag", m[4]));
       last = m.index + m[0].length;
     }
     out.push(document.createTextNode(text.slice(last)));
     return out;
   }
-  function renderDemo() {
-    const input = $("[data-demo-input]");
-    const view = $("[data-demo-render]");
-    const cardsBox = $("[data-demo-cards]");
-    if (!input || !view) return;
-    view.replaceChildren();
-    cardsBox.replaceChildren();
-    const cards = [];
-    let para = null;
-    for (const raw of input.value.split("\n").slice(0, 200)) {
-      const line = raw.slice(0, 500);
-      const h = /^(#{1,3})\s+(.*)$/.exec(line);
-      const task = /^\s*[-*] \[( |x)\]\s+(.*)$/i.exec(line);
-      const card = /^(.*?\S)\s+(:{2,3})\s+(\S.*)$/.exec(line);
-      if (!line.trim()) {
-        para = null;
-        continue;
+  function citeLabel(body) {
+    return `(${body
+      .split(";")
+      .map((p) => {
+        const mm = /^(-?)@([\w:.-]+)(?:,\s*(.+))?$/.exec(p.trim());
+        if (!mm) return p.trim();
+        const it = LIB[mm[2]];
+        if (!it) return `?${mm[2]}`;
+        return [mm[1] ? "" : it[0], it[1], mm[3] ? (lang === "tr" ? mm[3].replace(/^p\./, "s.") : mm[3]) : ""].filter(Boolean).join(", ");
+      })
+      .join("; ")})`;
+  }
+  function blockEl(b) {
+    const d = el("div", "b");
+    d.dataset.t = b.t;
+    if (b.t === "task") d.dataset.x = b.x ? "1" : "0";
+    const card = b.t === "p" && CARD.exec(b.s);
+    if (card) {
+      d.classList.add("card");
+      const at = b.s.indexOf(card[2], card[1].length);
+      d.append(...decorate(b.s.slice(0, at)), el("span", "sep", card[2]), ...decorate(b.s.slice(at + card[2].length)));
+    } else d.append(...decorate(b.s));
+    if (!b.s) d.append(el("br"));
+    return d;
+  }
+
+  const editor = () => $("[data-demo-editor]");
+  function caret() {
+    const ed = editor();
+    const sel = getSelection();
+    if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return null;
+    const node = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+    const block = node.closest(".b");
+    if (!block || block.parentElement !== ed) return null;
+    const r = document.createRange();
+    r.setStart(block, 0);
+    r.setEnd(sel.anchorNode, sel.anchorOffset);
+    return { i: [...ed.children].indexOf(block), o: r.toString().length, collapsed: sel.isCollapsed };
+  }
+  function place(i, o) {
+    const block = editor().children[Math.max(0, Math.min(i, doc.length - 1))];
+    if (!block) return;
+    const walk = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let left = o;
+    let n;
+    const r = document.createRange();
+    r.setStart(block, 0);
+    while ((n = walk.nextNode())) {
+      if (left <= n.length) {
+        r.setStart(n, left);
+        break;
       }
-      if (h) {
-        const e = el(`h${h[1].length + 2}`);
-        e.append(...inline(h[2]));
-        view.append(e);
-        para = null;
-      } else if (task) {
-        const row = el("label", "d-task");
-        const box = el("input");
-        box.type = "checkbox";
-        box.checked = task[1].toLowerCase() === "x";
-        row.append(box, ...inline(` ${task[2]}`));
-        view.append(row);
-        para = null;
-      } else if (card) {
-        cards.push([card[1], card[3]]);
-        if (card[2] === ":::") cards.push([card[3], card[1]]);
-        const e = el("p", "d-cardline");
-        e.append(el("span", "d-badge", "Anamnesis"), document.createTextNode(` ${card[1]} → ${card[3]}`));
-        view.append(e);
-        para = null;
-      } else {
-        if (!para) {
-          para = el("p");
-          view.append(para);
-        } else para.append(document.createTextNode(" "));
-        para.append(...inline(line));
+      left -= n.length;
+      r.setStart(n, n.length);
+    }
+    r.collapse(true);
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    markActive();
+  }
+  function markActive() {
+    const ed = editor();
+    const c = caret();
+    [...ed.children].forEach((b, i) => b.classList.toggle("active", !!c && c.i === i));
+  }
+  function draw(at) {
+    const ed = editor();
+    if (!doc.length) doc = [{ t: "p", s: "" }];
+    ed.replaceChildren(...doc.map(blockEl));
+    if (at) place(at.i, at.o);
+    output();
+  }
+  function snapshot(at) {
+    history.push({ doc: structuredClone(doc), at });
+    if (history.length > 200) history.shift();
+    future.length = 0;
+  }
+  /** Tarayıcının bloklarda yaptığı değişikliği belgeye geri okur. */
+  function readDom() {
+    const ed = editor();
+    const blocks = [];
+    for (const n of [...ed.childNodes]) {
+      const text = n.textContent.replace(/ /g, " ").replace(/\n/g, "").slice(0, MAX_CHARS);
+      if (n.nodeType === 1 && n.classList.contains("b")) blocks.push({ t: n.dataset.t || "p", x: n.dataset.x === "1", s: text });
+      else if (text) blocks.push({ t: "p", s: text });
+    }
+    return blocks.slice(0, MAX_BLOCKS);
+  }
+  const RULES = [
+    [/^#{1}\s/, "h1", 2],
+    [/^#{2}\s/, "h2", 3],
+    [/^#{3}\s/, "h3", 4],
+    [/^\[( |x)?\]\s/i, "task", 0],
+    [/^[-*+]\s\[( |x)?\]\s/i, "task", 0],
+    [/^[-*+]\s/, "li", 2],
+    [/^>\s/, "quote", 2],
+  ];
+  function inputRules(c) {
+    const b = doc[c.i];
+    if (!b || (b.t !== "p" && !(b.t === "li" && /^\[( |x)?\]\s/i.test(b.s)))) return c;
+    for (const [re, t, n] of RULES) {
+      const m = re.exec(b.s);
+      if (!m) continue;
+      const cut = n || m[0].length;
+      if (c.o < cut) return c;
+      b.t = t;
+      if (t === "task") b.x = /x/i.test(m[0]);
+      b.s = b.s.slice(cut);
+      return { i: c.i, o: c.o - cut };
+    }
+    return c;
+  }
+  function onInput(e) {
+    if (e.isComposing) return;
+    const before = structuredClone(doc);
+    const c = caret() || { i: doc.length - 1, o: 0 };
+    doc = readDom();
+    history.push({ doc: before, at: c });
+    future.length = 0;
+    draw(inputRules(c));
+  }
+  function onKey(e) {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase() === "z") {
+      e.preventDefault();
+      const from = e.shiftKey ? future : history;
+      const to = e.shiftKey ? history : future;
+      const s = from.pop();
+      if (!s) return;
+      to.push({ doc: structuredClone(doc), at: caret() || s.at });
+      doc = s.doc;
+      draw(s.at);
+      return;
+    }
+    if (mod && e.key.toLowerCase() === "y") return e.preventDefault();
+    let c = caret();
+    if (!c) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!c.collapsed) {
+        document.execCommand("delete");
+        doc = readDom();
+        c = caret() || c;
+      }
+      snapshot(c);
+      const b = doc[c.i];
+      if (listy(b) && !b.s) {
+        b.t = "p";
+        return draw({ i: c.i, o: 0 });
+      }
+      if (doc.length >= MAX_BLOCKS) return;
+      const next = { t: listy(b) || b.t === "quote" ? b.t : "p", x: false, s: b.s.slice(c.o) };
+      b.s = b.s.slice(0, c.o);
+      doc.splice(c.i + 1, 0, next);
+      return draw({ i: c.i + 1, o: 0 });
+    }
+    if (e.key === "Backspace" && c.collapsed && c.o === 0) {
+      const b = doc[c.i];
+      if (b.t !== "p") {
+        e.preventDefault();
+        snapshot(c);
+        b.t = "p";
+        return draw(c);
+      }
+      if (c.i > 0) {
+        e.preventDefault();
+        snapshot(c);
+        const prev = doc[c.i - 1];
+        const o = prev.s.length;
+        prev.s += b.s;
+        doc.splice(c.i, 1);
+        return draw({ i: c.i - 1, o });
       }
     }
-    if (!cards.length) cardsBox.append(el("p", "muted", t("Write a line like Question :: Answer.", "Soru :: Cevap gibi bir satır yazın.")));
-    for (const [q, a] of cards.slice(0, 12)) {
+    if (e.key === "Delete" && c.collapsed && c.o === doc[c.i].s.length && c.i < doc.length - 1) {
+      e.preventDefault();
+      snapshot(c);
+      doc[c.i].s += doc[c.i + 1].s;
+      doc.splice(c.i + 1, 1);
+      return draw(c);
+    }
+  }
+  function onPaste(e) {
+    e.preventDefault();
+    const text = (e.clipboardData?.getData("text/plain") || "").slice(0, 20000);
+    if (!text) return;
+    let c = caret();
+    if (!c) return;
+    if (!c.collapsed) {
+      document.execCommand("delete");
+      doc = readDom();
+      c = caret() || c;
+    }
+    snapshot(c);
+    const b = doc[c.i];
+    const head = b.s.slice(0, c.o);
+    const tail = b.s.slice(c.o);
+    const lines = text.replace(/\r/g, "").split("\n");
+    if (lines.length === 1) {
+      b.s = (head + lines[0] + tail).slice(0, MAX_CHARS);
+      return draw({ i: c.i, o: head.length + lines[0].length });
+    }
+    const pasted = parseMd(lines.slice(1).join("\n"));
+    b.s = head + lines[0];
+    const last = pasted.length ? pasted[pasted.length - 1] : b;
+    const o = last.s.length;
+    last.s += tail;
+    doc.splice(c.i + 1, 0, ...pasted);
+    doc = doc.slice(0, MAX_BLOCKS);
+    draw({ i: c.i + pasted.length, o });
+  }
+  /** Görev kutusu: satırın solundaki kutuya tıklamak işaretler. */
+  function onPointer(e) {
+    const block = e.target.closest?.(".b[data-t='task']");
+    if (!block) return;
+    const r = block.getBoundingClientRect();
+    if (e.clientX - r.left > 32) return;
+    e.preventDefault();
+    const i = [...editor().children].indexOf(block);
+    snapshot(caret());
+    doc[i].x = !doc[i].x;
+    draw();
+  }
+
+  /** Soldaki dosya görünümü: Markdown sözdizimi renklendirilir (yalnızca metin düğümleri). */
+  function output() {
+    const md = toMd(doc);
+    const pre = $("[data-demo-md]");
+    const lines = md.split("\n");
+    const frag = [];
+    const re = /\[\[[^\]\n]+\]\]|\[-?@[^\]\n]+\]|(?<=^|\s)#[\p{L}\d_/-]+|\s:{2,3}\s/gu;
+    lines.forEach((line, n) => {
+      const m = /^(#{1,3} |\s*[-*+] \[[ xX]\] |\s*[-*+] |> )/.exec(line);
+      const row = el("span", m && m[1].startsWith("#") ? "m-h" : "");
+      let rest = line;
+      if (m) {
+        row.append(el("span", "m-mk", m[1]));
+        rest = line.slice(m[1].length);
+      }
+      let last = 0;
+      for (const x of rest.matchAll(re)) {
+        row.append(rest.slice(last, x.index));
+        const v = x[0];
+        row.append(el("span", v.startsWith("[[") ? "m-link" : v.startsWith("[") ? "m-cite" : v.startsWith("#") ? "m-tag" : "m-card", v));
+        last = x.index + v.length;
+      }
+      row.append(rest.slice(last));
+      frag.push(row);
+      if (n < lines.length - 1) frag.push("\n");
+    });
+    pre.replaceChildren(...frag);
+    const h = doc.find((b) => /^h[1-3]$/.test(b.t) && b.s.trim());
+    const name = (h ? h.s.trim() : t("Untitled", "Adsız")).replace(/[\\/:*?"<>|#^[\]]/g, "").slice(0, 60) || t("Untitled", "Adsız");
+    $("[data-demo-name]").textContent = `${name}.md`;
+    cards();
+  }
+  function cards() {
+    const box = $("[data-demo-cards]");
+    box.replaceChildren();
+    const list = [];
+    for (const b of doc) {
+      const m = b.t === "p" && CARD.exec(b.s);
+      if (!m) continue;
+      list.push([m[1], m[3]]);
+      if (m[2] === ":::") list.push([m[3], m[1]]);
+    }
+    if (!list.length) box.append(el("p", "muted", t("Write a line like Question :: Answer.", "Soru :: Cevap gibi bir satır yazın.")));
+    for (const [q, a] of list.slice(0, 12)) {
       const c = el("button", "flash");
       c.type = "button";
       c.append(el("span", "front", q), el("span", "back", a));
       c.addEventListener("click", () => c.classList.toggle("flipped"));
-      cardsBox.append(c);
+      box.append(c);
     }
   }
+  function renderDemo() {
+    if (!editor()) return;
+    const focused = editor().contains(document.activeElement) || document.activeElement === editor();
+    draw(focused ? caret() : null);
+  }
   function demo() {
-    const input = $("[data-demo-input]");
-    if (!input) return;
-    input.addEventListener("input", renderDemo);
-    $$("[data-insert]").forEach((b) =>
-      b.addEventListener("click", () => {
-        const add = b.dataset.insert;
-        const { selectionStart: s, selectionEnd: e, value } = input;
-        const before = value.slice(0, s);
+    const ed = editor();
+    if (!ed) return;
+    doc = parseMd(SAMPLE);
+    ed.addEventListener("input", onInput);
+    ed.addEventListener("compositionend", onInput);
+    ed.addEventListener("keydown", onKey);
+    ed.addEventListener("paste", onPaste);
+    ed.addEventListener("drop", (e) => e.preventDefault());
+    ed.addEventListener("mousedown", onPointer);
+    document.addEventListener("selectionchange", markActive);
+    $$("[data-insert]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const add = btn.dataset.insert;
+        const c = caret() || { i: doc.length - 1, o: doc[doc.length - 1].s.length };
+        snapshot(c);
+        const b = doc[c.i];
+        if (btn.dataset.block) {
+          const nb = { t: btn.dataset.block, x: false, s: add };
+          if (!b.s.trim() && b.t === "p") doc[c.i] = nb;
+          else doc.splice(c.i + 1, 0, nb);
+          const i = !b.s.trim() && b.t === "p" ? c.i : c.i + 1;
+          ed.focus();
+          return draw({ i, o: add.length });
+        }
+        const before = b.s.slice(0, c.o);
         const sep = before && !/\s$/.test(before) ? " " : "";
-        input.value = `${before}${sep}${add}${value.slice(e)}`;
-        input.focus();
-        const pos = s + sep.length + add.length;
-        input.setSelectionRange(pos, pos);
-        renderDemo();
+        b.s = `${before}${sep}${add}${b.s.slice(c.o)}`;
+        ed.focus();
+        draw({ i: c.i, o: c.o + sep.length + add.length });
       }),
     );
   }
@@ -475,7 +762,7 @@
     store.set("nlc-lang", lang);
     applyLang();
   });
-  hills();
+  backdrop();
   demo();
   tabs();
   flow();
