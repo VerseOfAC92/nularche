@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createPortal } from "react-dom";
-import { api, SHADOW, type NodeMeta, type ParentTarget, type TagCount } from "./api.ts";
+import { api, SHADOW, type NodeMeta, type ParentTarget, type TagCount, errorMessage } from "./api.ts";
 import type { SmartFolder } from "./notes/smart.ts";
 import { getPref, usePref } from "./prefs.ts";
 import { askText } from "./ask.tsx";
@@ -109,7 +109,7 @@ export function Sidebar(props: SidebarProps) {
     try {
       await action();
     } catch (err) {
-      props.onError((err as Error).message);
+      props.onError(errorMessage(err));
     } finally {
       props.onChanged();
     }
@@ -137,7 +137,7 @@ export function Sidebar(props: SidebarProps) {
       try {
         await api.move(id, null);
       } catch (err) {
-        props.onError((err as Error).message);
+        props.onError(errorMessage(err));
         return props.onChanged();
       }
     }

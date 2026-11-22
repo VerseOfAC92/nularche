@@ -3,7 +3,7 @@
 // planda hemen işlenir, değilse Nularche AI penceresinde gönderilmeyi bekler. Özet işleri yerelde not yazar.
 
 import { cleanVigils, isDue, type Vigil, type VigilResult } from "../../../core/src/vigil-schedule.ts";
-import { api } from "../api.ts";
+import { api, apiError, errorMessage } from "../api.ts";
 import { desktop } from "../desktop.ts";
 import { getLang, t } from "../i18n/index.ts";
 import { getPref, prefsLoaded, setPref } from "../prefs.ts";
@@ -21,8 +21,8 @@ export async function runVigil(v: Vigil, now = Date.now()): Promise<VigilResult>
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ days: v.action.days, parentId: v.action.parentId ?? null, title: `${v.name} — ${stamp(now)}`, lang: getLang() }),
       });
-      const doc = (await res.json()) as { id?: string; message?: string };
-      if (!res.ok || !doc.id) throw new Error(doc.message ?? res.statusText);
+      const doc = (await res.json().catch(() => null)) as { id?: string; message?: string; error?: string; reason?: string } | null;
+      if (!res.ok || !doc?.id) throw apiError(res.status, doc, res.statusText);
       return { at: now, ok: true, nodeId: doc.id, message: t("vigil.digestDone") };
     }
     const auto = desktop ? await desktop.autoStatus().catch(() => null) : null;
@@ -36,7 +36,7 @@ export async function runVigil(v: Vigil, now = Date.now()): Promise<VigilResult>
     }
     return { at: now, ok: true, requestId: req.id, message: t("vigil.aiPending") };
   } catch (e) {
-    return { at: now, ok: false, message: (e as Error).message };
+    return { at: now, ok: false, message: errorMessage(e) };
   }
 }
 

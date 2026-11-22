@@ -48,7 +48,7 @@ export async function exportArchive(
   let base = ""; // arşivde kırpılacak ortak dizin öneki
   if (options.rootId) {
     const root = all.find((n) => n.id === options.rootId || n.path === options.rootId);
-    if (!root) throw new NodeError("not_found", `Node bulunamadı: ${options.rootId}`);
+    if (!root) throw new NodeError("not_found", "node_not_found", { ref: options.rootId });
     const dir = childDirOf(root.path);
     selected = all.filter((n) => n.id === root.id || n.path.startsWith(`${dir}/`));
     const container = isFolderNote(root.path) ? path.posix.dirname(path.posix.dirname(root.path)) : path.posix.dirname(root.path);
@@ -132,24 +132,24 @@ export async function importArchive(store: NodeStore, data: Uint8Array, options:
       filter: (file) => {
         count++;
         total += file.originalSize;
-        if (count > MAX_ENTRIES || total > MAX_TOTAL_BYTES) throw new NodeError("invalid", "Arşiv çok büyük");
+        if (count > MAX_ENTRIES || total > MAX_TOTAL_BYTES) throw new NodeError("invalid", "archive_too_large");
         return !file.name.endsWith("/");
       },
     });
   } catch (err) {
     if (err instanceof NodeError) throw err;
-    throw new NodeError("invalid", "Geçerli bir Nularche arşivi değil (ZIP okunamadı)");
+    throw new NodeError("invalid", "archive_unreadable");
   }
   let manifest: ArchiveManifest;
   try {
     manifest = JSON.parse(new TextDecoder().decode(entries["manifest.json"]));
   } catch {
-    throw new NodeError("invalid", "Arşivde manifest.json yok ya da bozuk");
+    throw new NodeError("invalid", "archive_no_manifest");
   }
   if (manifest?.format !== ARCHIVE_FORMAT || typeof manifest.version !== "number")
-    throw new NodeError("invalid", "Geçerli bir Nularche arşivi değil");
+    throw new NodeError("invalid", "archive_invalid");
   if (manifest.version > ARCHIVE_VERSION)
-    throw new NodeError("invalid", `Bu arşiv daha yeni bir Nularche sürümüyle oluşturulmuş (biçim ${manifest.version})`);
+    throw new NodeError("invalid", "archive_newer", { version: String(manifest.version) });
 
   // Hedef dizin
   const parent = options.parentNodeId === undefined ? SHADOW : options.parentNodeId;
@@ -162,7 +162,7 @@ export async function importArchive(store: NodeStore, data: Uint8Array, options:
   const nodeEntries = Object.keys(entries)
     .filter((n) => n.startsWith("nodes/") && n.toLowerCase().endsWith(".md") && safeEntry(n))
     .sort();
-  if (nodeEntries.length === 0) throw new NodeError("invalid", "Arşivde Node yok");
+  if (nodeEntries.length === 0) throw new NodeError("invalid", "archive_empty");
 
   // Kök adlarını çakışmasız seç; alt yollar kökle birlikte taşınır. Arşivin Shadow'undaki
   // notlar hedef Origin'in Shadow'una (gelen kutusu olarak kalarak) eklenir.

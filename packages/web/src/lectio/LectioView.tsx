@@ -6,7 +6,7 @@ import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { HighlightColor, PdfAnnotations, PdfHighlight } from "../../../core/src/annotations.ts";
-import { api, SHADOW, type NodeMeta } from "../api.ts";
+import { api, SHADOW, type NodeMeta, errorMessage } from "../api.ts";
 import { dirname, fileUrl, relative } from "../editor/paths.ts";
 import { t } from "../i18n/index.ts";
 import { getPref, setPref } from "../prefs.ts";
@@ -83,7 +83,7 @@ export default function LectioView({ path, page, highlight, nodes, onOpenNote, o
         setSizes(dims);
         setDoc(d);
       },
-      (e) => live && setError(String((e as Error).message ?? e)),
+      (e) => live && setError(errorMessage(e)),
     );
     fetch(`/api/annotations?path=${encodeURIComponent(path)}`)
       .then((r) => (r.ok ? r.json() : { v: 1, path, highlights: [] }))

@@ -2,7 +2,7 @@
 // zamanlayıcı, metin kısaltmaları, özel komutlar, akıllı yakalama kuralları ve otomatik yedekleme.
 
 import { useEffect, useState } from "react";
-import { api, type CaptureConfig, type CaptureKind, type NodeMeta } from "../api.ts";
+import { api, type CaptureConfig, type CaptureKind, type NodeMeta, errorMessage } from "../api.ts";
 import { desktop, type BackupStatus } from "../desktop.ts";
 import { t } from "../i18n/index.ts";
 import { usePref } from "../prefs.ts";
@@ -279,7 +279,7 @@ function CaptureSettings({ nodes, onToast }: { nodes: NodeMeta[]; onToast: (msg:
     try {
       await api.setCaptureConfig(next);
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   };
   const targets = (kind: CaptureKind) =>

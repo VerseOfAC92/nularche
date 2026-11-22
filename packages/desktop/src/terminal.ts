@@ -6,6 +6,7 @@ import { execFile, spawn } from "node:child_process";
 import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { ConnectionError } from "../../core/src/ai-clients.ts";
 
 const quoteSh = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 const quotePs = (s: string) => `'${s.replace(/'/g, "''")}'`;
@@ -62,5 +63,5 @@ export async function openInTerminal(executable: string, prompt: string | null):
       // sıradaki terminali dene
     }
   }
-  throw new Error("Terminal bulunamadı. İstem panoya kopyalandı; aracı kendi terminalinizde açıp yapıştırın.");
+  throw new ConnectionError("no_terminal");
 }

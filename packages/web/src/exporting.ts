@@ -1,5 +1,6 @@
 // Dışa aktarma: masaüstünde kaydetme penceresiyle (ana süreç), tarayıcıda indirme olarak.
 
+import { apiError } from "./api.ts";
 import { desktop } from "./desktop.ts";
 import { getLang } from "./i18n/index.ts";
 
@@ -15,7 +16,7 @@ export async function exportNode(kind: ExportKind, nodeId: string | null): Promi
   const lang = getLang();
   const url = nodeId ? `/api/nodes/${encodeURIComponent(nodeId)}/export?format=${kind}&lang=${lang}` : `/api/site?lang=${lang}`;
   const r = await fetch(url);
-  if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { message?: string } | null)?.message ?? r.statusText);
+  if (!r.ok) throw apiError(r.status, await r.json().catch(() => null), r.statusText);
   const name = decodeURIComponent(/filename\*=UTF-8''([^;]+)/.exec(r.headers.get("content-disposition") ?? "")?.[1] ?? "export");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(await r.blob());

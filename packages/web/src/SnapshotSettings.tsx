@@ -2,7 +2,7 @@
 // Anlık görüntü almak, içindeki değişiklikleri incelemek, tek dosyayı ya da Origin'in tamamını geri yüklemek.
 
 import { useCallback, useEffect, useState } from "react";
-import { api, type SnapshotFile, type SnapshotSummary } from "./api.ts";
+import { api, type SnapshotFile, type SnapshotSummary, errorMessage } from "./api.ts";
 import { t, useLang } from "./i18n/index.ts";
 import { Icon } from "./ui/Icon.tsx";
 
@@ -23,7 +23,7 @@ export function SnapshotSettings({ onToast, onChanged }: { onToast: (msg: string
   const refresh = useCallback(() => {
     api.snapshots().then(
       (r) => (setList(r.snapshots), setEncrypted(r.encrypted), setError(null)),
-      (e) => setError((e as Error).message),
+      (e) => setError(errorMessage(e)),
     );
   }, []);
   useEffect(refresh, [refresh]);
@@ -35,7 +35,7 @@ export function SnapshotSettings({ onToast, onChanged }: { onToast: (msg: string
     try {
       await fn();
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     } finally {
       setBusy(false);
       refresh();
@@ -74,7 +74,7 @@ export function SnapshotSettings({ onToast, onChanged }: { onToast: (msg: string
       setOpen({ id: s.id, files: await api.snapshotFiles(s.id) });
     } catch (e) {
       setOpen(null);
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   };
 

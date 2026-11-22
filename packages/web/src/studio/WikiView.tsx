@@ -3,7 +3,7 @@
 // Girdinin adı ve takma adları diğer notlarda geçtiğinde altı çizilir ve "Geçtiği yerler" listesinde sayılır.
 
 import { useEffect, useMemo, useState } from "react";
-import { api, type NodeMeta, type WikiEntry, type WikiMention } from "../api.ts";
+import { api, type NodeMeta, type WikiEntry, type WikiMention, errorMessage } from "../api.ts";
 import { askText } from "../ask.tsx";
 import { t } from "../i18n/index.ts";
 import { Icon } from "../ui/Icon.tsx";
@@ -59,7 +59,7 @@ export function WikiView({
       setTick((x) => x + 1);
       setSelected(n.id);
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   };
 
@@ -69,7 +69,7 @@ export function WikiView({
       setTick((x) => x + 1);
       onChanged();
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   };
 

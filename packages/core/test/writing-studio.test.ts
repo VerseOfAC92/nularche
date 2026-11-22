@@ -28,6 +28,7 @@ import {
   SHADOW,
 } from "../src/index.ts";
 import { unzipSync } from "fflate";
+import { NodeError } from "../src/errors.ts";
 
 let dir: string;
 let store: NodeStore;
@@ -222,7 +223,7 @@ test("wiki: girdiler, anma tespiti ve geçtiği yerler", async () => {
   const mentions = await store.wikiMentions(port.id);
   assert.equal(mentions[0].id, chapter.id);
   assert.equal(mentions[0].count, 2, "kelime sınırı: 'limanın' ve 'Rıhtımda' sayılmaz");
-  await assert.rejects(store.wikiEntries(chapter.id), /wiki değil/);
+  await assert.rejects(store.wikiEntries(chapter.id), (e: unknown) => e instanceof NodeError && e.reason === "not_wiki");
 });
 
 test("anılış arama: uzun ad önce, Türkçe harf, kelime sınırı", () => {

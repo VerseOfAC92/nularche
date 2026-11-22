@@ -4,7 +4,7 @@
 import { cleanVigils } from "../../../core/src/vigil-schedule.ts";
 import { nextText } from "../vigil/VigilSettings.tsx";
 import { useEffect, useMemo, useState } from "react";
-import { api, SHADOW, type NodeMeta, type ParentTarget } from "../api.ts";
+import { api, SHADOW, type NodeMeta, type ParentTarget, errorMessage } from "../api.ts";
 import { locale, t, ago } from "../i18n/index.ts";
 import { setPref, usePref } from "../prefs.ts";
 import { keys } from "../shortcuts.tsx";
@@ -96,7 +96,7 @@ export function Dashboard({
       onChanged();
       onToast("routed" in res ? t("ws.routedTo", { title: res.routed.targetTitle }) : t("shadow.captured"));
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   };
 

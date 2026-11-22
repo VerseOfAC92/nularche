@@ -104,7 +104,7 @@ export class AiActivity {
   }
 
   private requestFile(id: string): string {
-    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", `Geçersiz istek kimliği: ${id}`);
+    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", "request_id_invalid", { id });
     return path.join(this.dir, "requests", `${id}.json`);
   }
 
@@ -139,7 +139,7 @@ export class AiActivity {
   }): Promise<AiRequest> {
     const label = input.label.trim().slice(0, 120);
     const instruction = input.instruction.trim().slice(0, 20_000);
-    if (!instruction) throw new NodeError("invalid", "İstek boş olamaz");
+    if (!instruction) throw new NodeError("invalid", "request_empty");
     const req: AiRequest = {
       id: `${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`,
       createdAt: Date.now(),
@@ -160,7 +160,7 @@ export class AiActivity {
 
   async getRequest(id: string): Promise<AiRequest> {
     const req = await readJson<AiRequest>(this.requestFile(id));
-    if (!req) throw new NodeError("not_found", `İstek bulunamadı: ${id}`);
+    if (!req) throw new NodeError("not_found", "request_not_found");
     return req;
   }
 
@@ -254,7 +254,7 @@ export class AiActivity {
   /** Başarısız ya da takılı kalmış bir isteği yeniden işlenmek üzere bekleyen duruma döndürür. */
   async retryRequest(id: string): Promise<AiRequest> {
     const req = await this.getRequest(id);
-    if (req.status === "done") throw new NodeError("invalid", "Tamamlanmış istek yeniden denenemez");
+    if (req.status === "done") throw new NodeError("invalid", "request_done");
     req.status = "pending";
     delete req.cancelled;
     delete req.reply;
@@ -302,7 +302,7 @@ export class AiActivity {
   async editWithSnapshot(store: NodeStore, ref: string, edit: (before: NodeDoc) => Promise<NodeDoc>, requestId?: string): Promise<NodeDoc> {
     const before = await store.read(ref);
     // Kilitli notun şifreli içeriği yapay zekâ tarafından değiştirilemez (kilit kullanıcının parolasıyla açılır).
-    if (before.locked) throw new NodeError("invalid", "Bu not kilitli; yapay zekâ kilitli notları okuyamaz ve değiştiremez.");
+    if (before.locked) throw new NodeError("invalid", "ai_note_locked");
     const snapshot = await this.snapshot(before.id, (await store.readRaw(before.path)).toString("utf8"));
     const after = await edit(before);
     if (after.revision !== before.revision) {

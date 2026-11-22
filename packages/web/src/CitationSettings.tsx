@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CITATION_STYLES, type CitationStyle } from "../../core/src/citations.ts";
-import { api } from "./api.ts";
+import { api, errorMessage } from "./api.ts";
 import { reloadCitations, useCitations } from "./citations.ts";
 import { t } from "./i18n/index.ts";
 import { setPref } from "./prefs.ts";
@@ -75,7 +75,7 @@ export function CitationSettings({ onToast }: { onToast: (msg: string) => void }
               await save([...lib.files, path]);
               onToast(t("cite.imported", { name: file.name }));
             } catch (err) {
-              onToast((err as Error).message);
+              onToast(errorMessage(err));
             }
           }}
         />

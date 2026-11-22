@@ -43,7 +43,7 @@ function dropLeadingTitle(body: string, title: string): string {
 
 export async function compileManuscript(store: NodeStore, ref: string): Promise<CompiledManuscript> {
   const ms = await store.read(ref);
-  if (ms.layoutMode !== "manuscript") throw new NodeError("invalid", "Bu sayfa bir manuskript değil.");
+  if (ms.layoutMode !== "manuscript") throw new NodeError("invalid", "not_manuscript");
   const { data } = parseWriting("manuscript", ms.body);
   const all = await store.list();
   const byPath = new Map(all.map((n) => [n.path, n]));

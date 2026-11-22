@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePref } from "../prefs.ts";
-import { api, type AiRequest } from "../api.ts";
+import { api, type AiRequest, errorMessage } from "../api.ts";
 import { autoBridge, copyText, desktop, webSession } from "../desktop.ts";
 import { AiSetup, isProviderConnected, preferredLauncher, useAiStatus } from "./AiSetup.tsx";
 import { useAutoStatus } from "./AutoModeSetup.tsx";
@@ -112,7 +112,7 @@ export function NularcheAI({
         );
       }
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     } finally {
       setSending(false);
     }
@@ -125,7 +125,7 @@ export function NularcheAI({
       if (!res.ok && "error" in res && res.error) onToast(res.error);
       setRequests((await api.aiState()).requests);
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   }
 
@@ -136,7 +136,7 @@ export function NularcheAI({
       setRequests((await api.aiState()).requests);
       onToast(res.kept ? t("nai.clearedKept", { count: res.kept }) : t("nai.cleared"));
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   }
 

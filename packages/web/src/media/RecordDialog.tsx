@@ -1,7 +1,7 @@
 // Ses kaydı penceresi: mikrofondan kaydeder (MediaRecorder), duraklatılabilir; bitince dosya `Attachments/`'a yüklenir.
 
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api.ts";
+import { api, errorMessage } from "../api.ts";
 import { t } from "../i18n/index.ts";
 import { Icon } from "../ui/Icon.tsx";
 
@@ -102,7 +102,7 @@ export function RecordDialog({ onDone }: { onDone: (path: string | null) => void
       const { path } = await api.upload(file);
       onDone(path);
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
       setPhase("error");
     }
   }

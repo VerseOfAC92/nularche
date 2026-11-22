@@ -20,6 +20,7 @@ import { registerCalendarIpc } from "./calendar.ts";
 import { registerDriveIpc } from "./drive.ts";
 import { attachContextMenu } from "./context-menu.ts";
 import { registerBackupIpc, type OriginBackup } from "./backup.ts";
+import { describeError } from "../../core/src/errors.ts";
 import { d, desktopLang, isLang, setDesktopLang, systemLang, type Lang } from "./i18n.ts";
 import { loadOrigin, type Origin } from "../../core/src/origin.ts";
 import { startServer, type RunningServer } from "../../server/src/app.ts";
@@ -370,7 +371,7 @@ async function handleOpen(target: string): Promise<void> {
     }
     if (ARCHIVE_EXTS.includes(path.extname(target).toLowerCase())) await importArchiveFile(target);
   } catch (err) {
-    dialog.showErrorBox("Nularche", String((err as Error).message ?? err));
+    dialog.showErrorBox("Nularche", describeError(err, desktopLang()));
   }
 }
 
@@ -865,7 +866,7 @@ function registerIpc(): void {
     try {
       return { ok: true, path: await exportTo(kind, typeof nodeId === "string" ? nodeId : null) };
     } catch (err) {
-      return { ok: false, error: String((err as Error).message ?? err) };
+      return { ok: false, error: describeError(err, desktopLang()) };
     }
   });
   ipcMain.handle("nularche:read-clipboard", () => clipboard.readText());

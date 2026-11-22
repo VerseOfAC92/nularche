@@ -1,7 +1,7 @@
 // Veritabanı satırı sayfasının üstündeki özellik paneli. Değerler, açık sayfanın sürüm takibiyle (NodeView) kaydedilir.
 
 import { useMemo, useState } from "react";
-import { api, type NodeMeta } from "../api.ts";
+import { api, type NodeMeta, errorMessage } from "../api.ts";
 import { t } from "../i18n/index.ts";
 import { Cell } from "./Cell.tsx";
 import { addProperty, PROPERTY_TYPES, toRow, useDatabaseModel, writeSchema, type Database, type DatabaseActions } from "./model.ts";
@@ -36,7 +36,7 @@ export function RowProperties({
       await writeSchema(dbNode.id, db);
       onChanged();
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   };
   const actions: DatabaseActions = {

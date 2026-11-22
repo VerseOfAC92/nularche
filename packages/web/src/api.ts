@@ -1,5 +1,8 @@
 // Yerel sunucunun JSON API istemcisi. Tipler core/src/node-store.ts ile aynı sözleşmeyi izler.
 
+import { describeError } from "../../core/src/errors.ts";
+import { getLang } from "./i18n/index.ts";
+
 export type LayoutMode = "stream" | "canvas" | "manuscript" | "outline" | "cards" | "wiki" | "whiteboard";
 
 export interface PageFields {
@@ -221,11 +224,30 @@ export const SHADOW = "shadow";
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
-  constructor(status: number, code: string, message: string) {
+  /** Sunucunun hata neden kodu ve yer tutucuları: metin arayüzün dilinde buradan kurulur (errorMessage). */
+  readonly reason?: string;
+  readonly vars?: Record<string, string | number>;
+  constructor(status: number, code: string, message: string, reason?: string, vars?: Record<string, string | number>) {
     super(message);
     this.status = status;
     this.code = code;
+    this.reason = reason;
+    this.vars = vars;
   }
+}
+
+/** Sunucunun hata cevabından istemci hatası kurar. */
+export function apiError(
+  status: number,
+  data: { error?: string; message?: string; reason?: string; vars?: Record<string, string | number> } | null,
+  fallback: string,
+): ApiError {
+  return new ApiError(status, data?.error ?? "error", data?.message ?? fallback, data?.reason, data?.vars);
+}
+
+/** Kullanıcıya gösterilecek hata metni, arayüzün dilinde. */
+export function errorMessage(err: unknown): string {
+  return describeError(err, getLang());
 }
 
 async function request<T>(method: string, url: string, body?: unknown, raw?: BodyInit): Promise<T> {
@@ -235,7 +257,7 @@ async function request<T>(method: string, url: string, body?: unknown, raw?: Bod
     body: raw ?? (body === undefined ? undefined : JSON.stringify(body)),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error ?? "error", data.message ?? res.statusText);
+  if (!res.ok) throw apiError(res.status, data, res.statusText);
   return data as T;
 }
 
