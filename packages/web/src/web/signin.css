@@ -11,6 +11,14 @@
   font-family: "Nularche Font", "Segoe Print", cursive;
   color: #1c2636;
 }
+/* Giriş ve kilit pencerelerinde genişlik kenarlık ve iç boşluğu içerir: tam genişlikteki alanlar taşmaz, ortalı kalır. */
+.nw-shade *,
+.nw-shade *::before,
+.nw-shade *::after,
+.nw-reauth,
+.nw-reauth * {
+  box-sizing: border-box;
+}
 .nw-card {
   position: relative;
   width: min(440px, 100%);

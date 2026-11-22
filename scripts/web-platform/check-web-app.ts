@@ -225,6 +225,19 @@ try {
     await page.getByTestId("web-session").getByText("Kilitle").click();
     await page.waitForSelector(".nw-lockscreen .nw-input", { timeout: 20_000 });
     check(true, "kilitleyince Nularche kilit ekranı geliyor (Google girişi istenmiyor)");
+    if (shots) await page.screenshot({ path: path.join(shots, "8-kilit-ekrani.png") });
+    const box = await page.evaluate(() => {
+      const r = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+      const card = r(".nw-lockscreen");
+      const input = r(".nw-lockscreen .nw-input");
+      const button = r(".nw-lockscreen .nw-primary");
+      return { cardMid: card.left + card.width / 2, input: [input.left, input.right], button: [button.left, button.right] };
+    });
+    const mid = (b: number[]) => (b[0] + b[1]) / 2;
+    check(
+      Math.abs(box.input[0] - box.button[0]) <= 1 && Math.abs(box.input[1] - box.button[1]) <= 1 && Math.abs(mid(box.input) - box.cardMid) <= 1,
+      `kilit ekranında parola kutusu düğmeyle aynı genişlikte ve ortalı (kutu ${box.input.map(Math.round)}, düğme ${box.button.map(Math.round)})`,
+    );
     check(
       [...fake.files.values()].some((f) => !f.trashed && f.name.endsWith(".nlce") && decryptFile(keys, new Uint8Array(f.data)).rel.includes("Kilit")),
       "kilitlemeden hemen önceki değişiklik Drive'a gönderildi",
