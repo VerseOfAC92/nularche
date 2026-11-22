@@ -2,7 +2,8 @@
 // (GIS) yerine bir taklit konur; Drive ve Takvim istekleri gerçek www.googleapis.com adreslerine gider ve sahte
 // sunuculara yönlendirilir (yayındaki güvenlik kuralları gerçek adreslerle sınanır). Denetlenenler:
 //  - Google penceresi tıklamayla aynı anda açılır (Safari başka türlü engeller),
-//  - Drive izni verilmezse kullanıcının dilinde anlaşılır bir mesaj çıkar,
+//  - Drive izni verilmezse kullanıcının dilinde (Türkçe ve İngilizce) anlaşılır bir mesaj çıkar,
+//  - Apple Takvim için form yerine neden web'de kullanılamadığı yazar,
 //  - erişim izninin süresi dolup tarayıcı yenileme penceresini engellerse "Yenile" çubuğu çıkar, tıklayınca bekleyen
 //    eşitleme sürer.
 
@@ -110,6 +111,12 @@ try {
     const errors: string[] = [];
     page.on("console", (m) => /Content Security Policy|Refused to/i.test(m.text()) && csp.push(m.text()));
     page.on("pageerror", (e) => errors.push(e.message));
+    if (process.env.NULARCHE_DEBUG) {
+      page.on("console", (m) => console.log("console:", m.text()));
+      page.on("pageerror", (e) => console.log("pageerror:", e.message));
+      page.on("close", () => console.log("sayfa kapandı"));
+      page.on("crash", () => console.log("sayfa çöktü"));
+    }
     await page.addInitScript(gisStub(stub));
     await page.goto(`${base}/app/`);
     await page.waitForSelector(".nw-google:not([disabled])");
@@ -122,6 +129,17 @@ try {
       await page.click(".nw-google");
       await page.waitForSelector(".nw-error");
       check(/Google Drive izni gerekli/.test((await page.locator(".nw-error").textContent()) ?? ""), "Drive izni verilmezse Türkçe ve anlaşılır mesaj çıkıyor");
+      check((await page.locator(".nw-tagline").textContent()) === "Notlarınız, her yerden.", "slogan: Notlarınız, her yerden.");
+      await page.context().close();
+    }
+    // 1b. Uyarılar seçilen dilde: İngilizce arayüzde Drive izni mesajı İngilizce.
+    {
+      const { page } = await open({ scope: "https://www.googleapis.com/auth/calendar.events", expiresIn: 3600, blockSilent: false });
+      await page.click(".nw-lang");
+      await page.click(".nw-google");
+      await page.waitForSelector(".nw-error");
+      const text = (await page.locator(".nw-error").textContent()) ?? "";
+      check(/needs Google Drive access/.test(text) && !/[ığşİ]/.test(text), "İngilizce seçiliyken uyarı İngilizce (Türkçe karakter yok)");
       await page.context().close();
     }
     // 2. Giriş: pencere tıklamayla aynı anda; notlar açılır; süre dolunca "Yenile" çubuğu.
@@ -134,6 +152,13 @@ try {
     check(true, "gerçek googleapis adresleriyle notlar açıldı");
     const calOk = await page.evaluate(async () => (await window.nularcheWeb!.calendar.calendarStatus()).accounts.google === "deneme@example.com");
     check(calOk, "Google Takvim aynı girişle bağlandı");
+    // Apple Takvim tarayıcıdan bağlanamaz: form yerine nedeni (seçilen dilde) gösterilir.
+    await page.getByText("Ayarlar", { exact: true }).first().click();
+    await page.getByRole("tab", { name: "Takvim" }).click();
+    const apple = page.getByTestId("cal-apple-web");
+    await apple.waitFor({ timeout: 10_000 });
+    check(/masaüstü uygulamasında bağlayın/.test((await apple.textContent()) ?? "") && !(await page.getByPlaceholder(/Apple/).count()), "web'de Apple Takvim formu yerine açıklama var");
+    await page.keyboard.press("Escape");
 
     // Erişim izninin süresi dolar (66 sn − 60 sn pay): bir sonraki Drive isteği sessiz yenileme ister, tarayıcı engeller.
     await page.waitForTimeout(6500);

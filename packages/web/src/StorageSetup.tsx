@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { desktop, webSession, type DriveStatus } from "./desktop.ts";
-import { locale, t } from "./i18n/index.ts";
+import { hasString, locale, t, type StringKey } from "./i18n/index.ts";
 import { GoogleSignIn } from "./calendar/CalendarSync.tsx";
 import { Icon } from "./ui/Icon.tsx";
 
@@ -20,10 +20,16 @@ export function useDriveStatus(): [DriveStatus | null, () => Promise<void>] {
   return [status, refresh];
 }
 
+/** Eşitleme hatası, arayüzün dilinde (kod core/drive-google.ts syncFailure'dan gelir; bilinmeyen hatada ileti). */
+export function syncErrorText(e: { code: string; message: string; count?: number }): string {
+  const key = `sync.err.${e.code}` as StringKey;
+  return e.code !== "unknown" && hasString(key) ? t(key, { n: e.count ?? 0 }) : e.message.split("\n")[0].slice(0, 160);
+}
+
 function syncLine(s: DriveStatus): string {
   if (s.syncing) return t("storage.syncing");
   if (s.lastError?.code === "mass_delete") return t("storage.paused");
-  if (s.lastError) return t("storage.syncError", { error: s.lastError.message.split("\n")[0].slice(0, 160) });
+  if (s.lastError) return t("storage.syncError", { error: syncErrorText(s.lastError) });
   if (!s.lastSync) return t("storage.neverSynced");
   return t("storage.lastSync", { time: new Date(s.lastSync).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) });
 }
@@ -351,7 +357,7 @@ export function WebDriveCard() {
     status.state === "syncing" || status.state === "starting"
       ? t("web.drive.syncing")
       : status.state === "error"
-        ? t("web.drive.error", { error: status.message.split("\n")[0].slice(0, 160) })
+        ? t("web.drive.error", { error: syncErrorText(status) })
         : t("web.drive.synced", { time: new Date(status.at).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) });
   return (
     <div className="storage-choice" data-testid="web-drive">

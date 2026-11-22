@@ -48,6 +48,11 @@ export function useLang(): Lang {
 }
 
 /** Metni geçerli dilde döndürür; `{ad}` biçimindeki yer tutucular `vars` ile doldurulur. */
+/** Sözlükte bu anahtar var mı (koddan türetilen anahtarlar için). */
+export function hasString(key: string): key is StringKey {
+  return key in STRINGS;
+}
+
 export function t(key: StringKey, vars?: Record<string, string | number>): string {
   const entry = STRINGS[key];
   const s: string = entry[current] ?? entry.tr;

@@ -17,7 +17,8 @@ export function setApiHandler(next: ApiHandler | null): void {
  */
 export async function startHost(scriptUrl: string, scope: string): Promise<void> {
   const sw = navigator.serviceWorker;
-  if (!sw) throw new Error("Bu tarayıcı service worker desteklemiyor; Nularche web sürümü açılamaz.");
+  // Kod giriş penceresinde kullanıcının dilinde açıklanır (ör. özel pencerede service worker kapalı olabilir).
+  if (!sw) throw Object.assign(new Error("no_service_worker"), { code: "no_service_worker" });
   if (!listening) {
     listening = true;
     sw.addEventListener("message", (event: MessageEvent) => {

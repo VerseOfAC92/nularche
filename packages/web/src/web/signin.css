@@ -40,7 +40,8 @@
   border-radius: 50%;
   box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.6), 0 0 0 7px rgba(168, 117, 58, 0.35), 0 16px 40px rgba(20, 34, 54, 0.3);
 }
-.nw-head h1 {
+.nw-head h1,
+.nw-card > h1 {
   margin: 16px 0 2px;
   font: 400 46px/1.1 "Nularche Font", cursive;
   color: #15202f;

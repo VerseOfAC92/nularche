@@ -17,7 +17,10 @@ self.addEventListener("fetch", (event) => {
       // İsteği yapan pencere; bir worker'dan (ör. pdf.js) geldiyse aynı kaynaktaki açık Nularche penceresi.
       let client = event.clientId ? await self.clients.get(event.clientId) : undefined;
       if (!client || client.type !== "window") client = (await self.clients.matchAll({ type: "window" }))[0];
-      if (!client) return new Response(JSON.stringify({ error: "Açık Nularche penceresi yok." }), { status: 503, headers: { "content-type": "application/json" } });
+      if (!client) {
+        const tr = (self.navigator.language || "").toLowerCase().startsWith("tr");
+        return new Response(JSON.stringify({ error: tr ? "Açık Nularche penceresi yok." : "No Nularche window is open." }), { status: 503, headers: { "content-type": "application/json" } });
+      }
       const target = client;
       return forwardRequest(event.request, (message, transfer) => target.postMessage(message, transfer));
     })(),

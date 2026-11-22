@@ -3,7 +3,7 @@
 // Her öğeye `nularcheRoot` uygulama özelliği yazılır; böylece bir Origin'in bütün ağacı tek sorguyla listelenir.
 
 import { randomUUID } from "node:crypto";
-import type { DriveApi, RemoteEntry, RootInfo } from "./drive-sync.ts";
+import { DriveSyncError, type DriveApi, type RemoteEntry, type RootInfo } from "./drive-sync.ts";
 
 type Fetch = typeof fetch;
 
@@ -33,6 +33,18 @@ export class DriveError extends Error {
  * açma penceresi verir (yenileme belirteci ve istemci sırrı yoktur); `force` süresi dolan belirtecin yenisini ister.
  */
 export type DriveCredentials = { clientId: string; clientSecret: string; refreshToken: string } | { accessToken: (force?: boolean) => Promise<string> };
+
+/** Eşitleme hatasının arayüzde çevrilen kodu (masaüstü ve web aynı kodları gösterir). */
+export type SyncFailureCode = "auth" | "network" | "quota" | "invalid" | "empty_remote" | "wrong_key" | "mass_delete" | "unknown";
+
+/** Eşitleme hatasını koda çevirir; ileti yalnızca bilinmeyen hatalarda ayrıntı olarak gösterilir. */
+export function syncFailure(e: unknown): { code: SyncFailureCode; message: string; count?: number } {
+  return {
+    code: e instanceof DriveError ? (e.code === "not_found" ? "invalid" : e.code) : e instanceof DriveSyncError ? e.code : "unknown",
+    message: (e as Error)?.message ?? String(e),
+    ...(e instanceof DriveSyncError && e.count ? { count: e.count } : {}),
+  };
+}
 
 export interface DriveEndpoints {
   token?: string;

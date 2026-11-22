@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, test } from "node:test";
-import { AiActivity, checkGeminiKey, NodeStore, pickGeminiModel, rankGeminiModels, runGeminiAgent } from "../src/index.ts";
+import { AgentError, AiActivity, checkGeminiKey, NodeStore, pickGeminiModel, rankGeminiModels, runGeminiAgent } from "../src/index.ts";
 
 let dir: string;
 let store: NodeStore;
@@ -282,4 +282,19 @@ test("yalnızca cevap isteğinde yazma araçları verilmez ve çağrılsa da not
   await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["a"], fetchImpl: fake });
   assert.ok(!tools.includes("update_node") && tools.includes("read_node"));
   assert.equal((await store.read(node.id)).body.trim(), "eski");
+});
+
+test("hata cevabı isteğin dilinde yazılır (İngilizce arayüz)", async () => {
+  const req = await ai.createRequest({ provider: "gemini", label: "x", instruction: "x", language: "en" });
+  const quota = async () => json(429, { error: { message: "Resource exhausted" } });
+  const { request } = await runGeminiAgent({ store, activity: ai, requestId: req.id, apiKey: "k", models: ["a", "b"], fetchImpl: quota as typeof fetch, retryDelayMs: 1 });
+  assert.equal(request.status, "failed");
+  assert.match(request.reply!, /free quota of every Gemini model/);
+  assert.match(request.reply!, /a \(quota used up\), b \(quota used up\)/);
+  assert.doesNotMatch(request.reply!, /kota/);
+  const bad = async () => json(400, { error: { message: "API key not valid" } });
+  const err = await checkGeminiKey("k", bad as typeof fetch).catch((e: unknown) => e);
+  assert.ok(err instanceof AgentError);
+  assert.match(err.text("en"), /Gemini API key is invalid/);
+  assert.match(err.text("tr"), /anahtarı geçersiz/);
 });

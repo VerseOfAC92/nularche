@@ -9,7 +9,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { ipcMain, safeStorage, type BrowserWindow } from "electron";
-import { DriveError, DRIVE_SCOPES, GoogleDrive } from "../../core/src/drive-google.ts";
+import { DriveError, DRIVE_SCOPES, GoogleDrive, syncFailure, type SyncFailureCode } from "../../core/src/drive-google.ts";
 import {
   clearSyncState,
   deriveKeys,
@@ -50,7 +50,7 @@ export interface DriveContext {
   configDir: () => string;
 }
 
-type ErrorCode = "auth" | "network" | "quota" | "invalid" | "empty_remote" | "wrong_key" | "mass_delete" | "unknown";
+type ErrorCode = SyncFailureCode;
 
 export interface DriveStatus {
   /** Google ile tek tıkla bağlanma kullanılabilir mi (yerleşik istemci). */
@@ -71,11 +71,8 @@ export interface DriveStatus {
   lastCounts: DriveSyncCounts | null;
 }
 
-const failure = (e: unknown): { code: ErrorCode; message: string; count?: number } => ({
-  code: e instanceof DriveError ? (e.code === "not_found" ? "invalid" : e.code) : e instanceof DriveSyncError ? e.code : "unknown",
-  message: (e as Error).message,
-  ...(e instanceof DriveSyncError && e.count ? { count: e.count } : {}),
-});
+/** Hata kodu web sürümüyle ortaktır (core/drive-google.ts syncFailure). */
+const failure = syncFailure;
 
 export function registerDriveIpc(ctx: DriveContext): { onOriginChanged: () => void; flush: () => Promise<void> } {
   const credFile = () => path.join(ctx.configDir(), "drive-google.bin");
