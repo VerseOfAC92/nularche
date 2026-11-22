@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const NAMES = `
-building-bank logout search circle-half-2 plus calendar-event template sparkles notes clock paperclip trash info-circle settings
+building-bank logout cloud-off search circle-half-2 plus calendar-event template sparkles notes clock paperclip trash info-circle settings
 folder-cog hash stack-2 diamond file chevron-right chevron-down list pencil x check arrow-back-up message-circle flag
 layout-columns hourglass music dots star pin lock lock-open target typography sun list-check volume app-window copy
 table download world file-type-pdf printer package-export photo mood-smile arrows-exchange notebook book list-tree

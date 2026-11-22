@@ -87,10 +87,20 @@ only in the tab's memory and is entered again in the next session. AI apps that 
 ChatGPT, Codex) are not offered on the web. Which file change notifies the interface ("ai", "comments", "change") is
 decided by one shared rule (`api.ts` `changeEventFor`) for both the desktop file watcher and the in-memory files.
 
-**Lock and sign out.** The sidebar has Lock and Sign out. Both send pending changes to Drive, wipe the tab's memory
-and return to the sign-in window; Sign out also revokes the Google grant. The session locks itself after a period of
-inactivity (15 minutes by default, 5 to 240 in Settings → Security). Closing the tab while changes are not yet in
-Drive asks for confirmation.
+**Lock and sign out.** The sidebar has Lock and Sign out. Lock sends pending changes, wipes the tab's memory and
+reloads into Nularche's lock screen: the passphrase opens it again (one click for a non-encrypted Origin) without signing
+in to Google again. Only the short-lived Google access token, the account and the root folder's public details are left
+in the tab's `sessionStorage` while the lock screen shows; the browser deletes it when the tab closes and Nularche
+deletes it as soon as the lock opens. Sign out also revokes the Google grant and deletes the trusted copy. The session
+locks itself after a period of inactivity (15 minutes by default, 5 to 240 in Settings → Security). Closing the tab
+while changes are not yet in Drive asks for confirmation.
+
+**Trust this browser.** Settings → Security → Trust this browser keeps an encrypted copy of the Origin in IndexedDB
+(`web-platform/src/trusted-store.ts`). For an end-to-end encrypted Origin the key is derived from the Drive keys
+(so the passphrase is needed to read it); otherwise a non-extractable WebCrypto key stored in the browser is used.
+Record names are HMACs of the paths and paths travel inside the encrypted content. A new tab then shows the lock
+screen, loads the notes from the copy without waiting for Drive and syncs once Google is connected (a Connect bar; the
+same Nularche folder is required). Turning trust off or signing out deletes the database.
 
 **Headers.** `site/_headers` is generated from `scripts/site-headers.ts`. The homepage keeps its strict policy; `/app`
 gets its own Content Security Policy that allows only Google sign-in, the Drive and Calendar APIs, the Gemini API and

@@ -51,16 +51,32 @@ export interface WebOriginOptions {
   pullEvery?: number;
   /** Eşitleme durumu (arayüzdeki gösterge için). */
   onStatus?: (status: SyncStatus) => void;
+  /**
+   * Güvenilen tarayıcının yerel kopyası: verilirse notlar Drive beklenmeden bundan açılır ve ilk eşitleme arkadan
+   * yapılır. Yol Origin içindedir.
+   */
+  preloaded?: Map<string, { data: Uint8Array; mtime: number }>;
 }
+
+/** Güvenilen tarayıcı kopyasına yazan: değişen dosyalar toplu olarak verilir. */
+export type Mirror = (changes: { put: { rel: string; data: Uint8Array; mtime: number }[]; remove: string[] }) => Promise<void>;
 
 export type SyncStatus =
   | { state: "syncing" }
+  /** Google Drive henüz bağlı değil (güvenilen tarayıcı Drive'ı beklemeden açıldı). */
+  | { state: "offline" }
   | { state: "idle"; at: number; report?: DriveSyncReport }
   | { state: "error"; code: SyncFailureCode; message: string; count?: number };
 
 export interface WebOrigin {
   readonly root: OriginRoot;
   readonly store: NodeStore;
+  /** Şifreli Origin'in anahtarları (güvenilen tarayıcı kopyası için); açık Origin'de null. */
+  readonly keys: DriveKeys | null;
+  /** Drive sonradan bağlanınca (güvenilen tarayıcı): eşitleme başlar. */
+  attachDrive(drive: DriveApi): void;
+  /** Güvenilen tarayıcı kopyasına yazmayı açar ya da kapatır; açılınca bütün dosyalar bir kez yazılır. */
+  setMirror(mirror: Mirror | null): Promise<void>;
   /** Bekleyen değişiklikleri hemen Drive'a gönderir ve Drive'daki değişiklikleri çeker. */
   sync(): Promise<DriveSyncReport | null>;
   /** Drive'a henüz gönderilmemiş değişiklik ya da süren eşitleme var mı (sekme kapatılırken uyarı için). */
@@ -70,7 +86,8 @@ export interface WebOrigin {
 }
 
 /** Drive'daki notları belleğe indirir ve API'yi bağlar. Önceki oturum varsa önce kapatılmış olmalıdır. */
-export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveKeys | null, options: WebOriginOptions = {}): Promise<WebOrigin> {
+export async function openOrigin(initialDrive: DriveApi | null, root: OriginRoot, keys: DriveKeys | null, options: WebOriginOptions = {}): Promise<WebOrigin> {
+  let drive = initialDrive;
   const pushDelay = options.pushDelay ?? 2000;
   const pullEvery = options.pullEvery ?? 60_000;
   const status = options.onStatus ?? (() => undefined);
@@ -84,6 +101,10 @@ export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveK
   let syncing = false;
   const runOnce = async (): Promise<DriveSyncReport | null> => {
     if (closed) return null;
+    if (!drive) {
+      status({ state: "offline" });
+      return null;
+    }
     syncing = true;
     status({ state: "syncing" });
     try {
@@ -113,12 +134,22 @@ export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveK
     return running;
   };
 
-  // İlk indirme: hata (ör. çözülemeyen dosya) oturumu açtırmaz.
-  try {
-    await sync();
-  } catch (err) {
-    vfs.clear();
-    throw err;
+  if (options.preloaded) {
+    // Güvenilen tarayıcı: notlar yerel kopyadan gelir; Drive'la eşitleme arkadan yapılır.
+    for (const [rel, f] of options.preloaded) {
+      const abs = `${dir}/${rel}`;
+      await vfs.mkdir(abs.slice(0, abs.lastIndexOf("/")), { recursive: true });
+      await vfs.writeFile(abs, f.data);
+      vfs.utimes(abs, f.mtime);
+    }
+  } else {
+    // İlk indirme: hata (ör. çözülemeyen dosya) oturumu açtırmaz.
+    try {
+      await sync();
+    } catch (err) {
+      vfs.clear();
+      throw err;
+    }
   }
 
   const store = new NodeStore(dir);
@@ -136,9 +167,36 @@ export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveK
   };
   // Arayüze bildirim: masaüstündeki dosya izleyicisiyle aynı kural (Nularche AI → "ai", yorumlar → "comments").
   const notifier = changeNotifier(events);
+  // Güvenilen tarayıcı kopyası: değişen yollar kısa bir beklemeyle toplu yazılır (sıra korunur).
+  let mirror: Mirror | null = null;
+  const dirty = new Set<string>();
+  let mirrorTimer: ReturnType<typeof setTimeout> | null = null;
+  let mirrorQueue: Promise<unknown> = Promise.resolve();
+  const flushMirror = () => {
+    if (mirrorTimer) clearTimeout(mirrorTimer);
+    mirrorTimer = null;
+    const m = mirror;
+    if (!m || !dirty.size) return mirrorQueue;
+    const paths = [...dirty];
+    dirty.clear();
+    const put: { rel: string; data: Uint8Array; mtime: number }[] = [];
+    const remove: string[] = [];
+    for (const rel of paths) {
+      const e = vfs.get(`${dir}/${rel}`);
+      if (e?.kind === "file") put.push({ rel, data: e.data, mtime: e.mtimeMs });
+      else remove.push(rel);
+    }
+    mirrorQueue = mirrorQueue.then(() => m({ put, remove })).catch((err) => console.warn("Yerel kopya yazılamadı:", err));
+    return mirrorQueue;
+  };
   const unsubscribe = vfs.onChange((change) => {
     if (closed) return;
     if (change.path.startsWith(`${dir}/`)) notifier.notify(change.path.slice(dir.length + 1));
+    if (mirror && change.path.startsWith(`${dir}/`)) {
+      dirty.add(change.path.slice(dir.length + 1));
+      if (mirrorTimer) clearTimeout(mirrorTimer);
+      mirrorTimer = setTimeout(flushMirror, 400);
+    }
     // Eşitlenmeyen dosyalar (eşitleme durumu, yerel önbellekler) göndermeyi tetiklemez. Eşitleme sürerken gelen
     // değişiklik (kullanıcı ya da indirilen dosya) bitince bir tur daha çalıştırır; ikinci tur yeni bir şey indirmediği
     // için döngü oluşmaz.
@@ -148,10 +206,25 @@ export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveK
   });
   const pullTimer = pullEvery > 0 ? setInterval(() => void sync().catch(() => undefined), pullEvery) : null;
   setApiHandler((request) => api.handle(request));
+  if (!drive) status({ state: "offline" });
 
   return {
     root,
     store,
+    keys,
+    attachDrive(d) {
+      drive = d;
+      void sync().catch(() => undefined);
+    },
+    async setMirror(m) {
+      await flushMirror();
+      mirror = m;
+      dirty.clear();
+      if (!m) return;
+      const put: { rel: string; data: Uint8Array; mtime: number }[] = [];
+      for (const [abs, f] of vfs.files()) if (abs.startsWith(`${dir}/`)) put.push({ rel: abs.slice(dir.length + 1), data: f.data, mtime: f.mtimeMs });
+      await m({ put, remove: [] });
+    },
     sync,
     pending: () => !closed && (!!pushTimer || !!running),
     async close({ flush = true } = {}) {
@@ -161,6 +234,7 @@ export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveK
         pushTimer = null;
         if (flush) await sync().catch(() => undefined);
       } else if (flush && running) await running.catch(() => undefined);
+      await flushMirror();
       closed = true;
       if (pullTimer) clearInterval(pullTimer);
       unsubscribe();

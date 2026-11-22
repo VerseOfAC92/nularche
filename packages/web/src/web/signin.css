@@ -194,3 +194,21 @@
   padding: 6px 18px;
   font-size: 18px;
 }
+
+/* Kilit ekranı: logonun üstünde küçük bir kilit işareti. */
+.nw-lockscreen .nw-head {
+  position: relative;
+}
+.nw-lockmark {
+  position: absolute;
+  top: 58px;
+  left: calc(50% + 22px);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #2c5a84 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E") center / 16px no-repeat;
+  box-shadow: 0 0 0 3px #fffaf1;
+}
+.nw-small {
+  font-size: 16px;
+}

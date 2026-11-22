@@ -19,6 +19,10 @@ export interface SignedIn {
   calendar: GoogleCalendarAccess | null;
   /** Oturum yenilemesi bir tıklama gerektirdiğinde (Safari) çağrılacak işlevi kaydeder. */
   onGestureNeeded?(cb: (resume: () => void) => void): void;
+  /** Kilitlenirken sekmenin oturum belleğine bırakılacak erişim izni (Google'a yeniden girmeden açmak için). */
+  handover?(): unknown;
+  /** Tıklamanın içinde: erişim izninin süresi dolmuşsa Google penceresini hemen açar. */
+  refreshInGesture?(): void;
 }
 
 /** Oturum açma sağlayıcısı: üretimde Google (GIS), denetimlerde sahte Drive ve Takvim. */
@@ -27,6 +31,8 @@ export interface SignInProvider {
   prepare?(): Promise<void>;
   /** Düğme tıklamasında, beklemeden çağrılır: Google penceresi aynı anda açılmalıdır (Safari). */
   signIn(): Promise<SignedIn>;
+  /** Kilit ekranından: devredilen erişim izniyle oturumu Google penceresi açmadan kurar. */
+  resume?(handover: unknown): Promise<SignedIn>;
 }
 
 export interface OpenedSession {
@@ -72,6 +78,10 @@ const TEXT = {
   e_wrong_key: ["A file in Google Drive could not be decrypted with this passphrase.", "Google Drive'daki bir dosya bu parolayla çözülemedi."],
   e_empty_remote: ["The Nularche folder in Google Drive looks empty.", "Google Drive'daki Nularche klasörü boş görünüyor."],
   e_access_denied: ["Google access was not allowed.", "Google erişimine izin verilmedi."],
+  e_other_origin: [
+    "That Google account holds different Nularche notes from the ones in this browser. Connect the account you used before.",
+    "Bu Google hesabındaki Nularche notları bu tarayıcıdakilerden farklı. Daha önce kullandığınız hesabı bağlayın.",
+  ],
   e_no_service_worker: [
     "This browser can't run the Nularche web app here (service workers are off, which some private windows do). Open it in a normal window or another browser.",
     "Bu tarayıcı Nularche web sürümünü burada çalıştıramıyor (service worker kapalı; bazı gizli pencerelerde böyledir). Normal bir pencerede ya da başka bir tarayıcıda açın.",
@@ -235,6 +245,135 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
       },
     );
   });
+}
+
+/** Hata, kullanıcının dilinde (kodu bilinen hatalar çevrilir; diğerlerinde ayrıntı). */
+export function errorText(err: unknown): string {
+  const i = getLang() === "tr" ? 1 : 0;
+  const code = (err as { code?: unknown })?.code;
+  const key = typeof code === "string" ? (`e_${code}` as keyof typeof TEXT) : null;
+  if (key && key in TEXT) return TEXT[key][i];
+  return `${TEXT.failed[i]} ${err instanceof Error ? err.message : String(err)}`;
+}
+
+const LOCK_TEXT = {
+  title: ["Nularche is locked", "Nularche kilitli"],
+  encrypted: ["Enter your passphrase to open your notes.", "Notlarınızı açmak için parolanızı girin."],
+  plain: ["Your notes were removed from this tab's memory. Unlock to open them again.", "Notlarınız bu sekmenin belleğinden silindi. Yeniden açmak için kilidi açın."],
+  trusted: ["This browser is trusted: your notes are kept here encrypted and open without waiting for Google Drive.", "Bu tarayıcı güvenilir: notlarınız burada şifreli saklanır ve Google Drive beklenmeden açılır."],
+  other: ["Sign in with Google instead", "Bunun yerine Google ile giriş yap"],
+} as const;
+
+export type LockResult = { kind: "unlocked"; passphrase: string | null } | { kind: "switch" };
+
+/**
+ * Nularche'ye özel kilit ekranı: Google'a yeniden girmeden parolayla (açık Origin'de tek tıkla) açılır. `unlock` başarılı
+ * olunca ekran kalkar; hata (ör. yanlış parola) ekranda gösterilir. "Google ile giriş" seçilirse `switch` döner.
+ */
+export function showLockScreen(options: {
+  account: string;
+  encrypted: boolean;
+  trusted: boolean;
+  /** Tıklamanın içinde, beklemeden çalışır (ör. süresi dolan Google iznini yenilemek için). */
+  inGesture?(): void;
+  unlock(passphrase: string | null): Promise<void>;
+}): Promise<LockResult> {
+  let lang: Lang = getLang();
+  const t2 = (k: keyof typeof LOCK_TEXT) => LOCK_TEXT[k][lang === "tr" ? 1 : 0];
+  const tx = (k: keyof typeof TEXT) => TEXT[k][lang === "tr" ? 1 : 0];
+  const shade = el("div", "nw-shade");
+  const card = el("main", "nw-card nw-lockscreen");
+  card.setAttribute("aria-live", "polite");
+  shade.append(card);
+  document.body.append(shade);
+  let error: string | null = null;
+  let busy = false;
+  return new Promise<LockResult>((resolve) => {
+    const render = () => {
+      const langBtn = el("button", "nw-lang", lang === "tr" ? "EN" : "TR");
+      langBtn.type = "button";
+      langBtn.addEventListener("click", () => {
+        lang = lang === "tr" ? "en" : "tr";
+        setLang(lang);
+        render();
+      });
+      const logo = el("img", "nw-logo");
+      logo.src = `${import.meta.env.BASE_URL}logo.png`;
+      logo.alt = "";
+      const lockMark = el("span", "nw-lockmark");
+      lockMark.setAttribute("aria-hidden", "true");
+      const head = el("header", "nw-head");
+      head.append(logo, lockMark, el("h1", undefined, t2("title")), el("p", "nw-account", options.account));
+      const body = el("section", "nw-body");
+      if (busy) body.append(el("div", "nw-spinner"), el("p", "nw-note", tx("opening")));
+      else {
+        body.append(el("p", "nw-note", t2(options.encrypted ? "encrypted" : "plain")));
+        const form = el("form", "nw-form");
+        let input: HTMLInputElement | null = null;
+        if (options.encrypted) {
+          input = el("input", "nw-input");
+          input.type = "password";
+          input.autocomplete = "current-password";
+          input.placeholder = tx("passphrase");
+          input.setAttribute("aria-label", tx("passphrase"));
+          input.required = true;
+          form.append(input);
+        }
+        const go = el("button", "nw-primary", tx("unlock"));
+        go.type = "submit";
+        form.append(go);
+        if (error) form.append(el("p", "nw-error", error));
+        form.addEventListener("submit", (e) => {
+          e.preventDefault();
+          options.inGesture?.();
+          const pass = input ? input.value : null;
+          if (input) input.value = "";
+          busy = true;
+          error = null;
+          render();
+          options.unlock(pass).then(
+            () => {
+              shade.remove();
+              resolve({ kind: "unlocked", passphrase: pass });
+            },
+            (err) => {
+              busy = false;
+              error = (err as { code?: string })?.code === "wrong_passphrase" ? tx("wrong") : errorText(err);
+              render();
+            },
+          );
+        });
+        body.append(form);
+        if (options.trusted) body.append(el("p", "nw-note nw-small", t2("trusted")));
+        const other = el("button", "nw-text", t2("other"));
+        other.type = "button";
+        other.addEventListener("click", () => {
+          shade.remove();
+          resolve({ kind: "switch" });
+        });
+        body.append(other);
+        if (input) queueMicrotask(() => input!.focus());
+      }
+      card.replaceChildren(langBtn, head, body);
+    };
+    render();
+  });
+}
+
+/** Güvenilen tarayıcı Drive'ı beklemeden açıldığında: Google Drive'ı bağlama çubuğu (tıklama Google penceresini açar). */
+export function showConnectBar(connect: () => void): void {
+  if (document.querySelector(".nw-reauth")) return;
+  const i = getLang() === "tr" ? 1 : 0;
+  const bar = el("div", "nw-reauth");
+  bar.setAttribute("role", "status");
+  const btn = el("button", "nw-primary", ["Connect", "Bağlan"][i]);
+  btn.type = "button";
+  btn.addEventListener("click", () => {
+    bar.remove();
+    connect();
+  });
+  bar.append(el("span", undefined, ["Opened from this browser. Connect Google to sync with Drive.", "Bu tarayıcıdan açıldı. Drive ile eşitlemek için Google'ı bağlayın."][i]), btn);
+  document.body.append(bar);
 }
 
 /** Uygulama hiç açılamadığında (ör. service worker yok) giriş penceresinde nedenini kullanıcının dilinde gösterir. */

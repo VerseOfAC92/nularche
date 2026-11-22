@@ -9,6 +9,8 @@ Your notes stay on your computer. Your AI is the one you already pay for.</p>
 
 <p align="center">
   <a href="https://github.com/VerseOfAC92/nularche/releases/latest"><b>Download</b></a> ·
+  <a href="https://nularche.verseofac.com/app"><b>Open in browser</b></a> ·
+  <a href="#nularche-web-your-notes-in-the-browser">Nularche Web</a> ·
   <a href="#install-from-the-terminal">Terminal install</a> ·
   <a href="#whats-new-in-300">What's new in 3.0</a> ·
   <a href="#features">Features</a> ·
@@ -29,6 +31,47 @@ Markdown files in a folder you own. There is no account, no cloud and no subscri
 official Claude, ChatGPT or Gemini app you already use, or for free with a Gemini API key.
 
 The name comes from **Null** (a clean starting point) and **Arche** (first principle, root).
+
+## Nularche Web: your notes in the browser
+
+**Open Nularche in any browser: [nularche.verseofac.com/app](https://nularche.verseofac.com/app)**
+
+Nularche Web opens the same notes you keep in the desktop app, from any computer, with nothing to install. There is
+still no Nularche server: your browser talks directly to your own Google Drive, and your notes are decrypted in the
+browser tab. Turn on Google Drive sync in the desktop app once (Settings → Notes and Origin), then sign in on the web.
+
+### Nularche Web 1.0 (22 November 2026)
+
+What the web version adds:
+
+- **One Google sign-in, two connections.** "Continue with Google" connects Google Drive (only Nularche's own folder)
+  and Google Calendar together. Your primary calendar appears on the Calendar page.
+- **End-to-end encryption in the browser.** Encrypted notes open with your passphrase; it is checked before anything
+  is downloaded and never leaves the tab.
+- **Nothing left behind by default.** Notes, keys and tokens live only in the tab's memory. Closing the tab removes
+  everything.
+- **Lock screen.** Lock (or the idle lock, 15 minutes by default, 5 to 240 in Settings → Security) clears your notes
+  from memory and shows Nularche's lock screen. Your passphrase opens it again; you don't sign in to Google again.
+- **Trust this browser.** On your own computer, Settings → Security → Trust this browser keeps an encrypted copy of
+  your notes in the browser (encrypted with your passphrase; with a key tied to the browser if your notes aren't
+  end-to-end encrypted). Nularche then opens from that copy without waiting for Google Drive and syncs when you
+  connect Google. Turning trust off or signing out deletes the copy.
+- **Sign out** sends pending changes, wipes memory and the trusted copy, and revokes the Google grant.
+- **Nularche AI with Gemini.** Paste your own free Gemini API key in Settings → AI; it is kept in the tab's memory
+  only.
+- Messages follow the language you choose (English or Turkish), and Google sign-in works in Safari too.
+
+What stays in the desktop app:
+
+| Desktop only | Why |
+| --- | --- |
+| Notes kept only on this computer (no Google Drive) | The browser can only reach your notes through Google Drive. |
+| Apple Calendar (iCloud) | Apple doesn't let browsers connect to iCloud's calendar server, and Nularche has no server in between. |
+| Claude, ChatGPT, Codex and Antigravity connections | They work through desktop apps and MCP; the web version uses Gemini. |
+| Strata snapshots, Ark backups and .nla archive import/export | They need the computer's file system and keychain. |
+| Opening the Origin folder, file pickers, automatic updates | Desktop features. |
+| Locking when the computer sleeps or the screen locks | Browsers can't see this; the web version locks after inactivity instead. |
+| Working offline from a fresh tab | Without "Trust this browser" the web version needs Google Drive to load your notes. |
 
 ## What's new in 3.0.0
 
@@ -948,6 +991,47 @@ Questions, ideas or bug reports: write to **[verseofac@gmail.com](mailto:verseof
 bilgi yönetimi uygulamasıdır. Veritabanları (tablo, pano, takvim, galeri, liste, zaman çizelgesi), şablonlar, günlük
 not, Çöp, statik site yayınlama ve Claude / ChatGPT / Gemini entegrasyonu içerir. Arayüz Ayarlar'dan Türkçeye
 alınabilir.
+
+### Nularche Web: notlarınız tarayıcıda
+
+**Nularche'yi herhangi bir tarayıcıda açın: [nularche.verseofac.com/app](https://nularche.verseofac.com/app)**
+
+Nularche Web, masaüstü uygulamasındaki notlarınızı her bilgisayardan, hiçbir şey kurmadan açar. Nularche sunucusu yine
+yok: tarayıcınız doğrudan kendi Google Drive'ınızla konuşur, notlar tarayıcı sekmesinde çözülür. Masaüstü uygulamasında
+Google Drive eşitlemesini bir kez açın (Ayarlar → Notlar ve Origin), sonra web'de giriş yapın.
+
+#### Nularche Web 1.0 (22 Kasım 2026)
+
+Web sürümüyle gelenler:
+
+- **Tek Google girişi, iki bağlantı.** "Google ile devam et" Google Drive'ı (yalnızca Nularche'nin kendi klasörü) ve
+  Google Takvim'i birlikte bağlar; birincil takviminiz Takvim ekranında görünür.
+- **Tarayıcıda uçtan uca şifreleme.** Şifreli notlar parolanızla açılır; parola hiçbir şey indirilmeden doğrulanır ve
+  sekmeden çıkmaz.
+- **Varsayılan olarak iz yok.** Notlar, anahtarlar ve erişim izinleri yalnızca sekmenin belleğindedir; sekmeyi
+  kapatınca her şey silinir.
+- **Kilit ekranı.** Kilitle (ya da hareketsizlik kilidi: varsayılan 15 dakika, Ayarlar → Güvenlik'te 5–240 dakika)
+  notları bellekten siler ve Nularche'nin kilit ekranını açar. Parolanızla yeniden açılır; Google'a yeniden girmezsiniz.
+- **Bu tarayıcıya güven.** Kendi bilgisayarınızda Ayarlar → Güvenlik → Bu tarayıcıya güven, notlarınızın şifreli bir
+  kopyasını tarayıcıda tutar (parolanızla; notlarınız uçtan uca şifreli değilse tarayıcıya bağlı bir anahtarla).
+  Nularche bu kopyadan Google Drive beklenmeden açılır, Google'ı bağlayınca eşitlenir. Güveni kaldırmak ya da çıkış
+  yapmak kopyayı siler.
+- **Çıkış yap** bekleyen değişiklikleri gönderir, belleği ve güvenilen kopyayı siler, Google iznini geri alır.
+- **Gemini ile Nularche AI.** Kendi ücretsiz Gemini API anahtarınızı Ayarlar → Yapay zekâ'ya yapıştırın; anahtar
+  yalnızca sekmenin belleğinde tutulur.
+- Uyarılar seçtiğiniz dilde (Türkçe ya da İngilizce) çıkar; Google girişi Safari'de de çalışır.
+
+Masaüstünde kalanlar:
+
+| Yalnızca masaüstünde | Neden |
+| --- | --- |
+| Yalnızca bu bilgisayarda tutulan notlar (Google Drive olmadan) | Tarayıcı notlarınıza yalnızca Google Drive üzerinden ulaşabilir. |
+| Apple Takvim (iCloud) | Apple, tarayıcıların iCloud takvim sunucusuna bağlanmasına izin vermiyor; Nularche'nin araya girecek sunucusu yok. |
+| Claude, ChatGPT, Codex ve Antigravity bağlantıları | Masaüstü uygulamaları ve MCP ile çalışırlar; web sürümü Gemini kullanır. |
+| Strata anlık görüntüleri, Ark yedekleri, .nla arşivi içe/dışa aktarma | Bilgisayarın dosya sistemine ve anahtar zincirine ihtiyaç duyarlar. |
+| Origin klasörünü açma, dosya seçiciler, otomatik güncellemeler | Masaüstü özellikleri. |
+| Bilgisayar uykuya geçince ya da ekran kilitlenince kilitlenme | Tarayıcı bunu göremez; web sürümü hareketsizlikte kilitlenir. |
+| Yeni sekmede çevrimdışı çalışma | "Bu tarayıcıya güven" kapalıyken notlar Google Drive'dan yüklenir. |
 
 ### 3.0.0'daki yenilikler
 

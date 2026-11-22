@@ -83,6 +83,10 @@ export interface GoogleSession {
    * `resume` bir düğme tıklamasının içinde çağrılınca yenileme sürer, bekleyen Drive ve Takvim istekleri devam eder.
    */
   onGestureNeeded(cb: (resume: () => void) => void): void;
+  /** Kilitlenirken devredilecek erişim izni. */
+  exportToken(): TokenHandover | null;
+  /** Bir tıklamanın içinde çağrılır: erişim izninin süresi dolmuşsa Google penceresini hemen açar (bekletmez). */
+  refreshInGesture(): void;
   /** Belirteci Google'da geri alır ve bellekten siler (çıkış). */
   signOut(): Promise<void>;
 }
@@ -90,6 +94,15 @@ export interface GoogleSession {
 /** Hazırlanmış Google oturum açma: `start` bir düğme tıklamasının içinde, beklemeden çağrılmalıdır. */
 export interface GoogleSignIn {
   start(): Promise<GoogleSession>;
+  /** Kilit ekranından sonra: devredilen erişim izniyle oturumu yeniden kurar (Google penceresi açılmaz). */
+  resume(handover: TokenHandover): GoogleSession;
+}
+
+/** Kilitlenirken sekmenin oturum belleğine bırakılan erişim izni (yalnızca belirteç; not ya da parola değil). */
+export interface TokenHandover {
+  token: string;
+  until: number;
+  scopes: string[];
 }
 
 /**
@@ -148,6 +161,10 @@ export async function prepareGoogle(): Promise<GoogleSignIn> {
     onGestureNeeded(cb) {
       gesture = cb;
     },
+    exportToken: () => (current ? { token: current.token, until: current.until, scopes: [...granted] } : null),
+    refreshInGesture() {
+      if (!current || current.until <= Date.now() + 30_000) void request("", false).catch(() => undefined);
+    },
     async signOut() {
       const token = current?.token;
       current = null;
@@ -155,6 +172,12 @@ export async function prepareGoogle(): Promise<GoogleSignIn> {
     },
   };
   return {
+    resume(h) {
+      current = { token: h.token, until: h.until };
+      granted.clear();
+      for (const sc of h.scopes) granted.add(sc);
+      return session;
+    },
     start() {
       // Pencere bu satırda, tıklamayla aynı anda açılır (await yok).
       const first = request("select_account", false);
