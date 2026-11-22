@@ -24,6 +24,8 @@ export interface ArcheLock {
   iter: number;
   check: string;
   hint?: string;
+  /** 2: başlıklar, özellikler ve ağaç da şifreli (tam şifreleme). */
+  v?: 2;
 }
 
 const archeKey = (archeId: string) => `arche:${archeId}`;
@@ -67,6 +69,57 @@ async function open(key: CryptoKey, p: Payload): Promise<string> {
 /** Notun şifreli Arche'ye ait olup olmadığı (gövdedeki işarete göre). */
 export const lockedArche = (body: string): string | null => payloadOf(body)?.arche ?? null;
 
+/** Crypta zarfı (diskte `sealed` alanı): Arche anahtarıyla şifreli JSON. Arche kimliği ek doğrulanmış veridir (AAD). */
+interface Envelope {
+  v: 1;
+  arche: string;
+  iv: string;
+  data: string;
+}
+
+function envelopeOf(sealed: string): Envelope | null {
+  try {
+    const e = JSON.parse(sealed) as Envelope;
+    return e && e.v === 1 && typeof e.arche === "string" && typeof e.iv === "string" && typeof e.data === "string" ? e : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Zarfın ait olduğu şifreli Arche (zarf açılmadan okunabilir). */
+export const envelopeArche = (sealed: string): string | null => envelopeOf(sealed)?.arche ?? null;
+
+/** Değeri şifreli Arche'nin açık anahtarıyla zarflar (Arche açık değilse null). */
+export async function sealEnvelope(archeId: string, value: unknown): Promise<string | null> {
+  const s = session.get(archeKey(archeId));
+  if (!s) return null;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData: new TextEncoder().encode(archeId) },
+    s.key,
+    new TextEncoder().encode(JSON.stringify(value)),
+  );
+  const env: Envelope = { v: 1, arche: archeId, iv: b64(iv), data: b64(data) };
+  return JSON.stringify(env);
+}
+
+/** Zarfı oturumdaki Arche anahtarıyla açar; Arche kapalıysa ya da zarf bozuksa null. */
+export async function openEnvelope(sealed: string): Promise<unknown | null> {
+  const e = envelopeOf(sealed);
+  const s = e ? session.get(archeKey(e.arche)) : undefined;
+  if (!e || !s) return null;
+  try {
+    const plain = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: unb64(e.iv) as BufferSource, additionalData: new TextEncoder().encode(e.arche) },
+      s.key,
+      unb64(e.data) as BufferSource,
+    );
+    return JSON.parse(new TextDecoder().decode(plain));
+  } catch {
+    return null;
+  }
+}
+
 /** Arche parolasının denetim değeri: anahtarla bilinen bir metin şifrelenir (parolanın kendisi saklanmaz). */
 async function checkValue(key: CryptoKey): Promise<string> {
   const iv = new Uint8Array(12); // sabit IV yalnızca bu denetim metni için; içerik şifrelemesinde kullanılmaz
@@ -79,7 +132,7 @@ export async function createArcheLock(archeId: string, password: string, hint?: 
   const key = await derive(password, salt, ITERATIONS);
   session.set(archeKey(archeId), { key, salt, iter: ITERATIONS, hint });
   listeners.forEach((l) => l());
-  return { salt: b64(salt), iter: ITERATIONS, check: await checkValue(key), ...(hint ? { hint } : {}) };
+  return { salt: b64(salt), iter: ITERATIONS, check: await checkValue(key), ...(hint ? { hint } : {}), v: 2 };
 }
 
 /** Şifreli Arche'yi parolayla açar (yanlışsa false); içindeki bütün notlar artık parola sormadan açılır. */
@@ -93,6 +146,9 @@ export async function unlockArche(archeId: string, lock: ArcheLock, password: st
 }
 
 export const isArcheUnlocked = (archeId: string) => session.has(archeKey(archeId));
+
+/** Bu oturumda açık olan şifreli Arche'lerin kimlikleri. */
+export const unlockedArches = (): string[] => [...session.keys()].filter((k) => k.startsWith("arche:")).map((k) => k.slice(6));
 
 /** Şifreli Arche'nin anahtarını bellekten siler (Arche'nin notları yeniden parola ister). */
 export function forgetArche(archeId: string): void {

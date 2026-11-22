@@ -52,6 +52,7 @@ import { lectioHash, parseLectioHash } from "./lectio/link.ts";
 import { ORIGIN_CHANGED } from "./editor/query-widget.ts";
 import { AnamnesisView } from "./anamnesis/AnamnesisView.tsx";
 import { installVigilRunner } from "./vigil/runner.ts";
+import { watchCrypta } from "./archeCrypt.ts";
 /** PDF okuyucu (pdf.js büyük olduğundan ilk açılışta yüklenir). */
 const LectioView = lazy(() => import("./lectio/LectioView.tsx"));
 
@@ -267,6 +268,10 @@ export function App() {
       setError(String(e));
     }
   }, []);
+
+  // Crypta: şifreli Arche açılınca (ya da kapanınca) liste yeniden çözülür; eski şifreli Arche'ler tam şifrelemeye
+  // yükseltilir, mühürlenmemiş notlar mühürlenir.
+  useEffect(() => watchCrypta(() => void refresh()), [refresh]);
 
   // Google Drive'dan değişiklik gelince: notlar dosya izleyicisiyle yenilenir, arayüz tercihleri yeniden okunur.
   useEffect(
