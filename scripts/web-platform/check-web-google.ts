@@ -83,7 +83,7 @@ try {
   };
 
   /** Google'ın GIS betiğinin taklidi: pencere açma çağrısının tıklamayla aynı anda yapılıp yapılmadığını kaydeder. */
-  const gisStub = (options: { scope: string; expiresIn: number; blockSilent: boolean }) => `
+  const gisStub = (options: { scope: string; expiresIn: number; blockSilent: boolean; failQuick?: boolean }) => `
     (() => {
       window.__gis = { calls: [] };
       addEventListener("click", () => { window.__inClick = true; setTimeout(() => (window.__inClick = false)); }, true);
@@ -92,8 +92,9 @@ try {
         initTokenClient: (config) => ({
           requestAccessToken: (o = {}) => {
             const inClick = !!window.__inClick && navigator.userActivation.isActive;
-            window.__gis.calls.push({ prompt: o.prompt, inClick });
+            window.__gis.calls.push({ prompt: o.prompt, inClick, hint: o.hint });
             setTimeout(() => {
+              if (${!!options.failQuick} && o.hint && !window.__quickFailed) { window.__quickFailed = true; return config.error_callback && config.error_callback({ type: "popup_closed" }); }
               if (!inClick && ${options.blockSilent}) return config.error_callback && config.error_callback({ type: "popup_failed_to_open" });
               config.callback({ access_token: "web-token", expires_in: ${options.expiresIn}, scope: ${JSON.stringify(options.scope)} });
             }, 30);
@@ -172,6 +173,40 @@ try {
       before > 0 && gisAfterReload === 0 && !lockCalls.some((c) => c.prompt === "select_account") && lockCalls.every((c) => c.inClick),
       `kilit açılırken Google hesap seçimi istenmedi; yalnızca süresi dolan izin tıklamayla yenilendi (${lockCalls.length} yenileme)`,
     );
+
+    // Bu tarayıcıya güven → yeni sekme: kilit ekranından açılır; "Kilidi aç" tıklaması Drive'ı da bağlar (hesap seçtirmeden).
+    page.on("dialog", (d) => void d.accept());
+    await page.getByText("Ayarlar", { exact: true }).first().click();
+    await page.getByRole("tab", { name: "Güvenlik" }).click();
+    await page.getByTestId("web-trust").click();
+    await page.waitForFunction(() => window.nularcheWeb?.trusted(), undefined, { timeout: 20_000 });
+    await page.keyboard.press("Escape");
+    const trustedTab = async (failQuick: boolean) => {
+      const tab = await page.context().newPage();
+      await tab.addInitScript(gisStub({ scope: ALL, expiresIn: 3600, blockSilent: true, failQuick }));
+      await tab.goto(`${base}/app/`);
+      await tab.waitForSelector(".nw-lockscreen .nw-primary", { timeout: 20_000 });
+      await tab.click(".nw-lockscreen .nw-primary");
+      await tab.getByText("Masaüstü planı").first().waitFor({ timeout: 30_000 });
+      return tab;
+    };
+    {
+      const tab = await trustedTab(false);
+      await tab.waitForFunction(() => window.nularcheWeb?.driveConnected(), undefined, { timeout: 20_000 });
+      const c = await tab.evaluate(() => (window as unknown as { __gis: { calls: { prompt: string; inClick: boolean; hint?: string }[] } }).__gis.calls);
+      check(c.length === 1 && c[0].prompt === "" && c[0].inClick && c[0].hint === "deneme@example.com", "güvenilen tarayıcıda kilit açılınca Drive kendiliğinden bağlandı (hesap seçtirmeden, tıklamayla)");
+      check(!(await tab.locator(".nw-reauth").count()), "Bağlan çubuğu çıkmadı");
+      await tab.close();
+    }
+    {
+      const tab = await trustedTab(true);
+      await tab.waitForSelector(".nw-reauth button", { timeout: 20_000 });
+      await tab.locator(".nw-reauth button").click();
+      await tab.waitForFunction(() => window.nularcheWeb?.driveConnected(), undefined, { timeout: 20_000 });
+      const c = await tab.evaluate(() => (window as unknown as { __gis: { calls: { prompt: string; inClick: boolean }[] } }).__gis.calls);
+      check(c.at(-1)?.prompt === "select_account" && c.at(-1)?.inClick, "otomatik bağlantı olmazsa Bağlan çubuğu Drive'ı bağlıyor");
+      await tab.close();
+    }
 
     // Erişim izninin süresi dolar (66 sn − 60 sn pay): bir sonraki Drive isteği sessiz yenileme ister, tarayıcı engeller.
     await page.waitForTimeout(6500);

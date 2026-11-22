@@ -19,7 +19,7 @@ interface TokenResponse {
   error_description?: string;
 }
 interface TokenClient {
-  requestAccessToken(overrides?: { prompt?: string; scope?: string; include_granted_scopes?: boolean }): void;
+  requestAccessToken(overrides?: { prompt?: string; scope?: string; include_granted_scopes?: boolean; hint?: string }): void;
 }
 declare global {
   interface Window {
@@ -94,6 +94,11 @@ export interface GoogleSession {
 /** Hazırlanmış Google oturum açma: `start` bir düğme tıklamasının içinde, beklemeden çağrılmalıdır. */
 export interface GoogleSignIn {
   start(): Promise<GoogleSession>;
+  /**
+   * Kilit ekranının "Kilidi aç" tıklamasında: hesap seçtirmeden (`hint` ile önerilen hesap, izin daha önce verildiyse
+   * Google penceresi kendiliğinden kapanır) oturumu kurar. Tıklamanın içinde, beklemeden çağrılmalıdır.
+   */
+  quick(hint: string): Promise<GoogleSession>;
   /** Kilit ekranından sonra: devredilen erişim izniyle oturumu yeniden kurar (Google penceresi açılmaz). */
   resume(handover: TokenHandover): GoogleSession;
 }
@@ -142,11 +147,11 @@ export async function prepareGoogle(): Promise<GoogleSignIn> {
     },
   });
   /** Pencereyi hemen (aynı çağrıda) açar; `silent` kullanıcı tıklaması olmadan yapılan yenileme. */
-  const request = (prompt: string, silent: boolean) =>
+  const request = (prompt: string, silent: boolean, hint?: string) =>
     new Promise<string>((resolve, reject) => {
       pending?.reject(new AuthError("superseded", "superseded"));
       pending = { resolve, reject, prompt, silent };
-      client.requestAccessToken({ prompt });
+      client.requestAccessToken(hint ? { prompt, hint } : { prompt });
     });
   const session: GoogleSession = {
     async accessToken(force = false) {
@@ -177,6 +182,12 @@ export async function prepareGoogle(): Promise<GoogleSignIn> {
       granted.clear();
       for (const sc of h.scopes) granted.add(sc);
       return session;
+    },
+    quick(hint) {
+      return request("", false, hint).then(() => {
+        if (!DRIVE_SCOPES.every((sc) => granted.has(sc))) throw new AuthError("drive_denied", "drive_denied");
+        return session;
+      });
     },
     start() {
       // Pencere bu satırda, tıklamayla aynı anda açılır (await yok).
