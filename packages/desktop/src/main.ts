@@ -61,6 +61,8 @@ function platformDirs(): { config: string; data: string } {
 const override = process.env.NULARCHE_USER_DATA ? path.resolve(process.env.NULARCHE_USER_DATA) : null;
 const dirs = override ? { config: path.join(override, "config"), data: path.join(override, "data") } : platformDirs();
 app.setName("Nularche");
+// README görselleri (scripts/screenshots.ts): yalnızca uçtan uca modda, istenen piksel yoğunluğuyla çizilir.
+if (process.env.NULARCHE_E2E && process.env.NULARCHE_SCALE) app.commandLine.appendSwitch("force-device-scale-factor", process.env.NULARCHE_SCALE);
 app.setPath("userData", dirs.data);
 
 interface Settings extends AiSettings {

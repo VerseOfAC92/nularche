@@ -62,7 +62,7 @@ export function VaultSettings({ part }: { part: VaultPart }) {
       <Segmented value={location} onChange={setLocation} options={[["shadow", "Shadow"], ["current", t("ob.besideCurrent")]]} />
       <label className="field">
         <span>{t("ob.setExcluded")}</span>
-        <textarea rows={3} value={draft} placeholder={"Arşiv/\n/taslak-.*/"} onChange={(e) => setDraft(e.target.value)} onBlur={() => setExcluded(draft.split("\n").map((x) => x.trim()).filter(Boolean))} />
+        <textarea rows={3} value={draft} placeholder={t("vault.excludedExample")} onChange={(e) => setDraft(e.target.value)} onBlur={() => setExcluded(draft.split("\n").map((x) => x.trim()).filter(Boolean))} />
       </label>
       </>
     );

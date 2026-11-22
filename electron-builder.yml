@@ -1,11 +1,11 @@
-# Nularche paketleme (RFC-001 §3: isim alanı spesifikasyonu)
+# Nularche packaging (RFC-001 §3: namespace specification)
 appId: io.nularche.app
 productName: Nularche
 copyright: Copyright © 2026 VerseOfAC92
 directories:
   output: release
   buildResources: build
-# Node tarafı esbuild ile paketlendiği için node_modules gerekmez.
+# The Node side is bundled with esbuild, so node_modules isn't needed.
 files:
   - package.json
   - dist-desktop/main.cjs
@@ -30,12 +30,12 @@ fileAssociations:
     icon: build/icon.png
   - ext: nla
     name: Nularche Archive
-    description: Nularche arşivi / şablon paketi
+    description: Nularche archive / template pack
     mimeType: application/vnd.nularche.archive
     role: Editor
     icon: build/icon.png
 electronFuses:
-  # MCP sunucusu Claude tarafından uygulamanın ikilisiyle ELECTRON_RUN_AS_NODE=1 olarak başlatılır.
+  # Claude starts the MCP server with the app's binary and ELECTRON_RUN_AS_NODE=1.
   runAsNode: true
   enableCookieEncryption: true
   enableNodeOptionsEnvironmentVariable: false
@@ -46,19 +46,19 @@ mac:
   category: public.app-category.productivity
   icon: build/icon.png
   darkModeSupport: true
-  # Ses kaydı bloğu mikrofonu yalnızca kullanıcı "Kaydı başlat"a bastığında kullanır.
+  # The audio recording block uses the microphone only when the user presses "Start recording".
   extendInfo:
     NSMicrophoneUsageDescription: Nularche uses the microphone only when you record an audio note. / Nularche mikrofonu yalnızca sesli not kaydederken kullanır.
-  # Apple Developer kimliği olmadan ad-hoc imza (Apple Silicon'da çalışması için gerekli).
+  # Ad-hoc signature without an Apple Developer identity (needed to run on Apple Silicon).
   identity: "-"
   hardenedRuntime: false
-  # Apple Silicon ve Intel paketleri, adları karışmasın diye scripts/dist-mac.ts ile ayrı ayrı derlenir.
+  # Apple Silicon and Intel packages are built separately by scripts/dist-mac.ts so their names don't clash.
   target:
     - target: dmg
       arch: [arm64, x64]
 dmg:
   title: Nularche ${version}
-  # Pencerede sürükle-bırak oku ve macOS 15+ ilk açılış adımı (scripts/dmg-background.swift ile üretilir).
+  # Drag-and-drop arrow in the window and the macOS 15+ first-launch step (made by scripts/dmg-background.swift).
   background: build/dmg/background.png
   window:
     width: 660
@@ -78,7 +78,7 @@ dmg:
       path: build/dmg/READ ME FIRST.txt
 win:
   icon: build/icon.png
-  # 64 ve 32 bit kurulum dosyaları scripts/dist-win.ts ile ayrı ayrı (adlarında x64 / x86) derlenir.
+  # 64- and 32-bit installers are built separately by scripts/dist-win.ts (x64 / x86 in their names).
   target:
     - target: nsis
       arch: [x64, ia32]

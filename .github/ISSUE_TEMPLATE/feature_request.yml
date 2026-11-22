@@ -1,14 +1,14 @@
-name: Özellik önerisi
-description: Yeni bir özellik ya da iyileştirme önerin
+name: Feature request
+description: Suggest a new feature or an improvement
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Hangi sorunu çözüyor?
+      label: What problem does it solve?
     validations:
       required: true
   - type: textarea
     id: idea
     attributes:
-      label: Önerilen çözüm
+      label: Proposed solution

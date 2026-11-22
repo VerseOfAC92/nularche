@@ -1,5 +1,6 @@
 // README ekran görüntülerini üretir: uygulama kaynaktan, sahte bir kullanıcı klasörü ve örnek (İngilizce) içerikle açılır.
-// Kullanım: node scripts/screenshots.ts [--out docs/screenshots]
+// Ham görüntüler (2x) bir klasöre yazılır, sonra scripts/frame-screenshots.ts ile çerçevelenir.
+// Kullanım: node scripts/screenshots.ts --out <ham-klasör>
 
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -82,6 +83,8 @@ const app = await electron.launch({
   executablePath: path.join(root, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"),
   args: [root, "--lang=en"],
   env: { ...process.env, HOME: path.join(work, "home"), NULARCHE_USER_DATA: userData, NULARCHE_E2E: "1",
+    // 2x: çerçevelenip küçültüldüğünde yüksek yoğunluklu ekranlarda da net kalsın (scripts/frame-screenshots.ts).
+    NULARCHE_SCALE: "2",
     NULARCHE_GOOGLE_API: `${calBase}/google`,
     NULARCHE_GOOGLE_TOKEN: `${calBase}/google/token`,
     NULARCHE_CALDAV: `${calBase}/caldav/`,
@@ -91,7 +94,9 @@ const app = await electron.launch({
   },
 });
 const page: Page = await app.firstWindow();
-await page.setViewportSize({ width: 1440, height: 900 });
+// Pencere boyutu Electron'dan: Playwright'ın görüntü alanı öykünmesi piksel yoğunluğunu 1'e düşürür.
+const resize = (width: number, height: number) => app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].setContentSize(s.width, s.height), { width, height });
+await resize(1440, 900);
 /** Nularche Font tanıtım görüntüsündeki not. */
 const VERSE_NOTE = [
   "AC evrenine hoşgeldiniz 🤗",
@@ -138,7 +143,6 @@ try {
   await shot("gallery-light");
   await page.locator(".db-tab", { hasText: "Table" }).click();
   await page.waitForTimeout(400);
-  await shot("table-light");
   // Şablon galerisi
   await page.locator(".side-btn", { hasText: "Templates" }).click();
   await page.waitForTimeout(400);
@@ -154,7 +158,6 @@ try {
   await page.locator(".nai-panel .icon-btn").last().click();
   await page.keyboard.press("Meta+/");
   await page.waitForTimeout(400);
-  await shot("shortcuts-dark");
   await page.keyboard.press("Meta+/");
   // v1.5: etiketler, matematik sonuçları, yapılacaklar, biçimler; not listesi (galeri) ve odak modu
   const noteId = await page.evaluate(async () => {

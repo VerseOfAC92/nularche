@@ -1,6 +1,6 @@
 // nularche.verseofac.com için statik site dosyalarını üretir: gizlilik sayfası PRIVACY.md'den, ana sayfadaki stil ve
 // betik adreslerinin sürüm damgası, görseller
-// docs/screenshots ve build/icon.png'den. Ana sayfa (site/index.html) elle yazılır. Üretilen dosyalar depoya
+// docs/screenshots/site (README görsellerinin çerçevesiz kopyaları; bkz. scripts/frame-screenshots.ts) ve build/icon.png'den. Ana sayfa (site/index.html) elle yazılır. Üretilen dosyalar depoya
 // işlenir; Cloudflare Pages `site/` klasörünü derleme yapmadan yayınlar. `--check` yalnızca güncel olup
 // olmadıklarını denetler (CI).
 
@@ -18,13 +18,13 @@ const check = process.argv.includes("--check");
 /** Ana sayfadaki görseller: yayın adı → kaynak. */
 export const SITE_IMAGES: Record<string, string> = {
   "assets/logo.png": "packages/web/public/logo.png",
-  "assets/hero.png": "docs/screenshots/atrium-lavender.png",
+  "assets/hero.png": "docs/screenshots/site/atrium-lavender.png",
   "assets/fonts/nularche-font.woff2": "packages/web/src/studio/fonts/nularche-font.woff2",
-  "assets/security.png": "docs/screenshots/security-light.png",
-  "assets/lectio.png": "docs/screenshots/lectio-light.png",
-  "assets/codex.png": "docs/screenshots/codex-light.png",
-  "assets/anamnesis.png": "docs/screenshots/anamnesis-light.png",
-  "assets/organise.png": "docs/screenshots/archipelago-lavender.png",
+  "assets/security.png": "docs/screenshots/site/security-light.png",
+  "assets/lectio.png": "docs/screenshots/site/lectio-light.png",
+  "assets/codex.png": "docs/screenshots/site/codex-light.png",
+  "assets/anamnesis.png": "docs/screenshots/site/anamnesis-light.png",
+  "assets/organise.png": "docs/screenshots/site/archipelago-lavender.png",
 };
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
