@@ -10,7 +10,7 @@ import { getTheme, setTheme, type ThemeChoice } from "./theme.ts";
 import { setLang, t, useLang, type StringKey } from "./i18n/index.ts";
 import { exportNode } from "./exporting.ts";
 import { keys } from "./shortcuts.tsx";
-import { api } from "./api.ts";
+import { api, errorMessage } from "./api.ts";
 import { usePref } from "./prefs.ts";
 import { BackgroundPicker } from "./focus/BackgroundPicker.tsx";
 import { HotkeyEditor, VaultSettings } from "./vault/VaultSettings.tsx";
@@ -302,7 +302,7 @@ export function Settings({
                 const out = await exportNode("site", null);
                 if (out) onToast(out === "downloaded" ? t("export.downloaded") : t("export.siteSaved", { path: out }));
               } catch (e) {
-                onToast((e as Error).message);
+                onToast(errorMessage(e));
               }
             }}
           >

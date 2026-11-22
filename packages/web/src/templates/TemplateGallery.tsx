@@ -3,7 +3,7 @@
 
 import { useEscape } from "../useEscape.ts";
 import { useState } from "react";
-import { api, type NodeMeta, type ParentTarget } from "../api.ts";
+import { api, type NodeMeta, type ParentTarget, errorMessage } from "../api.ts";
 import { getLang, t } from "../i18n/index.ts";
 import { BUILTIN_TEMPLATES, instantiateBuiltin, type BuiltinTemplate } from "./builtins.ts";
 import { Icon } from "../ui/Icon.tsx";
@@ -36,7 +36,7 @@ export function TemplateGallery({
       onCreated(n.id);
       onClose();
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     } finally {
       setBusy(null);
     }

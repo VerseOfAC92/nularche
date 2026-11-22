@@ -4,7 +4,7 @@
 import { lectioHash } from "../lectio/link.ts";
 import { useCallback, useEffect, useState } from "react";
 import { askText } from "../ask.tsx";
-import { api, type AttachmentInfo } from "../api.ts";
+import { api, type AttachmentInfo, errorMessage } from "../api.ts";
 import { fileUrl } from "../editor/paths.ts";
 import { t } from "../i18n/index.ts";
 import { relTime } from "./NoteList.tsx";
@@ -31,7 +31,7 @@ export function AttachmentBrowser({ changeTick, onOpen, onToast }: { changeTick:
       await api.renameAttachment(a.path, name);
       await load();
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   }
 

@@ -2,7 +2,7 @@
 // Hem tam sayfa veritabanında hem de bir sayfaya gömülü (satır içi) veritabanında kullanılır.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type NodeMeta } from "../api.ts";
+import { api, type NodeMeta, errorMessage } from "../api.ts";
 import { desktop } from "../desktop.ts";
 import { t, type StringKey } from "../i18n/index.ts";
 import {
@@ -273,7 +273,7 @@ export function DatabaseView(props: DatabaseViewProps) {
         props.onChanged();
       } catch (e) {
         setPendingDb(null);
-        props.onToast((e as Error).message);
+        props.onToast(errorMessage(e));
       }
     },
     [dbNode.id, props],
@@ -287,7 +287,7 @@ export function DatabaseView(props: DatabaseViewProps) {
           await writeRowValue(row, propId, value);
           props.onChanged();
         } catch (e) {
-          props.onToast((e as Error).message);
+          props.onToast(errorMessage(e));
         }
       },
       setTitle: async (row, title) => {
@@ -295,7 +295,7 @@ export function DatabaseView(props: DatabaseViewProps) {
           await api.update(row.id, { title });
           props.onChanged();
         } catch (e) {
-          props.onToast((e as Error).message);
+          props.onToast(errorMessage(e));
         }
       },
       createRow: async (title, values) => {
@@ -305,13 +305,13 @@ export function DatabaseView(props: DatabaseViewProps) {
           props.onChanged();
           return n;
         } catch (e) {
-          props.onToast((e as Error).message);
+          props.onToast(errorMessage(e));
           return null;
         }
       },
       trashRow: async (row: Row) => {
         if (!confirm(t("app.trashConfirm", { title: row.title }))) return;
-        await api.trash(row.id).catch((e: Error) => props.onToast(e.message));
+        await api.trash(row.id).catch((e: unknown) => props.onToast(errorMessage(e)));
         props.onChanged();
       },
       openRow: props.onNavigate,
@@ -458,7 +458,7 @@ export function DatabaseView(props: DatabaseViewProps) {
                         props.onChanged();
                         props.onNavigate(copy.id);
                       } catch (e) {
-                        props.onToast((e as Error).message);
+                        props.onToast(errorMessage(e));
                       }
                     }}
                   >

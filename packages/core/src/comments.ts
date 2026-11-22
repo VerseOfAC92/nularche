@@ -46,7 +46,7 @@ function clean(s: unknown, max = MAX_TEXT): string {
 function normAnchor(a: unknown): CommentAnchor {
   const r = (a && typeof a === "object" ? a : {}) as Record<string, unknown>;
   const text = clean(r.text, 2000);
-  if (!text) throw new NodeError("invalid", "Yorum için metin seçilmeli.");
+  if (!text) throw new NodeError("invalid", "comment_needs_quote");
   const prefix = typeof r.prefix === "string" ? r.prefix.slice(-60) : "";
   const suffix = typeof r.suffix === "string" ? r.suffix.slice(0, 60) : "";
   return { text, ...(prefix ? { prefix } : {}), ...(suffix ? { suffix } : {}) };
@@ -64,14 +64,14 @@ export class CommentStore {
   }
 
   private file(id: string): string {
-    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", `Geçersiz id: ${id}`);
+    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", "invalid_id", { id });
     return path.join(this.store.root, DIR, `${id}.json`);
   }
 
   /** Not var olmalı ve kilitli olmamalı (kilitli notların içeriğine bağlı veri açığa çıkmasın). */
   private async noteId(ref: string): Promise<string> {
     const n = await this.store.read(ref);
-    if (n.locked || isLockedBody(n.body)) throw new NodeError("invalid", "Kilitli notlara yorum eklenemez ve okunamaz.");
+    if (n.locked || isLockedBody(n.body)) throw new NodeError("invalid", "comment_locked");
     return n.id;
   }
 
@@ -100,9 +100,9 @@ export class CommentStore {
   async add(ref: string, input: { anchor: unknown; body: unknown; author?: unknown }): Promise<NoteComment> {
     const id = await this.noteId(ref);
     const body = clean(input.body);
-    if (!body) throw new NodeError("invalid", "Yorum boş olamaz.");
+    if (!body) throw new NodeError("invalid", "comment_empty");
     const comments = await this.load(id);
-    if (comments.length >= MAX_COMMENTS) throw new NodeError("invalid", `Bir notta en fazla ${MAX_COMMENTS} yorum olabilir.`);
+    if (comments.length >= MAX_COMMENTS) throw new NodeError("invalid", "comment_limit", { max: MAX_COMMENTS });
     const now = Date.now();
     const author = normAuthor(input.author);
     const c: NoteComment = { id: randomUUID(), anchor: normAnchor(input.anchor), body, ...(author ? { author } : {}), createdAt: now, updatedAt: now, replies: [] };
@@ -114,7 +114,7 @@ export class CommentStore {
     const id = await this.noteId(ref);
     const comments = await this.load(id);
     const i = comments.findIndex((c) => c.id === commentId);
-    if (i < 0) throw new NodeError("not_found", "Yorum bulunamadı.");
+    if (i < 0) throw new NodeError("not_found", "comment_not_found");
     const next = fn(structuredClone(comments[i]));
     const out = next ? comments.map((c, j) => (j === i ? next : c)) : comments.filter((_, j) => j !== i);
     await this.save(id, out);
@@ -125,7 +125,7 @@ export class CommentStore {
     return (await this.change(ref, commentId, (c) => {
       if (patch.body !== undefined) {
         const body = clean(patch.body);
-        if (!body) throw new NodeError("invalid", "Yorum boş olamaz.");
+        if (!body) throw new NodeError("invalid", "comment_empty");
         c.body = body;
       }
       if (patch.resolved !== undefined) {
@@ -139,9 +139,9 @@ export class CommentStore {
 
   async reply(ref: string, commentId: string, input: { body: unknown; author?: unknown }): Promise<NoteComment> {
     const body = clean(input.body);
-    if (!body) throw new NodeError("invalid", "Yanıt boş olamaz.");
+    if (!body) throw new NodeError("invalid", "reply_empty");
     return (await this.change(ref, commentId, (c) => {
-      if (c.replies.length >= 200) throw new NodeError("invalid", "Bu yoruma daha fazla yanıt eklenemez.");
+      if (c.replies.length >= 200) throw new NodeError("invalid", "reply_limit");
       const author = normAuthor(input.author);
       c.replies.push({ id: randomUUID(), body, ...(author ? { author } : {}), createdAt: Date.now() });
       c.updatedAt = Date.now();

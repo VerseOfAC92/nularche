@@ -5,7 +5,7 @@
 
 import { getStroke } from "perfect-freehand";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent, type ReactNode } from "react";
-import { api, type NodeMeta } from "../api.ts";
+import { api, type NodeMeta, errorMessage } from "../api.ts";
 import { desktop } from "../desktop.ts";
 import { fileUrl } from "../editor/paths.ts";
 import { getLang, t } from "../i18n/index.ts";
@@ -301,7 +301,7 @@ export function WhiteboardView({ body, nodes, onChange, onOpen }: { body: string
         add({ type: "image", file: path, x: p.x - w / 2, y: p.y - h / 2, w, h, style: {} });
         p = { x: p.x + 30, y: p.y + 30 };
       } catch (e) {
-        alert((e as Error).message);
+        alert(errorMessage(e));
       }
     }
   }

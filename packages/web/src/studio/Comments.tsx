@@ -3,7 +3,7 @@
 // yorumları "yerinden kopmuş" olarak işaretlenir.
 
 import { useEffect, useRef, useState } from "react";
-import { api, type NoteComment } from "../api.ts";
+import { api, type NoteComment, errorMessage } from "../api.ts";
 import { getActiveEditor } from "../commands.ts";
 import { ago, t } from "../i18n/index.ts";
 import { locateAnchor } from "../../../core/src/writing.ts";
@@ -85,7 +85,7 @@ export function CommentsPanel({ nodeId, onToast }: { nodeId: string; onToast: (m
       await fn();
       commentsChanged();
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   };
 

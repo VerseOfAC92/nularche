@@ -6,6 +6,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NodeError, type NodeStore } from "../../core/src/node-store.ts";
+import { nodeErrorText, type NodeErrorReason } from "../../core/src/errors.ts";
 import { SnapshotError, type SnapshotStore } from "../../core/src/snapshots.ts";
 import { citationSettings, findLibraryFiles, loadLibrary } from "../../core/src/citations-store.ts";
 import { readAnnotations, writeAnnotations } from "../../core/src/annotations.ts";
@@ -159,6 +160,9 @@ export function createApi(ctx: ApiContext): Api {
 
   const json = (status: number, body: unknown): Response =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+  /** Hata cevabı: arayüz `reason` ve `vars` ile metni kullanıcının dilinde gösterir; `message` Türkçe yedektir. */
+  const failure = (status: number, error: string, reason: NodeErrorReason, vars: Record<string, string | number> = {}): Response =>
+    json(status, { error, reason, vars, message: nodeErrorText(reason, vars, "tr") });
 
   const file = (name: string, type: string, data: Uint8Array | string): Response =>
     new Response(data as BodyInit, {
@@ -169,7 +173,7 @@ export function createApi(ctx: ApiContext): Api {
   /** İstek gövdesi, sınırı aşmadan parça parça okunur. */
   async function readBody(request: Request, limit: number): Promise<Uint8Array> {
     const declared = Number(request.headers.get("content-length") ?? 0);
-    if (declared > limit) throw new NodeError("invalid", "İstek gövdesi çok büyük");
+    if (declared > limit) throw new NodeError("invalid", "body_too_large");
     if (!request.body) return new Uint8Array();
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -180,7 +184,7 @@ export function createApi(ctx: ApiContext): Api {
       size += value.length;
       if (size > limit) {
         await reader.cancel().catch(() => undefined);
-        throw new NodeError("invalid", "İstek gövdesi çok büyük");
+        throw new NodeError("invalid", "body_too_large");
       }
       chunks.push(value);
     }
@@ -202,7 +206,7 @@ export function createApi(ctx: ApiContext): Api {
     } catch {
       // aşağıda hata
     }
-    throw new NodeError("invalid", "Geçersiz JSON");
+    throw new NodeError("invalid", "invalid_json");
   }
 
   const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
@@ -211,7 +215,7 @@ export function createApi(ctx: ApiContext): Api {
 
   async function handleSnapshots(request: Request, url: URL, parts: string[], method: string): Promise<Response> {
     const snapshots = ctx.snapshots;
-    if (!snapshots) return json(404, { error: "unavailable", message: "Anlık görüntüler bu sürümde yok." });
+    if (!snapshots) return failure(404, "unavailable", "snapshots_unavailable");
     try {
       const [, sid, action] = parts;
       if (!sid && method === "GET") return json(200, { snapshots: await snapshots.list(), encrypted: await snapshots.isEncrypted() });
@@ -242,9 +246,9 @@ export function createApi(ctx: ApiContext): Api {
         const b = await readJson(request);
         return json(200, await snapshots.rename(sid, str(b.label) ?? null));
       }
-      return json(404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+      return failure(404, "not_found", "unknown_endpoint");
     } catch (e) {
-      if (e instanceof SnapshotError) return json(e.code === "not_found" ? 404 : 400, { error: e.code, message: e.message });
+      if (e instanceof SnapshotError) return json(e.code === "not_found" ? 404 : 400, { error: e.code, reason: e.reason, vars: e.vars, message: e.message });
       throw e;
     }
   }
@@ -274,7 +278,7 @@ export function createApi(ctx: ApiContext): Api {
           return json(400, { error: "invalid", message: (e as Error).message });
         }
       }
-      return json(404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+      return failure(404, "not_found", "unknown_endpoint");
     }
     if (parts[0] === "vigil" && parts[1] === "digest" && method === "POST") {
       const b = await readJson(request);
@@ -324,7 +328,7 @@ export function createApi(ctx: ApiContext): Api {
       if (method === "POST" && parts[1] === "requests" && parts[3] === "undo") {
         return json(200, await activity.undo(store, parts[2]));
       }
-      return json(404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+      return failure(404, "not_found", "unknown_endpoint");
     }
 
     switch (route) {
@@ -495,12 +499,12 @@ export function createApi(ctx: ApiContext): Api {
       }
       case "GET annotations": {
         const pdf = url.searchParams.get("path") ?? "";
-        if (!/\.pdf$/i.test(pdf) || !(await store.pathExists(pdf))) return json(404, { error: "not_found", message: "PDF bulunamadı" });
+        if (!/\.pdf$/i.test(pdf) || !(await store.pathExists(pdf))) return failure(404, "not_found", "pdf_not_found");
         return json(200, await readAnnotations(store.root, pdf));
       }
       case "PUT annotations": {
         const pdf = url.searchParams.get("path") ?? "";
-        if (!/\.pdf$/i.test(pdf) || !(await store.pathExists(pdf))) return json(404, { error: "not_found", message: "PDF bulunamadı" });
+        if (!/\.pdf$/i.test(pdf) || !(await store.pathExists(pdf))) return failure(404, "not_found", "pdf_not_found");
         return json(200, await writeAnnotations(store.root, pdf, await readJson(request, 20 * 1024 * 1024)));
       }
       case "GET prefs":
@@ -522,7 +526,7 @@ export function createApi(ctx: ApiContext): Api {
         return json(201, { path: await store.saveAttachment(name, data) });
       }
     }
-    return json(404, { error: "not_found", message: "Bilinmeyen uç nokta" });
+    return failure(404, "not_found", "unknown_endpoint");
   }
 
   /** Origin içindeki ekleri ve dosyaları sunar (`/files/<Origin yolu>`); gizli klasörler ve Origin dışı reddedilir. */
@@ -552,7 +556,7 @@ export function createApi(ctx: ApiContext): Api {
       } catch (err) {
         if (err instanceof NodeError) {
           const status = err.code === "not_found" ? 404 : err.code === "conflict" ? 409 : 400;
-          return json(status, { error: err.code, message: err.message, ...err.details });
+          return json(status, { ...err.details, error: err.code, reason: err.reason, vars: err.vars, message: err.message });
         }
         console.error(err);
         return json(500, { error: "internal", message: String(err) });

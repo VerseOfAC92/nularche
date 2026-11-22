@@ -2,7 +2,7 @@
 // bağlantısı olmayan Node'lar. Amaç dağınık fikirleri yakalayıp bilgi ağına bağlamak.
 
 import { useEffect, useState } from "react";
-import { api, type CaptureKind, type NodeMeta, type ShadowView as ShadowData } from "./api.ts";
+import { api, type CaptureKind, type NodeMeta, type ShadowView as ShadowData, errorMessage } from "./api.ts";
 
 import { ago, t } from "./i18n/index.ts";
 import { keys, modPressed } from "./shortcuts.tsx";
@@ -39,7 +39,7 @@ export function ShadowView({
       onChanged();
       onToast("routed" in res ? t("ws.routedTo", { title: res.routed.targetTitle }) : t("shadow.captured"));
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   }
 
@@ -51,7 +51,7 @@ export function ShadowView({
       onChanged();
       onToast(t("ws.routedTo", { title: res.targetTitle }));
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   }
   // Yapılacak hedefleri: sık kullanılan ve sabitlenmiş notlar.

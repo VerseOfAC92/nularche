@@ -266,9 +266,9 @@ async function runTool(store: NodeStore, activity: AiActivity, requestId: string
       const drop = (Array.isArray(args.drop) ? args.drop : []).map(Number);
       const current = await store.read(id);
       if (args.base_revision && args.base_revision !== current.revision)
-        throw new NodeError("conflict", "Not bu arada değişti; read_node ile yeniden oku (blok numaraları değişmiş olabilir).");
+        throw new NodeError("conflict", "ai_note_changed");
       const built = rearrangeBlocks(splitBlocks(current.body), items, drop);
-      if ("error" in built) throw new NodeError("invalid", built.error);
+      if ("error" in built) throw new NodeError("invalid", "ai_rearrange", { detail: built.error });
       const n = await activity.editWithSnapshot(store, id, () => store.update(id, { body: built.body, baseRevision: current.revision }), requestId);
       return { ...summary(n), revision: n.revision, blocks: splitBlocks(n.body).length };
     }
@@ -299,7 +299,7 @@ async function runTool(store: NodeStore, activity: AiActivity, requestId: string
       return { ...summary(n), revision: n.revision };
     }
   }
-  throw new NodeError("invalid", `Bilinmeyen araç: ${name}`);
+  throw new NodeError("invalid", "unknown_tool", { name });
 }
 
 export interface AgentOptions {
@@ -379,7 +379,7 @@ async function converse(o: AgentOptions, req: AiRequest, model: string, fetchImp
       const { name, args, id } = p.functionCall;
       let response: unknown;
       try {
-        if (req.readOnly && WRITE_TOOLS.has(name)) throw new NodeError("invalid", "Bu istek yalnızca cevap istiyor; notlar değiştirilemez.");
+        if (req.readOnly && WRITE_TOOLS.has(name)) throw new NodeError("invalid", "ai_read_only");
         response = { result: await runTool(o.store, o.activity, req.id, name, args ?? {}) };
       } catch (err) {
         response = { error: err instanceof NodeError ? `${err.code}: ${err.message}` : String((err as Error).message ?? err) };
@@ -399,7 +399,7 @@ async function converse(o: AgentOptions, req: AiRequest, model: string, fetchImp
 export async function runGeminiAgent(o: AgentOptions): Promise<AgentResult> {
   const fetchImpl = o.fetchImpl ?? fetch;
   const req = await o.activity.takeRequest(o.requestId, AUTO_CLIENT);
-  if (!req) throw new NodeError("not_found", "İstek bulunamadı");
+  if (!req) throw new NodeError("not_found", "request_not_found");
   // Sırada beklerken iptal edilen ya da başka yerde tamamlanan istek işlenmez.
   if (req.status !== "received") return { request: req, model: null };
   const lang: ReplyLanguage = req.language ?? "tr";

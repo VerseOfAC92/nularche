@@ -26,18 +26,8 @@ export { findAllMentions } from "./writing.ts";
 
 export { parseNodeFile, revisionOf, serializeNodeFile, slugify } from "./node-file.ts";
 
-export type NodeErrorCode = "not_found" | "conflict" | "invalid";
-
-export class NodeError extends Error {
-  readonly code: NodeErrorCode;
-  readonly details?: Record<string, unknown>;
-  constructor(code: NodeErrorCode, message: string, details?: Record<string, unknown>) {
-    super(message);
-    this.name = "NodeError";
-    this.code = code;
-    this.details = details;
-  }
-}
+export { NodeError, type NodeErrorCode } from "./errors.ts";
+import { NodeError } from "./errors.ts";
 
 export type LayoutMode = "stream" | "canvas" | "manuscript" | "outline" | "cards" | "wiki" | "whiteboard";
 export const LAYOUT_MODES: readonly LayoutMode[] = ["stream", "canvas", "manuscript", "outline", "cards", "wiki", "whiteboard"];
@@ -446,15 +436,15 @@ export class NodeStore {
   /** Vault'a göre bir yolu mutlak yola çevirir; vault dışına ve gizli klasörlere çıkışı reddeder. */
   abs(relPath: string): string {
     if (typeof relPath !== "string" || relPath === "" || path.isAbsolute(relPath) || relPath.includes("\0")) {
-      throw new NodeError("invalid", `Geçersiz yol: ${relPath}`);
+      throw new NodeError("invalid", "invalid_path", { path: relPath });
     }
     const resolved = path.resolve(this.root, relPath);
     const rel = path.relative(this.root, resolved);
     if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) {
-      throw new NodeError("invalid", `Yol vault dışında: ${relPath}`);
+      throw new NodeError("invalid", "path_outside_vault", { path: relPath });
     }
     if (rel.split(path.sep).some((seg) => seg.startsWith("."))) {
-      throw new NodeError("invalid", `Gizli yol kullanılamaz: ${relPath}`);
+      throw new NodeError("invalid", "hidden_path", { path: relPath });
     }
     return resolved;
   }
@@ -591,7 +581,7 @@ export class NodeStore {
     // Klasör notları klasör yoluyla da bulunur ("Projeler" → "Projeler/Projeler.md").
     const folderNote = ref.toLowerCase().endsWith(".md") ? null : `${toPosix(ref)}/${path.posix.basename(toPosix(ref))}.md`;
     for (const n of all.values()) if (n.meta.path === wanted || n.meta.path === folderNote) return n;
-    throw new NodeError("not_found", `Node bulunamadı: ${ref}`);
+    throw new NodeError("not_found", "node_not_found", { ref });
   }
 
   async read(ref: string): Promise<NodeDoc> {
@@ -635,7 +625,7 @@ export class NodeStore {
   /** `parentNodeId`: üst Node id'si, kök (yeni Arche) için null, gelen kutusu için `SHADOW`. */
   async create(input: { title: string; parentNodeId?: string | null; body?: string; fields?: PageFields }): Promise<NodeDoc> {
     const title = input.title?.trim();
-    if (!title) throw new NodeError("invalid", "Başlık boş olamaz");
+    if (!title) throw new NodeError("invalid", "title_empty");
     let dirRel = "";
     if (input.parentNodeId === SHADOW) dirRel = SHADOW_DIR;
     else if (input.parentNodeId) dirRel = await this.ensureChildDir(await this.find(input.parentNodeId));
@@ -651,7 +641,7 @@ export class NodeStore {
 
   private checkRevision(current: NodeMeta, baseRevision: string | undefined): void {
     if (baseRevision !== undefined && baseRevision !== current.revision) {
-      throw new NodeError("conflict", "Node siz okuduktan sonra değişmiş; yeniden okuyup tekrar deneyin.", {
+      throw new NodeError("conflict", "stale_revision", {}, {
         currentRevision: current.revision,
         baseRevision,
       });
@@ -700,7 +690,7 @@ export class NodeStore {
   private async renameAndRewrite(renames: [string, string][], moved: Map<string, string>, all?: Map<string, Loaded>): Promise<void> {
     all ??= await this.loadAll();
     for (const [from, to] of renames) {
-      if (from.toLowerCase() !== to.toLowerCase() && (await this.exists(to))) throw new NodeError("conflict", `Hedef zaten var: ${to}`);
+      if (from.toLowerCase() !== to.toLowerCase() && (await this.exists(to))) throw new NodeError("conflict", "target_exists", { path: to });
       await mkdir(path.dirname(this.abs(to)), { recursive: true });
       await rename(this.abs(from), this.abs(to));
     }
@@ -730,7 +720,7 @@ export class NodeStore {
     const current = await this.find(ref);
     this.checkRevision(current.meta, input.baseRevision);
     for (const key of Object.keys(input.properties ?? {})) {
-      if (RESERVED_KEYS.has(key) || !/^[^\s:#][^:#\n]{0,63}$/u.test(key)) throw new NodeError("invalid", `Bu özellik adı kullanılamaz: ${key}`);
+      if (RESERVED_KEYS.has(key) || !/^[^\s:#][^:#\n]{0,63}$/u.test(key)) throw new NodeError("invalid", "property_name_invalid", { name: key });
     }
     const title = input.title?.trim() || current.meta.title;
     let rel = current.meta.path;
@@ -744,7 +734,7 @@ export class NodeStore {
       updated: new Date().toISOString(),
     };
     for (const [key, value] of Object.entries(input.fields ?? {})) {
-      if (!(PAGE_FIELD_KEYS as readonly string[]).includes(key)) throw new NodeError("invalid", `Bilinmeyen alan: ${key}`);
+      if (!(PAGE_FIELD_KEYS as readonly string[]).includes(key)) throw new NodeError("invalid", "unknown_field", { name: key });
       if (value === null || value === undefined) delete fm[key];
       else fm[key] = value;
     }
@@ -780,7 +770,7 @@ export class NodeStore {
       const parent = await this.find(newParentNodeId, all);
       const ownDir = childDirOf(current.meta.path);
       if (parent.meta.id === current.meta.id || parent.meta.path.startsWith(`${ownDir}/`)) {
-        throw new NodeError("invalid", "Bir Node kendi altına taşınamaz");
+        throw new NodeError("invalid", "move_into_self");
       }
       if (current.meta.parentNodeId === parent.meta.id) return this.read(current.meta.id);
       dirRel = await this.ensureChildDir(parent);
@@ -892,7 +882,7 @@ export class NodeStore {
   }
 
   private trashDir(entry: string): string {
-    if (!/^[\w.-]+$/.test(entry) || entry.startsWith(".")) throw new NodeError("invalid", `Geçersiz çöp öğesi: ${entry}`);
+    if (!/^[\w.-]+$/.test(entry) || entry.startsWith(".")) throw new NodeError("invalid", "invalid_trash_entry", { entry });
     return path.join(this.root, TRASH_DIR, entry);
   }
 
@@ -968,7 +958,7 @@ export class NodeStore {
    */
   async restoreTrash(entry: string): Promise<NodeDoc> {
     const item = await this.readTrashEntry(entry);
-    if (!item) throw new NodeError("not_found", `Çöpte bulunamadı: ${entry}`);
+    if (!item) throw new NodeError("not_found", "trash_not_found", { entry });
     const dir = this.trashDir(entry);
     let targetDir = SHADOW_DIR;
     if (item.originalPath) {
@@ -1002,7 +992,7 @@ export class NodeStore {
 
   /** Çöpteki öğeyi kalıcı olarak siler (yalnızca kullanıcı arayüzden açıkça isterse). */
   async deleteTrash(entry: string): Promise<void> {
-    if (!(await this.readTrashEntry(entry))) throw new NodeError("not_found", `Çöpte bulunamadı: ${entry}`);
+    if (!(await this.readTrashEntry(entry))) throw new NodeError("not_found", "trash_not_found", { entry });
     await rm(this.trashDir(entry), { recursive: true, force: true });
   }
 
@@ -1095,7 +1085,7 @@ export class NodeStore {
     const names = [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 3);
     const masked = maskLinks(source.body);
     const at = findMention(masked, names);
-    if (at < 0) throw new NodeError("not_found", "Bağlantısız anılış bulunamadı.");
+    if (at < 0) throw new NodeError("not_found", "mention_not_found");
     const name = names.find((x) => masked.slice(at, at + x.length).toLocaleLowerCase("tr") === x.toLocaleLowerCase("tr"))!;
     const shown = source.body.slice(at, at + name.length);
     const href = relativeLink(source.meta.path, target.meta.path);
@@ -1110,9 +1100,9 @@ export class NodeStore {
     const all = await this.loadAll();
     const source = await this.find(sourceRef, all);
     const target = await this.find(targetRef, all);
-    if (source.meta.id === target.meta.id) throw new NodeError("invalid", "Bir not kendisiyle birleştirilemez.");
-    if (source.meta.locked || target.meta.locked) throw new NodeError("invalid", "Kilitli notlar birleştirilemez.");
-    if ([...all.values()].some((n) => n.meta.parentNodeId === source.meta.id)) throw new NodeError("invalid", "Alt sayfası olan bir not birleştirilemez.");
+    if (source.meta.id === target.meta.id) throw new NodeError("invalid", "merge_self");
+    if (source.meta.locked || target.meta.locked) throw new NodeError("invalid", "merge_locked");
+    if ([...all.values()].some((n) => n.meta.parentNodeId === source.meta.id)) throw new NodeError("invalid", "merge_has_children");
     // Kaynaktaki göreli bağlantılar hedefin konumuna göre yeniden yazılır.
     const moved = rewriteLinks(source.body, source.meta.path, target.meta.path, new Map());
     const sep = target.body.trim() === "" ? "" : target.body.endsWith("\n") ? "\n" : "\n\n";
@@ -1142,12 +1132,12 @@ export class NodeStore {
   // `labels.json` dosyasında durur ve kullanıcının içeriği olarak eşitlenir.
 
   private historyDir(id: string): string {
-    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", `Geçersiz id: ${id}`);
+    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", "invalid_id", { id });
     return path.join(this.root, ".nularche", "history", id);
   }
 
   private epochDir(id: string): string {
-    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", `Geçersiz id: ${id}`);
+    if (!/^[\w-]{1,64}$/.test(id)) throw new NodeError("invalid", "invalid_id", { id });
     return path.join(this.root, ".nularche", "epochs", id);
   }
 
@@ -1304,7 +1294,7 @@ export class NodeStore {
     const { meta } = await this.find(ref);
     const name = label.replace(/\s+/g, " ").trim().slice(0, 80) || new Date().toISOString().slice(0, 16).replace("T", " ");
     const entries = await this.history(meta.id);
-    if (entries.filter((e) => e.label).length >= CHECKPOINT_LIMIT) throw new NodeError("invalid", `En fazla ${CHECKPOINT_LIMIT} kontrol noktası saklanır; önce birini silin.`);
+    if (entries.filter((e) => e.label).length >= CHECKPOINT_LIMIT) throw new NodeError("invalid", "checkpoint_limit", { max: CHECKPOINT_LIMIT });
     const dir = this.epochDir(meta.id);
     await mkdir(dir, { recursive: true });
     const at = await this.freeHistoryTime(meta.id);
@@ -1319,7 +1309,7 @@ export class NodeStore {
   /** Bir anlık görüntüyü ya da kontrol noktasını siler. */
   async deleteHistory(ref: string, at: number): Promise<void> {
     const { meta } = await this.find(ref);
-    if (!Number.isSafeInteger(at)) throw new NodeError("invalid", "Geçersiz zaman.");
+    if (!Number.isSafeInteger(at)) throw new NodeError("invalid", "invalid_time");
     const labels = await this.epochLabels(meta.id);
     if (String(at) in labels) {
       await rm(path.join(this.epochDir(meta.id), `${at}.md`), { force: true });
@@ -1344,11 +1334,11 @@ export class NodeStore {
   /** Anlık görüntünün gövdesi. */
   async historyBody(ref: string, at: number): Promise<string> {
     const { meta } = await this.find(ref);
-    if (!Number.isSafeInteger(at)) throw new NodeError("invalid", "Geçersiz zaman.");
+    if (!Number.isSafeInteger(at)) throw new NodeError("invalid", "invalid_time");
     try {
       return parseNodeFile(await readFile(await this.entryFile(meta.id, at), "utf8")).body;
     } catch {
-      throw new NodeError("not_found", "Anlık görüntü bulunamadı.");
+      throw new NodeError("not_found", "snapshot_not_found");
     }
   }
 
@@ -1367,7 +1357,7 @@ export class NodeStore {
   async wikiEntries(ref: string): Promise<WikiEntry[]> {
     const all = await this.loadAll();
     const root = await this.find(ref, all);
-    if (root.meta.layoutMode !== "wiki") throw new NodeError("invalid", "Bu sayfa bir wiki değil.");
+    if (root.meta.layoutMode !== "wiki") throw new NodeError("invalid", "not_wiki");
     const nodes = [...all.values()];
     const out: WikiEntry[] = [];
     const walk = (pid: string, depth: number) => {
@@ -1539,7 +1529,7 @@ export class NodeStore {
     const clean = (s: string) => s.trim().replace(/^#/, "");
     const a = clean(from);
     const b = clean(to);
-    if (!a || !b || !/^[\p{L}\p{N}_][\p{L}\p{N}_/-]*$/u.test(b)) throw new NodeError("invalid", `Geçersiz etiket: ${to}`);
+    if (!a || !b || !/^[\p{L}\p{N}_][\p{L}\p{N}_/-]*$/u.test(b)) throw new NodeError("invalid", "invalid_tag", { tag: to });
     let changed = 0;
     for (const n of (await this.loadAll()).values()) {
       if (!n.meta.tags.some((t) => tagKey(t) === tagKey(a) || tagKey(t).startsWith(`${tagKey(a)}/`))) continue;
@@ -1619,10 +1609,10 @@ export class NodeStore {
 
   /** Bir eki yeniden adlandırır (uzantı korunur); bağlantı veren Node'lar ve kapaklar güncellenir. Yeni yolu döndürür. */
   async renameAttachment(rel: string, newName: string): Promise<string> {
-    if (!rel.startsWith(`${ATTACHMENTS_DIR}/`) || !(await this.exists(rel))) throw new NodeError("not_found", `Ek bulunamadı: ${rel}`);
+    if (!rel.startsWith(`${ATTACHMENTS_DIR}/`) || !(await this.exists(rel))) throw new NodeError("not_found", "attachment_not_found", { path: rel });
     const ext = path.posix.extname(rel);
     const base = slugify(newName.replace(new RegExp(`${ext.replace(".", "\\.")}$`, "i"), "")).slice(0, 80);
-    if (!base) throw new NodeError("invalid", "Ad boş olamaz");
+    if (!base) throw new NodeError("invalid", "name_empty");
     const dir = path.posix.dirname(rel);
     let target = `${dir}/${base}${ext}`;
     if (target === rel) return rel;
@@ -1639,7 +1629,7 @@ export class NodeStore {
 
   /** Ham dosya yazma (arşiv içe aktarımı için); var olan dosyanın üzerine yazmaz. */
   async writeNew(rel: string, data: string | Uint8Array): Promise<void> {
-    if (await this.exists(rel)) throw new NodeError("conflict", `Dosya zaten var: ${rel}`);
+    if (await this.exists(rel)) throw new NodeError("conflict", "file_exists", { path: rel });
     await this.atomicWrite(this.abs(rel), data);
   }
 

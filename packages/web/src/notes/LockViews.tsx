@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "../i18n/index.ts";
 import { Icon } from "../ui/Icon.tsx";
+import { errorMessage } from "../api.ts";
 
 export function LockDialog({ onLock, onClose }: { onLock: (password: string, hint: string) => Promise<void>; onClose: () => void }) {
   const [pw, setPw] = useState("");
@@ -18,7 +19,7 @@ export function LockDialog({ onLock, onClose }: { onLock: (password: string, hin
       await onLock(pw, hint.trim());
       onClose();
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
       setBusy(false);
     }
   };

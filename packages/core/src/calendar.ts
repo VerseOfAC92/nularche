@@ -332,7 +332,7 @@ const overlaps = (t: EventTime, from: number, to: number) => {
  * Listeleme ve kimlik doğrulama hataları eşitlemeyi durdurur; öğe hataları toplanır ve diğer öğeler sürer.
  */
 export async function syncLink(store: NodeStore, provider: CalendarProvider, link: CalendarLink, options: SyncOptions): Promise<SyncReport> {
-  if (!link.dbId || !link.dateProp) throw new NodeError("invalid", "Görüntüleme bağlantısı veritabanıyla eşitlenmez.");
+  if (!link.dbId || !link.dateProp) throw new NodeError("invalid", "calendar_view_link");
   const dbId = link.dbId;
   const dateProp = link.dateProp;
   const counts = emptyCounts();
@@ -344,7 +344,7 @@ export async function syncLink(store: NodeStore, provider: CalendarProvider, lin
 
   const loaded = await loadDatabase(store, dbId);
   const prop = loaded.db.properties.find((p) => p.id === dateProp);
-  if (!prop || prop.type !== "date") throw new NodeError("invalid", `Tarih özelliği bulunamadı: ${dateProp}`);
+  if (!prop || prop.type !== "date") throw new NodeError("invalid", "date_property_missing", { name: dateProp });
   const rows = new Map(loaded.rows.map((n) => [n.id, localRow(n, dateProp)]));
   const listed = await provider.listEvents(link.calendarId, { from, to });
   const remote = new Map(listed.map((e) => [e.id, e]));

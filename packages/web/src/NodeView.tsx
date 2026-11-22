@@ -2,7 +2,7 @@
 // Otomatik kaydetme ve çakışma (ör. Claude aynı anda düzenlediğinde) burada yönetilir.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, SHADOW, type NodeDoc, type NodeMeta, type PageFieldPatch } from "./api.ts";
+import { api, ApiError, SHADOW, type NodeDoc, type NodeMeta, type PageFieldPatch, errorMessage } from "./api.ts";
 import { desktop } from "./desktop.ts";
 import { Editor } from "./editor/Editor.tsx";
 import { TitleEditor, type TitleEditorHandle } from "./editor/TitleEditor.tsx";
@@ -184,7 +184,7 @@ export function NodeView(props: NodeViewProps) {
       if (e instanceof ApiError && e.code === "conflict") setStatus("conflict");
       else {
         setStatus("error");
-        setError((e as Error).message);
+        setError(errorMessage(e));
       }
     }
   }, [id]);
@@ -211,7 +211,7 @@ export function NodeView(props: NodeViewProps) {
         propsRef.current.onChanged();
       } catch (e) {
         if (e instanceof ApiError && e.code === "conflict") setStatus("conflict");
-        else setError((e as Error).message);
+        else setError(errorMessage(e));
       }
     },
     [id, flush],
@@ -227,7 +227,7 @@ export function NodeView(props: NodeViewProps) {
         propsRef.current.onChanged();
       } catch (e) {
         if (e instanceof ApiError && e.code === "conflict") setStatus("conflict");
-        else setError((e as Error).message);
+        else setError(errorMessage(e));
       }
     },
     [id, flush],
@@ -257,7 +257,7 @@ export function NodeView(props: NodeViewProps) {
       propsRef.current.onChanged();
       propsRef.current.onToast(t("ob.extracted", { title: created.title }));
     } catch (err) {
-      setError((err as Error).message);
+      setError(errorMessage(err));
     }
   }
 
@@ -350,7 +350,7 @@ export function NodeView(props: NodeViewProps) {
       const out = await exportNode(kind, id);
       if (out) propsRef.current.onToast(out === "downloaded" ? t("export.downloaded") : t("export.saved", { path: out }));
     } catch (e) {
-      propsRef.current.onToast((e as Error).message);
+      propsRef.current.onToast(errorMessage(e));
     }
   }
 
@@ -418,7 +418,7 @@ export function NodeView(props: NodeViewProps) {
           commentsChanged();
           propsRef.current.onToast(t("ws.commentAdded"));
         } catch (err) {
-          propsRef.current.onToast((err as Error).message);
+          propsRef.current.onToast(errorMessage(err));
         }
       }),
       registerCommand("note.checkpoint", async () => {
@@ -429,7 +429,7 @@ export function NodeView(props: NodeViewProps) {
           await api.checkpoint(id, label);
           propsRef.current.onToast(t("ws.checkpointSaved", { name: label }));
         } catch (err) {
-          propsRef.current.onToast((err as Error).message);
+          propsRef.current.onToast(errorMessage(err));
         }
       }),
       registerCommand("note.wordGoal", async () => {
@@ -565,7 +565,7 @@ export function NodeView(props: NodeViewProps) {
       propsRef.current.onChanged();
       return child;
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
       return null;
     }
   }
@@ -580,7 +580,7 @@ export function NodeView(props: NodeViewProps) {
       propsRef.current.onChanged();
       return n;
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
       return null;
     }
   }
@@ -592,7 +592,7 @@ export function NodeView(props: NodeViewProps) {
       propsRef.current.onChanged();
       return n;
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
       return null;
     }
   }
@@ -746,7 +746,7 @@ export function NodeView(props: NodeViewProps) {
                       await api.checkpoint(id, label);
                       props.onToast(t("ws.checkpointSaved", { name: label }));
                     } catch (e) {
-                      props.onToast((e as Error).message);
+                      props.onToast(errorMessage(e));
                     }
                   }}
                 >
@@ -827,7 +827,7 @@ export function NodeView(props: NodeViewProps) {
                         const out = await exportNode(kind, id);
                         if (out) props.onToast(out === "downloaded" ? t("export.downloaded") : t("export.saved", { path: out }));
                       } catch (e) {
-                        props.onToast((e as Error).message);
+                        props.onToast(errorMessage(e));
                       }
                     }}
                   >
@@ -939,7 +939,7 @@ export function NodeView(props: NodeViewProps) {
               propsRef.current.onToast(t("ob.merged", { title: target.title }));
               props.onNavigate(target.id);
             } catch (e) {
-              setError((e as Error).message);
+              setError(errorMessage(e));
             }
           }}
         />

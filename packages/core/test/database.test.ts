@@ -16,6 +16,7 @@ import {
   type Database,
   type Row,
 } from "../src/index.ts";
+import { NodeError } from "../src/errors.ts";
 
 const names = { tags: "Etiketler", status: "Durum", todo: "Yapılacak", doing: "Sürüyor", done: "Bitti", table: "Tablo", board: "Pano" };
 
@@ -110,8 +111,8 @@ test("insan okunur değerler saklanan değere çevrilir; yeni seçenekler şemay
   const r = inputToStored(db, db.properties.find((p) => p.id === "tags")!, "ofis, acil iş");
   assert.deepEqual(r.value, ["ofis", "acil_is"]);
   assert.deepEqual(r.db.properties.find((p) => p.id === "tags")!.options!.map((o) => o.name), ["ofis", "acil iş"]);
-  assert.throws(() => inputToStored(db, db.properties.find((p) => p.id === "fiyat")!, "çok"), /expects a number/);
-  assert.throws(() => inputToStored(db, db.properties.find((p) => p.id === "toplam")!, 3), /computed/);
+  assert.throws(() => inputToStored(db, db.properties.find((p) => p.id === "fiyat")!, "çok"), (e: unknown) => e instanceof NodeError && e.reason === "expects_number");
+  assert.throws(() => inputToStored(db, db.properties.find((p) => p.id === "toplam")!, 3), (e: unknown) => e instanceof NodeError && e.reason === "computed_property");
   assert.equal(inputToStored(db, db.properties.find((p) => p.id === "son_tarih")!, "2026-11-01").value, "2026-11-01");
 });
 

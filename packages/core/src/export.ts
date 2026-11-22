@@ -232,7 +232,7 @@ const MIME: Record<string, string> = {
 export async function exportPageHtml(store: NodeStore, ref: string, lang: "tr" | "en" = "tr"): Promise<{ name: string; html: string }> {
   const rc = await contextFor(store, lang);
   const doc = await store.read(ref);
-  if (doc.locked) throw new NodeError("invalid", lang === "tr" ? "Kilitli not dışa aktarılamaz; önce kilidi kaldırın." : "A locked note can't be exported; remove the lock first.");
+  if (doc.locked) throw new NodeError("invalid", "export_locked");
   const node = { ...doc, body: await exportBodyOf(store, doc, lang) };
   const assets = new Map<string, string>();
   for (const l of extractLinks(node.path, node.body)) {
@@ -282,13 +282,13 @@ export async function exportSite(
   let roots: NodeMeta[];
   if (options.rootId) {
     const r = rc.all.find((n) => n.id === options.rootId || n.path === options.rootId);
-    if (!r) throw new NodeError("not_found", `Node bulunamadı: ${options.rootId}`);
+    if (!r) throw new NodeError("not_found", "node_not_found", { ref: options.rootId });
     roots = [r];
   } else {
     const published = rc.all.filter((n) => n.publish && !n.template);
     roots = published.filter((n) => !n.locked).filter((n) => !published.some((p) => p.id !== n.id && descendants(rc.all, p.id).some((d) => d.id === n.id)));
   }
-  if (roots.length === 0) throw new NodeError("invalid", lang === "tr" ? "Yayınlanacak sayfa yok: bir sayfanın ⋯ menüsünden “Web'de yayınla”yı açın." : "Nothing to publish: turn on “Publish to web” in a page's ⋯ menu.");
+  if (roots.length === 0) throw new NodeError("invalid", "nothing_to_publish");
   const selected = new Map<string, NodeMeta>();
   for (const r of roots) for (const n of [r, ...descendants(rc.all, r.id)]) if (!n.template && !n.locked) selected.set(n.id, n);
   const pagePaths = new Map([...selected.values()].map((n) => [n.path, htmlPathOf(n.path)]));

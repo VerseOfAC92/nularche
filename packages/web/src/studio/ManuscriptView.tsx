@@ -3,7 +3,7 @@
 // yazılmamış sahneler "planlanan" olarak görünür ve tek tıkla not olarak açılır.
 
 import { useEffect, useMemo, useState } from "react";
-import { api, type CompiledManuscript, type NodeMeta } from "../api.ts";
+import { api, type CompiledManuscript, type NodeMeta, errorMessage } from "../api.ts";
 import { desktop } from "../desktop.ts";
 import { safeHtml } from "../editor/linked-nodes.tsx";
 import { toEditorMarkdown } from "../editor/paths.ts";
@@ -129,7 +129,7 @@ export function ManuscriptView({
       const out = await exportNode(kind, id);
       if (out) onToast(out === "downloaded" ? t("export.downloaded") : t("export.saved", { path: out }));
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   };
 

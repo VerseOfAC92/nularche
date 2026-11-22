@@ -10,6 +10,7 @@ import { forgetArche, isArcheUnlocked, onLockChange, openLockedCount, unlockArch
 import { usePref } from "./prefs.ts";
 import { SnapshotSettings } from "./SnapshotSettings.tsx";
 import { Icon } from "./ui/Icon.tsx";
+import { errorMessage } from "./api.ts";
 
 function Card({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
@@ -141,7 +142,7 @@ function ArcheLockCard({ nodes, onToast, onChanged }: { nodes: NodeMeta[]; onToa
       setPw2("");
       setHint("");
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
     } finally {
       setProgress(null);
       onChanged();
@@ -154,7 +155,7 @@ function ArcheLockCard({ nodes, onToast, onChanged }: { nodes: NodeMeta[]; onToa
       const r = await decryptArche(arche, nodes, (done, total) => setProgress(t("archeLock.workingOff", { done, total })));
       onToast(t("archeLock.decrypted", { arche: arche.title, n: r.done }));
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     } finally {
       setProgress(null);
       onChanged();

@@ -2,7 +2,7 @@
 // eski yeri artık yoksa Shadow'a gelir. Kalıcı silme yalnızca kullanıcı onaylarsa yapılır.
 
 import { useCallback, useEffect, useState } from "react";
-import { api, type TrashEntry } from "./api.ts";
+import { api, type TrashEntry, errorMessage } from "./api.ts";
 import { ago, t } from "./i18n/index.ts";
 import { Icon } from "./ui/Icon.tsx";
 import { EmptyState } from "./ui/EmptyState.tsx";
@@ -39,7 +39,7 @@ export function TrashView({
       await load();
       onToast(node.archeId === null ? t("trash.restoredShadow", { title: node.title }) : t("trash.restored", { title: node.title }));
     } catch (err) {
-      onToast((err as Error).message);
+      onToast(errorMessage(err));
     } finally {
       setBusy(null);
     }
@@ -47,14 +47,14 @@ export function TrashView({
 
   async function remove(e: TrashEntry) {
     if (!confirm(t("trash.deleteConfirm", { title: e.title }))) return;
-    await api.deleteTrash(e.entry).catch((err: Error) => onToast(err.message));
+    await api.deleteTrash(e.entry).catch((err: unknown) => onToast(errorMessage(err)));
     onChanged();
     await load();
   }
 
   async function emptyAll() {
     if (!entries?.length || !confirm(t("trash.emptyConfirm", { count: entries.length }))) return;
-    await api.emptyTrash().catch((err: Error) => onToast(err.message));
+    await api.emptyTrash().catch((err: unknown) => onToast(errorMessage(err)));
     onChanged();
     await load();
   }

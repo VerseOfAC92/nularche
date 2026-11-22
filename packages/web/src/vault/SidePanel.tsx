@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import type { Editor as TiptapEditor } from "@tiptap/react";
-import { api, type MentionHit, type NodeMeta } from "../api.ts";
+import { api, type MentionHit, type NodeMeta, errorMessage } from "../api.ts";
 import { getActiveEditor } from "../commands.ts";
 import { headings } from "../editor/notes-extensions.ts";
 import { t, ago, locale } from "../i18n/index.ts";
@@ -180,7 +180,7 @@ function Links({
                   onToast(t("ob.linked"));
                   setTick((x) => x + 1);
                 } catch (e) {
-                  onToast((e as Error).message);
+                  onToast(errorMessage(e));
                 }
               }}
             >
@@ -212,7 +212,7 @@ function History({ id, changeTick, onToast }: { id: string; changeTick: number; 
       onToast(t("ws.checkpointSaved", { name: label }));
       setTick((x) => x + 1);
     } catch (e) {
-      onToast((e as Error).message);
+      onToast(errorMessage(e));
     }
   };
   if (!entries) return null;

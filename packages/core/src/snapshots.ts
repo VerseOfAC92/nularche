@@ -14,6 +14,7 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes }
 import { mkdir, readdir, readFile, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { NODE_ERROR_TEXT, type NodeErrorReason } from "./errors.ts";
 import { isLockedBody } from "./note-text.ts";
 import { parseNodeFile } from "./node-file.ts";
 
@@ -71,9 +72,13 @@ const MAGIC_SEALED = Buffer.from("NSE1");
 
 export class SnapshotError extends Error {
   readonly code: "not_found" | "invalid" | "key";
-  constructor(code: "not_found" | "invalid" | "key", message: string) {
-    super(message);
+  readonly reason: NodeErrorReason;
+  readonly vars: Record<string, string | number>;
+  constructor(code: "not_found" | "invalid" | "key", reason: NodeErrorReason, vars: Record<string, string | number> = {}) {
+    super(NODE_ERROR_TEXT[reason].tr(vars));
     this.code = code;
+    this.reason = reason;
+    this.vars = vars;
   }
 }
 
@@ -102,7 +107,7 @@ export class SnapshotStore {
 
   private setKey(k: Uint8Array | null): void {
     this.key = k ? Buffer.from(k) : null;
-    if (this.key && this.key.length !== 32) throw new SnapshotError("key", "Anlık görüntü anahtarı 32 bayt olmalı.");
+    if (this.key && this.key.length !== 32) throw new SnapshotError("key", "strata_key_size");
   }
 
   /** Anahtarı (gerekirse) yükler; her genel işlem bundan önce çağrılır. */
@@ -138,14 +143,14 @@ export class SnapshotStore {
   private open(raw: Buffer): Buffer {
     const magic = raw.subarray(0, 4);
     if (magic.equals(MAGIC_PLAIN)) return gunzipSync(raw.subarray(4));
-    if (!magic.equals(MAGIC_SEALED)) throw new SnapshotError("invalid", "Tanınmayan anlık görüntü verisi.");
-    if (!this.key) throw new SnapshotError("key", "Bu anlık görüntü şifreli; anahtarı bu bilgisayarda yok.");
+    if (!magic.equals(MAGIC_SEALED)) throw new SnapshotError("invalid", "strata_unknown_data");
+    if (!this.key) throw new SnapshotError("key", "strata_no_key");
     const d = createDecipheriv("aes-256-gcm", this.key, raw.subarray(4, 16));
     d.setAuthTag(raw.subarray(16, 32));
     try {
       return gunzipSync(Buffer.concat([d.update(raw.subarray(32)), d.final()]));
     } catch {
-      throw new SnapshotError("key", "Anlık görüntü bu bilgisayarın anahtarıyla açılamadı.");
+      throw new SnapshotError("key", "strata_wrong_key");
     }
   }
 
@@ -154,7 +159,7 @@ export class SnapshotStore {
   }
 
   private objectPath(hash: string): string {
-    if (!/^[0-9a-f]{64}$/.test(hash)) throw new SnapshotError("invalid", "Geçersiz nesne adı.");
+    if (!/^[0-9a-f]{64}$/.test(hash)) throw new SnapshotError("invalid", "strata_bad_object");
     return path.join(this.dir, "objects", hash.slice(0, 2), hash);
   }
 
@@ -173,7 +178,7 @@ export class SnapshotStore {
     try {
       return this.open(await readFile(this.objectPath(hash)));
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === "ENOENT") throw new SnapshotError("not_found", "Anlık görüntünün bir parçası eksik.");
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") throw new SnapshotError("not_found", "strata_part_missing");
       throw e;
     }
   }
@@ -185,7 +190,7 @@ export class SnapshotStore {
   }
 
   private manifestFile(id: string): string {
-    if (!/^\d{13}-[0-9a-f]{8}$/.test(id)) throw new SnapshotError("invalid", `Geçersiz anlık görüntü: ${id}`);
+    if (!/^\d{13}-[0-9a-f]{8}$/.test(id)) throw new SnapshotError("invalid", "strata_invalid_id", { id });
     return path.join(this.manifestsDir(), `${id}.snap`);
   }
 
@@ -206,10 +211,10 @@ export class SnapshotStore {
     try {
       raw = await readFile(file);
     } catch {
-      throw new SnapshotError("not_found", `Anlık görüntü bulunamadı: ${id}`);
+      throw new SnapshotError("not_found", "strata_not_found", { id });
     }
     const m = JSON.parse(this.open(raw).toString("utf8")) as Manifest;
-    if (m.v !== 1 || !Array.isArray(m.files)) throw new SnapshotError("invalid", "Bozuk anlık görüntü listesi.");
+    if (m.v !== 1 || !Array.isArray(m.files)) throw new SnapshotError("invalid", "strata_bad_list");
     return m;
   }
 
@@ -333,7 +338,7 @@ export class SnapshotStore {
     await this.ready();
     const m = await this.readManifest(id);
     const f = m.files.find((x) => x.path === file);
-    if (!f) throw new SnapshotError("not_found", `Bu anlık görüntüde yok: ${file}`);
+    if (!f) throw new SnapshotError("not_found", "strata_file_missing", { path: file });
     return this.getObject(f.hash);
   }
 
@@ -481,9 +486,9 @@ export class SnapshotStore {
 
   private absInside(rel: string): string {
     const clean = normalizeRel(rel);
-    if (!clean || clean.split("/").some((s) => s === ".." || s.startsWith("."))) throw new SnapshotError("invalid", `Geçersiz yol: ${rel}`);
+    if (!clean || clean.split("/").some((s) => s === ".." || s.startsWith("."))) throw new SnapshotError("invalid", "invalid_path", { path: rel });
     const abs = path.join(this.root, ...clean.split("/"));
-    if (!abs.startsWith(this.root + path.sep)) throw new SnapshotError("invalid", `Geçersiz yol: ${rel}`);
+    if (!abs.startsWith(this.root + path.sep)) throw new SnapshotError("invalid", "invalid_path", { path: rel });
     return abs;
   }
 }

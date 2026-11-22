@@ -10,6 +10,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { NodeStore } from "./node-store.ts";
 import { cardKeyInput, extractRawCards } from "./anamnesis-cards.ts";
+import { NodeError } from "./errors.ts";
 
 export type Grade = 1 | 2 | 3 | 4; // Tekrar, Zor, İyi, Kolay
 
@@ -208,7 +209,7 @@ export class Anamnesis {
   }
 
   grade(id: string, grade: Grade, now = Date.now()): Promise<CardState> {
-    if (!/^[0-9a-f]{20}$/.test(id) || ![1, 2, 3, 4].includes(grade)) return Promise.reject(new Error("Geçersiz kart ya da değerlendirme"));
+    if (!/^[0-9a-f]{20}$/.test(id) || ![1, 2, 3, 4].includes(grade)) return Promise.reject(new NodeError("invalid", "invalid_grade"));
     return this.serial(async () => {
       const data = await this.load();
       const prev = data.cards[id];

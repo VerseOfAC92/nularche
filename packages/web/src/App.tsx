@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AskHost, askText } from "./ask.tsx";
-import { api, SHADOW, type NodeMeta, type ParentTarget } from "./api.ts";
+import { api, SHADOW, type NodeMeta, type ParentTarget, errorMessage } from "./api.ts";
 import { desktop } from "./desktop.ts";
 import { NodeView } from "./NodeView.tsx";
 import { SearchDialog } from "./SearchDialog.tsx";
@@ -400,7 +400,7 @@ export function App() {
         if (c.action === "capture") {
           void api.capture(c.value).then(
             (r) => (refresh(), showToast("routed" in r ? t("ws.routedTo", { title: r.routed.targetTitle }) : t("shadow.captured"))),
-            (e: Error) => setError(e.message),
+            (e: unknown) => setError(errorMessage(e)),
           );
           return;
         }
@@ -423,7 +423,7 @@ export function App() {
         navigate({ kind: "node", id: n.id });
         return n.id;
       } catch (e) {
-        setError((e as Error).message);
+        setError(errorMessage(e));
       }
     },
     [refresh, navigate],
@@ -444,7 +444,7 @@ export function App() {
       await refresh();
       navigate({ kind: "node", id: page.id });
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
     }
   }, [nodes, refresh, navigate]);
 
@@ -458,7 +458,7 @@ export function App() {
         await refresh();
         navigate({ kind: "node", id: n.id });
       } catch (e) {
-        setError((e as Error).message);
+        setError(errorMessage(e));
       }
     },
     [route, nodes, newNoteLocation, refresh, navigate],
@@ -535,7 +535,7 @@ export function App() {
         showToast(t("import.done", { n: res.created.length, a: res.attachments }));
         navigate(res.created.length === 1 ? { kind: "node", id: res.created[0].id } : { kind: "shadow" });
       } catch (e) {
-        setError((e as Error).message);
+        setError(errorMessage(e));
       }
     },
     [refresh, navigate, showToast],
@@ -698,7 +698,7 @@ export function App() {
       showToast(t("tags.renamed", { n: changed }));
       navigate({ kind: "tag", tag: next });
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorMessage(e));
     }
   };
 

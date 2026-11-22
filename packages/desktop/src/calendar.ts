@@ -10,7 +10,8 @@ import { CalendarError, type CalendarProviderId } from "../../core/src/calendar.
 import { CalDavCalendar, GoogleCalendar, GOOGLE_SCOPES } from "../../core/src/calendar-providers.ts";
 import { calendarFailure, createCalendarService, type StoredAccount } from "../../server/src/calendar-service.ts";
 import { authorizeGoogle, builtInGoogleClient, googleEndpoints } from "./google-auth.ts";
-import { d } from "./i18n.ts";
+import { describeError } from "../../core/src/errors.ts";
+import { d, desktopLang } from "./i18n.ts";
 
 /** Uçtan uca testlerde gerçek Anahtar Zinciri ve tarayıcı kullanılmaz. */
 const dryRun = !!process.env.NULARCHE_E2E;
@@ -111,7 +112,7 @@ export function registerCalendarIpc(ctx: CalendarContext): { onOriginChanged: ()
     try {
       return await service.sync();
     } catch (e) {
-      return { ok: false, errors: [(e as Error).message] };
+      return { ok: false, errors: [describeError(e, desktopLang())] };
     }
   });
 

@@ -344,7 +344,7 @@ server.registerTool(
       const loaded = await loadDatabase(store, database);
       const idOf = (ref: string) => {
         const p = resolveProperty(loaded.db, ref);
-        if (!p) throw new NodeError("invalid", `Bilinmeyen özellik: ${ref}`);
+        if (!p) throw new NodeError("invalid", "unknown_property", { name: ref });
         return p === TITLE_PROP ? TITLE_PROP : p.id;
       };
       const optionId = (ref: string, v: unknown) => {
@@ -426,7 +426,7 @@ server.registerTool(
       let db = loaded.db;
       const find = (ref: string) => {
         const p = resolveProperty(db, ref);
-        if (!p || p === TITLE_PROP) throw new NodeError("invalid", `Bilinmeyen özellik: ${ref}`);
+        if (!p || p === TITLE_PROP) throw new NodeError("invalid", "unknown_property", { name: ref });
         return p;
       };
       for (const r of rename) db = updateProperty(db, find(r.from).id, { name: r.to });
@@ -627,18 +627,18 @@ server.registerTool(
   ({ target, kind, title, text, depth, file }) =>
     run(async () => {
       if (kind === "manuscript") {
-        if (!file) throw new NodeError("invalid", "file gerekli.");
+        if (!file) throw new NodeError("invalid", "argument_required", { name: "file" });
         const part = await store.read(file);
         const doc = await editWithSnapshot(target, async (before) => {
-          if (before.layoutMode !== "manuscript") throw new NodeError("invalid", "Hedef bir manuskript değil.");
+          if (before.layoutMode !== "manuscript") throw new NodeError("invalid", "not_manuscript");
           const { data, broken } = parseWriting("manuscript", before.body);
-          if (broken) throw new NodeError("invalid", "Manuskript verisi bozuk.");
+          if (broken) throw new NodeError("invalid", "manuscript_broken");
           data.sections[data.sections.length - 1].items.push({ id: newWritingId(), file: part.path });
           return store.update(before.id, { body: serializeWriting("manuscript", before.body, data), baseRevision: before.revision });
         });
         return { ...summary(doc), revision: doc.revision };
       }
-      if (!title.trim()) throw new NodeError("invalid", "title gerekli.");
+      if (!title.trim()) throw new NodeError("invalid", "argument_required", { name: "title" });
       let createdId: string | undefined;
       const doc = await editWithSnapshot(target, async (before) => {
         const res = await applyCapture(store, { kind, title: title.trim(), rest: text.trim() }, before.id);
@@ -726,7 +726,7 @@ server.registerTool(
         return { id: c.id, replies: c.replies.length };
       }
       const doc = await store.read(node);
-      if (!quote || !doc.body.includes(quote)) throw new NodeError("invalid", "quote notta birebir geçmeli.");
+      if (!quote || !doc.body.includes(quote)) throw new NodeError("invalid", "quote_not_in_note");
       const at = doc.body.indexOf(quote);
       const c = await comments.add(node, { anchor: { text: quote, prefix: doc.body.slice(Math.max(0, at - 30), at), suffix: doc.body.slice(at + quote.length, at + quote.length + 30) }, body, author });
       return { id: c.id };

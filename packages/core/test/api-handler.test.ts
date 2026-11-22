@@ -9,6 +9,7 @@ import { test } from "node:test";
 import { AiActivity } from "../src/ai-activity.ts";
 import { Anamnesis } from "../src/anamnesis.ts";
 import { CommentStore } from "../src/comments.ts";
+import { describeError, NODE_ERROR_TEXT } from "../src/errors.ts";
 import { NodeStore } from "../src/node-store.ts";
 import { createApi, EventHub } from "../../server/src/api.ts";
 
@@ -91,4 +92,32 @@ test("API: değişen dosyanın arayüz olayı masaüstü ve web için aynı kura
   assert.equal(changeEventFor(".nularche/drive-sync.json"), null, "eşitleme durumu bildirilmez");
   assert.equal(changeEventFor(".trash/Plan.md"), null);
   assert.equal(changeEventFor("Plan.md.1234.tmp"), "change");
+});
+
+test("API: hatalar neden kodu taşır; arayüz metni seçilen dilde kurar", async () => {
+  const { call } = await setup();
+  const bad = await call("POST", "/api/nodes", "{bozuk");
+  assert.equal(bad.status, 400);
+  assert.equal(bad.json.error, "invalid");
+  assert.equal(bad.json.reason, "invalid_json");
+  assert.equal(describeError(bad.json, "en"), "Invalid JSON");
+  assert.equal(describeError(bad.json, "tr"), "Geçersiz JSON");
+  const missing = await call("GET", "/api/nodes/yok");
+  assert.equal(missing.json.reason, "node_not_found");
+  assert.equal(describeError(missing.json, "en"), "Node not found: yok");
+  const unknown = await call("GET", "/api/bilinmeyen");
+  assert.equal(describeError(unknown.json, "en"), "Unknown endpoint");
+  // Bilinmeyen neden kodunda ham metin gösterilir.
+  assert.equal(describeError(new Error("ham"), "en"), "ham");
+});
+
+test("hata metinleri: her neden kodunun iki dili de var, İngilizce metinde Türkçe harf yok", () => {
+  const vars = { ref: "x", id: "x", path: "x", name: "x", entry: "x", max: 1, tag: "x", version: 2, title: "x", detail: "x", file: "x" };
+  for (const [reason, text] of Object.entries(NODE_ERROR_TEXT)) {
+    const tr = text.tr(vars);
+    const en = text.en(vars);
+    assert.ok(tr && en, reason);
+    assert.doesNotMatch(en, /[çğıöşüÇĞİÖŞÜ]/, `${reason}: ${en}`);
+    assert.doesNotMatch(tr + en, /undefined/, reason);
+  }
 });

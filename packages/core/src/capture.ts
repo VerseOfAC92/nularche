@@ -137,18 +137,18 @@ export function resolveCaptureTarget(config: CaptureConfig, parsed: ParsedCaptur
 export async function applyCapture(store: NodeStore, parsed: ParsedCapture, targetRef: string): Promise<CaptureResult> {
   const all = await store.list();
   const target = await store.read(targetRef);
-  if (!accepts(parsed.kind, target, all) || isLockedBody(target.body)) throw new NodeError("invalid", "Bu sayfa bu tür bir yakalamayı kabul etmiyor.");
+  if (!accepts(parsed.kind, target, all) || isLockedBody(target.body)) throw new NodeError("invalid", "capture_not_accepted");
   const base = { kind: parsed.kind, targetId: target.id, targetTitle: target.title };
   if (parsed.kind === "card") {
     const { data, broken } = parseWriting("cards", target.body);
-    if (broken) throw new NodeError("invalid", "Kart destesinin verisi bozuk; önce düzeltin.");
+    if (broken) throw new NodeError("invalid", "cards_broken");
     data.groups[0].cards.push({ id: newWritingId(), title: parsed.title, text: parsed.rest });
     await store.update(target.id, { body: serializeWriting("cards", target.body, data), baseRevision: target.revision });
     return base;
   }
   if (parsed.kind === "outline") {
     const { data, broken } = parseWriting("outline", target.body);
-    if (broken) throw new NodeError("invalid", "Taslağın verisi bozuk; önce düzeltin.");
+    if (broken) throw new NodeError("invalid", "outline_broken");
     data.rows.push({ id: newWritingId(), text: parsed.title, depth: 0, ...(parsed.rest ? { notes: parsed.rest } : {}) });
     await store.update(target.id, { body: serializeWriting("outline", target.body, data), baseRevision: target.revision });
     return base;
@@ -183,11 +183,11 @@ export async function captureText(store: NodeStore, text: string, title?: string
  */
 export async function promoteCapture(store: NodeStore, ref: string, input: { kind?: CaptureKind; target?: string } = {}): Promise<CaptureResult> {
   const note = await store.read(ref);
-  if (note.archeId !== null) throw new NodeError("invalid", "Yalnızca Shadow'daki notlar taşınabilir.");
-  if (note.locked || isLockedBody(note.body)) throw new NodeError("invalid", "Kilitli not taşınamaz.");
+  if (note.archeId !== null) throw new NodeError("invalid", "only_shadow_notes");
+  if (note.locked || isLockedBody(note.body)) throw new NodeError("invalid", "move_locked");
   const own = parseCapture(note.body);
   const kind = input.kind ?? own?.kind;
-  if (!kind || !isKind(kind)) throw new NodeError("invalid", "Yakalama türü seçilmeli.");
+  if (!kind || !isKind(kind)) throw new NodeError("invalid", "capture_kind_required");
   const parsed: ParsedCapture =
     own && own.kind === kind ? own : { kind, title: note.title, rest: note.body.replace(/^\s*#+\s*.*\n?/, (m) => (m.includes(note.title) ? "" : m)).trim() };
   let targetId = input.target;
@@ -195,7 +195,7 @@ export async function promoteCapture(store: NodeStore, ref: string, input: { kin
     const config = await readCaptureConfig(store.root);
     targetId = resolveCaptureTarget(config, parsed, await store.list())?.id;
   }
-  if (!targetId) throw new NodeError("not_found", "Hedef sayfa bulunamadı; bir hedef seçin.");
+  if (!targetId) throw new NodeError("not_found", "capture_target_missing");
   const result = await applyCapture(store, parsed, targetId);
   await store.trash(note.id);
   return result;

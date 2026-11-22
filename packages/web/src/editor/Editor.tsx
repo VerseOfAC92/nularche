@@ -9,7 +9,7 @@ import { askText } from "../ask.tsx";
 import { EditorContent, useEditor, type Editor as TiptapEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
-import { api, type NodeMeta } from "../api.ts";
+import { api, type NodeMeta, errorMessage } from "../api.ts";
 import { t, type StringKey } from "../i18n/index.ts";
 import { keys } from "../shortcuts.tsx";
 import { TEXT_COLORS } from "./text-colors.ts";
@@ -415,7 +415,7 @@ export function Editor(props: EditorProps) {
           if (pos !== undefined) e.chain().focus().insertContentAt(pos, content).run();
           else e.chain().focus().insertContent(content).run();
         } catch (err) {
-          propsRef.current.onError(t("ed.uploadFailed", { name: file.name, error: (err as Error).message }));
+          propsRef.current.onError(t("ed.uploadFailed", { name: file.name, error: errorMessage(err) }));
         }
       }
     },

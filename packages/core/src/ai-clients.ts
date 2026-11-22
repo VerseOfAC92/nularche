@@ -16,6 +16,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { parse as parseToml, stringify as stringifyToml } from "smol-toml";
+import { NODE_ERROR_TEXT, type NodeErrorReason } from "./errors.ts";
 
 export const SERVER_NAME = "nularche";
 /** Uygulamanın eski adı (Notlar) döneminden kalan kayıt; yalnızca bizim MCP betiğimizi gösteriyorsa kaldırılır. */
@@ -261,7 +262,15 @@ export interface ConnectionPlan {
   legacyServers: string[];
 }
 
-export class ConnectionError extends Error {}
+export class ConnectionError extends Error {
+  readonly reason: NodeErrorReason;
+  readonly vars: Record<string, string | number>;
+  constructor(reason: NodeErrorReason, vars: Record<string, string | number> = {}) {
+    super(NODE_ERROR_TEXT[reason].tr(vars));
+    this.reason = reason;
+    this.vars = vars;
+  }
+}
 
 function same(a: unknown, b: McpEntry): boolean {
   const x = a as Partial<McpEntry> | undefined;
@@ -292,7 +301,7 @@ function readJsonObject(text: string | null, file: string): Record<string, unkno
   } catch {
     // aşağıda
   }
-  throw new ConnectionError(`Yapılandırma dosyası okunamadı (geçerli JSON değil): ${file}. Dosyayı düzeltmeden bağlantı yazılmaz.`);
+  throw new ConnectionError("config_bad_json", { file });
 }
 
 function readTomlObject(text: string | null, file: string): Record<string, unknown> {
@@ -300,9 +309,7 @@ function readTomlObject(text: string | null, file: string): Record<string, unkno
   try {
     return parseToml(text) as Record<string, unknown>;
   } catch (err) {
-    throw new ConnectionError(
-      `Yapılandırma dosyası okunamadı (geçerli TOML değil): ${file}. Dosyayı düzeltmeden bağlantı yazılmaz. (${(err as Error).message.split("\n")[0]})`,
-    );
+    throw new ConnectionError("config_bad_toml", { file, detail: (err as Error).message.split("\n")[0] });
   }
 }
 
@@ -374,15 +381,13 @@ export async function applyConnection(id: ConnectionId, entry: McpEntry, options
     (options.checkRunning ?? true) &&
     isAppRunning(spec.mustBeClosed === "Claude Desktop" ? "Claude" : spec.mustBeClosed, env.platform)
   ) {
-    throw new ConnectionError(
-      `${spec.mustBeClosed} açık. Ayarlarını kapanışta yeniden yazdığı için önce tamamen kapatın (macOS: ⌘Q), sonra tekrar deneyin.`,
-    );
+    throw new ConnectionError("app_must_close", { name: spec.mustBeClosed });
   }
   const file = connectionConfigPath(id, env);
 
   if (spec.format === "claude-cli") {
     const exe = options.claudeExecutable;
-    if (!exe) throw new ConnectionError("Claude Code bulunamadı. Önce Claude Code'u kurun ya da gösterilen komutu terminalde çalıştırın.");
+    if (!exe) throw new ConnectionError("claude_code_missing");
     const run = promisify(execFile);
     // Var olan kaydı kaldır (yoksa hata verir, yok sayılır), sonra yeniden ekle.
     await run(exe, ["mcp", "remove", SERVER_NAME, "--scope", "user"]).catch(() => undefined);
@@ -405,11 +410,11 @@ export async function applyConnection(id: ConnectionId, entry: McpEntry, options
   const stripped = removeTomlServer(original ?? "");
   const leftover = serversOf(readTomlObject(stripped, file), "mcp_servers")[SERVER_NAME];
   if (leftover !== undefined) {
-    throw new ConnectionError(`${file} dosyasında "${SERVER_NAME}" farklı bir biçimde tanımlı; lütfen o satırları elle kaldırıp tekrar deneyin.`);
+    throw new ConnectionError("config_entry_differs", { file, name: SERVER_NAME });
   }
   const next = `${stripped.trimEnd()}${stripped.trim() ? "\n\n" : ""}${tomlServerBlock(entry)}\n`;
   const check = serversOf(readTomlObject(next, file), "mcp_servers")[SERVER_NAME];
-  if (!same(check, entry)) throw new ConnectionError("TOML yazımı doğrulanamadı; dosyaya dokunulmadı.");
+  if (!same(check, entry)) throw new ConnectionError("toml_verify_failed");
   return { backup: await backupAndWrite(file, original, next) };
 }
 

@@ -28,7 +28,7 @@ export interface LoadedDatabase {
 
 export async function loadDatabase(store: NodeStore, ref: string): Promise<LoadedDatabase> {
   const node = await store.read(ref);
-  if (!node.database) throw new NodeError("invalid", `Bu Node bir veritabanı değil: ${node.title}`);
+  if (!node.database) throw new NodeError("invalid", "not_database", { title: node.title });
   const all = await store.list();
   // Satır şablonları (template: true) veri satırı sayılmaz.
   return { node, db: parseDatabase(node.database), rows: all.filter((n) => n.parentNodeId === node.id && !n.template), ctx: computeContext(all) };
@@ -49,18 +49,14 @@ function resolveValues(db: Database, values: Record<string, unknown>): { db: Dat
   let title: string | undefined;
   for (const [ref, input] of Object.entries(values)) {
     const prop = resolveProperty(cur, ref);
-    if (!prop) throw new NodeError("invalid", `Bilinmeyen özellik: ${ref}`, { properties: [TITLE_PROP, ...cur.properties.map((p) => p.name)] });
+    if (!prop) throw new NodeError("invalid", "unknown_property", { name: ref }, { properties: [TITLE_PROP, ...cur.properties.map((p) => p.name)] });
     if (prop === TITLE_PROP) {
       title = String(input ?? "");
       continue;
     }
-    try {
-      const r = inputToStored(cur, prop, input);
-      cur = r.db;
-      props[prop.id] = r.value;
-    } catch (e) {
-      throw new NodeError("invalid", (e as Error).message);
-    }
+    const r = inputToStored(cur, prop, input);
+    cur = r.db;
+    props[prop.id] = r.value;
   }
   return { db: cur, props, title, changedSchema: cur !== db };
 }
@@ -80,7 +76,7 @@ export async function addRow(store: NodeStore, dbRef: string, input: { title: st
 
 export async function setRowValues(store: NodeStore, rowRef: string, values: Record<string, unknown>, baseRevision?: string) {
   const row = await store.read(rowRef);
-  if (!row.parentNodeId) throw new NodeError("invalid", "Bu Node bir veritabanı satırı değil");
+  if (!row.parentNodeId) throw new NodeError("invalid", "not_database_row");
   const { node, db } = await loadDatabase(store, row.parentNodeId);
   const r = resolveValues(db, values);
   if (r.changedSchema) await saveSchema(store, node.id, r.db);

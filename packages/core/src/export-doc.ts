@@ -481,7 +481,7 @@ export type DocFormat = "rtf" | "docx" | "txt";
 /** Sayfayı RTF, DOCX ya da düz metin olarak üretir. Kilitli sayfalar dışa aktarılamaz. */
 export async function exportPageDocument(store: NodeStore, ref: string, format: DocFormat): Promise<{ name: string; data: Uint8Array; mime: string }> {
   const doc = await store.read(ref);
-  if (doc.locked || isLockedBody(doc.body)) throw new NodeError("invalid", "Kilitli not dışa aktarılamaz; önce kilidi kaldırın.");
+  if (doc.locked || isLockedBody(doc.body)) throw new NodeError("invalid", "export_locked");
   // Manuskriptler derlenmiş metinleriyle (bölümler sırasıyla) dışa aktarılır.
   const node = { ...doc, body: await exportBodyOf(store, doc) };
   const base = node.title.replace(/[\\/:*?"<>|]/g, "-");

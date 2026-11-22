@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, test } from "node:test";
 import { unzipSync } from "fflate";
-import { addRow, createDatabase, defaultDatabase, exportMarkdownZip, exportPageHtml, exportSite, NodeStore } from "../src/index.ts";
+import { addRow, createDatabase, defaultDatabase, exportMarkdownZip, exportPageHtml, exportSite, NodeError, NodeStore } from "../src/index.ts";
+import { describeError } from "../src/errors.ts";
 
 let dir: string;
 let store: NodeStore;
@@ -58,7 +59,10 @@ test("statik site: yayınlanan sayfa ve alt sayfaları, veritabanı tablosu, ekl
 
 test("yayınlanacak sayfa yoksa anlaşılır hata", async () => {
   await store.create({ title: "Taslak" });
-  await assert.rejects(exportSite(store, { lang: "en" }), /Nothing to publish/);
+  const err = await exportSite(store, { lang: "en" }).then(() => null, (e: unknown) => e);
+  assert.ok(err instanceof NodeError && err.reason === "nothing_to_publish");
+  assert.match(describeError(err, "en"), /Nothing to publish/);
+  assert.match(describeError(err, "tr"), /Yayınlanacak sayfa yok/);
 });
 
 test("tek sayfa HTML: resimler gömülü, diğer sayfalara bağlantı verilmez", async () => {

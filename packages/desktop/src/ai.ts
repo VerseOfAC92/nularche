@@ -24,12 +24,15 @@ import {
   type McpEntry,
   type ProviderId,
 } from "../../core/src/ai-clients.ts";
+import { describeError } from "../../core/src/errors.ts";
 import { openInTerminal } from "./terminal.ts";
 import { d, desktopLang } from "./i18n.ts";
 
 const run = promisify(execFile);
 /** Uçtan uca testlerde dış uygulama/tarayıcı açılmaz ve hiçbir uygulama kapatılmaz. */
 const dryRun = !!process.env.NULARCHE_E2E;
+/** Hata metni Ayarlar'da seçilen dilde. */
+const describe = (err: unknown): string => describeError(err, desktopLang());
 
 export interface AiSettings extends AutoSettings {
   aiProvider?: ProviderId;
@@ -175,7 +178,7 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
       if (reopened && !dryRun) await shell.openExternal("claude://");
       return { ok: true, backup: res.backup, restarted: reopened };
     } catch (err) {
-      return { ok: false, error: (err as Error).message };
+      return { ok: false, error: describe(err) };
     }
   });
 
@@ -184,7 +187,7 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
     try {
       return await openLauncher(id, typeof prompt === "string" ? prompt : null);
     } catch (err) {
-      return { opened: false, message: (err as Error).message };
+      return { opened: false, message: describe(err) };
     }
   });
 
@@ -197,7 +200,7 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
       const res = await openLauncher(id, null);
       return res.opened ? { ok: true } : { ok: false, error: res.message };
     } catch (err) {
-      return { ok: false, error: (err as Error).message };
+      return { ok: false, error: describe(err) };
     }
   });
 

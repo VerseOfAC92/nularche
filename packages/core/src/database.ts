@@ -3,6 +3,8 @@
 // aynı ayrıştırma, hesaplama (formül, toplama), filtre, sıralama ve gruplama kurallarını buradan kullanır.
 // Node/Electron bağımlılığı yoktur; tarayıcıda da çalışır.
 
+import { NodeError } from "./errors.ts";
+
 export const PROPERTY_TYPES = [
   "text",
   "number",
@@ -318,7 +320,7 @@ export function removeProperty(db: Database, id: string): Database {
 /** Seçim özelliğine yeni seçenek ekler ya da adı eşleşen var olanı döndürür. */
 export function ensureOption(db: Database, propId: string, name: string): { db: Database; option: SelectOption } {
   const prop = db.properties.find((p) => p.id === propId);
-  if (!prop) throw new Error(`Unknown property: ${propId}`);
+  if (!prop) throw new NodeError("invalid", "unknown_property", { name: propId });
   const options = prop.options ?? [];
   const found = options.find((o) => o.name.toLocaleLowerCase("tr") === name.trim().toLocaleLowerCase("tr"));
   if (found) return { db, option: found };
@@ -648,14 +650,14 @@ export function inputToStored(db: Database, prop: Property, input: unknown): { d
     }
     case "number": {
       const n = Number(input);
-      if (!Number.isFinite(n)) throw new Error(`"${prop.name}" expects a number`);
+      if (!Number.isFinite(n)) throw new NodeError("invalid", "expects_number", { name: prop.name });
       return { db, value: n };
     }
     case "checkbox":
       return { db, value: input === true || input === "true" || input === 1 || input === "1" };
     case "date": {
       const d = parseDateValue(input);
-      if (!d) throw new Error(`"${prop.name}" expects a date like 2026-10-17`);
+      if (!d) throw new NodeError("invalid", "expects_date", { name: prop.name });
       return { db, value: d.end ? d : d.start };
     }
     case "relation":
@@ -664,7 +666,7 @@ export function inputToStored(db: Database, prop: Property, input: unknown): { d
     case "rollup":
     case "created_time":
     case "updated_time":
-      throw new Error(`"${prop.name}" is computed and cannot be set`);
+      throw new NodeError("invalid", "computed_property", { name: prop.name });
     default:
       return { db, value: String(input) };
   }
