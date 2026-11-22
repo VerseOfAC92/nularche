@@ -255,6 +255,74 @@ try {
     check(true, "parolayla kilit açıldı, notlar Google'a girmeden geri geldi");
     check(await page.evaluate(() => sessionStorage.length === 0), "kilit açılınca sekmede devredilen izin de kalmadı");
 
+    // Crypta tam şifreleme: Ayarlar'dan bir Arche şifrelenir; Drive'a giden dosyalarda (Drive şifresi çözülse bile)
+    // Arche'nin ve notlarının başlıkları, içerikleri ve ağaç yapısı okunamaz. Arche kapatılınca notları listeden kalkar,
+    // parolayla açılınca geri gelir.
+    await page.evaluate(async () => {
+      const post = (body: unknown) => fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+      const arche = await post({ title: "Gizli Defter", parentNodeId: null, body: "defterin gizli girişi" });
+      const child = await post({ title: "Saklı Başlık", parentNodeId: arche.id, body: "saklı not içeriği" });
+      await post({ title: "Derin Torun", parentNodeId: child.id, body: "torun içeriği" });
+    });
+    page.on("dialog", (d) => void d.accept());
+    await page.getByText("Ayarlar", { exact: true }).first().click();
+    await page.getByRole("tab", { name: "Güvenlik" }).click();
+    const pick = page.getByTestId("arche-lock-pick");
+    await pick.waitFor({ timeout: 20_000 });
+    await page.waitForFunction(() => [...document.querySelectorAll("[data-testid=arche-lock-pick] option")].some((o) => o.textContent?.includes("Gizli Defter")), undefined, { timeout: 20_000 });
+    await pick.selectOption({ label: "Gizli Defter" });
+    const form = page.locator(".arche-lock-form");
+    await form.locator("input").nth(0).fill("crypta parolası");
+    await form.locator("input").nth(1).fill("crypta parolası");
+    await form.locator("button[type=submit]").click();
+    const row = page.getByTestId("arche-lock-row").first();
+    await row.getByText("Gizli Defter").waitFor({ timeout: 60_000 });
+    check(true, "Crypta: Arche ayarlardan şifrelendi ve açık görünüyor");
+    await page.waitForTimeout(2500);
+    const driveText = [...fake.files.values()]
+      .filter((f) => !f.trashed && f.name.endsWith(".nlce"))
+      .map((f) => {
+        try {
+          const { rel, data } = decryptFile(keys, new Uint8Array(f.data));
+          return `${rel}\n${new TextDecoder().decode(data)}`;
+        } catch {
+          return "";
+        }
+      })
+      .join("\n");
+    const leaked = ["Gizli Defter", "Saklı Başlık", "Derin Torun", "defterin gizli", "saklı not", "torun içeriği", "Gizli-Defter"].filter((w) => driveText.includes(w));
+    check(driveText.length > 0 && leaked.length === 0, `Crypta: Drive'a giden dosyalarda başlık, içerik ve ağaç okunamıyor${leaked.length ? `: ${leaked.join(", ")}` : ""}`);
+    await row.getByRole("button", { name: "Kapat" }).click();
+    await row.getByText("Şifreli Arche").waitFor({ timeout: 20_000 });
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(800);
+    // Görünen yerler (bildirimler hariç: kullanıcının kendi işlemini onaylar ve kısa sürede kaybolur).
+    const shown = (re: string) =>
+      page.evaluate(
+        (src) => [...document.querySelectorAll("body *")].filter((e) => e.children.length === 0 && !e.closest(".toast") && new RegExp(src).test(e.textContent ?? "")).length,
+        re,
+      );
+    check((await shown("Saklı Başlık|Gizli Defter|Derin Torun")) === 0, "Crypta: kapalı Arche'nin başlıkları arayüzde görünmüyor");
+    await page.getByText("Ayarlar", { exact: true }).first().click();
+    await page.getByRole("tab", { name: "Güvenlik" }).click();
+    const closedRow = page.getByTestId("arche-lock-row").first();
+    await closedRow.getByRole("button", { name: "Aç" }).click();
+    await closedRow.locator("input[type=password]").fill("crypta parolası");
+    await closedRow.locator("button[type=submit]").click();
+    await closedRow.getByText("Gizli Defter").waitFor({ timeout: 30_000 });
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(
+      () => [...document.querySelectorAll("body *")].some((e) => e.children.length === 0 && !e.closest(".toast") && e.textContent === "Gizli Defter"),
+      undefined,
+      { timeout: 30_000 },
+    );
+    const tree = await page.evaluate(async () => {
+      // Arayüzün kendi API katmanı (zarfları açan) ile ağaç: torun, alt notun altında.
+      const r = await fetch("/api/nodes").then((x) => x.json());
+      return r.nodes.filter((n: { sealed?: string }) => n.sealed).length;
+    });
+    check(tree === 3, `Crypta: parolayla açılınca Arche başlığıyla geri geldi; diskte 3 not mühürlü (${tree})`);
+
     // Sekme kapatılınca her şey gider: aynı tarayıcıda yeni sekme giriş penceresiyle açılır.
     const tab2 = await page.context().newPage();
     await tab2.goto(`${base}/app/`);
@@ -263,7 +331,6 @@ try {
     await tab2.close();
 
     // Bu tarayıcıya güven: notların şifreli kopyası tarayıcıda; yeni sekmede kilit ekranından Drive beklenmeden açılır.
-    page.on("dialog", (d) => void d.accept());
     await page.getByText("Ayarlar", { exact: true }).first().click();
     await page.getByRole("tab", { name: "Güvenlik" }).click();
     // Onay penceresinden ve şifreli kopya yazılınca işaretlenir (kontrollü kutu): tıkla ve oturumda güveni bekle.

@@ -422,6 +422,9 @@ export function createApi(ctx: ApiContext): Api {
       }
       case "DELETE nodes/:id":
         return json(200, await store.trash(id));
+      case "POST nodes/:id/seal-layout":
+        // Tam şifreli Arche'nin dosya düzenini mühürler (rastgele adlar, düz klasör); zarfları arayüz yazar.
+        return json(200, { moved: await store.sealLayout(id) });
       case "POST nodes/:id/move": {
         const b = await readJson(request);
         return json(200, await store.move(id, str(b.parentNodeId) ?? null));

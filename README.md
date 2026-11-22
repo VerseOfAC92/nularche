@@ -90,8 +90,10 @@ Every new part has its own Nularche name, explained in the Nularche language win
 
 - **Crypta (encrypted Arche):** in **Settings → Security**, encrypt every note in an Arche with one password
   (AES-256-GCM, key derived with PBKDF2, 600,000 rounds). Enter it once per session and all of the Arche's notes open;
-  new notes you add to it are encrypted automatically. Titles, properties and the tree stay visible. The password is
-  never stored, so it can't be recovered.
+  new notes you add to it are encrypted automatically. Titles, properties, page settings and the tree are encrypted
+  too: on disk and in Google Drive the files have random names in one flat folder, so only the number of notes, their
+  sizes and dates are visible. Arches encrypted with an earlier version are upgraded the first time you open them.
+  The password is never stored, so it can't be recovered.
 - **Custos (auto-lock):** open locked notes and Crypta Arches close by themselves after a period without activity
   (1 to 60 minutes, 5 by default), and always at once when the computer sleeps or the screen locks.
 - **Strata (snapshots):** your whole Origin, notes and attachments, is saved as a snapshot every 15 minutes when

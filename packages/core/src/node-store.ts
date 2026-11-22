@@ -9,7 +9,7 @@
 // Kimlik (id) frontmatter'da saklanır ve yeniden adlandırma/taşımada değişmez.
 // Ekler Origin kökündeki `Attachments/` klasörüne yazılır.
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { childDirOf, containerDirOf, isFolderNote, notePathFor, ownerPathsOf, unitNameOf } from "./layout.ts";
@@ -78,6 +78,12 @@ export interface PageFields {
   /** Şifreli Arche: Arche'nin bütün notları tek parolayla şifrelidir. Yalnızca anahtar türetme parametreleri ve parola
    *  denetim değeri tutulur (parola ya da anahtar asla yazılmaz). */
   archeLock?: ArcheLockFields;
+  /**
+   * Crypta zarfı: tam şifreli Arche'deki (archeLock.v 2) notun başlığı, sayfa alanları, özellikleri ve ağaçtaki yeri,
+   * Arche'nin anahtarıyla şifrelenmiş hâlde. Mühürlü dosyada bunların hiçbiri açık yazılmaz; dosya adı rastgeledir
+   * ve not Arche klasöründe düz durur (ağaç yapısı yalnızca zarfta). Zarfı yalnızca arayüz açar (web/src/crypta.ts).
+   */
+  sealed?: string;
 }
 
 export interface ArcheLockFields {
@@ -85,6 +91,24 @@ export interface ArcheLockFields {
   iter: number;
   check: string;
   hint?: string;
+  /** 2: tam şifreleme (başlıklar, özellikler ve ağaç da şifreli). Yoksa yalnızca not gövdeleri şifrelidir. */
+  v?: 2;
+}
+
+/** Mühürlü notların diskteki başlığı: gerçek başlık Crypta zarfındadır. */
+export const SEALED_TITLE = "Crypta";
+/** Mühürlü notların dosya/klasör adı: anlamsız, rastgele. */
+const SEALED_NAME = /^c[0-9a-z]{12}$/;
+/** Mühürlü dosyada açık kalabilen alanlar; diğer bütün alanlar ve kullanıcı özellikleri zarfın içindedir. */
+const SEALED_PLAIN_FIELDS = new Set<string>(["locked", "sealed", "archeLock"]);
+/** Zarf boyutunun üst sınırı (base64). */
+const SEALED_MAX = 4 * 1024 * 1024;
+
+function sealedName(): string {
+  const bytes = randomBytes(12);
+  let out = "c";
+  for (const b of bytes) out += "0123456789abcdefghijklmnopqrstuvwxyz"[b % 36];
+  return out;
 }
 
 export const PAGE_FIELD_KEYS = [
@@ -108,6 +132,7 @@ export const PAGE_FIELD_KEYS = [
   "noMentions",
   "titleRich",
   "archeLock",
+  "sealed",
 ] as const;
 export type PageFieldKey = (typeof PAGE_FIELD_KEYS)[number];
 
@@ -318,8 +343,15 @@ function pageFields(fm: Frontmatter): PageFields {
   if (typeof fm.titleRich === "string" && fm.titleRich && fm.titleRich.length <= 8000) out.titleRich = fm.titleRich;
   const al = fm.archeLock as Record<string, unknown> | undefined;
   if (al && typeof al === "object" && typeof al.salt === "string" && typeof al.check === "string" && typeof al.iter === "number" && al.iter >= 100_000) {
-    out.archeLock = { salt: al.salt, iter: al.iter, check: al.check, ...(typeof al.hint === "string" && al.hint ? { hint: al.hint.slice(0, 200) } : {}) };
+    out.archeLock = {
+      salt: al.salt,
+      iter: al.iter,
+      check: al.check,
+      ...(typeof al.hint === "string" && al.hint ? { hint: al.hint.slice(0, 200) } : {}),
+      ...(al.v === 2 ? { v: 2 as const } : {}),
+    };
   }
+  if (typeof fm.sealed === "string" && fm.sealed && fm.sealed.length <= SEALED_MAX) out.sealed = fm.sealed;
   return out;
 }
 
@@ -337,6 +369,13 @@ function derivedId(seed: string): string {
 }
 
 const iso = (ms: number) => new Date(ms).toISOString();
+
+/** Mühürlü notun diskteki frontmatter'ı: kimlik, zamanlar ve kilit alanları dışında hiçbir şey açık yazılmaz. */
+function sealedFrontmatter(fm: Frontmatter): Frontmatter {
+  const out: Frontmatter = { id: fm.id, title: SEALED_TITLE, created: fm.created, updated: fm.updated };
+  for (const [k, v] of Object.entries(fm)) if (SEALED_PLAIN_FIELDS.has(k) && v != null) out[k] = v;
+  return out;
+}
 
 /** Uygulamanın yazacağı frontmatter: diskteki değerler korunur, eksik kimlik alanları bellekteki meta'dan tamamlanır. */
 function completeFrontmatter(fm: Frontmatter, meta: Pick<NodeMeta, "id" | "title" | "createdAt" | "updatedAt">): Frontmatter {
@@ -518,6 +557,8 @@ export class NodeStore {
         ...(facts.locked ? { locked: true } : {}),
       },
     };
+    // Mühürlü not: diskte ne yazarsa yazsın başlık, takma ad ve etiketler açık gösterilmez.
+    if (entry.meta.sealed) entry.meta = { ...entry.meta, title: SEALED_TITLE, aliases: [], tags: [], excerpt: "" };
     this.cache.set(absPath, entry);
     return entry;
   }
@@ -627,16 +668,110 @@ export class NodeStore {
     const title = input.title?.trim();
     if (!title) throw new NodeError("invalid", "title_empty");
     let dirRel = "";
+    let sealedInto = false;
     if (input.parentNodeId === SHADOW) dirRel = SHADOW_DIR;
-    else if (input.parentNodeId) dirRel = await this.ensureChildDir(await this.find(input.parentNodeId));
-    const rel = notePathFor(dirRel, await this.uniqueName(dirRel, title), false);
+    else if (input.parentNodeId) {
+      const all = await this.loadAll();
+      const parent = await this.find(input.parentNodeId, all);
+      // Tam şifreli Arche'ye mühürlü not: ağaçtaki yeri zarfta durur, dosya Arche klasöründe düz ve rastgele adlıdır.
+      const crypta = input.fields?.sealed ? this.cryptaRoot(all, parent.meta.archeId) : undefined;
+      sealedInto = !!crypta;
+      dirRel = await this.ensureChildDir(crypta ?? parent);
+    }
+    const rel = notePathFor(dirRel, sealedInto ? await this.freeSealedName(dirRel) : await this.uniqueName(dirRel, title), false);
     const now = new Date().toISOString();
     const fields = Object.fromEntries(
       Object.entries(input.fields ?? {}).filter(([k, v]) => (PAGE_FIELD_KEYS as readonly string[]).includes(k) && v != null),
     );
-    const text = serializeNodeFile({ id: randomUUID(), title, created: now, updated: now, ...fields }, input.body ?? "");
+    const fm: Frontmatter = { id: randomUUID(), title, created: now, updated: now, ...fields };
+    const text = serializeNodeFile(fields.sealed ? sealedFrontmatter(fm) : fm, input.body ?? "");
     await this.atomicWrite(this.abs(rel), text);
     return this.read(rel);
+  }
+
+  /** Tam şifreli (archeLock.v 2) Arche'nin kök Node'u; Arche tam şifreli değilse undefined. */
+  private cryptaRoot(all: Map<string, Loaded>, archeId: string | null): Loaded | undefined {
+    const root = archeId ? all.get(archeId) : undefined;
+    return root && root.meta.archeLock?.v === 2 ? root : undefined;
+  }
+
+  /** Klasörde boş, rastgele bir mühürlü not adı. */
+  private async freeSealedName(dirRel: string): Promise<string> {
+    for (;;) {
+      const name = sealedName();
+      const base = dirRel ? `${dirRel}/${name}` : name;
+      if (!(await this.exists(`${base}.md`)) && !(await this.exists(base))) return name;
+    }
+  }
+
+  /**
+   * Tam şifreli Arche'nin dosya düzenini mühürler: kök `<ad>/<ad>.md`, mühürlü notlar `<ad>/<ad2>.md` olarak düz ve
+   * rastgele adlarla durur; klasör ve dosya adlarından başlık ya da ağaç yapısı okunamaz. Diğer notlardaki bağlantılar
+   * yeni yollara yeniden yazılır. Zarfı olmayan (henüz mühürlenmemiş) notlara ve onların üstlerine dokunulmaz: ağaçtaki
+   * yerleri yalnızca klasör düzeninden bilinir. Tekrar çağrılabilir; taşınan dosya sayısını döndürür.
+   */
+  async sealLayout(archeId: string): Promise<number> {
+    let all = await this.loadAll();
+    let root = this.cryptaRoot(all, archeId);
+    if (!root || root.meta.archeId !== root.meta.id) throw new NodeError("invalid", "crypta_not_full");
+    let moved = 0;
+    if (root.meta.sealed) {
+      const rp = root.meta.path;
+      if (containerDirOf(rp) !== "" || !SEALED_NAME.test(unitNameOf(rp))) {
+        await this.relocate(rp, "", SEALED_TITLE, await this.freeSealedName(""));
+        moved++;
+        all = await this.loadAll();
+        root = all.get(archeId)!;
+      }
+    }
+    const members = [...all.values()].filter((n) => n.meta.archeId === archeId && n.meta.id !== archeId);
+    const unsealedUnder = (dir: string) => members.some((n) => !n.meta.sealed && n.meta.path.startsWith(`${dir}/`));
+    const pending = members.filter((n) => n.meta.sealed && !unsealedUnder(childDirOf(n.meta.path)));
+    if (!pending.length) return moved;
+    const dir = await this.ensureChildDir(root);
+    all = await this.loadAll();
+    const flatOk = (p: string) => !isFolderNote(p) && path.posix.dirname(p) === dir && SEALED_NAME.test(unitNameOf(p));
+    const todo = pending
+      .map((n) => all.get(n.meta.id)!)
+      .filter((n) => !flatOk(n.meta.path))
+      // En derindekiler önce: üst notun klasörü boşaldıktan sonra üst not taşınır.
+      .sort((a, b) => b.meta.path.split("/").length - a.meta.path.split("/").length);
+    const renames: [string, string][] = [];
+    const map = new Map<string, string>();
+    const taken = new Set<string>();
+    for (const n of todo) {
+      let name: string;
+      do name = sealedName();
+      while (taken.has(name) || (await this.exists(`${dir}/${name}.md`)) || (await this.exists(`${dir}/${name}`)));
+      taken.add(name);
+      const to = `${dir}/${name}.md`;
+      renames.push([n.meta.path, to]);
+      map.set(n.meta.path, to);
+    }
+    await this.renameAndRewrite(renames, map, all);
+    await this.removeEmptyDirs(dir);
+    await markForPurge(this.root, { replace: [...map.keys()] });
+    return moved + todo.length;
+  }
+
+  /** Klasörün altındaki boş klasörleri siler (klasörün kendisi kalır). */
+  private async removeEmptyDirs(dirRel: string): Promise<void> {
+    const walk = async (abs: string): Promise<boolean> => {
+      let names: string[];
+      try {
+        names = await readdir(abs);
+      } catch {
+        return false;
+      }
+      let empty = true;
+      for (const name of names) {
+        const child = path.join(abs, name);
+        if ((await stat(child)).isDirectory() && (await walk(child))) await rm(child, { recursive: true, force: true });
+        else empty = false;
+      }
+      return empty;
+    };
+    await walk(this.abs(dirRel));
   }
 
   private checkRevision(current: NodeMeta, baseRevision: string | undefined): void {
@@ -723,8 +858,11 @@ export class NodeStore {
       if (RESERVED_KEYS.has(key) || !/^[^\s:#][^:#\n]{0,63}$/u.test(key)) throw new NodeError("invalid", "property_name_invalid", { name: key });
     }
     const title = input.title?.trim() || current.meta.title;
+    // Mühürlü (ya da şimdi mühürlenen) notun dosya adı başlıktan türetilmez.
+    const sealing = typeof input.fields?.sealed === "string" && !current.meta.sealed;
+    const staysSealed = (!!current.meta.sealed && input.fields?.sealed !== null) || sealing;
     let rel = current.meta.path;
-    if (title !== current.meta.title) rel = await this.relocate(rel, containerDirOf(rel), title);
+    if (title !== current.meta.title && !staysSealed) rel = await this.relocate(rel, containerDirOf(rel), title);
     const abs = this.abs(rel);
     const parsed = parseNodeFile(await readFile(abs, "utf8"));
     const fm: Frontmatter = {
@@ -743,12 +881,13 @@ export class NodeStore {
       else fm[key] = value;
     }
     const before = await readFile(abs, "utf8");
-    // Not şimdi kilitleniyorsa: şifresiz eski hâli geçmişe yazılmaz ve var olan şifresiz sürümler silinir.
+    // Not şimdi kilitleniyor ya da mühürleniyorsa: şifresiz eski hâli geçmişe yazılmaz ve var olan şifresiz sürümler
+    // (başlıklarıyla birlikte) silinir.
     const locking = input.body !== undefined && isLockedBody(input.body) && !isLockedBody(parsed.body);
-    if (locking) await this.purgePlaintextHistory(current.meta.id);
-    else if (input.body !== undefined && input.body !== parsed.body) await this.snapshot(current.meta.id, before);
+    if (locking || sealing) await this.purgePlaintextHistory(current.meta.id);
+    else if (input.body !== undefined && input.body !== parsed.body && !fm.sealed) await this.snapshot(current.meta.id, before);
     // Başlık değişince bağlantılar yeniden yazılmış olabilir; gövde verilmediyse diskteki güncel gövdeyi koru.
-    await this.atomicWrite(abs, serializeNodeFile(fm, input.body ?? parsed.body));
+    await this.atomicWrite(abs, serializeNodeFile(fm.sealed ? sealedFrontmatter(fm) : fm, input.body ?? parsed.body));
     return this.read(current.meta.id);
   }
 
@@ -776,8 +915,20 @@ export class NodeStore {
       dirRel = await this.ensureChildDir(parent);
     }
     const fresh = await this.find(current.meta.id);
+    if (fresh.meta.sealed && newParentNodeId && newParentNodeId !== SHADOW) {
+      // Mühürlü not tam şifreli bir Arche'ye gidiyorsa Arche klasöründe düz durur; ağaçtaki yeri zarftadır.
+      const latest = await this.loadAll();
+      const crypta = this.cryptaRoot(latest, latest.get(newParentNodeId)?.meta.archeId ?? null);
+      if (crypta) {
+        const dir = await this.ensureChildDir(crypta);
+        const again = await this.find(current.meta.id);
+        if (containerDirOf(again.meta.path) === dir) return this.read(current.meta.id);
+        await this.relocate(again.meta.path, dir, SEALED_TITLE, SEALED_NAME.test(unitNameOf(again.meta.path)) ? unitNameOf(again.meta.path) : await this.freeSealedName(dir));
+        return this.read(current.meta.id);
+      }
+    }
     if (containerDirOf(fresh.meta.path) === dirRel) return this.read(current.meta.id);
-    await this.relocate(fresh.meta.path, dirRel, fresh.meta.title);
+    await this.relocate(fresh.meta.path, dirRel, fresh.meta.title, fresh.meta.sealed && SEALED_NAME.test(unitNameOf(fresh.meta.path)) ? unitNameOf(fresh.meta.path) : undefined);
     return this.read(current.meta.id);
   }
 
@@ -1010,7 +1161,7 @@ export class NodeStore {
   }
 
   private resolver(all: Map<string, Loaded>): (name: string) => string | null {
-    return wikiResolver([...all.values()].map((n) => ({ path: n.meta.path, title: n.meta.title, aliases: n.meta.aliases })));
+    return wikiResolver([...all.values()].filter((n) => !n.meta.sealed).map((n) => ({ path: n.meta.path, title: n.meta.title, aliases: n.meta.aliases })));
   }
 
   /** Notun bağlantı verdiği vault yolları: göreli Markdown bağlantıları ve çözülen wiki bağlantıları. */
@@ -1062,7 +1213,8 @@ export class NodeStore {
     const all = await this.loadAll();
     const target = await this.find(ref, all);
     const resolve = this.resolver(all);
-    const names = [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 3);
+    // Mühürlü notun gerçek başlığı sunucuda bilinmez: yer tutucu başlık başka notlarda aranmaz.
+    const names = target.meta.sealed ? [] : [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 3);
     if (!names.length) return [];
     const out: MentionHit[] = [];
     for (const n of all.values()) {
@@ -1082,7 +1234,8 @@ export class NodeStore {
     const all = await this.loadAll();
     const source = await this.find(sourceRef, all);
     const target = await this.find(targetRef, all);
-    const names = [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 3);
+    // Mühürlü notun gerçek başlığı sunucuda bilinmez: yer tutucu başlık başka notlarda aranmaz.
+    const names = target.meta.sealed ? [] : [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 3);
     const masked = maskLinks(source.body);
     const at = findMention(masked, names);
     if (at < 0) throw new NodeError("not_found", "mention_not_found");
@@ -1407,7 +1560,7 @@ export class NodeStore {
   async wikiMentions(ref: string): Promise<WikiMention[]> {
     const all = await this.loadAll();
     const target = await this.find(ref, all);
-    const names = [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 2);
+    const names = target.meta.sealed ? [] : [target.meta.title, ...target.meta.aliases].filter((x) => x.trim().length >= 2);
     if (!names.length) return [];
     const out: WikiMention[] = [];
     for (const n of all.values()) {
@@ -1478,7 +1631,7 @@ export class NodeStore {
     const hits: SearchHit[] = [];
     for (const { meta, body } of (await this.loadAll()).values()) {
       const tagHit = terms.every((t) => t.startsWith("#") && meta.tags.some((g) => tagKey(g) === t.slice(1) || tagKey(g).startsWith(`${t.slice(1)}/`)));
-      if (meta.locked && !terms.every((t) => lowerTr(meta.title).includes(t))) continue;
+      if (meta.sealed || (meta.locked && !terms.every((t) => lowerTr(meta.title).includes(t)))) continue;
       if (tagHit) {
         hits.push({ id: meta.id, title: meta.title, path: meta.path, score: 20, snippet: meta.excerpt.slice(0, 160) });
         continue;

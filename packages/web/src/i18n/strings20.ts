@@ -20,8 +20,8 @@ export const STRINGS_20 = {
 
   "archeLock.title": { tr: "Crypta — şifreli Arche'ler", en: "Crypta — encrypted Arches" },
   "archeLock.hint": {
-    tr: "Bir Arche'nin bütün notları tek parolayla şifrelenir (AES-256). Parolayı oturum başına bir kez girersiniz; Arche'ye eklediğiniz yeni notlar da kendiliğinden şifrelenir. Başlıklar, özellikler ve ağaç yapısı görünür kalır. Parolayı unutursanız içerik kurtarılamaz.",
-    en: "All notes in an Arche are encrypted with one password (AES-256). You enter it once per session, and new notes you add to the Arche are encrypted automatically. Titles, properties and the tree structure stay visible. If you forget the password, the content can't be recovered.",
+    tr: "Bir Arche'nin bütün notları tek parolayla şifrelenir (AES-256): içerikleri, başlıkları, özellikleri ve ağaç yapısı. Dosya ve klasör adları anlamsızdır; dışarıdan yalnızca not sayısı, boyutları ve tarihleri görünür. Parolayı oturum başına bir kez girersiniz; Arche'ye eklediğiniz yeni notlar da kendiliğinden şifrelenir. Parolayı unutursanız içerik kurtarılamaz.",
+    en: "All notes in an Arche are encrypted with one password (AES-256): their content, titles, properties and the tree structure. File and folder names are meaningless; from outside only the number of notes, their sizes and dates are visible. You enter the password once per session, and new notes you add to the Arche are encrypted automatically. If you forget the password, the content can't be recovered.",
   },
   "archeLock.pick": { tr: "Arche seçin", en: "Choose an Arche" },
   "archeLock.encrypt": { tr: "Şifrele", en: "Encrypt" },
@@ -40,6 +40,9 @@ export const STRINGS_20 = {
   "archeLock.encrypted": { tr: "\"{arche}\" şifrelendi: {n} not.", en: "\"{arche}\" encrypted: {n} notes." },
   "archeLock.skipped": { tr: "Kendi parolasıyla kilitli {n} not olduğu gibi bırakıldı.", en: "{n} notes locked with their own password were left as they are." },
   "archeLock.decrypted": { tr: "\"{arche}\" artık şifresiz: {n} not.", en: "\"{arche}\" is no longer encrypted: {n} notes." },
+  "archeLock.upgrading": { tr: "Başlıklar ve ağaç şifreleniyor… {done}/{total}", en: "Encrypting titles and the tree… {done}/{total}" },
+  "crypta.lockedArche": { tr: "Şifreli Arche", en: "Encrypted Arche" },
+  "crypta.lockedNote": { tr: "Şifreli not", en: "Encrypted note" },
   "archeLock.enter": { tr: "\"{arche}\" Arche'si şifreli. Açmak için Arche'nin parolasını girin.", en: "The Arche \"{arche}\" is encrypted. Enter the Arche's password to open it." },
   "snap.title": { tr: "Strata — anlık görüntüler", en: "Strata — snapshots" },
   "snap.hint": {

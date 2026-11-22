@@ -63,6 +63,9 @@ export const NODE_ERROR_TEXT = {
   strata_not_found: { tr: (v) => `Anlık görüntü bulunamadı: ${v.id}`, en: (v) => `Snapshot not found: ${v.id}` },
   strata_bad_list: { tr: () => "Bozuk anlık görüntü listesi.", en: () => "Damaged snapshot list." },
   strata_file_missing: { tr: (v) => `Bu anlık görüntüde yok: ${v.path}`, en: (v) => `Not in this snapshot: ${v.path}` },
+  // Crypta (tam şifreli Arche)
+  crypta_not_full: { tr: () => "Bu Arche tam şifreli değil.", en: () => "This Arche isn't fully encrypted." },
+  crypta_locked: { tr: () => "Şifreli Arche kilitli; önce parolasıyla açın.", en: () => "The encrypted Arche is locked; open it with its password first." },
   // Marginalia
   comment_needs_quote: { tr: () => "Yorum için metin seçilmeli.", en: () => "Select some text to comment on." },
   comment_locked: { tr: () => "Kilitli notlara yorum eklenemez ve okunamaz.", en: () => "Comments on locked notes can't be added or read." },

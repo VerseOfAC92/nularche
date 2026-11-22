@@ -1,6 +1,7 @@
 // Yerel sunucunun JSON API istemcisi. Tipler core/src/node-store.ts ile aynı sözleşmeyi izler.
 
 import { describeError } from "../../core/src/errors.ts";
+import { cryptaApi, reveal } from "./crypta.ts";
 import { getLang } from "./i18n/index.ts";
 
 export type LayoutMode = "stream" | "canvas" | "manuscript" | "outline" | "cards" | "wiki" | "whiteboard";
@@ -26,7 +27,9 @@ export interface PageFields {
   noMentions?: boolean;
   titleRich?: string;
   /** Şifreli Arche'nin anahtar parametreleri (bkz. lock.ts). */
-  archeLock?: { salt: string; iter: number; check: string; hint?: string };
+  archeLock?: { salt: string; iter: number; check: string; hint?: string; v?: 2 };
+  /** Crypta zarfı (tam şifreli Arche'deki notun şifreli başlığı, alanları ve ağaç yeri); yalnızca crypta.ts açar. */
+  sealed?: string;
 }
 
 export type PageFieldPatch = { [K in keyof PageFields]?: PageFields[K] | null };
@@ -282,7 +285,7 @@ export interface SnapshotFile {
   size: number;
 }
 
-export const api = {
+const rawApi = {
   snapshots: () => request<{ snapshots: SnapshotSummary[]; encrypted: boolean }>("GET", "/api/snapshots"),
   createSnapshot: (label: string) => request<SnapshotSummary>("POST", "/api/snapshots", { label }),
   snapshotFiles: (id: string) => request<{ files: SnapshotFile[] }>("GET", `/api/snapshots/${enc(id)}/files`).then((r) => r.files),
@@ -351,4 +354,16 @@ export const api = {
   graph: () => request<LinkGraph>("GET", "/api/graph"),
   snippets: () => request<{ snippets: { name: string; css: string }[] }>("GET", "/api/snippets").then((r) => r.snippets),
   upload: (file: File) => request<{ path: string }>("POST", `/api/attachments?name=${enc(file.name)}`, undefined, file),
+  sealLayout: (archeId: string) => request<{ moved: number }>("POST", `/api/nodes/${enc(archeId)}/seal-layout`),
 };
+
+/** Sunucuya giden ham işlemler (Crypta zarfları açılmadan); yalnızca crypta.ts ve şifreleme akışları kullanır. */
+export const rawNodeApi = rawApi;
+
+// Bütün cevaplar Crypta'dan geçer: tam şifreli Arche'nin notları Arche açıksa gerçek başlıklarıyla, kapalıysa yer
+// tutucuyla görünür. Not yazan işlemler zarfa çevrilir (bkz. crypta.ts).
+const revealed = Object.fromEntries(
+  Object.entries(rawApi).map(([name, fn]) => [name, (...args: unknown[]) => (fn as (...a: unknown[]) => Promise<unknown>)(...args).then(reveal)]),
+) as unknown as typeof rawApi;
+
+export const api: typeof rawApi = { ...revealed, ...cryptaApi(rawApi) } as typeof rawApi;
