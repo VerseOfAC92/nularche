@@ -6,7 +6,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { AiActivity } from "../../core/src/ai-activity.ts";
-import { checkGeminiKey, runGeminiAgent, transcribeAudio } from "../../core/src/ai-agent.ts";
+import { AgentError, checkGeminiKey, runGeminiAgent, transcribeAudio } from "../../core/src/ai-agent.ts";
 import { NodeStore } from "../../core/src/node-store.ts";
 
 export interface AutoSettings {
@@ -28,6 +28,8 @@ export interface AutoServiceContext {
   settings(): AutoSettings;
   save(patch: AutoSettings): Promise<void>;
   text(key: AutoText): string;
+  /** Arayüzün dili: hata iletileri bu dilde döner. */
+  lang(): "tr" | "en";
   /** Gemini API kökü (testlerde sahte sunucu). */
   api?: string;
 }
@@ -48,6 +50,8 @@ const AUDIO_MIME: Record<string, string> = {
 export type AutoService = ReturnType<typeof createAutoService>;
 
 export function createAutoService(ctx: AutoServiceContext) {
+  /** Hata iletisi arayüzün dilinde (Gemini hataları koduyla çevrilir). */
+  const describe = (err: unknown) => (err instanceof AgentError ? err.text(ctx.lang()) : err instanceof Error ? err.message : String(err));
   /** Model listesi: önce en son çalışan model, sonra diğerleri; liste eski ya da yoksa yenilenir. */
   async function modelOrder(key: string): Promise<string[]> {
     const st = ctx.settings();
@@ -94,8 +98,8 @@ export function createAutoService(ctx: AutoServiceContext) {
       if (model && model !== ctx.settings().geminiModel) await ctx.save({ geminiModel: model });
       return { ok: request.status === "done", status: request.status };
     } catch (err) {
-      await activity.completeRequest(requestId, `Beklenmeyen hata: ${(err as Error).message}`, true).catch(() => undefined);
-      return { ok: false, error: (err as Error).message };
+      await activity.completeRequest(requestId, `${ctx.lang() === "en" ? "Unexpected error" : "Beklenmeyen hata"}: ${describe(err)}`, true).catch(() => undefined);
+      return { ok: false, error: describe(err) };
     } finally {
       running.delete(requestId);
     }
@@ -122,7 +126,7 @@ export function createAutoService(ctx: AutoServiceContext) {
         await ctx.save({ geminiModel: model, geminiModels: models, geminiModelsAt: Date.now(), autoMode: true });
         return { ok: true, model };
       } catch (err) {
-        return { ok: false, error: (err as Error).message };
+        return { ok: false, error: describe(err) };
       }
     },
 
@@ -193,7 +197,7 @@ export function createAutoService(ctx: AutoServiceContext) {
         if (model !== ctx.settings().geminiModel) await ctx.save({ geminiModel: model });
         return { ok: true, text };
       } catch (err) {
-        return { ok: false, error: (err as Error).message };
+        return { ok: false, error: describe(err) };
       }
     },
   };

@@ -4,7 +4,7 @@
 
 import { createAutoService, type AutoSettings } from "../../../server/src/auto-service.ts";
 import type { AutoBridge } from "../desktop.ts";
-import { t } from "../i18n/index.ts";
+import { getLang, t } from "../i18n/index.ts";
 
 export interface WebAi {
   bridge: AutoBridge;
@@ -19,6 +19,7 @@ export function createWebAi(options: { originRoot(): string | null; api?: string
     settings: () => settings,
     save: async (patch) => void (settings = { ...settings, ...patch }),
     text: (k) => t(k),
+    lang: getLang,
     api: options.api,
     key: {
       available: () => true,

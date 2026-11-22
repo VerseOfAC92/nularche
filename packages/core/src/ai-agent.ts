@@ -2,7 +2,7 @@
 // arka planda işler. Gemini, notları aşağıdaki araçlarla okur ve düzenler; her düzenlemeden önce geri
 // alma kopyası alınır ve sonuç, isteğin cevabı olarak Nularche AI penceresinde görünür.
 
-import { AiActivity, REPLY_LANGUAGE_NAME, type AiRequest } from "./ai-activity.ts";
+import { AiActivity, REPLY_LANGUAGE_NAME, type AiRequest, type ReplyLanguage } from "./ai-activity.ts";
 import { NodeError, NodeStore, SHADOW, type NodeMeta } from "./node-store.ts";
 import { rearrangeBlocks, splitBlocks, type BlockItem } from "./blocks.ts";
 
@@ -20,12 +20,72 @@ export const AUTO_CLIENT = "nularche-auto (Gemini)";
 
 type Fetch = typeof fetch;
 
+/** Hata anlatımları: kullanıcıya isteğin (ya da arayüzün) dilinde gösterilir. */
+const AGENT_TEXT = {
+  request_timeout: { tr: () => "İstek süre sınırını aştı.", en: () => "The request ran out of time." },
+  call_timeout: { tr: (v: V) => `Gemini ${v.min} dakika içinde yanıt vermedi.`, en: (v: V) => `Gemini did not answer within ${v.min} minutes.` },
+  network: {
+    tr: (v: V) => `Gemini'ye ulaşılamadı (${v.detail}). İnternet bağlantınızı kontrol edin.`,
+    en: (v: V) => `Gemini could not be reached (${v.detail}). Check your internet connection.`,
+  },
+  key_invalid: { tr: () => "Gemini API anahtarı geçersiz. Ayarlar → Yapay zekâ bölümünden yeni bir anahtar girin.", en: () => "The Gemini API key is invalid. Enter a new key under Settings → AI." },
+  key_rejected: {
+    tr: () => "Gemini API anahtarı reddedildi. Anahtarın doğru olduğunu ve Generative Language API'nin açık olduğunu kontrol edin.",
+    en: () => "The Gemini API key was rejected. Check that the key is correct and the Generative Language API is enabled.",
+  },
+  quota: {
+    tr: () => "Gemini ücretsiz kotası şimdilik doldu. Bir süre sonra tekrar deneyin (günlük kota gece Pasifik saatiyle sıfırlanır).",
+    en: () => "The free Gemini quota is used up for now. Try again later (the daily quota resets at midnight Pacific time).",
+  },
+  model_unavailable: { tr: (v: V) => `Model kullanılamıyor: ${v.detail}`, en: (v: V) => `Model unavailable: ${v.detail}` },
+  busy: { tr: (v: V) => `Geçici Gemini hatası (${v.status}): ${v.detail}`, en: (v: V) => `Temporary Gemini error (${v.status}): ${v.detail}` },
+  error: { tr: (v: V) => `Gemini hatası (${v.status}): ${v.detail}`, en: (v: V) => `Gemini error (${v.status}): ${v.detail}` },
+  no_models_for_key: { tr: () => "Bu anahtarla kullanılabilen bir Gemini modeli bulunamadı.", en: () => "No Gemini model is available with this key." },
+  no_reply: { tr: (v: V) => `Cevap üretilmedi (${v.detail}).`, en: (v: V) => `No answer was produced (${v.detail}).` },
+  empty_reply: { tr: () => "Boş cevap döndü.", en: () => "The answer was empty." },
+  too_many_steps: { tr: () => "İstek çok fazla adım gerektirdi; daha küçük parçalara bölmeyi deneyin.", en: () => "The request needed too many steps; try splitting it into smaller parts." },
+  no_models: { tr: () => "Kullanılabilir Gemini modeli yok. Ayarlar'da anahtarı yeniden kaydedin.", en: () => "No Gemini model is available. Save the key again in Settings." },
+  cancelled: { tr: () => "İptal edildi.", en: () => "Cancelled." },
+  deadline: {
+    tr: (v: V) => `Gemini ${v.min} dakika içinde isteği bitiremedi${v.tried ? ` (${v.tried})` : ""}. İsteği daha küçük parçalara bölüp tekrar deneyin.`,
+    en: (v: V) => `Gemini could not finish the request within ${v.min} minutes${v.tried ? ` (${v.tried})` : ""}. Split it into smaller parts and try again.`,
+  },
+  offline: { tr: () => "Gemini'ye ulaşılamadı. İnternet bağlantınızı kontrol edip “Tekrar dene”ye basın.", en: () => "Gemini could not be reached. Check your internet connection and press “Retry”." },
+  all_quota: {
+    tr: (v: V) => `Tüm Gemini modellerinin ücretsiz kotası şimdilik dolu (${v.tried}). Bir süre sonra “Tekrar dene”ye basın; günlük kota gece Pasifik saatiyle sıfırlanır.`,
+    en: (v: V) => `The free quota of every Gemini model is used up for now (${v.tried}). Press “Retry” later; the daily quota resets at midnight Pacific time.`,
+  },
+  all_failed: {
+    tr: (v: V) => `Tüm Gemini modelleri denendi ama şu an yanıt alınamadı: ${v.tried}. Birkaç dakika sonra “Tekrar dene”ye basın.`,
+    en: (v: V) => `Every Gemini model was tried but none answered right now: ${v.tried}. Press “Retry” in a few minutes.`,
+  },
+} satisfies Record<string, { tr: (v: V) => string; en: (v: V) => string }>;
+type V = Record<string, string | number>;
+export type AgentErrorCode = keyof typeof AGENT_TEXT;
+
+/** Denenen modellerin durumu (ör. "a (kota dolu)"): hata metninde isteğin dilinde gösterilir. */
+const TRIED_LABEL: Record<"quota" | "model" | "network" | "timeout" | "busy", { tr: string; en: string }> = {
+  quota: { tr: "kota dolu", en: "quota used up" },
+  model: { tr: "kullanılamıyor", en: "unavailable" },
+  network: { tr: "bağlantı yok", en: "no connection" },
+  timeout: { tr: "yanıt vermedi", en: "no answer" },
+  busy: { tr: "yoğun", en: "busy" },
+};
+
 export class AgentError extends Error {
   /** busy: geçici yoğunluk/sunucu hatası; quota: kota; model: model bulunamadı/desteklenmiyor; timeout: yanıt gelmedi. */
   readonly kind: "auth" | "quota" | "network" | "model" | "busy" | "timeout" | "other";
-  constructor(kind: AgentError["kind"], message: string) {
-    super(message);
+  readonly code: AgentErrorCode;
+  readonly vars: V;
+  constructor(kind: AgentError["kind"], code: AgentErrorCode, vars: V = {}) {
+    super(AGENT_TEXT[code].tr(vars));
     this.kind = kind;
+    this.code = code;
+    this.vars = vars;
+  }
+  /** Kullanıcıya gösterilecek metin, verilen dilde. */
+  text(lang: ReplyLanguage): string {
+    return AGENT_TEXT[this.code][lang](this.vars);
   }
 }
 
@@ -51,28 +111,18 @@ async function call(fetchImpl: Fetch, api: string, apiKey: string, path: string,
       return {};
     });
   } catch (err) {
-    if (signal?.aborted) throw new AgentError("timeout", "İstek süre sınırını aştı.");
-    if (timeout.aborted) throw new AgentError("timeout", `Gemini ${CALL_TIMEOUT_MS / 60_000} dakika içinde yanıt vermedi.`);
-    throw new AgentError("network", `Gemini'ye ulaşılamadı (${(err as Error).message}). İnternet bağlantınızı kontrol edin.`);
+    if (signal?.aborted) throw new AgentError("timeout", "request_timeout");
+    if (timeout.aborted) throw new AgentError("timeout", "call_timeout", { min: CALL_TIMEOUT_MS / 60_000 });
+    throw new AgentError("network", "network", { detail: (err as Error).message });
   }
   if (res.ok) return data;
   const msg: string = data?.error?.message ?? res.statusText;
-  if (res.status === 400 && /api key/i.test(msg))
-    throw new AgentError("auth", "Gemini API anahtarı geçersiz. Ayarlar → Yapay zekâ bölümünden yeni bir anahtar girin.");
-  if (res.status === 401 || res.status === 403)
-    throw new AgentError(
-      "auth",
-      "Gemini API anahtarı reddedildi. Anahtarın doğru olduğunu ve Generative Language API'nin açık olduğunu kontrol edin.",
-    );
-  if (res.status === 429)
-    throw new AgentError(
-      "quota",
-      "Gemini ücretsiz kotası şimdilik doldu. Bir süre sonra tekrar deneyin (günlük kota gece Pasifik saatiyle sıfırlanır).",
-    );
-  if (res.status === 404 || (res.status === 400 && /model|not supported|not found/i.test(msg)))
-    throw new AgentError("model", `Model kullanılamıyor: ${msg}`);
-  if (res.status >= 500) throw new AgentError("busy", `Geçici Gemini hatası (${res.status}): ${msg}`);
-  throw new AgentError("other", `Gemini hatası (${res.status}): ${msg}`);
+  if (res.status === 400 && /api key/i.test(msg)) throw new AgentError("auth", "key_invalid");
+  if (res.status === 401 || res.status === 403) throw new AgentError("auth", "key_rejected");
+  if (res.status === 429) throw new AgentError("quota", "quota");
+  if (res.status === 404 || (res.status === 400 && /model|not supported|not found/i.test(msg))) throw new AgentError("model", "model_unavailable", { detail: msg });
+  if (res.status >= 500) throw new AgentError("busy", "busy", { status: res.status, detail: msg });
+  throw new AgentError("other", "error", { status: res.status, detail: msg });
 }
 
 interface GeminiModel {
@@ -104,7 +154,7 @@ export function pickGeminiModel(models: GeminiModel[]): string | null {
 export async function checkGeminiKey(apiKey: string, fetchImpl: Fetch = fetch, api = GEMINI_API): Promise<{ model: string; models: string[] }> {
   const data = await call(fetchImpl, api, apiKey, "models?pageSize=200");
   const models = rankGeminiModels(data.models ?? []);
-  if (!models.length) throw new AgentError("model", "Bu anahtarla kullanılabilen bir Gemini modeli bulunamadı.");
+  if (!models.length) throw new AgentError("model", "no_models_for_key");
   return { model: models[0], models };
 }
 
@@ -319,7 +369,7 @@ async function converse(o: AgentOptions, req: AiRequest, model: string, fetchImp
         .join("")
         .trim();
       const reason = data?.candidates?.[0]?.finishReason;
-      if (!text) throw new AgentError("busy", reason ? `Cevap üretilmedi (${reason}).` : "Boş cevap döndü.");
+      if (!text) throw reason ? new AgentError("busy", "no_reply", { detail: reason }) : new AgentError("busy", "empty_reply");
       return text;
     }
     // Model içeriğini olduğu gibi (thought signature'lar dahil) geçmişe ekle, sonra araç sonuçlarını gönder.
@@ -338,7 +388,7 @@ async function converse(o: AgentOptions, req: AiRequest, model: string, fetchImp
     }
     contents.push({ role: "user", parts: responses });
   }
-  throw new AgentError("other", "İstek çok fazla adım gerektirdi; daha küçük parçalara bölmeyi deneyin.");
+  throw new AgentError("other", "too_many_steps");
 }
 
 /**
@@ -352,13 +402,14 @@ export async function runGeminiAgent(o: AgentOptions): Promise<AgentResult> {
   if (!req) throw new NodeError("not_found", "İstek bulunamadı");
   // Sırada beklerken iptal edilen ya da başka yerde tamamlanan istek işlenmez.
   if (req.status !== "received") return { request: req, model: null };
+  const lang: ReplyLanguage = req.language ?? "tr";
   const tried: string[] = [];
   let lastKind: AgentError["kind"] | null = null;
   // Bütün denemelerin üst süresi: istekler sırayla işlendiği için takılan bir istek diğerlerini bekletmesin.
   const timeLimit = AbortSignal.timeout(o.deadlineMs ?? REQUEST_DEADLINE_MS);
   const deadline = o.signal ? AbortSignal.any([timeLimit, o.signal]) : timeLimit;
   try {
-    if (!o.models.length) throw new AgentError("model", "Kullanılabilir Gemini modeli yok. Ayarlar'da anahtarı yeniden kaydedin.");
+    if (!o.models.length) throw new AgentError("model", "no_models");
     for (const model of o.models) {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
@@ -367,34 +418,30 @@ export async function runGeminiAgent(o: AgentOptions): Promise<AgentResult> {
         } catch (err) {
           if (!(err instanceof AgentError)) throw err;
           if (err.kind === "auth" || err.kind === "other") throw err;
-          if (o.signal?.aborted) throw new AgentError("other", "İptal edildi.");
-          if (deadline.aborted)
-            throw new AgentError(
-              "timeout",
-              `Gemini ${Math.round((o.deadlineMs ?? REQUEST_DEADLINE_MS) / 60_000)} dakika içinde isteği bitiremedi${tried.length ? ` (${tried.join(", ")})` : ""}. İsteği daha küçük parçalara bölüp tekrar deneyin.`,
-            );
+          if (o.signal?.aborted) throw new AgentError("other", "cancelled");
+          if (deadline.aborted) throw new AgentError("timeout", "deadline", { min: Math.round((o.deadlineMs ?? REQUEST_DEADLINE_MS) / 60_000), tried: tried.join(", ") });
           lastKind = err.kind;
           // Yoğunluk ve bağlantı hatalarında aynı modeli bir kez daha dene; kota/model hatasında hemen sıradakine geç.
           if ((err.kind === "busy" || err.kind === "network") && attempt === 0) {
             await sleep(o.retryDelayMs ?? 2000);
             continue;
           }
-          tried.push(
-            `${model} (${err.kind === "quota" ? "kota dolu" : err.kind === "model" ? "kullanılamıyor" : err.kind === "network" ? "bağlantı yok" : err.kind === "timeout" ? "yanıt vermedi" : "yoğun"})`,
-          );
+          const why = err.kind === "quota" || err.kind === "model" || err.kind === "network" || err.kind === "timeout" ? err.kind : "busy";
+          tried.push(`${model} (${TRIED_LABEL[why][lang]})`);
           break;
         }
       }
     }
-    if (lastKind === "network") throw new AgentError("network", "Gemini'ye ulaşılamadı. İnternet bağlantınızı kontrol edip “Tekrar dene”ye basın.");
-    throw new AgentError(
-      lastKind ?? "busy",
-      lastKind === "quota"
-        ? `Tüm Gemini modellerinin ücretsiz kotası şimdilik dolu (${tried.join(", ")}). Bir süre sonra “Tekrar dene”ye basın; günlük kota gece Pasifik saatiyle sıfırlanır.`
-        : `Tüm Gemini modelleri denendi ama şu an yanıt alınamadı: ${tried.join(", ")}. Birkaç dakika sonra “Tekrar dene”ye basın.`,
-    );
+    if (lastKind === "network") throw new AgentError("network", "offline");
+    throw new AgentError(lastKind ?? "busy", lastKind === "quota" ? "all_quota" : "all_failed", { tried: tried.join(", ") });
   } catch (err) {
-    const message = err instanceof AgentError || err instanceof NodeError ? err.message : `Beklenmeyen hata: ${(err as Error).message ?? err}`;
+    // Hata, isteğin dilinde cevap olarak yazılır (dil verilmemiş eski isteklerde Türkçe).
+    const message =
+      err instanceof AgentError
+        ? err.text(lang)
+        : err instanceof NodeError
+          ? err.message
+          : `${lang === "en" ? "Unexpected error" : "Beklenmeyen hata"}: ${(err as Error).message ?? err}`;
     return { request: await o.activity.completeRequest(req.id, message, true), model: null };
   }
 }
@@ -431,11 +478,11 @@ export async function transcribeAudio(o: {
         .join("")
         .trim();
       if (text) return { text, model };
-      last = new AgentError("busy", "Boş cevap döndü.");
+      last = new AgentError("busy", "empty_reply");
     } catch (err) {
       if (!(err instanceof AgentError) || err.kind === "auth") throw err;
       last = err;
     }
   }
-  throw last ?? new AgentError("model", "Kullanılabilir Gemini modeli yok.");
+  throw last ?? new AgentError("model", "no_models");
 }

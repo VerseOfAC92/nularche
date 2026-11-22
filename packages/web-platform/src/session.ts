@@ -7,6 +7,7 @@ import { AiActivity } from "../../core/src/ai-activity.ts";
 import { Anamnesis } from "../../core/src/anamnesis.ts";
 import { CommentStore } from "../../core/src/comments.ts";
 import { deriveKeys, keyCheck, syncable, syncOrigin, type DriveApi, type DriveKeys, type DriveSyncReport, type RootInfo } from "../../core/src/drive-sync.ts";
+import { syncFailure, type SyncFailureCode } from "../../core/src/drive-google.ts";
 import { NodeStore } from "../../core/src/node-store.ts";
 import { changeNotifier, createApi, EventHub } from "../../server/src/api.ts";
 import { setApiHandler } from "./host.ts";
@@ -52,7 +53,10 @@ export interface WebOriginOptions {
   onStatus?: (status: SyncStatus) => void;
 }
 
-export type SyncStatus = { state: "syncing" } | { state: "idle"; at: number; report?: DriveSyncReport } | { state: "error"; message: string };
+export type SyncStatus =
+  | { state: "syncing" }
+  | { state: "idle"; at: number; report?: DriveSyncReport }
+  | { state: "error"; code: SyncFailureCode; message: string; count?: number };
 
 export interface WebOrigin {
   readonly root: OriginRoot;
@@ -87,7 +91,7 @@ export async function openOrigin(drive: DriveApi, root: OriginRoot, keys: DriveK
       status({ state: "idle", at: Date.now(), report });
       return report;
     } catch (err) {
-      status({ state: "error", message: err instanceof Error ? err.message : String(err) });
+      status({ state: "error", ...syncFailure(err) });
       throw err;
     } finally {
       syncing = false;

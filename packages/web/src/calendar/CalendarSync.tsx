@@ -4,7 +4,7 @@
 // köprü yokken (ör. geliştirme sunucusunda) bu bileşenler görünmez.
 
 import { useCallback, useEffect, useState } from "react";
-import { calendarBridge, type CalendarErrorCode, type CalendarLinkStatus, type CalendarProviderId, type CalendarStatus } from "../desktop.ts";
+import { calendarBridge, webSession, type CalendarErrorCode, type CalendarLinkStatus, type CalendarProviderId, type CalendarStatus } from "../desktop.ts";
 import { locale, t, type StringKey } from "../i18n/index.ts";
 import type { Database, View } from "../database/model.ts";
 import { api, type NodeMeta } from "../api.ts";
@@ -254,6 +254,9 @@ export function CalendarAccounts({ onToast, titleOf }: { onToast: (msg: string) 
             ) : null}
             {account ? (
               <AccountCalendars provider={p} status={status} refresh={refresh} onToast={onToast} />
+            ) : p === "apple" && webSession ? (
+              // Tarayıcı iCloud takvim sunucusuna doğrudan bağlanamaz (Apple buna izin vermez); masaüstünde bağlanır.
+              <p className="muted small" data-testid="cal-apple-web">{t("cal.webAppleExplain")}</p>
             ) : p === "google" && status.googleOneClick ? (
               <GoogleSignIn label={t("cal.googleOneClick")} run={() => calendarBridge!.calendarConnectGoogle()} onDone={(a) => (onToast(t("cal.connected", { account: a })), void refresh())} />
             ) : open === p ? (

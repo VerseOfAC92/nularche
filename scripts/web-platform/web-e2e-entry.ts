@@ -2,6 +2,8 @@
 // sahte Drive'ı, /fakecal altındaki sahte Google Takvim'i ve /fakegemini altındaki sahte Gemini kullanılır (oturum açma penceresi açılmaz; Takvim izni
 // verilmiş sayılır). Yayına giden pakette bu dosya yoktur.
 
+// Node genel değerleri (Buffer) her modülden önce: çekirdek modülleri yüklenirken bunlara ihtiyaç duyar.
+import "../../packages/web-platform/src/globals.ts";
 import { GoogleDrive } from "../../packages/core/src/drive-google.ts";
 import { bootWeb } from "../../packages/web/src/web/boot.ts";
 

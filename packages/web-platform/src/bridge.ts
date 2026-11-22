@@ -44,6 +44,13 @@ const NULL_BODY = new Set([101, 103, 204, 205, 304]);
 /** Sayfa bu sürede başlığı göndermezse (sayfa kapanmış ya da yanıt vermiyor) istek 504 ile biter. */
 export const HEAD_TIMEOUT_MS = 30_000;
 
+/** Taşıyıcının kendi iletileri arayüzün dilinde: sayfada belgenin dili, service worker'da tarayıcının dili. */
+const inTurkish = () => {
+  const lang = (typeof document !== "undefined" ? document.documentElement.lang : "") || (typeof navigator !== "undefined" ? navigator.language : "");
+  return lang.toLowerCase().startsWith("tr");
+};
+const say = (en: string, tr: string) => (inTurkish() ? tr : en);
+
 const plain = (status: number, message: string) =>
   new Response(JSON.stringify({ error: message }), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 
@@ -75,7 +82,7 @@ export async function forwardRequest(
   request.signal?.addEventListener("abort", () => {
     if (finished) return;
     try {
-      controller?.error(new DOMException("İstek iptal edildi.", "AbortError"));
+      controller?.error(new DOMException(say("The request was cancelled.", "İstek iptal edildi."), "AbortError"));
     } catch {
       // Akış zaten kapanmış.
     }
@@ -85,7 +92,7 @@ export async function forwardRequest(
   return await new Promise<Response>((resolve) => {
     const timer = setTimeout(() => {
       cancel();
-      resolve(plain(504, "Nularche sayfası yanıt vermedi."));
+      resolve(plain(504, say("The Nularche page did not respond.", "Nularche sayfası yanıt vermedi.")));
     }, timeoutMs);
     port.onmessage = (event: MessageEvent<BridgeReply>) => {
       const msg = event.data;
@@ -137,7 +144,9 @@ export async function answerRequest(message: BridgeRequest, port: MessagePort, h
   let response: Response;
   try {
     const request = new Request(message.url, { method: message.method, headers: message.headers, body: message.body, signal: abort.signal });
-    response = handler ? ((await handler(request)) ?? plain(404, "Bulunamadı.")) : plain(503, "Nularche kilitli ya da henüz açılmadı.");
+    response = handler
+      ? ((await handler(request)) ?? plain(404, say("Not found.", "Bulunamadı.")))
+      : plain(503, say("Nularche is locked or not open yet.", "Nularche kilitli ya da henüz açılmadı."));
   } catch (err) {
     send({ type: "error", message: err instanceof Error ? err.message : String(err) });
     port.close();

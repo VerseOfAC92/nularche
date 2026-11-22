@@ -1,6 +1,8 @@
 // Üretim girişi: Google ile oturum açan web sürümü. Tek Google oturumu hem Drive'ı hem Google Takvim'i bağlar.
 // Google betiği giriş penceresi görünürken yüklenir; düğmeye basılınca Google penceresi hemen açılır (Safari bunu ister).
 
+// Node genel değerleri (Buffer) her modülden önce: çekirdek modülleri yüklenirken bunlara ihtiyaç duyar.
+import "../../../web-platform/src/globals.ts";
 import { GoogleDrive } from "../../../core/src/drive-google.ts";
 import { bootWeb } from "./boot.ts";
 import { prepareGoogle, type GoogleSignIn } from "./google-auth.ts";

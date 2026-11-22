@@ -10,7 +10,7 @@ import type { WebDriveStatus, WebSession } from "../desktop.ts";
 import "../studio/fonts/nularche-font.css";
 import { createWebAi } from "./ai-web.ts";
 import { createWebCalendar } from "./calendar-web.ts";
-import { showGestureBar, showSignIn, type SignInProvider } from "./signin.ts";
+import { showFatal, showGestureBar, showSignIn, type SignInProvider } from "./signin.ts";
 import "./signin.css";
 
 declare global {
@@ -21,7 +21,12 @@ declare global {
 }
 
 export async function bootWeb(provider: SignInProvider, options: { calendarEndpoints?: GoogleEndpoints; geminiApi?: string } = {}): Promise<WebSession> {
-  await startHost("/app/sw.js", "/app/");
+  try {
+    await startHost("/app/sw.js", "/app/");
+  } catch (err) {
+    showFatal(err);
+    throw err;
+  }
   let drive: WebDriveStatus = { state: "starting" };
   const listeners = new Set<() => void>();
   const onStatus = (s: SyncStatus) => {

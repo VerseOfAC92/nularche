@@ -306,7 +306,7 @@ export interface WebSession {
   /** Kilitler ve Google oturumunu da kapatır (izin geri alınır). */
   signOut(): Promise<void>;
 }
-export type WebDriveStatus = { state: "syncing" } | { state: "idle"; at: number } | { state: "error"; message: string } | { state: "starting" };
+export type WebDriveStatus = { state: "syncing" } | { state: "idle"; at: number } | { state: "error"; code: string; message: string; count?: number } | { state: "starting" };
 
 export const webSession: WebSession | undefined = (window as unknown as { nularcheWeb?: WebSession }).nularcheWeb;
 export const calendarBridge: CalendarBridge | undefined = desktop ?? webSession?.calendar;

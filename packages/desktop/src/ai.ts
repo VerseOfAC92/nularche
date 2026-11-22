@@ -25,7 +25,7 @@ import {
   type ProviderId,
 } from "../../core/src/ai-clients.ts";
 import { openInTerminal } from "./terminal.ts";
-import { d } from "./i18n.ts";
+import { d, desktopLang } from "./i18n.ts";
 
 const run = promisify(execFile);
 /** Uçtan uca testlerde dış uygulama/tarayıcı açılmaz ve hiçbir uygulama kapatılmaz. */
@@ -210,6 +210,7 @@ export function registerAiIpc(ctx: AiContext): { onActivity: () => void; resetBa
     settings: ctx.settings,
     save: ctx.save,
     text: (k) => d(k),
+    lang: desktopLang,
     api: process.env.NULARCHE_GEMINI_API || undefined,
     key: {
       available: canEncrypt,

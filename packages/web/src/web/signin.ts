@@ -35,7 +35,7 @@ export interface OpenedSession {
 }
 
 const TEXT = {
-  tagline: ["Your notes, from any computer.", "Notlarınız, her bilgisayardan."],
+  tagline: ["Your notes, from anywhere.", "Notlarınız, her yerden."],
   google: ["Continue with Google", "Google ile devam et"],
   privacy: [
     "Nularche sees only its own folder in your Google Drive. Your notes are loaded into this tab's memory, never saved on this computer, and wiped when you close the tab or sign out.",
@@ -65,8 +65,17 @@ const TEXT = {
     "Nularche needs Google Drive access to open your notes. Try again and keep the Drive permission ticked.",
     "Notlarınızı açabilmek için Google Drive izni gerekli. Yeniden deneyin ve Drive iznini işaretli bırakın.",
   ],
-  e_network: ["Google sign-in could not be reached. Check your connection and try again.", "Google girişine ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin."],
+  e_network: ["Google could not be reached. Check your connection and try again.", "Google'a ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin."],
+  e_auth: ["Google did not allow access. Sign in again.", "Google erişime izin vermedi. Yeniden giriş yapın."],
+  e_quota: ["Your Google Drive is full.", "Google Drive'ınızda yer kalmadı."],
+  e_invalid: ["Google Drive refused the request. Try again later.", "Google Drive isteği reddetti. Bir süre sonra yeniden deneyin."],
+  e_wrong_key: ["A file in Google Drive could not be decrypted with this passphrase.", "Google Drive'daki bir dosya bu parolayla çözülemedi."],
+  e_empty_remote: ["The Nularche folder in Google Drive looks empty.", "Google Drive'daki Nularche klasörü boş görünüyor."],
   e_access_denied: ["Google access was not allowed.", "Google erişimine izin verilmedi."],
+  e_no_service_worker: [
+    "This browser can't run the Nularche web app here (service workers are off, which some private windows do). Open it in a normal window or another browser.",
+    "Bu tarayıcı Nularche web sürümünü burada çalıştıramıyor (service worker kapalı; bazı gizli pencerelerde böyledir). Normal bir pencerede ya da başka bir tarayıcıda açın.",
+  ],
   reauth: ["Your Google session needs renewing to keep syncing.", "Eşitlemenin sürmesi için Google oturumunun yenilenmesi gerekiyor."],
   reauth_btn: ["Renew", "Yenile"],
   locked_notice: ["Nularche is locked. Your notes were removed from this tab's memory; sign in to open them again.", "Nularche kilitlendi. Notlarınız bu sekmenin belleğinden silindi; yeniden açmak için giriş yapın."],
@@ -226,6 +235,22 @@ export function showSignIn(provider: SignInProvider, onStatus?: (s: SyncStatus) 
       },
     );
   });
+}
+
+/** Uygulama hiç açılamadığında (ör. service worker yok) giriş penceresinde nedenini kullanıcının dilinde gösterir. */
+export function showFatal(err: unknown): void {
+  const lang: Lang = getLang();
+  const code = (err as { code?: unknown })?.code;
+  const key = typeof code === "string" ? (`e_${code}` as keyof typeof TEXT) : null;
+  const text = key && key in TEXT ? TEXT[key][lang === "tr" ? 1 : 0] : `${TEXT.failed[lang === "tr" ? 1 : 0]} ${err instanceof Error ? err.message : String(err)}`;
+  const shade = el("div", "nw-shade");
+  const card = el("main", "nw-card");
+  const logo = el("img", "nw-logo");
+  logo.src = `${import.meta.env.BASE_URL}logo.png`;
+  logo.alt = "";
+  card.append(logo, el("h1", undefined, "Nularche"), el("p", "nw-error", text));
+  shade.append(card);
+  document.body.append(shade);
 }
 
 /**
