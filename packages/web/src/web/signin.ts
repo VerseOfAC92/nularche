@@ -33,6 +33,8 @@ export interface SignInProvider {
   signIn(): Promise<SignedIn>;
   /** Kilit ekranından: devredilen erişim izniyle oturumu Google penceresi açmadan kurar. */
   resume?(handover: unknown): Promise<SignedIn>;
+  /** Güvenilen tarayıcının kilit ekranında, "Kilidi aç" tıklamasında beklemeden: hesap seçtirmeden Google'a bağlanır. */
+  quickSignIn?(hint: string): Promise<SignedIn>;
 }
 
 export interface OpenedSession {

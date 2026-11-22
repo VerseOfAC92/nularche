@@ -5,25 +5,35 @@
 import "../../../web-platform/src/globals.ts";
 import { GoogleDrive } from "../../../core/src/drive-google.ts";
 import { bootWeb } from "./boot.ts";
-import { prepareGoogle, type GoogleSignIn, type TokenHandover } from "./google-auth.ts";
+import { prepareGoogle, type GoogleSession, type GoogleSignIn, type TokenHandover } from "./google-auth.ts";
 
 let google: GoogleSignIn | null = null;
+
+/** Google oturumundan Nularche'nin kullandığı Drive ve Takvim bağlantıları. */
+async function signedFrom(session: GoogleSession) {
+  const drive = new GoogleDrive({ accessToken: (force) => session.accessToken(force) });
+  return {
+    drive,
+    account: await drive.account(),
+    signOut: () => session.signOut(),
+    calendar: { accessToken: (force?: boolean) => session.accessToken(force), granted: () => session.calendarGranted(), request: () => session.requestCalendar() },
+    onGestureNeeded: (cb: (resume: () => void) => void) => session.onGestureNeeded(cb),
+    handover: () => session.exportToken(),
+    refreshInGesture: () => session.refreshInGesture(),
+  };
+}
 void bootWeb({
   async prepare() {
     google = await prepareGoogle();
   },
   async signIn() {
-    const session = await google!.start();
-    const drive = new GoogleDrive({ accessToken: (force) => session.accessToken(force) });
-    return {
-      drive,
-      account: await drive.account(),
-      signOut: () => session.signOut(),
-      calendar: { accessToken: (force) => session.accessToken(force), granted: () => session.calendarGranted(), request: () => session.requestCalendar() },
-      onGestureNeeded: (cb) => session.onGestureNeeded(cb),
-      handover: () => session.exportToken(),
-      refreshInGesture: () => session.refreshInGesture(),
-    };
+    if (!google) throw Object.assign(new Error("network"), { code: "network" });
+    return signedFrom(await google.start());
+  },
+  // Güvenilen tarayıcının kilit ekranında: "Kilidi aç" tıklamasıyla, hesap seçtirmeden.
+  async quickSignIn(hint) {
+    if (!google) throw Object.assign(new Error("network"), { code: "network" });
+    return signedFrom(await google.quick(hint));
   },
   // Kilit ekranından: devredilen erişim izniyle (Google penceresi açılmadan).
   async resume(handover) {

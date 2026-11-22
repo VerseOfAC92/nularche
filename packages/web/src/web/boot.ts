@@ -16,7 +16,7 @@ import type { WebDriveStatus, WebSession } from "../desktop.ts";
 import "../studio/fonts/nularche-font.css";
 import { createWebAi } from "./ai-web.ts";
 import { createWebCalendar } from "./calendar-web.ts";
-import { showConnectBar, showFatal, showGestureBar, showLockScreen, showSignIn, type SignedIn, type SignInProvider } from "./signin.ts";
+import { errorText, showConnectBar, showFatal, showGestureBar, showLockScreen, showSignIn, type SignedIn, type SignInProvider } from "./signin.ts";
 import "./signin.css";
 
 declare global {
@@ -74,21 +74,26 @@ export async function bootWeb(provider: SignInProvider, options: { calendarEndpo
   let store: TrustedStore | null = null;
   let account = "";
 
+  /** Kilit açılırken başlatılan Google bağlantısı (güvenilen tarayıcı). */
+  let quick: Promise<SignedIn> | null = null;
   while (!origin) {
     if (handover || trust) {
       const root = handover?.root ?? trust!.root;
       const useTrust = trust && trust.root.id === root.id ? trust : null;
       account = handover?.account ?? trust!.account;
-      // Devredilen izinle Google oturumu pencere açmadan kurulur (Google betiği önce yüklenir).
-      if (handover && provider.resume) {
-        await provider.prepare?.().catch(() => undefined);
-        signed = await provider.resume(handover.google).catch(() => null);
-      }
+      // Google betiği kilit ekranından önce yüklenir: kilit açma ve Bağlan tıklamaları Google penceresini hemen
+      // açabilsin (Safari). Devredilen izin varsa oturum pencere açmadan kurulur.
+      await provider.prepare?.().catch(() => undefined);
+      if (handover && provider.resume) signed = await provider.resume(handover.google).catch(() => null);
       const result = await showLockScreen({
         account,
         encrypted: root.encrypted,
         trusted: !!useTrust,
-        inGesture: () => signed?.refreshInGesture?.(),
+        inGesture: () => {
+          signed?.refreshInGesture?.();
+          // Güvenilen tarayıcı: Drive bağlantısı aynı tıklamada, hesap seçtirmeden başlar (Safari tıklama ister).
+          if (!signed && useTrust && provider.quickSignIn) quick = provider.quickSignIn(account);
+        },
         async unlock(pass) {
           const keys = await unlockKeys(root, pass);
           if (useTrust) {
@@ -139,26 +144,33 @@ export async function bootWeb(provider: SignInProvider, options: { calendarEndpo
   if (signed) await afterGoogle();
 
   /** Güvenilen tarayıcıda Drive'ı bağlar: bir tıklamanın içinde çağrılır (Google penceresi hemen açılır). */
-  const connectDrive = () => {
-    const pending = provider.signIn();
-    void pending.then(
-      async (s) => {
-        // Aynı Nularche klasörü olmalı (başka hesapla girilirse notlar karışmasın).
-        const root = await findOrigin(s.drive);
-        if (root.id !== o.root.id) throw Object.assign(new Error("other_origin"), { code: "other_origin" });
-        signed = s;
-        account = s.account;
-        o.attachDrive(s.drive);
-        listeners.forEach((cb) => cb());
-        await afterGoogle();
-      },
-      (err) => {
-        onStatus({ state: "error", code: "auth", message: String((err as Error)?.message ?? err) });
-        showConnectBar(connectDrive);
-      },
-    );
+  /** Google oturumunu bağlar: aynı Nularche klasörü olmalı (başka hesapla girilirse notlar karışmasın). */
+  const attach = async (pending: Promise<SignedIn>) => {
+    const s = await pending;
+    const root = await findOrigin(s.drive);
+    if (root.id !== o.root.id) throw Object.assign(new Error("other_origin"), { code: "other_origin" });
+    signed = s;
+    account = s.account;
+    o.attachDrive(s.drive);
+    listeners.forEach((cb) => cb());
+    await afterGoogle();
   };
-  if (!signed) showConnectBar(connectDrive);
+  const connectDrive = () => {
+    // Beklemeden: Google penceresi bu tıklamayla aynı anda açılmalı.
+    void attach(provider.signIn()).catch((err) => {
+      onStatus({ state: "error", code: (err as { code?: string })?.code === "other_origin" ? "unknown" : "auth", message: errorText(err) });
+      showConnectBar(connectDrive);
+    });
+  };
+  const started = quick as Promise<SignedIn> | null;
+  if (!signed && started) {
+    // Kilit açılırken başlayan bağlantı: tamamlanınca Drive eşitlemesi kendiliğinden başlar; olmazsa Bağlan çubuğu.
+    started.catch(() => undefined);
+    void attach(started).catch((err) => {
+      onStatus({ state: "error", code: (err as { code?: string })?.code === "other_origin" ? "unknown" : "auth", message: errorText(err) });
+      showConnectBar(connectDrive);
+    });
+  } else if (!signed) showConnectBar(connectDrive);
 
   const session: WebSession = {
     get account() {
