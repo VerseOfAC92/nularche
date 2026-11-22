@@ -42,7 +42,27 @@ export function SecuritySettings({ nodes, onToast, onChanged }: { nodes: NodeMet
 /** Web sürümü: oturumun hareketsizlikte kilitlenme süresi (her zaman açık) ve hemen kilitleme. */
 function WebLockCard() {
   const [minutes, setMinutes] = usePref<number>("webLockTimeout", DEFAULT_WEB_LOCK_TIMEOUT);
+  const [trusted, setTrusted] = useState(() => webSession!.trusted());
+  const [busy, setBusy] = useState(false);
+  const toggleTrust = async (on: boolean) => {
+    if (!confirm(t(on ? "web.trustConfirm" : "web.untrustConfirm"))) return;
+    setBusy(true);
+    try {
+      await webSession!.setTrusted(on);
+      setTrusted(on);
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
+    <>
+    <Card title={t("web.trustTitle")} hint={t(webSession!.encrypted ? "web.trustHint" : "web.trustHintPlain")}>
+      <label className="row">
+        <input type="checkbox" checked={trusted} disabled={busy} onChange={(e) => void toggleTrust(e.target.checked)} data-testid="web-trust" />
+        <span className="grow">{t("web.trustLabel")}</span>
+      </label>
+      <p className="muted small">{t(trusted ? "web.trustOn" : "web.trustOff")}</p>
+    </Card>
     <Card title={t("web.idleTitle")} hint={t("web.idleHint")}>
       <label className="row">
         <span>{t("autoLock.after")}</span>
@@ -61,6 +81,7 @@ function WebLockCard() {
         </button>
       </div>
     </Card>
+    </>
   );
 }
 

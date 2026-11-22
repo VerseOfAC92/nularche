@@ -301,12 +301,20 @@ export interface WebSession {
   driveStatus(): WebDriveStatus;
   onDriveStatus(cb: () => void): () => void;
   syncNow(): Promise<void>;
+  /** Google Drive bağlı mı (güvenilen tarayıcı Drive'ı beklemeden açılır). */
+  driveConnected(): boolean;
+  /** Drive'ı bağlar; bir tıklamanın içinde çağrılmalıdır (Google penceresi hemen açılır). */
+  connectDrive(): void;
+  /** Bu tarayıcı güvenilir mi (notların şifreli kopyası burada). */
+  trusted(): boolean;
+  /** Güveni açar ya da kaldırır (kaldırınca bu tarayıcıdaki kopya silinir). */
+  setTrusted(on: boolean): Promise<void>;
   /** Değişiklikleri gönderir, notları ve anahtarları bellekten siler; yeniden açmak için giriş gerekir. */
   lock(): Promise<void>;
   /** Kilitler ve Google oturumunu da kapatır (izin geri alınır). */
   signOut(): Promise<void>;
 }
-export type WebDriveStatus = { state: "syncing" } | { state: "idle"; at: number } | { state: "error"; code: string; message: string; count?: number } | { state: "starting" };
+export type WebDriveStatus = { state: "syncing" } | { state: "offline" } | { state: "idle"; at: number } | { state: "error"; code: string; message: string; count?: number } | { state: "starting" };
 
 export const webSession: WebSession | undefined = (window as unknown as { nularcheWeb?: WebSession }).nularcheWeb;
 export const calendarBridge: CalendarBridge | undefined = desktop ?? webSession?.calendar;

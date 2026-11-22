@@ -23,6 +23,23 @@ export const STRINGS_22 = {
   "web.drive.synced": { tr: "Son eşitleme: {time}", en: "Last synced: {time}" },
   "web.drive.error": { tr: "Eşitleme hatası: {error}", en: "Sync error: {error}" },
   "web.drive.syncNow": { tr: "Şimdi eşitle", en: "Sync now" },
+  "web.drive.offline": { tr: "Bu tarayıcıdaki kopyadan açıldı; Google Drive ile eşitlenmiyor.", en: "Opened from this browser's copy; not syncing with Google Drive." },
+  "web.drive.notConnected": { tr: "{account} · Google Drive bağlı değil.", en: "{account} · Google Drive isn't connected." },
+  "web.drive.connect": { tr: "Google Drive'ı bağla", en: "Connect Google Drive" },
+  "web.trustTitle": { tr: "Bu tarayıcıya güven", en: "Trust this browser" },
+  "web.trustLabel": { tr: "Notlarımın şifreli bir kopyasını bu tarayıcıda tut", en: "Keep an encrypted copy of my notes in this browser" },
+  "web.trustHint": {
+    tr: "Açıksa notlarınız bu bilgisayarda parolanızla şifreli olarak saklanır; Nularche'yi açınca kilit ekranında parolanızı girersiniz ve notlar Google Drive beklenmeden gelir. Yalnızca kendi bilgisayarınızda açın.",
+    en: "When on, your notes are kept on this computer encrypted with your passphrase; when you open Nularche you enter your passphrase on the lock screen and your notes appear without waiting for Google Drive. Only turn this on for your own computer.",
+  },
+  "web.trustHintPlain": {
+    tr: "Açıksa notlarınız bu bilgisayarda, bu tarayıcıya bağlı bir anahtarla şifreli olarak saklanır ve Nularche açılınca Google Drive beklenmeden gelir. Notlarınız uçtan uca şifreli olmadığı için kilit ekranı parola sormaz; yalnızca kendi bilgisayarınızda açın.",
+    en: "When on, your notes are kept on this computer encrypted with a key tied to this browser and appear without waiting for Google Drive. Because your notes aren't end-to-end encrypted, the lock screen asks no passphrase; only turn this on for your own computer.",
+  },
+  "web.trustOn": { tr: "Bu tarayıcı güvenilir. Kilitleyince ya da sekmeyi kapatınca notlar bellekten silinir, şifreli kopya kalır.", en: "This browser is trusted. Locking or closing the tab clears your notes from memory; the encrypted copy stays." },
+  "web.trustOff": { tr: "Bu tarayıcıda hiçbir şey saklanmıyor: sekmeyi kapatınca her şey silinir.", en: "Nothing is kept in this browser: closing the tab removes everything." },
+  "web.trustConfirm": { tr: "Bu tarayıcıya güvenilsin mi? Notlarınızın şifreli bir kopyası bu bilgisayarda saklanacak.", en: "Trust this browser? An encrypted copy of your notes will be kept on this computer." },
+  "web.untrustConfirm": { tr: "Güven kaldırılsın mı? Notlarınızın bu tarayıcıdaki kopyası silinecek (Google Drive'dakiler kalır).", en: "Stop trusting this browser? The copy of your notes in this browser will be deleted (the ones in Google Drive stay)." },
   "auto.webKeyNote": {
     tr: "Web sürümünde anahtar yalnızca bu sekmenin belleğinde tutulur; kilitlediğinizde, çıkış yaptığınızda ya da sekmeyi kapattığınızda silinir.",
     en: "In the web version the key is kept only in this tab's memory and is removed when you lock, sign out or close the tab.",

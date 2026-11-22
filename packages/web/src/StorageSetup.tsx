@@ -353,12 +353,15 @@ export function WebDriveCard() {
   const session = webSession!;
   const [status, setStatus] = useState(session.driveStatus());
   useEffect(() => session.onDriveStatus(() => setStatus(session.driveStatus())), [session]);
+  const connected = session.driveConnected();
   const line =
-    status.state === "syncing" || status.state === "starting"
-      ? t("web.drive.syncing")
-      : status.state === "error"
-        ? t("web.drive.error", { error: syncErrorText(status) })
-        : t("web.drive.synced", { time: new Date(status.at).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) });
+    status.state === "offline" || !connected
+      ? t("web.drive.offline")
+      : status.state === "syncing" || status.state === "starting"
+        ? t("web.drive.syncing")
+        : status.state === "error"
+          ? t("web.drive.error", { error: syncErrorText(status) })
+          : t("web.drive.synced", { time: new Date(status.at).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) });
   return (
     <div className="storage-choice" data-testid="web-drive">
       <div className="storage-option on">
@@ -368,7 +371,7 @@ export function WebDriveCard() {
           </span>
           <div className="grow">
             <b>{t("web.drive.title")}</b>
-            <p className="muted small">{t("web.drive.connected", { account: session.account })}</p>
+            <p className="muted small">{connected ? t("web.drive.connected", { account: session.account }) : t("web.drive.notConnected", { account: session.account })}</p>
           </div>
           <span className="pill on">
             <Icon name={session.encrypted ? "lock" : "check"} size={13} /> {session.encrypted ? t("web.drive.encrypted") : t("web.drive.plain")}
@@ -376,13 +379,19 @@ export function WebDriveCard() {
         </div>
         <div className="storage-body">
           <div className="storage-status">
-            <Icon name={status.state === "error" ? "alert-triangle" : status.state === "idle" ? "cloud-check" : "refresh"} size={16} className={status.state === "syncing" ? "spin" : ""} />
+            <Icon name={status.state === "error" ? "alert-triangle" : status.state === "idle" ? "cloud-check" : status.state === "offline" ? "cloud-off" : "refresh"} size={16} className={status.state === "syncing" ? "spin" : ""} />
             <span className={`grow small ${status.state === "error" ? "warn" : "muted"}`}>{line}</span>
           </div>
           <div className="row">
-            <button className="secondary" disabled={status.state === "syncing"} onClick={() => void session.syncNow()}>
-              <Icon name="refresh" size={15} /> {t("web.drive.syncNow")}
-            </button>
+            {connected ? (
+              <button className="secondary" disabled={status.state === "syncing"} onClick={() => void session.syncNow()}>
+                <Icon name="refresh" size={15} /> {t("web.drive.syncNow")}
+              </button>
+            ) : (
+              <button className="primary" onClick={() => session.connectDrive()} data-testid="web-drive-connect">
+                {t("web.drive.connect")}
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -159,6 +159,19 @@ try {
     await apple.waitFor({ timeout: 10_000 });
     check(/masaüstü uygulamasında bağlayın/.test((await apple.textContent()) ?? "") && !(await page.getByPlaceholder(/Apple/).count()), "web'de Apple Takvim formu yerine açıklama var");
     await page.keyboard.press("Escape");
+    // Kilitle → Nularche kilit ekranı; açınca Google penceresi açılmaz (devredilen izin kullanılır).
+    const before = await page.evaluate(() => (window as unknown as { __gis: { calls: unknown[] } }).__gis.calls.length);
+    await page.getByTestId("web-session").getByText("Kilitle").click();
+    await page.waitForSelector(".nw-lockscreen .nw-primary", { timeout: 20_000 });
+    const gisAfterReload = await page.evaluate(() => (window as unknown as { __gis: { calls: unknown[] } }).__gis.calls.length);
+    await page.click(".nw-lockscreen .nw-primary");
+    await page.getByText("Masaüstü planı").first().waitFor({ timeout: 30_000 });
+    const lockCalls = await page.evaluate(() => (window as unknown as { __gis: { calls: { prompt: string; inClick: boolean }[] } }).__gis.calls);
+    // Bu denetimde erişim izni birkaç saniyede dolar: kilit ekranındaki tıklama onu hesap seçtirmeden yeniler (prompt "").
+    check(
+      before > 0 && gisAfterReload === 0 && !lockCalls.some((c) => c.prompt === "select_account") && lockCalls.every((c) => c.inClick),
+      `kilit açılırken Google hesap seçimi istenmedi; yalnızca süresi dolan izin tıklamayla yenilendi (${lockCalls.length} yenileme)`,
+    );
 
     // Erişim izninin süresi dolar (66 sn − 60 sn pay): bir sonraki Drive isteği sessiz yenileme ister, tarayıcı engeller.
     await page.waitForTimeout(6500);

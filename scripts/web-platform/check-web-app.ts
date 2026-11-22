@@ -22,6 +22,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const shotsArg = process.argv.indexOf("--shots");
 const shots = shotsArg > 0 ? path.resolve(process.argv[shotsArg + 1]) : null;
 const PASS = "mor dağlarda uzun bir yürüyüş";
+const PASS_JS = PASS;
 
 // 1. Masaüstü uygulaması gibi: şifreli kök ve bir not.
 const fake = await startFakeDrive("deneme@example.com");
@@ -107,7 +108,9 @@ try {
 
   const browser = await chromium.launch({ headless: true, ...(process.env.NULARCHE_CHROME ? { executablePath: process.env.NULARCHE_CHROME } : { channel: "chrome" }) });
   try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, locale: "tr-TR" });
+    // Tek tarayıcı bağlamı: yeni sekmeler aynı depolamayı (IndexedDB) paylaşır, sekmenin oturum belleği ayrıdır.
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: "tr-TR" });
+    const page = await ctx.newPage();
     const errors: string[] = [];
     const csp: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -214,20 +217,92 @@ try {
     check(errors.length === 0, `sayfada hata yok${errors.length ? `: ${errors.join("; ")}` : ""}`);
     check(csp.length === 0, `güvenlik kuralı (CSP) ihlali yok${csp.length ? `: ${csp.slice(0, 3).join(" | ")}` : ""}`);
 
-    // Kilitle: bekleyen değişiklik gönderilir, sayfa giriş penceresine döner ve bellekte not kalmaz.
+    // Kilitle: bekleyen değişiklik gönderilir, bellek silinir, Nularche kilit ekranı gelir (Google'a yeniden girilmez).
     check(await page.getByTestId("web-session").isVisible(), "kenar çubuğunda Kilitle ve Çıkış düğmeleri var");
     await page.evaluate(async () => {
       await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Kilit öncesi", parentNodeId: null, body: "hemen kilitlendi" }) });
     });
     await page.getByTestId("web-session").getByText("Kilitle").click();
-    await page.waitForSelector(".nw-notice", { timeout: 20_000 });
-    check(/kilitlendi/i.test((await page.locator(".nw-notice").textContent()) ?? ""), "kilitleyince giriş penceresi açılıyor ve bunu bildiriyor");
+    await page.waitForSelector(".nw-lockscreen .nw-input", { timeout: 20_000 });
+    check(true, "kilitleyince Nularche kilit ekranı geliyor (Google girişi istenmiyor)");
     check(
       [...fake.files.values()].some((f) => !f.trashed && f.name.endsWith(".nlce") && decryptFile(keys, new Uint8Array(f.data)).rel.includes("Kilit")),
       "kilitlemeden hemen önceki değişiklik Drive'a gönderildi",
     );
-    check(await page.evaluate(() => !("nularcheWeb" in window)), "kilitten sonra sayfada oturum kalmadı");
-    check(page.url().endsWith("/app/"), "adres temizlendi");
+    check(await page.evaluate(() => !("nularcheWeb" in window)), "kilitliyken sayfada oturum ve not kalmadı");
+    const held = await page.evaluate(() => Object.keys(sessionStorage).map((k) => sessionStorage.getItem(k) ?? "").join("\n"));
+    check(!held.includes(PASS_JS) && !held.includes("Masaüstü planı"), "kilitliyken sekmede yalnızca erişim izni duruyor (parola ve not yok)");
+    await page.fill(".nw-lockscreen .nw-input", "yanlış parola");
+    await page.click(".nw-lockscreen .nw-primary");
+    await page.waitForSelector(".nw-lockscreen .nw-error", { timeout: 30_000 });
+    check(/yanlış/i.test((await page.locator(".nw-lockscreen .nw-error").textContent()) ?? ""), "kilit ekranında yanlış parola reddediliyor");
+    await page.fill(".nw-lockscreen .nw-input", PASS_JS);
+    await page.click(".nw-lockscreen .nw-primary");
+    await page.getByText("Kilit öncesi").first().waitFor({ timeout: 60_000 });
+    check(true, "parolayla kilit açıldı, notlar Google'a girmeden geri geldi");
+    check(await page.evaluate(() => sessionStorage.length === 0), "kilit açılınca sekmede devredilen izin de kalmadı");
+
+    // Sekme kapatılınca her şey gider: aynı tarayıcıda yeni sekme giriş penceresiyle açılır.
+    const tab2 = await page.context().newPage();
+    await tab2.goto(`${base}/app/`);
+    await tab2.waitForSelector(".nw-google");
+    check(!(await tab2.locator(".nw-lockscreen").count()), "güvenilmeyen tarayıcıda yeni sekme hiçbir şey hatırlamıyor (giriş penceresi)");
+    await tab2.close();
+
+    // Bu tarayıcıya güven: notların şifreli kopyası tarayıcıda; yeni sekmede kilit ekranından Drive beklenmeden açılır.
+    page.on("dialog", (d) => void d.accept());
+    await page.getByText("Ayarlar", { exact: true }).first().click();
+    await page.getByRole("tab", { name: "Güvenlik" }).click();
+    // Onay penceresinden ve şifreli kopya yazılınca işaretlenir (kontrollü kutu): tıkla ve oturumda güveni bekle.
+    await page.getByTestId("web-trust").click();
+    await page.waitForFunction(() => window.nularcheWeb?.trusted(), undefined, { timeout: 20_000 });
+    await page.keyboard.press("Escape");
+    await page.evaluate(async () => {
+      await fetch("/api/nodes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Güven sonrası", parentNodeId: null, body: "yerel kopyada" }) });
+    });
+    await page.waitForTimeout(1500);
+    const idb = await page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((res, rej) => {
+        const r = indexedDB.open("nularche-trusted");
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      const all = await new Promise<{ id: string; data: ArrayBuffer }[]>((res) => {
+        const r = db.transaction("files").objectStore("files").getAll();
+        r.onsuccess = () => res(r.result);
+      });
+      db.close();
+      const text = all.map((x) => new TextDecoder("latin1").decode(x.data) + x.id).join("");
+      return { count: all.length, leaks: ["Masaüstü planı", "Güven sonrası", "yerel kopyada", "Masa"].some((w) => text.includes(w)) };
+    });
+    check(idb.count > 0 && !idb.leaks, `güvenilen kopya tarayıcıda şifreli (${idb.count} kayıt, adlar ve içerik okunamıyor)`);
+    const tab3 = await page.context().newPage();
+    const errors3: string[] = [];
+    // Bu sekmenin Google Drive istekleri (sahte Drive /fake altında); ilk sekme kendi eşitlemesini sürdürür.
+    const driveCalls: string[] = [];
+    tab3.on("request", (r) => r.url().includes("/fake/") && driveCalls.push(r.url()));
+    tab3.on("pageerror", (e) => errors3.push(e.message));
+    await tab3.goto(`${base}/app/`);
+    await tab3.waitForSelector(".nw-lockscreen .nw-input", { timeout: 20_000 });
+    check(/güvenilir/.test((await tab3.locator(".nw-lockscreen").textContent()) ?? ""), "güvenilen tarayıcıda yeni sekme kilit ekranıyla açılıyor");
+    await tab3.fill(".nw-lockscreen .nw-input", PASS_JS);
+    await tab3.click(".nw-lockscreen .nw-primary");
+    await tab3.getByText("Güven sonrası").first().waitFor({ timeout: 60_000 });
+    check(true, "notlar Google Drive beklenmeden bu tarayıcıdaki kopyadan geldi");
+    check(await tab3.locator(".nw-reauth").isVisible(), "Drive'ı bağlama çubuğu görünüyor");
+    check((await tab3.evaluate(() => window.nularcheWeb!.driveConnected())) === false && driveCalls.length === 0, `Google'a bağlanmadan Drive'a hiç istek gitmedi${driveCalls.length ? `: ${driveCalls.length}` : ""}`);
+    await tab3.locator(".nw-reauth button").click();
+    await tab3.waitForFunction(() => window.nularcheWeb?.driveConnected() && window.nularcheWeb.driveStatus().state === "idle", undefined, { timeout: 30_000 });
+    check(true, "Bağlan'a basınca Drive bağlandı ve eşitlendi");
+    check(errors3.length === 0, `yeni sekmede hata yok${errors3.length ? `: ${errors3.join("; ")}` : ""}`);
+
+    // Çıkış: güvenilen kopya da silinir.
+    tab3.on("dialog", (d) => void d.accept());
+    await tab3.getByTestId("web-session").getByText("Çıkış yap").click();
+    await tab3.waitForSelector(".nw-google", { timeout: 20_000 });
+    const left = await tab3.evaluate(async () => (await indexedDB.databases()).map((d) => d.name));
+    check(!left.includes("nularche-trusted"), "çıkış yapınca bu tarayıcıdaki kopya silindi");
+    await tab3.close();
   } finally {
     await browser.close();
     server.close();

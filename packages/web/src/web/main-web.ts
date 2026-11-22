@@ -5,7 +5,7 @@
 import "../../../web-platform/src/globals.ts";
 import { GoogleDrive } from "../../../core/src/drive-google.ts";
 import { bootWeb } from "./boot.ts";
-import { prepareGoogle, type GoogleSignIn } from "./google-auth.ts";
+import { prepareGoogle, type GoogleSignIn, type TokenHandover } from "./google-auth.ts";
 
 let google: GoogleSignIn | null = null;
 void bootWeb({
@@ -21,6 +21,23 @@ void bootWeb({
       signOut: () => session.signOut(),
       calendar: { accessToken: (force) => session.accessToken(force), granted: () => session.calendarGranted(), request: () => session.requestCalendar() },
       onGestureNeeded: (cb) => session.onGestureNeeded(cb),
+      handover: () => session.exportToken(),
+      refreshInGesture: () => session.refreshInGesture(),
+    };
+  },
+  // Kilit ekranından: devredilen erişim izniyle (Google penceresi açılmadan).
+  async resume(handover) {
+    if (!google || !handover) throw Object.assign(new Error("auth"), { code: "auth" });
+    const session = google.resume(handover as TokenHandover);
+    const drive = new GoogleDrive({ accessToken: (force) => session.accessToken(force) });
+    return {
+      drive,
+      account: (handover as { account?: string }).account ?? "",
+      signOut: () => session.signOut(),
+      calendar: { accessToken: (force) => session.accessToken(force), granted: () => session.calendarGranted(), request: () => session.requestCalendar() },
+      onGestureNeeded: (cb) => session.onGestureNeeded(cb),
+      handover: () => session.exportToken(),
+      refreshInGesture: () => session.refreshInGesture(),
     };
   },
 });

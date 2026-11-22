@@ -13,7 +13,11 @@ void bootWeb(
   {
     async signIn() {
       const drive = new GoogleDrive({ accessToken: token }, { api: `${fake}/drive/v3`, upload: `${fake}/upload/drive/v3` });
-      return { drive, account: await drive.account(), signOut: async () => undefined, calendar: { accessToken: token, granted: () => true, request: async () => true } };
+      return { drive, account: await drive.account(), signOut: async () => undefined, calendar: { accessToken: token, granted: () => true, request: async () => true }, handover: () => ({ fake: true }) };
+    },
+    async resume() {
+      const drive = new GoogleDrive({ accessToken: token }, { api: `${fake}/drive/v3`, upload: `${fake}/upload/drive/v3` });
+      return { drive, account: await drive.account(), signOut: async () => undefined, calendar: { accessToken: token, granted: () => true, request: async () => true }, handover: () => ({ fake: true }) };
     },
   },
   { calendarEndpoints: { api: `${location.origin}/fakecal` }, geminiApi: `${location.origin}/fakegemini` },
