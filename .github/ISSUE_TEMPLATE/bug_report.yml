@@ -1,29 +1,29 @@
-name: Hata bildirimi
-description: Beklendiği gibi çalışmayan bir şeyi bildirin
+name: Bug report
+description: Report something that doesn't work as expected
 labels: [bug]
 body:
   - type: textarea
     id: what
     attributes:
-      label: Ne oldu?
-      description: Gördüğünüz davranış ve beklediğiniz davranış.
+      label: What happened?
+      description: The behaviour you see and the behaviour you expected.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Yeniden üretme adımları
+      label: Steps to reproduce
       placeholder: "1. …\n2. …"
   - type: input
     id: version
     attributes:
-      label: Nularche sürümü
-      placeholder: "2.5.0"
+      label: Nularche version
+      placeholder: "3.0.0"
   - type: dropdown
     id: os
     attributes:
-      label: İşletim sistemi
-      options: [macOS (Apple Silicon), macOS (Intel), Windows, Linux]
+      label: Operating system
+      options: [macOS (Apple Silicon), macOS (Intel), Windows, Linux, Web (browser)]
   - type: markdown
     attributes:
-      value: "Lütfen kişisel notlarınızın içeriğini paylaşmayın; gerekirse küçük bir örnek Node hazırlayın."
+      value: "Please don't share the content of your personal notes; if needed, make a small example Node."

@@ -88,24 +88,3 @@ collect anyone's data.
 ## Changes and contact
 
 Changes to this policy are published in this file, with the date at the top. Questions: verseofac@gmail.com.
-
----
-
-## Nularche Gizlilik Politikası (Türkçe özet)
-
-- Nularche'nin **sunucusu, hesabı ve analitiği yoktur**. Notlarınız, dosyalarınız, takvimleriniz, parolalarınız
-  ve Google verileriniz bize hiçbir zaman gelmez.
-- Nularche her şeyi **kendi bilgisayarınızda**, seçtiğiniz klasörde, düz dosyalar olarak tutar.
-- Google ve Apple giriş bilgileri işletim sisteminizin parola deposunda şifreli olarak yalnızca o bilgisayarda
-  durur.
-- **Google Drive:** Nularche yalnızca `drive.file` iznini ister; Drive'ınızda yalnızca kendi oluşturduğu
-  Nularche klasörünü görür, diğer dosyalarınıza erişemez. Bu erişimi yalnızca notlarınızı bilgisayarlarınız
-  arasında eşitlemek için kullanır. PDF vurguları ve bilgi kartı tekrar durumu da eşitlenir; şifreli anlık görüntüler (Strata) ve otomatik sürüm geçmişi
-  bilgisayarda kalır. Kilitli notlar Drive'da da şifreli kalır; isteğe bağlı uçtan uca şifreleme açılırsa
-  her dosya yüklenmeden önce yalnızca sizin bildiğiniz parolayla şifrelenir.
-- **Google Takvim:** Takvimlerinizi Nularche'nin Takvim ekranında göstermek ve sizin oluşturduğunuz, düzenlediğiniz
-  ya da sildiğiniz etkinlikleri takviminize yazmak için kullanılır.
-- Google'dan alınan veriler, Google API Hizmetleri Kullanıcı Verileri Politikası'na (Sınırlı Kullanım
-  koşulları dahil) uygun olarak yalnızca bu özellikler için kullanılır; kimseye aktarılmaz, reklam için
-  kullanılmaz, satılmaz ve yapay zekâ eğitiminde kullanılmaz.
-- Sorularınız için: verseofac@gmail.com

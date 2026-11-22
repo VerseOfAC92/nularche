@@ -16,8 +16,7 @@ Your notes stay on your computer. Your AI is the one you already pay for.</p>
   <a href="#features">Features</a> ·
   <a href="#ai-claude-chatgpt-gemini">AI</a> ·
   <a href="#keyboard-shortcuts">Shortcuts</a> ·
-  <a href="#development">Development</a> ·
-  <a href="#türkçe">Türkçe</a>
+  <a href="#development">Development</a>
 </p>
 
 <p align="center">
@@ -39,6 +38,30 @@ The name comes from **Null** (a clean starting point) and **Arche** (first princ
 Nularche Web opens the same notes you keep in the desktop app, from any computer, with nothing to install. There is
 still no Nularche server: your browser talks directly to your own Google Drive, and your notes are decrypted in the
 browser tab. Turn on Google Drive sync in the desktop app once (Settings → Notes and Origin), then sign in on the web.
+
+<p align="center">
+  <img src="docs/screenshots/web-app.png" width="860" alt="Nularche Web in the browser: the sidebar with Arches, a note and the Lock and Sign out buttons, over the Lavender Hills background" />
+</p>
+
+**How to sign in**
+
+1. Open [nularche.verseofac.com/app](https://nularche.verseofac.com/app) and choose **Continue with Google**. Nularche
+   asks only for its own folder in your Google Drive and for your calendar.
+2. If your notes are end-to-end encrypted, enter your passphrase. It is checked before anything is downloaded and
+   never leaves the tab.
+3. Your notes open in the tab's memory, and changes are sent back to Google Drive.
+
+<p align="center">
+  <img src="docs/screenshots/web-signin.png" width="49%" alt="The Nularche Web sign-in window with the Continue with Google button" />
+  <img src="docs/screenshots/web-passphrase.png" width="49%" alt="The passphrase step after signing in with Google, showing the connected account" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/web-drive.png" width="49%" alt="Settings → Notes and Origin in the browser: Google Drive connected as verseofac@gmail.com, end-to-end encrypted" />
+  <img src="docs/screenshots/web-security.png" width="49%" alt="Settings → Security in the browser: Trust this browser and the idle lock" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/web-lock.png" width="860" alt="The Nularche lock screen in the browser: the passphrase opens your notes again without signing in to Google" />
+</p>
 
 ### Nularche Web 1.0 (22 November 2026)
 
@@ -984,277 +1007,3 @@ Questions, ideas or bug reports: write to **[verseofac@gmail.com](mailto:verseof
 ## Licence
 
 [MIT](LICENSE) © 2026 VerseOfAC92
-
----
-
-## Türkçe
-
-**Nularche**, notlarınızı kendi bilgisayarınızda düz Markdown dosyaları olarak tutan, yapay zekâ destekli bir not ve
-bilgi yönetimi uygulamasıdır. Veritabanları (tablo, pano, takvim, galeri, liste, zaman çizelgesi), şablonlar, günlük
-not, Çöp, statik site yayınlama ve Claude / ChatGPT / Gemini entegrasyonu içerir. Arayüz Ayarlar'dan Türkçeye
-alınabilir.
-
-### Nularche Web: notlarınız tarayıcıda
-
-**Nularche'yi herhangi bir tarayıcıda açın: [nularche.verseofac.com/app](https://nularche.verseofac.com/app)**
-
-Nularche Web, masaüstü uygulamasındaki notlarınızı her bilgisayardan, hiçbir şey kurmadan açar. Nularche sunucusu yine
-yok: tarayıcınız doğrudan kendi Google Drive'ınızla konuşur, notlar tarayıcı sekmesinde çözülür. Masaüstü uygulamasında
-Google Drive eşitlemesini bir kez açın (Ayarlar → Notlar ve Origin), sonra web'de giriş yapın.
-
-#### Nularche Web 1.0 (22 Kasım 2026)
-
-Web sürümüyle gelenler:
-
-- **Tek Google girişi, iki bağlantı.** "Google ile devam et" Google Drive'ı (yalnızca Nularche'nin kendi klasörü) ve
-  Google Takvim'i birlikte bağlar; birincil takviminiz Takvim ekranında görünür.
-- **Tarayıcıda uçtan uca şifreleme.** Şifreli notlar parolanızla açılır; parola hiçbir şey indirilmeden doğrulanır ve
-  sekmeden çıkmaz.
-- **Varsayılan olarak iz yok.** Notlar, anahtarlar ve erişim izinleri yalnızca sekmenin belleğindedir; sekmeyi
-  kapatınca her şey silinir.
-- **Kilit ekranı.** Kilitle (ya da hareketsizlik kilidi: varsayılan 15 dakika, Ayarlar → Güvenlik'te 5–240 dakika)
-  notları bellekten siler ve Nularche'nin kilit ekranını açar. Parolanızla yeniden açılır; Google'a yeniden girmezsiniz.
-- **Bu tarayıcıya güven.** Kendi bilgisayarınızda Ayarlar → Güvenlik → Bu tarayıcıya güven, notlarınızın şifreli bir
-  kopyasını tarayıcıda tutar (parolanızla; notlarınız uçtan uca şifreli değilse tarayıcıya bağlı bir anahtarla).
-  Nularche bu kopyadan Google Drive beklenmeden açılır, Google'ı bağlayınca eşitlenir. Güveni kaldırmak ya da çıkış
-  yapmak kopyayı siler.
-- **Çıkış yap** bekleyen değişiklikleri gönderir, belleği ve güvenilen kopyayı siler, Google iznini geri alır.
-- **Gemini ile Nularche AI.** Kendi ücretsiz Gemini API anahtarınızı Ayarlar → Yapay zekâ'ya yapıştırın; anahtar
-  yalnızca sekmenin belleğinde tutulur.
-- Uyarılar seçtiğiniz dilde (Türkçe ya da İngilizce) çıkar; Google girişi Safari'de de çalışır.
-
-Masaüstünde kalanlar:
-
-| Yalnızca masaüstünde | Neden |
-| --- | --- |
-| Yalnızca bu bilgisayarda tutulan notlar (Google Drive olmadan) | Tarayıcı notlarınıza yalnızca Google Drive üzerinden ulaşabilir. |
-| Apple Takvim (iCloud) | Apple, tarayıcıların iCloud takvim sunucusuna bağlanmasına izin vermiyor; Nularche'nin araya girecek sunucusu yok. |
-| Claude, ChatGPT, Codex ve Antigravity bağlantıları | Masaüstü uygulamaları ve MCP ile çalışırlar; web sürümü Gemini kullanır. |
-| Strata anlık görüntüleri, Ark yedekleri, .nla arşivi içe/dışa aktarma | Bilgisayarın dosya sistemine ve anahtar zincirine ihtiyaç duyarlar. |
-| Origin klasörünü açma, dosya seçiciler, otomatik güncellemeler | Masaüstü özellikleri. |
-| Bilgisayar uykuya geçince ya da ekran kilitlenince kilitlenme | Tarayıcı bunu göremez; web sürümü hareketsizlikte kilitlenir. |
-| Yeni sekmede çevrimdışı çalışma | "Bu tarayıcıya güven" kapalıyken notlar Google Drive'dan yüklenir. |
-
-### 3.0.0'daki yenilikler
-
-3.0'ın konusu **güven** ve **bildiğinizi kullanmak**. Yeni her parçanın Nularche dilinde bir adı var; anlamları
-Nularche dili penceresinde.
-
-**Güvenlik**
-
-- **Crypta (şifreli Arche):** Ayarlar → Güvenlik'ten bir Arche'nin bütün notları tek parolayla şifrelenir (AES-256-GCM,
-  PBKDF2 600.000 tur). Parola oturum başına bir kez girilir; Arche'ye eklenen yeni notlar kendiliğinden şifrelenir.
-  Başlıklar, özellikler ve ağaç görünür kalır. Parola hiçbir yerde saklanmaz, unutulursa içerik kurtarılamaz.
-- **Custos (otomatik kilit):** açık kilitli notlar ve Crypta Arche'leri bir süre işlem yapılmayınca (1–60 dakika,
-  varsayılan 5), bilgisayar uyuyunca ya da ekran kilitlenince hemen kapanır.
-- **Strata (anlık görüntüler):** Origin'in tamamı, bir şey değiştiyse 15 dakikada bir ve **Şimdi al** ile kaydedilir.
-  İçerik adreslidir ve yalnızca değişen dosyalar yeniden saklanır; sistemin anahtar zincirindeki bir anahtarla şifrelidir.
-  Değişenleri görün, notu önizleyin, tek dosyayı ya da Origin'in tamamını geri getirin; geri yüklemeden önce şimdiki
-  hâlin anlık görüntüsü alınır. Bu bilgisayarda kalır, Google Drive'a gitmez. Kilitlenen notun şifresiz sürümleri bütün
-  anlık görüntülerden silinir.
-- **Mühürlü yerel bağlantı:** yerel sunucu yalnızca Nularche'nin kendi pencerelerinden gelen istekleri kabul eder;
-  arayüz sıkı bir içerik güvenlik politikasıyla çalışır; notlardaki HTML hem uygulamada hem dışa aktarılan ve
-  yayınlanan sayfalarda izin listesiyle temizlenir.
-
-**Araştırma ve yazma**
-
-- **Fontes (kaynakça ve atıflar):** Ayarlar → Yazma'dan BibTeX (`.bib`) ya da CSL-JSON dosyası seçin. Notta `[@`
-  yazınca kaynaklar önerilir; `[@anahtar, s. 12]` sayfa, `[-@anahtar]` yazarsız atıf, `[@a; @b]` birden çok kaynak.
-  Atıflar seçtiğiniz stille biçimli çip olarak görünür; dışa aktarmada (HTML, Word, RTF, yayınlanan site ve Codex)
-  yazıya dökülür ve sona (ya da `{{kaynakça}}` satırının yerine) kaynakça eklenir. Stiller: APA 7, Chicago, MLA 9, IEEE.
-- **Lectio (PDF okuyucu):** Ekler'den ya da nottaki bağlantıdan PDF açın; metni seçip beş renkten biriyle vurgulayın,
-  yorum yazın, **Nota aktar** ile her vurgu o sayfaya dönen bağlantılı bir alıntı olur. Yeni vurgular aynı nota eklenir.
-- **Tessera (blok bağlantısı ve gömme):** paragrafa sağ tıklayıp **blok bağlantısını kopyala**: paragrafa kısa bir
-  `^kimlik` eklenir ve `[[Not#^kimlik]]` kopyalanır. Bağlantı notu o paragrafta açar; `![[Not#^kimlik]]` paragrafı
-  başka bir notta gösterir. Dışa aktarma ve yayınlamada gömülen metin açık yazılır.
-- **Claritas (okunabilirlik):** kelime sayısının yanında 0–100 puan (yüksek = kolay); Türkçede Ateşman, İngilizcede
-  Flesch formülü.
-
-**Bildiğinizi kullanmak**
-
-- **Speculum (canlı sorgu):** `/` ile eklenen sorgu bloğu `tag: #taslak`, `arche: Tez`, `where: durum = Açık`,
-  `where: updated >= -7d`, `sort: updated desc`, `show: table` gibi satırlarla notları liste, tablo, sayı ya da açık
-  görev olarak gösterir ve notlar değiştikçe güncellenir.
-- **Anamnesis (bilgi kartları):** notlardaki her `Soru :: Cevap` satırı bir kart, `Terim ::: Tanım` iki yönlü iki kart
-  olur. Kenar çubuğundaki **Anamnesis** kartları tek tek, FSRS algoritmasıyla unutmak üzereyken sorar (Boşluk cevabı
-  gösterir, 1–4 değerlendirir). Arche'ye göre deste ve günlük yeni kart sayısı seçilir.
-- **Vigil (zamanlanmış otomasyon):** Ayarlar → Otomasyon'dan her gün, hafta ya da ay belli bir saatte Nularche AI'a iş
-  verin ya da Nularche'nin özet notu yazmasını sağlayın. Sonuçlar Atrium'daki Vigil kartında, planlı çalışmalar
-  Takvim'de görünür; uygulama kapalıyken kaçırılan çalışma açılışta bir kez yapılır.
-
-### 2.5.0'daki yenilikler
-
-- **Takvim ekranı** (kenar çubuğu ya da ⇧⌘K): ay, hafta ve ajanda görünümleri. Yerel **Nularche** takvimi, Ayarlar →
-  Takvim'de açtığınız Google ve Apple (iCloud) takvimleri ve tarih özelliği olan bütün veritabanları bir arada; her
-  takvim bir düğmeyle gizlenip gösterilir. Takvimler **not ya da Arche oluşturmaz**: etkinlikler
-  `.nularche/calendar-events.json` içinde tutulur, Takvim ekranında yaptığınız değişiklikler doğrudan Google'a ya da
-  iCloud'a yazılır. Bir etkinliğe tıklayınca saat, hatırlatma, konum, toplantı bağlantısı (**Aç** düğmesiyle),
-  düzenleyen, katılımcılar ve yanıtları ve notlar görünür. Yeni etkinlik konum, bağlantı, hatırlatma ve notlarıyla
-  oluşturulur. Yinelenen etkinlikler yalnızca görüntülenir. Veritabanını takvimle eşitleme veritabanının **Takvim**
-  düğmesinde durur.
-- **Depolama ve Google Drive:** ilk açılışta, sistem uyarısı yerine Nularche'nin kendi penceresinde notların **bu
-  bilgisayarda** mı duracağı yoksa **Google Drive** ile mi eşitleneceği seçilir; Ayarlar → Notlar ve Origin'den her
-  zaman değiştirilebilir. Google Drive tek tıkla bağlanır (**Google ile bağlan**); Nularche Drive'da yalnızca kendi
-  oluşturduğu Nularche klasörünü görür. Bilgisayardaki klasör çalışma kopyası olarak kalır (hızlı, internetsiz çalışır)
-  ve Drive ile iki yönlü eşitlenir. Yalnızca notlar, ekler, ayarlar, Marginalia, Epoch'lar ve CSS parçacıkları
-  eşitlenir; otomatik sürüm geçmişi, Nularche AI kayıtları ve takvim önbelleği bilgisayarda kalır. Kilitlenen notun
-  şifresiz eski sürümleri silinir, Drive'daki eski dosyası da sürüm geçmişiyle kalıcı silinip şifreli hâli yüklenir.
-  İsteğe bağlı **uçtan uca şifreleme** Drive'daki kopyayı ve dosya adlarını parolanızla şifreler. Klasör birden
-  boşalırsa Drive'dan hiçbir şey silinmez; **Drive'dan geri getir** ve **Drive'dan yeniden indir** her şeyi geri
-  getirir. Google Takvim de artık tek tıkla bağlanır.
-- **Biçimli başlıklar:** başlığın bir kısmını seçip kalın, italik, altı çizili, üstü çizili, vurgulu ya da renkli
-  yapın (seçim çubuğundan ya da sağ tıkla). Dosya adı düz başlık olarak kalır.
-- **Sağ tık** menüsünde Nularche'nin seçenekleri (biçim, bağlantı, Marginalia; Tabula'da şekil seçenekleri; kenar
-  çubuğunda aç, ekle, taşı) ile sistemin seçenekleri (yazım önerileri, Sözlükte Ara, kes, kopyala, yapıştır, Paylaş)
-  birlikte gelir.
-- Notlarda **Tab** girinti yapar (liste öğelerini iç içe alır), ⇧Tab geri alır; tablolarda Tab yine hücreler arasında
-  gezer. Ayarlar → Yazma'da **varsayılan yazı boyutu** seçilir. Sürükleyerek ayarlanan **tablo sütun genişlikleri**
-  notla birlikte kaydedilir. Yazma yönergesi yalnızca boş notta görünür.
-- **Görünüm:** menüler, araç çubukları, paneller ve pencereler emoji ve semboller yerine tek bir çizgi simge setiyle
-  çizilir (notlarınıza verdiğiniz simgeler olduğu gibi kalır). Arka plan seçiliyken menüler ve pencereler okunaklı
-  buzlu cam kullanır; boşluklar, hizalar ve odak durumları uygulamanın her yerinde, Tabula'nın şekil kitaplığı ve
-  biçim paneli dahil, elden geçirildi.
-- **Tabula** (beyaz tahta): kalem, kurşun kalem, keçeli ve fosforlu kalem, silgi; yapışkan notlar, metin, tablo,
-  görsel ve not kartları; akış şeması, BPMN, UML, ağ ve daha fazlası için 130'dan fazla şekil ve 13 grupta yaklaşık
-  4.800 simge; şekilleri bağlayan ve şekiller taşınınca onları izleyen oklar; hizalama kılavuzları, gruplama, kilit,
-  katman sırası, hizala/dağıt, çevir, geri al/yinele; not yazarken kullanılan bütün yazı tipleri. Tahta saydamdır ve
-  seçtiğiniz arka planı gösterir; PNG ve SVG olarak dışa aktarılır. *Yeni yazma projesi* menüsünde, Atrium'da ve “/”
-  menüsünde.
-- **Nularche Font:** Nularche'nin kendine özel el yazısı yazı tipi eklendi. Ayarlar'da bütün notların yazı tipi,
-  tek bir notun yazı tipi ya da Tabula'daki metin, yapışkan not ve şekil yazıları için seçilebilir; uygulamayla gelir,
-  çevrimdışı çalışır.
-- **Kenar çubuğu tamamen gizlenir** (pencere düğmelerinin yanındaki düğme ya da ⌥⌘B); düğmenin üzerine gelince arka
-  planın renginde bir panel olarak belirir, fare çekilince kaybolur.
-- **Archipelago:** Arche'ler kenar çubuğunda gruplanabilir (İş, Okul gibi). “Arche'ler” başlığının yanındaki grup
-  düğmesiyle (üst üste katmanlar) grup oluşturun; Arche'yi kendi grup düğmesiyle ya da sürükleyerek ekleyin. Gruplar daraltılır, yeniden adlandırılır,
-  kaldırılır (Arche'ler silinmez); dosyalar taşınmaz.
-- **Atrium** zenginleşti: akıllı klasörler (not sayılarıyla), Tabula panoları, açık görevler, Shadow gelen kutusu, Origin özeti ve her gün yeniden
-  keşfedilecek bir not. Arka plan seçiliyken Atrium'daki ve diğer sayfalardaki kartlar da buzlu cam olur.
-- **Nularche AI**: yanıt vermeyen istekler süre sınırında açık bir mesajla durur, istekler iptal edilebilir, uzun notlar
-  baştan yazılmadan blok blok düzenlenir. Soru, özet ve analiz isteklerinde notlar değiştirilmez; **Yalnızca cevap**
-  açıkken hiçbir not değişmez.
-
-### 2.0.0'daki yenilikler
-
-Nularche 2.0, roman, tez, senaryo ve rapor gibi uzun metinler için bir **yazma stüdyosu** ekliyor. Her şey yine Origin
-klasörünüzde düz Markdown dosyası olarak kalır. Yeni sayfa türleri yapılarını, tuval sayfaları gibi notun içindeki küçük
-bir JSON bloğunda tutar. Yeni bölümlerin Nularche adları ve anlamları ilk açılış sihirbazının **Nularche dili**
-adımında ve uygulamadaki **Nularche dili** penceresinde (⇧⌘P → “Nularche dili”) anlatılır.
-
-- **Codex** (manuskript): notları bölümler halinde sıralayıp tek bir eser gibi çalışın. Kelime hedefine karşı toplam sayaç,
-  bütün metni gösteren **Oku** görünümü ve derlenmiş metni **Word**, **PDF**, **RTF**, düz metin ya da HTML olarak dışa
-  aktarma vardır. Bölüm adlarının ve not başlıklarının yazılıp yazılmayacağını ve notlar arasındaki ayracı siz
-  seçersiniz. Notlar yerinden kıpırdamaz; sürükleyerek sıralar, var olan notu ekler ya da yerinde yeni bölüm
-  yazarsınız.
-- **Axis** (taslak): I. → A. → 1. → a. düzeyli planlama satırları. Enter yeni satır açar, Tab / ⇧Tab girintiyi
-  değiştirir, ⌥↑ / ⌥↓ satırı taşır, ⌘↩ satır notunu açar. Satırlar daraltılabilir, renk alabilir, tamamlandı
-  işaretlenebilir, bir nota bağlanabilir ya da nota dönüştürülebilir. Codex bir Axis'i **izleyebilir**: henüz
-  yazılmamış satırlar vuruşlarıyla birlikte **planlanan** olarak görünür ve **Yaz** ile tek tıkla bölüme dönüşür.
-- **Mosaic** (mantar pano): sahneler ve fikirler için gruplar halinde dizin kartları. Kartları sürükleyebilir,
-  renk etiketi verebilir, içlerinde arayabilirsiniz. S / M / L boyut ya da yalnızca başlık seçenekleri ve çoklu seçim
-  vardır. Bir kart nota bağlanabilir ya da nota dönüştürülebilir.
-- **Lore** (hikâye kitaplığı): Lore sayfasının alt sayfaları girdilerdir, alt sayfası olan girdiler kategoridir. Her girdi
-  **hızlı bilgilerini** (notun özellikleri), takma adlarını ve özetini gösterir. Bir kategori, yeni girdilere
-  eklenecek alanları belirleyebilir. **Anma tespiti** girdinin adının ve takma adlarının geçtiği her yerin altını
-  noktalı çizgiyle çizer: ⌘/Ctrl-tıklama girdiyi açar, ⌘ ile üzerine gelmek önizler. Her girdide **Geçtiği yerler**
-  sayılarıyla listelenir.
-- **Marginalia** (⌥⌘M / Ctrl+Alt+M): pasajlara bağlı yorum dizileri; yanıt, çözüldü, yeniden açma ve düzenleme.
-  Marginalia
-  `.nularche/comments/` içinde durur, **Markdown dosyası değişmez**.
-- **Epoch'lar** (⌥⌘S / Ctrl+Alt+S): siz silene kadar saklanan adlandırılmış sürümler (not başına 30). Geri
-  yüklemeden önce her sürümü **şimdiki metinle** satır satır karşılaştırabilirsiniz.
-- **Diptych** (bölünmüş görünüm, `⌥⌘\` / `Ctrl+Alt+\`): iki notu yan yana açın; bölmeleri yer değiştirebilir, bölmeler arasında
-  geçebilir ya da yan bölmeyi kapatabilirsiniz.
-- **Atrium** (ana sayfa): selamlama, kaldığınız yerden devam, **günlük hedefe** karşı bugün yazılan kelime, **yazma serisi**,
-  son yedi gün grafiği, yazma projeleri, son düzenlenenler, sabitlenenler ve hızlı yakalama.
-- **Kelime hedefi** (not ya da manuskript başına), **Clepsydra** yazma zamanlayıcısı (⌥⌘P; odak ve mola süreleri, çan).
-- **Aura** (daktilo ve ortam sesleri): tuş vuruşu (hafif ya da ağır makine), satır başı ve **kenar zili**; pencerede yağmur,
-  duvar saati, yaz gecesi ve şömine. Sesler bilgisayarınızda üretilir, hiçbir şey indirilmez.
-- **Uygulamayla gelen 6 yazı tipi** (açık lisanslı, çevrimdışı): Atkinson Hyperlegible, Literata, Lora, Crimson Pro,
-  Courier Prime, Special Elite. **Yüksek kontrast** teması.
-- **Sigil'ler** (metin kısaltmaları): `;imza` yazıp boşluk bırakınca açılır; açılımda `{{date}}` gibi değişkenler kullanılabilir.
-- **Rite'lar** (özel komutlar): metin ekleyen, not açan, Shadow'a yakalayan ya da komut dizisi çalıştıran komutlar; komut
-  paletinde ★ ile görünür ve kısayol atanabilir. Kısaltmalar ve komutlar dosyaya kaydedilip yeniden yüklenebilir.
-- **Conduit** (akıllı yakalama): `::mosaic @roman Liman sahnesi`, `::axis …`, `::lore @dünya Ada`, `::task …` ile başlayan
-  yakalamalar doğrudan hedefe gider. Hedefe gidemeyenler Shadow'da bekler ve sonra **Gönder…** ile taşınır.
-- **Ark** (otomatik yedekleme, masaüstü): Origin'in tamamı seçtiğiniz klasöre saatte, günde ya da haftada bir `.nla` olarak
-  yazılır, eski yedekler silinir. iCloud Drive, Google Drive ya da OneDrive klasörü seçebilirsiniz; Nularche hiçbir
-  hesaba bağlanmaz.
-- **Her şey arayüzden bulunur:** kenar çubuğunda **🏛 Atrium**, **✦ Yeni yazma projesi** (Codex, Axis, Mosaic, Lore;
-  her biri kısa açıklamasıyla) ve **ⓘ Nularche dili**; her notun üst çubuğunda ✎ Marginalia, ⚑ Epoch, ◫ Diptych,
-  ⧗ Clepsydra ve ♪ Aura; metin seçince açılan balonda **✎ Marginalia**; `/` menüsünde **Yazma stüdyosu** grubu; odak
-  modunda Clepsydra ve Aura. Düğmelerin üzerine gelince adın anlamı görünür.
-- **Küçültülebilir kenar çubuğu:** logonun yanındaki ‹‹ düğmesi (ya da ⌥⌘B / Ctrl+Alt+B) kenar çubuğunu yalnızca
-  simgelerden oluşan dar bir şeride indirir: logo, tüm menü öğeleri ve Arche'ler simgeleriyle (simgesi olmayan Arche
-  ◈ ile) görünür. Üzerine gelince adı çıkar; ›› ile geri açılır ve seçim hatırlanır.
-- **Yeni Ayarlar penceresi:** solda aranabilir kategoriler (Görünüm, Yazma, Aura ve Odak, Otomasyon, Notlar ve Origin,
-  Kısayollar, Yayınlama, Takvim, Yapay zekâ, Hakkında), sağda kartlar halinde ayarlar.
-- **MCP sunucusu:** 7 yeni araç (`get_manuscript`, `add_to_writing_project`, `list_wiki_entries`, `get_wiki_mentions`,
-  `list_comments`, `add_comment`, `create_checkpoint`).
-
-### 1.5.0'daki yenilikler
-
-Apple Notlar'ın gündelik not özellikleri, odaklı yazma uygulamalarının dikkat dağıtmayan yazma deneyimi ve bağlantılı not
-yaklaşımı artık Nularche'de; notlarınız yine düz Markdown dosyası olarak kalır. Başka Markdown uygulamalarının sözdizimiyle
-yazılmış notlar Nularche'de düzenlenirken bozulmaz.
-
-- **Odak modu** (⇧⌘F / Ctrl+Shift+F): tam ekran, kenar çubuğu ve araçlar gizli; fare hareket edince bilgi çubukları
-  belirir. **10 manzara** (Ay Işığı, Gece Göğü, Gün Batımı, Karlı Zirveler, Kum Tepeleri, Lavanta Tepeleri, Sakin
-  Deniz, Sisli Dağlar, Sonbahar, Çam Ormanı), **10 renk paleti**, özel renk ya da kendi görseliniz; daktilo kaydırması
-  ve yalnızca yazılan paragrafı vurgulama.
-- **Sözcük sayacı**, sayfa başına **yazı tipi ve boyut** (⌘T), **bağlantı penceresi** (⌘L).
-- **#Etiketler**, **akıllı klasörler**, **notu iğneleme**, **liste/galeri görünümü**, tarihe göre **sıralama ve
-  gruplama**, **Son notlar** ve **Ekler** tarayıcısı.
-- **Bul ve değiştir** (⌘F, ⌥⌘F), **paragraf stilleri**, **hizalama**, **girinti**, **sağdan sola yazma**, **üs/indis**,
-  **tire işaretli liste**, **harf dönüşümleri**, **stili kopyala/yapıştır**, **bölümleri daraltma**.
-- **Yapılacaklar:** tümünü işaretle/kaldır, işaretlileri en alta taşı ya da sil.
-- **Matematik sonuçları:** satırı `=` ile bitirin (`120*3 =`, `kira + aidat =`); sonuç önerilir, Tab ile eklenir.
-- **Ses kaydı** (isteğe bağlı Gemini ile yazıya dökme/özet), **çizim**, **sesli okuma**.
-- **Notu parola ile kilitleme** (AES-256, bilgisayarınızda şifrelenir; parola unutulursa içerik kurtarılamaz).
-- **Takvim eşitleme:** bir veritabanının tarihli satırlarını **Google Takvim**, **Apple Takvim (iCloud)** ya da ikisiyle
-  birden iki yönlü eşitleyin; tarihli satırlar etkinlik, etkinlikler satır olur, başlık ve tarih iki yönde güncellenir.
-  **Ayarlar → Takvim** bölümünden hesabı bağlayın (Google için Google Cloud'da oluşturduğunuz "Masaüstü
-  uygulaması" OAuth istemcisi, Apple için uygulamaya özel parola), sonra veritabanı araç çubuğundaki **Takvim**
-  düğmesinden takvimi seçin. Silinen etkinliğin satırı çöpe taşınır; yinelenen etkinlikler ve kilitli notlar eşitlenmez.
-  Ayrıntılar ve kurulum adımları: [Calendar sync](#calendar-sync-google-and-apple).
-- **İçe aktarma** (Markdown, metin, HTML, RTF; Apple Notlar dışa aktarımları dahil), **Markdown olarak
-  kopyala/yapıştır**, **Word (.docx)**, **RTF** ve **düz metin** olarak dışa aktarma, **yazdırma**, **notu ayrı
-  pencerede açma**, **en üstte tutma**, **notu açık arka planla gösterme**.
-- Yeni **Biçim** ve **Görüntü** menüleri; MCP sunucusunda `list_tags` ve etikete göre arama.
-
-**Bağlantılı notlar**
-- **Wiki bağlantıları ve gömme:** `[[Not]]`, `[[Not#Başlık|görünen ad]]`, `![[Not]]`; başlık, dosya adı ya da takma
-  adla çözülür, var olmayan nota tıklayınca not oluşturulur.
-- **Özellikler (Properties):** notun başında metin, liste, sayı, onay kutusu ve tarih alanları (YAML frontmatter;
-  `aliases` ve `tags` anlaşılır). ⌘; ile özellik ekleyin.
-- **Komut paleti** (⇧⌘P), **hızlı geçiş** (⌘O; yoksa notu oluşturur), **geri/ileri** (⌥⌘← / ⌥⌘→).
-- **Grafik görünümü** ve **yerel grafik**; **kenar paneli** (⇧⌘O): ana hat, geri bağlantılar, giden bağlantılar,
-  **bağlantısız anılışlar** (tek tıkla bağlantıya çevirme) ve **dosya geçmişi** (önizleme ve geri yükleme).
-- **Tuval (Canvas):** metin, not, web bağlantısı ve grup kartları, oklarla bağlantılar; açık JSON Canvas biçiminde
-  notun içinde saklanır.
-- **Sekmeler ve çalışma alanları:** sayfaları sekmelerde açın (⌥⌘T yeni, ⌥⌘W kapat, Ctrl+Tab geçiş), açık sekmeleri
-  adlandırılmış çalışma alanı olarak kaydedip açın; açılışta son sayfa, bugünün notu ya da ana sayfa gelir.
-- **Sayfa önizlemesi:** ⌘ basılıyken bir bağlantının üzerine gelince notun içeriği görünür.
-- **Markdown ekleri:** LaTeX formüller (`$…$`, `$$…$$`), **Mermaid** diyagramları, dipnotlar, `%%yorumlar%%`
-  (yayımlanmaz), yaygın tüm kutu türleri, satır taşıma (⌥↑ / ⌥↓).
-- **Şablon değişkenleri:** `{{title}}`, `{{date}}`, `{{time}}`, `{{date:DD.MM.YYYY}}` gibi; şablonu açık nota ekleme.
-- **Not düzenleyici:** notları birleştirme, seçimi ya da başlık bölümünü yeni nota çıkarma; **rastgele not**,
-  **benzersiz not**, önceki/sonraki günlük not, **okuma görünümü** (⌥⌘E), notu **sunum** olarak gösterme, dosya yolunu
-  kopyalama ve Finder'da gösterme.
-- **Ayarlar:** her komut için **kendi kısayolunuz**, `.nularche/snippets/` içindeki **CSS parçacıkları**, **vurgu
-  rengi**, **okunabilir satır uzunluğu**, varsayılan görünüm, yeni notların yeri, açılış sayfası, **parantezleri otomatik
-  kapatma** ve **hariç tutulan dosyalar**.
-- MCP sunucusunda `get_links` aracı; `update_node` özellik de yazabilir.
-
-- **Destek:** soru, öneri ya da hata bildirimi için **[verseofac@gmail.com](mailto:verseofac@gmail.com)** adresine
-  yazın ya da GitHub'da bir [issue](https://github.com/VerseOfAC92/nularche/issues) açın (adres Ayarlar → Hakkında'da da var).
-- **İndirme:** yukarıdaki [Download](#download) tablosundan sisteminize uygun dosyayı seçin.
-- **1.x ya da 2.0'dan güncelleme:** 2.5'i eskisinin üzerine aynı şekilde kurun (macOS'ta Uygulamalar klasörüne sürükleyin,
-  Windows'ta kurulumu çalıştırın, Linux'ta `sudo apt install ./Nularche-Linux-amd64.deb`) ya da terminal kurulumunu
-  yeniden çalıştırın. Origin klasörünüz, notlarınız ve ayarlarınız olduğu gibi kalır.
-- **Terminalden kurulum (macOS / Linux):**
-  `curl -fsSL https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.sh | bash`
-- **Terminalden kurulum (Windows PowerShell):**
-  `irm https://raw.githubusercontent.com/VerseOfAC92/nularche/main/scripts/install/install.ps1 | iex`
-- **Git ile kaynaktan:** `git clone https://github.com/VerseOfAC92/nularche.git`, sonra macOS/Linux'ta
-  `./scripts/install/build-from-source.sh`, Windows'ta `.\scripts\install\build-from-source.ps1`.
