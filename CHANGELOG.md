@@ -8,6 +8,8 @@ its own Nularche name, explained in the Nularche language window and the README 
 ### Security
 - **Crypta:** encrypt every note in an Arche with one password (AES-256-GCM, PBKDF2-SHA256 600,000 rounds); unlocked
   once per session; new notes inside are sealed automatically; only key parameters and a check value are stored.
+  Titles, properties, page settings and the tree are encrypted too: files have random names in one flat folder, so
+  only the number of notes, their sizes and dates are visible. Arches encrypted earlier are upgraded when first opened.
 - **Custos:** open locked notes and Crypta Arches close after inactivity (1–60 min, default 5), on sleep and on screen
   lock.
 - **Strata:** content-addressed, incremental snapshots of the whole Origin every 15 minutes (when changed) and on
@@ -38,7 +40,12 @@ its own Nularche name, explained in the Nularche language window and the README 
 - **Vigil:** daily, weekly or monthly automations that send a task to Nularche AI or write a digest note; results in an
   Atrium card, runs on the Calendar, one catch-up run after the app was closed, no double runs across computers.
 
+### Notes and pages
+- **Page icons:** the icon picker offers every emoji your operating system can draw, in nine categories, with search
+  in English and Turkish, skin tones and recently used emoji.
+
 ### Fixes
+- Every error message follows the interface language (English or Turkish), including rare core and connection errors.
 - A new build no longer waits at launch for a macOS keychain prompt: the session secret is sent as a header instead of
   a cookie, and the snapshot key is read lazily.
 - Linked notes reopen without asking for the password again while their key is still open this session.

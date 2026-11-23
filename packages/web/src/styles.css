@@ -276,6 +276,25 @@ kbd { font: 11px var(--nlc-mono); color: var(--nlc-text-secondary); border: 1px 
 .emoji-grid { display: grid; grid-template-columns: repeat(8, 34px); gap: 2px; padding: 4px; }
 .emoji-grid button { width: 34px; height: 34px; border-radius: 6px; font-size: 20px; }
 .emoji-grid button:hover { background: var(--nlc-hover); }
+/* İkon seçicisi: bütün emojiler, arama, kategoriler, ten rengi */
+.icon-pop { padding: 0; z-index: 40; }
+.emoji-picker { width: 352px; display: flex; flex-direction: column; }
+.emoji-top { display: flex; gap: 6px; align-items: center; padding: 8px 8px 4px; }
+.emoji-search { flex: 1; min-width: 0; }
+.emoji-tone { position: relative; }
+.emoji-tone > button { width: 32px; height: 32px; border-radius: 8px; font-size: 18px; }
+.emoji-tone > button:hover { background: var(--nlc-hover); }
+.emoji-tone-menu { position: absolute; right: 0; top: calc(100% + 4px); display: flex; gap: 2px; padding: 4px; background: var(--nlc-bg-elevated); border: 1px solid var(--nlc-border-subtle); border-radius: 8px; box-shadow: var(--nlc-shadow-pop); z-index: 2; }
+.emoji-tone-menu button { width: 30px; height: 30px; border-radius: 6px; font-size: 18px; }
+.emoji-tone-menu button:hover, .emoji-tone-menu button.on { background: var(--nlc-hover); }
+.emoji-tabs { display: flex; justify-content: space-between; padding: 2px 8px 4px; border-bottom: 1px solid var(--nlc-border-subtle); }
+.emoji-tabs button { width: 32px; height: 30px; border-radius: 6px; font-size: 17px; opacity: 0.75; }
+.emoji-tabs button:hover { background: var(--nlc-hover); opacity: 1; }
+.emoji-list { position: relative; height: 300px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 0 4px 6px; scrollbar-gutter: stable; }
+.emoji-list h4 { position: sticky; top: 0; margin: 0; padding: 8px 6px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--nlc-text-secondary); background: var(--nlc-bg-elevated); z-index: 1; }
+.emoji-list .emoji-grid { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 1px; padding: 2px; }
+.emoji-list .emoji-grid button { width: auto; height: 34px; font-size: 22px; line-height: 1; padding: 0; }
+.emoji-note { padding: 12px 8px; }
 
 /* Claude menüsü */
 .claude-menu { position: relative; }

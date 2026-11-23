@@ -694,7 +694,8 @@ They run `npm ci` and the test suite, build the installer for your machine into 
 - **Shadow:** an inbox for quick thoughts that do not belong anywhere yet, plus a list of unlinked pages.
 - **Daily note:** one click (or a shortcut) opens today's journal page.
 - **#Tags, smart folders, pinned notes** and note lists (list or gallery, sorted and grouped by date).
-- Drag and drop pages in the sidebar, favourites, emoji icons and cover images.
+- Drag and drop pages in the sidebar, favourites, emoji icons and cover images. The icon picker offers every emoji
+  your operating system can draw, by category, with search in English and Turkish, skin tones and recently used ones.
 
 ### Databases
 
