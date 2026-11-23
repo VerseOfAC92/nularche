@@ -46,6 +46,7 @@ import { Progress } from "./studio/ui.tsx";
 import { StudioToolbar } from "./studio/StudioTools.tsx";
 import { writingBody } from "../../core/src/writing.ts";
 import { Icon, type IconName } from "./ui/Icon.tsx";
+import { EmojiPicker } from "./emoji/EmojiPicker.tsx";
 
 type Status = "saved" | "dirty" | "saving" | "conflict" | "error";
 const SAVE_DELAY_MS = 800;
@@ -57,8 +58,6 @@ const STATUS_KEY: Record<Status, StringKey> = {
   error: "node.saveFailed",
 };
 const GRADIENTS = ["gradient-1", "gradient-2", "gradient-3", "gradient-4", "gradient-5", "gradient-6"];
-const EMOJIS =
-  "📄📝📌📎📚📖🧠💡🔬🧪⚙️🛠️🧩🗂️📁🗃️📊📈🎯✅🚀⭐🔥🌱🌍🏠💼🎓🎨🎵🎬📷✈️🗺️🕰️⏳🔒🔑💬❓❗🧭🔗🧱🌀◈◇".match(/\p{Extended_Pictographic}️?|[◈◇]/gu) ?? [];
 
 export interface NodeViewProps {
   id: string;
@@ -958,14 +957,8 @@ export function NodeView(props: NodeViewProps) {
           {!cover && <button onClick={() => setFields({ cover: GRADIENTS[Math.floor(Math.random() * GRADIENTS.length)] })}><Icon name="photo" size={14} /> {t("node.addCover")}</button>}
         </div>
         {menu === "icon" && (
-          <div className="pop anchored" style={{ top: doc.icon ? 80 : 70 }} onMouseLeave={() => setMenu(null)}>
-            <div className="emoji-grid">
-              {EMOJIS.map((em) => (
-                <button key={em} onClick={() => (setMenu(null), setFields({ icon: em }))}>
-                  {em}
-                </button>
-              ))}
-            </div>
+          <div className="pop anchored icon-pop" style={{ top: doc.icon ? 80 : 70 }}>
+            <EmojiPicker onPick={(em) => (setMenu(null), setFields({ icon: em }))} onClose={() => setMenu(null)} />
             {doc.icon && (
               <div className="row" style={{ padding: 4 }}>
                 <button className="secondary" onClick={() => (setMenu(null), setFields({ icon: null }))}>

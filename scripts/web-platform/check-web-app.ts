@@ -144,6 +144,20 @@ try {
     check(brand.text.includes("Origin · Nularche"), "Origin adı Drive'daki klasörün adı (Nularche)");
     if (shots) await page.screenshot({ path: path.join(shots, "3-uygulama.png") });
 
+    // İkon seçicisi: işletim sisteminin çizebildiği bütün emojiler, kategoriler ve Türkçe arama.
+    await page.getByText("Masaüstü planı").first().click();
+    await page.getByRole("button", { name: "İkon ekle" }).click();
+    const picker = page.getByTestId("emoji-picker");
+    await picker.locator(".emoji-tabs").waitFor({ timeout: 20_000 });
+    const emojiCount = await picker.locator(".emoji-list .emoji-grid button").count();
+    check(emojiCount > 1000, `ikon seçicisi bütün emojileri gösteriyor (${emojiCount})`);
+    check((await picker.locator(".emoji-tabs button").count()) === 9, "ikon seçicisinde dokuz kategori sekmesi var");
+    await picker.locator(".emoji-search").fill("roket");
+    check((await picker.locator(".emoji-grid button").first().textContent()) === "🚀", "Türkçe arama: \"roket\" 🚀 buluyor");
+    await picker.locator(".emoji-search").press("Enter");
+    await page.locator(".page-icon", { hasText: "🚀" }).waitFor({ timeout: 10_000 });
+    check(await page.evaluate(async () => (await fetch("/api/nodes").then((r) => r.json())).nodes.some((n: { title: string; icon?: string }) => n.title === "Masaüstü planı" && n.icon === "🚀")), "seçilen emoji notun ikonu olarak kaydedildi");
+
     // Google Takvim: aynı oturumla kendiliğinden bağlandı, birincil takvim Takvim ekranında.
     const calStatus = await page.evaluate(async () => {
       const s = await window.nularcheWeb!.calendar.calendarStatus();
